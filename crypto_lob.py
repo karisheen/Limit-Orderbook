@@ -5,7 +5,6 @@ import requests
 import plotly.graph_objects as go
 import time
 from datetime import datetime
-import threading
 
 # Set page configuration
 st.set_page_config(
@@ -20,7 +19,6 @@ st.markdown("Real-time order book visualization for top cryptocurrencies")
 # Sidebar for cryptocurrency selection
 st.sidebar.header("Settings")
 
-# Get top 100 cryptocurrencies
 @st.cache_data(ttl=3600)  # Cache for 1 hour
 def get_top_cryptos():
     url = "https://api.coingecko.com/api/v3/coins/markets"
@@ -77,32 +75,29 @@ refresh_rate = st.sidebar.slider(
 # Function to fetch order book data
 def fetch_order_book(crypto_id, exchange):
     exchange_id = exchange.lower()
-    
-    # For demonstration, we'll use Binance API for all exchanges
-    # In a production app, you would implement specific API calls for each exchange
     try:
         if exchange_id == "binance":
-            # Convert symbol to Binance format (e.g., BTCUSDT, ETHUSDT)
+            # If you are in the US, use binance.us
             symbol = f"{selected_symbol}USDT"
-            url = f"https://api.binance.com/api/v3/depth"
+            url = "https://api.binance.us/api/v3/depth"
             params = {"symbol": symbol, "limit": 500}
             response = requests.get(url, params=params)
+            
+            if response.status_code == 200:
+                data = response.json()
+                bids = pd.DataFrame(data["bids"], columns=["price", "quantity"], dtype=float)
+                asks = pd.DataFrame(data["asks"], columns=["price", "quantity"], dtype=float)
+                return bids, asks
+            else:
+                st.error(f"Error fetching order book: {response.status_code}")
+                return None, None
         else:
-            # Fallback to CoinGecko for other exchanges (limited data)
+            # Fallback to CoinGecko for other exchanges (limited / synthetic data)
             url = f"https://api.coingecko.com/api/v3/exchanges/{exchange_id}/tickers"
             params = {"coin_ids": crypto_id}
             response = requests.get(url, params=params)
-            
-        if response.status_code == 200:
-            data = response.json()
-            
-            if exchange_id == "binance":
-                # Process Binance data
-                bids = pd.DataFrame(data["bids"], columns=["price", "quantity"], dtype=float)
-                asks = pd.DataFrame(data["asks"], columns=["price", "quantity"], dtype=float)
-            else:
-                # Process CoinGecko data (simplified)
-                # This is a placeholder - CoinGecko doesn't provide full order book
+            if response.status_code == 200:
+                data = response.json()
                 ticker = next((t for t in data["tickers"] if t["base"] == selected_symbol.upper()), None)
                 if ticker:
                     mid_price = ticker["last"]
@@ -114,13 +109,12 @@ def fetch_order_book(crypto_id, exchange):
                     
                     bids = pd.DataFrame({"price": bid_prices, "quantity": bid_quantities})
                     asks = pd.DataFrame({"price": ask_prices, "quantity": ask_quantities})
+                    return bids, asks
                 else:
                     return None, None
-                    
-            return bids, asks
-        else:
-            st.error(f"Error fetching order book: {response.status_code}")
-            return None, None
+            else:
+                st.error(f"Error fetching order book: {response.status_code}")
+                return None, None
     except Exception as e:
         st.error(f"Error: {str(e)}")
         return None, None
@@ -130,14 +124,12 @@ order_book_chart = st.empty()
 bid_ask_table = st.empty()
 price_info = st.empty()
 
-# Function to update the order book visualization
 def update_order_book():
     bids, asks = fetch_order_book(selected_crypto_id, selected_exchange)
-    
     if bids is None or asks is None:
         return
     
-    # Calculate cumulative sums
+    # Sort and compute cumulative sums
     bids = bids.sort_values(by="price", ascending=False)
     asks = asks.sort_values(by="price", ascending=True)
     
@@ -148,10 +140,9 @@ def update_order_book():
     bids = bids.head(selected_depth)
     asks = asks.head(selected_depth)
     
-    # Create order book visualization
     fig = go.Figure()
     
-    # Add bid orders
+    # Plot Bids
     fig.add_trace(go.Bar(
         x=bids["price"],
         y=bids["quantity"],
@@ -159,7 +150,7 @@ def update_order_book():
         marker_color="rgba(0, 128, 0, 0.7)"
     ))
     
-    # Add ask orders
+    # Plot Asks
     fig.add_trace(go.Bar(
         x=asks["price"],
         y=asks["quantity"],
@@ -167,7 +158,7 @@ def update_order_book():
         marker_color="rgba(255, 0, 0, 0.7)"
     ))
     
-    # Add cumulative lines
+    # Plot Cumulative Bids
     fig.add_trace(go.Scatter(
         x=bids["price"],
         y=bids["cumulative"],
@@ -176,6 +167,7 @@ def update_order_book():
         name="Cumulative Bids"
     ))
     
+    # Plot Cumulative Asks
     fig.add_trace(go.Scatter(
         x=asks["price"],
         y=asks["cumulative"],
@@ -184,7 +176,6 @@ def update_order_book():
         name="Cumulative Asks"
     ))
     
-    # Update layout
     fig.update_layout(
         title=f"{selected_symbol}/USD Order Book on {selected_exchange}",
         xaxis_title="Price (USD)",
@@ -194,10 +185,9 @@ def update_order_book():
         height=500
     )
     
-    # Display the chart
     order_book_chart.plotly_chart(fig, use_container_width=True)
     
-    # Display bid/ask table
+    # Bid/Ask Table
     col1, col2 = bid_ask_table.columns(2)
     
     with col1:
@@ -214,7 +204,7 @@ def update_order_book():
             use_container_width=True
         )
     
-    # Display current price info
+    # Current Price Info
     if len(asks) > 0 and len(bids) > 0:
         best_bid = bids.iloc[0]["price"]
         best_ask = asks.iloc[0]["price"]
@@ -231,23 +221,16 @@ def update_order_book():
 if st.sidebar.checkbox("Auto-refresh", value=True):
     st.sidebar.write(f"Refreshing every {refresh_rate} seconds")
     
-    # Initial update
     update_order_book()
     
-    # Set up auto-refresh
-    placeholder = st.empty()
-    
-    # This will only work in the Streamlit app, not in this code editor
     while True:
         time.sleep(refresh_rate)
         update_order_book()
-        placeholder.text(f"Last updated: {datetime.now().strftime('%H:%M:%S')}")
+        st.write(f"Last updated: {datetime.now().strftime('%H:%M:%S')}")
 else:
-    # Manual refresh button
     if st.sidebar.button("Refresh Order Book"):
         update_order_book()
 
-# Footer
 st.markdown("---")
-st.markdown("Data provided by Binance API and CoinGecko")
-st.markdown("Note: For exchanges other than Binance, the order book is simulated for demonstration purposes")
+st.markdown("Data provided by Binance.US API and CoinGecko")
+st.markdown("Note: For exchanges other than Binance, the order book is simulated for demonstration purposes.")
