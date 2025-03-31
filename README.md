@@ -60,17 +60,9 @@ crypto-limit-order-book/
 
 ## Notes
 
-- **Binance.US vs. Binance.com**: If you’re located in the US, the app uses `https://api.binance.us` to avoid HTTP 451 (unavailable for legal reasons) errors.
-- **Simulated Data**: For non-Binance exchanges, the app uses a basic synthetic approach, wrapping around the last known CoinGecko ticker price.
+- **Binance.US vs. Binance.com**: If you're located in the US, the app uses `https://api.binance.us` to avoid HTTP 451 (unavailable for legal reasons) errors.
+- **Simulated Data**: For non-Binance exchanges, it simulates order book data using prices from CoinGecko.
 - **Disclaimer**: This project is for demonstration and educational purposes—no trading advice is given, and data/availability can change over time.
-
-## License
-
-You can add an open-source license (like MIT) or any other license of your choice in a `LICENSE` file, if desired.
-
-## Contributing
-
-Pull requests and issues are welcome. For major changes, please open an issue first to discuss what you would like to change.
 
 ---
 
