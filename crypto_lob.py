@@ -79,44 +79,84 @@ def fetch_order_book(crypto_id, exchange):
         if exchange_id == "binance":
             # If you are in the US, use binance.us
             symbol = f"{selected_symbol}USDT"
+            # Use api.binance.us consistently
             url = "https://api.binance.us/api/v3/depth"
-            params = {"symbol": symbol, "limit": 500}
+            params = {"symbol": symbol, "limit": 500} # Fetch more data initially if needed
             response = requests.get(url, params=params)
-            
+
             if response.status_code == 200:
                 data = response.json()
+                # Ensure data types are correct after fetching
                 bids = pd.DataFrame(data["bids"], columns=["price", "quantity"], dtype=float)
                 asks = pd.DataFrame(data["asks"], columns=["price", "quantity"], dtype=float)
+                # Basic validation
+                if bids.empty or asks.empty:
+                    st.warning(f"Received empty order book data from Binance.US for {symbol}")
+                    return None, None
                 return bids, asks
+            elif response.status_code == 404:
+                 st.error(f"Error fetching order book from Binance.US: Symbol {symbol} not found (404).")
+                 return None, None
+            elif response.status_code == 429:
+                 st.error(f"Error fetching order book from Binance.US: Rate limit exceeded (429). Please wait and try again.")
+                 return None, None
             else:
-                st.error(f"Error fetching order book: {response.status_code}")
+                st.error(f"Error fetching order book from Binance.US: {response.status_code} - {response.text}")
                 return None, None
         else:
-            # Fallback to CoinGecko for other exchanges (limited / synthetic data)
-            url = f"https://api.coingecko.com/api/v3/exchanges/{exchange_id}/tickers"
-            params = {"coin_ids": crypto_id}
+            # Fallback to CoinGecko for other exchanges (synthetic data based on last price)
+            st.warning(f"Fetching simulated data for {exchange} via CoinGecko. This is NOT a real-time order book.")
+            url = f"https://api.coingecko.com/api/v3/simple/price"
+            params = {
+                "ids": crypto_id,
+                "vs_currencies": "usd"
+            }
             response = requests.get(url, params=params)
+
             if response.status_code == 200:
                 data = response.json()
-                ticker = next((t for t in data["tickers"] if t["base"] == selected_symbol.upper()), None)
-                if ticker:
-                    mid_price = ticker["last"]
+                if crypto_id in data and "usd" in data[crypto_id]:
+                    mid_price = data[crypto_id]["usd"]
+                    if mid_price is None or mid_price == 0:
+                         st.error(f"Could not retrieve a valid price for {selected_symbol} from CoinGecko.")
+                         return None, None
+
                     # Generate synthetic order book around the last price
+                    # Ensure price generation logic avoids negative or zero prices
                     bid_prices = [mid_price * (1 - 0.001 * i) for i in range(1, 51)]
                     ask_prices = [mid_price * (1 + 0.001 * i) for i in range(1, 51)]
                     bid_quantities = [np.random.uniform(0.1, 10) for _ in range(50)]
                     ask_quantities = [np.random.uniform(0.1, 10) for _ in range(50)]
-                    
+
                     bids = pd.DataFrame({"price": bid_prices, "quantity": bid_quantities})
                     asks = pd.DataFrame({"price": ask_prices, "quantity": ask_quantities})
+
+                    # Filter out any potentially non-positive prices if mid_price was very low
+                    bids = bids[bids['price'] > 0]
+                    asks = asks[asks['price'] > 0]
+
+                    if bids.empty or asks.empty:
+                        st.error(f"Failed to generate synthetic order book for {selected_symbol}. Mid price might be too low.")
+                        return None, None
+
                     return bids, asks
                 else:
+                    st.error(f"Could not find price data for {selected_symbol} (ID: {crypto_id}) on CoinGecko.")
                     return None, None
-            else:
-                st.error(f"Error fetching order book: {response.status_code}")
+            elif response.status_code == 404:
+                st.error(f"Error fetching price from CoinGecko: Cryptocurrency ID '{crypto_id}' not found (404).")
                 return None, None
+            elif response.status_code == 429:
+                st.error(f"Error fetching price from CoinGecko: Rate limit exceeded (429). Please increase the refresh interval or wait.")
+                return None, None
+            else:
+                st.error(f"Error fetching price from CoinGecko: {response.status_code} - {response.text}")
+                return None, None
+    except requests.exceptions.RequestException as e:
+        st.error(f"Network error fetching order book: {str(e)}")
+        return None, None
     except Exception as e:
-        st.error(f"Error: {str(e)}")
+        st.error(f"An unexpected error occurred in fetch_order_book: {str(e)}")
         return None, None
 
 # Create placeholder for order book visualization
@@ -126,7 +166,15 @@ price_info = st.empty()
 
 def update_order_book():
     bids, asks = fetch_order_book(selected_crypto_id, selected_exchange)
-    if bids is None or asks is None:
+    # Clear previous errors/warnings if any
+    # (Consider placing error display elements consistently if needed)
+
+    if bids is None or asks is None or bids.empty or asks.empty:
+        # Optionally clear the chart and tables if data fetching failed
+        order_book_chart.empty()
+        bid_ask_table.empty()
+        price_info.empty()
+        st.warning("Could not display order book due to data fetching issues.")
         return
     
     # Sort and compute cumulative sums
