@@ -87,8 +87,9 @@ def fetch_order_book(crypto_id, exchange):
             if response.status_code == 200:
                 data = response.json()
                 # Ensure data types are correct after fetching
-                bids = pd.DataFrame(data["bids"], columns=["price", "quantity"], dtype=float)
-                asks = pd.DataFrame(data["asks"], columns=["price", "quantity"], dtype=float)
+                columns = pd.Index(["price", "quantity"])
+                bids = pd.DataFrame(data["bids"], columns=columns, dtype=float)
+                asks = pd.DataFrame(data["asks"], columns=columns, dtype=float)
                 # Basic validation
                 if bids.empty or asks.empty:
                     st.warning(f"Received empty order book data from Binance.US for {symbol}")

@@ -21,10 +21,10 @@ A **Streamlit** application that displays a real-time (or simulated) limit order
 
 2. **Create a Virtual Environment** (optional but recommended):
    ```bash
-   python3 -m venv venv
-   source venv/bin/activate  # On macOS/Linux
+   python3 -m venv .venv
+   source .venv/bin/activate  # On macOS/Linux
    # or
-   venv\Scripts\activate  # On Windows
+   .venv\Scripts\activate  # On Windows
    ```
 
 3. **Install Dependencies**:
@@ -36,6 +36,9 @@ A **Streamlit** application that displays a real-time (or simulated) limit order
    ```bash
    streamlit run crypto_lob.py
    ```
+5. **If imports still show unresolved in the editor**:
+   - Restart the IDE or reload the Python language server.
+   - Make sure the interpreter is set to `.venv/bin/python` (macOS/Linux) or `.venv\Scripts\python.exe` (Windows).
 
 5. **Configure App in Browser**:
    - Select the **cryptocurrency** from the sidebar.
