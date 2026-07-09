@@ -1,72 +1,103 @@
 # Crypto Limit Order Book
 
-A **Streamlit** application that displays a real-time (or simulated) limit order book for various cryptocurrencies. Users can select a cryptocurrency, choose from multiple exchanges, set the order book depth, and customize refresh intervals to see the latest bid/ask data.
+A **Streamlit** dashboard that shows live limit order books for major cryptocurrencies
+across multiple exchanges — websocket-first with automatic REST fallback, styled after
+pro trading UIs (ladder, depth chart, spread history, depth heatmap, venue comparison).
 
 ## Features
 
-- **Top 100 Cryptos**: Automatically fetches a list of the top 100 coins (by market cap) via the [CoinGecko API](https://www.coingecko.com/).
-- **Binance.US Live Order Book**: For Binance (if you are in the US), it uses `binance.us` to pull live order book data.  
-- **Synthetic Order Books**: For other exchanges, it simulates order book data using prices from CoinGecko.
-- **Auto-Refresh**: Optional auto-refresh to keep order book data up-to-date without manual page reloads.
-- **Visualization**: Interactive bar and line plots to visualize bid/ask volume and cumulative quantities.
-- **Order Details**: Displays bid/ask tables, best bid/ask prices, and the spread in both absolute and percentage terms.
+- **Real order book data** from free public APIs on every supported venue (no synthetic books).
+- **Websocket-first ingestion** with reconnect supervision and automatic REST-polling fallback.
+- **Hyperliquid-style ladder**: cumulative depth bars, mid-price/spread row, bid/ask coloring.
+- **Depth chart**: classic cumulative bid/ask area chart around the mid.
+- **Spread history**: rolling spread (bps) and mid-price drift.
+- **Depth heatmap**: liquidity at price levels over time for the primary venue.
+- **Multi-exchange comparison**: per-venue best bid/ask, spread, top-of-book size, and a synthetic NBBO.
+- **Feed health banners**: connected / degraded / disconnected per venue, with data age and last error.
+- **No-crash guarantee**: every network call has timeouts, retries with exponential backoff + jitter, and typed failure paths.
+
+## Exchange Support Matrix
+
+| Venue      | Pair quoted | Live source            | Fallback     | Notes |
+|------------|-------------|------------------------|--------------|-------|
+| Binance.US | `BTCUSDT`   | Websocket (depth20)    | REST polling | Partial-book stream, 1s cadence |
+| Kraken     | `BTC/USD`   | Websocket v2 (book)    | REST polling | Snapshot + delta maintenance |
+| Coinbase   | `BTC-USD`   | REST polling (level 2) | —            | Level-2 WS now requires auth |
+| KuCoin     | `BTC-USDT`  | REST polling           | —            | WS needs token bootstrap; REST is simpler |
+| Bybit      | `BTCUSDT`   | Websocket (orderbook.50)| REST polling| Geo-blocked in the US (shows disconnected) |
+
+Venues quote different pairs (USD vs USDT), so the cross-venue NBBO is approximate.
 
 ## Getting Started
 
-1. **Clone the Repository**:
-   ```bash
-   git clone https://github.com/your-username/crypto-limit-order-book.git
-   cd crypto-limit-order-book
-   ```
-
-2. **Create a Virtual Environment** (optional but recommended):
+1. **Create a virtual environment** (recommended):
    ```bash
    python3 -m venv .venv
-   source .venv/bin/activate  # On macOS/Linux
-   # or
-   .venv\Scripts\activate  # On Windows
+   source .venv/bin/activate  # macOS/Linux
+   # or: .venv\Scripts\activate  # Windows
    ```
 
-3. **Install Dependencies**:
+2. **Install dependencies**:
    ```bash
    pip install -r requirements.txt
    ```
 
-4. **Run the App**:
+3. **Run the app**:
    ```bash
    streamlit run crypto_lob.py
    ```
-5. **If imports still show unresolved in the editor**:
-   - Restart the IDE or reload the Python language server.
-   - Make sure the interpreter is set to `.venv/bin/python` (macOS/Linux) or `.venv\Scripts\python.exe` (Windows).
 
-5. **Configure App in Browser**:
-   - Select the **cryptocurrency** from the sidebar.
-   - Select the **exchange** (Binance, Coinbase, Kraken, Huobi, or KuCoin).
-   - Adjust **order book depth** and **refresh rate**.
-   - Optionally enable **Auto-refresh** to keep data current.
+4. **In the browser sidebar**:
+   - Pick the **asset** (BTC, ETH, SOL, …) and the **exchanges** to watch.
+   - Choose the **primary venue** for the ladder and heatmap.
+   - Toggle panels (depth chart, spread history, heatmap, comparison).
+   - Adjust the UI refresh rate; data ingestion runs continuously in the background.
 
-## Screenshots
-
-*(Add or remove screenshots as you like. For example:)*
-
-![Screenshot of main order book view](./screenshots/order_book_example.png)
-
-## Project Structure
+## Architecture
 
 ```
-crypto-limit-order-book/
-├── crypto_lob.py        # Main Streamlit application
-├── requirements.txt     # Dependencies for the project
-└── README.md            # This readme file
+crypto_lob.py                     # Streamlit UI entrypoint (controls + layout only)
+src/
+├── data/
+│   ├── clients.py                # HttpClient (retry/backoff/timeouts) + WsConnection
+│   └── adapters/                 # One connector per exchange, normalized output
+│       ├── base.py               # Adapter contract + LiveBook (diff-stream maintenance)
+│       ├── binance.py  kraken.py  coinbase.py  kucoin.py  bybit.py
+├── domain/
+│   ├── models.py                 # OrderBookSnapshot, FeedStatus, normalization
+│   ├── symbols.py                # Canonical asset list + per-venue pair mapping
+│   └── orderbook_service.py      # Feed workers, failover, thread-safe state + history
+└── ui/
+    └── components.py             # Ladder, depth chart, spread history, heatmap, comparison
+tests/
+├── test_models.py                # Normalizer + symbol registry
+├── test_adapters.py              # Adapter contract tests with canned payloads
+├── test_resilience.py            # Timeout/429/proxy failures, degraded states
+└── smoke_live.py                 # Manual live REST check across all venues
 ```
 
-## Notes
+### Reliability behavior
 
-- **Binance.US vs. Binance.com**: If you're located in the US, the app uses `https://api.binance.us` to avoid HTTP 451 (unavailable for legal reasons) errors.
-- **Simulated Data**: For non-Binance exchanges, it simulates order book data using prices from CoinGecko.
-- **Disclaimer**: This project is for demonstration and educational purposes—no trading advice is given, and data/availability can change over time.
+- Each REST call: 3 attempts, exponential backoff with jitter, 10s timeout.
+  Retryable: proxy/connection errors, timeouts, HTTP 429/5xx, malformed JSON.
+  Other 4xx fail fast.
+- Websocket feeds: reconnect with capped backoff; after 3 failed sessions the
+  worker permanently falls back to REST polling for that subscription.
+- A feed with data older than 15s is reported **degraded** (stale); a feed with
+  no data is **disconnected**. The UI keeps rendering whatever venues are healthy.
+- History buffers are bounded (spread: 1200 points, depth: 300 snapshots) so
+  long sessions don't grow memory unboundedly.
 
----
+## Tests
 
-*Happy coding, and enjoy the live crypto order book!*
+```bash
+python -m pytest tests/          # unit + contract + resilience tests (no network)
+python tests/smoke_live.py       # optional: live REST smoke check for every venue
+```
+
+## Known free-tier limitations
+
+- **Bybit** blocks US IPs on its public API (CloudFront 403) — the venue will simply show as disconnected.
+- **Coinbase/KuCoin** run on REST polling (2–3s cadence), so their books update slower than websocket venues.
+- Public endpoints are rate limited; if you see 429 errors, reduce the number of subscribed venues.
+- **Disclaimer**: educational project — not trading advice; data quality/availability can change.
