@@ -8,11 +8,11 @@ from src.data.adapters.bybit import BybitAdapter
 from src.data.adapters.coinbase import CoinbaseAdapter
 from src.data.adapters.kraken import KrakenAdapter
 from src.data.adapters.kucoin import KucoinAdapter
-from src.data.clients import FeedError
+from src.data.clients import FeedError, HttpClient
 
 
-class FakeHttp:
-    """Stands in for HttpClient: returns queued payloads."""
+class FakeHttp(HttpClient):
+    """Stands in for HttpClient: returns queued payloads without touching the network."""
 
     def __init__(self, payload):
         self.payload = payload
