@@ -1,0 +1,2808 @@
+{
+  "started_utc": "20261101T182915Z",
+  "scope": "Actual native loopback CLI, HTTP and constrained receive-window WebSocket. Original synthetic demo only; no live feed injected or exchange execution. Concurrent independent18-channel public recorder is running.",
+  "script": "\"\"\"Actual loopback process/HTTP/socket smoke with explicitly synthetic market input.\"\"\"\nimport asyncio\nfrom datetime import datetime, timezone\nimport hashlib\nimport json\nimport os\nfrom pathlib import Path\nimport signal\nimport socket\nimport subprocess\nimport time\nimport traceback\nimport httpx\nfrom websockets.asyncio.client import connect\n\nROOT=Path(__file__).resolve().parents[2]\nSTAMP=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')\nLOCAL=ROOT/'data/m6-smoke'/('operations-'+STAMP)\nLOCAL.mkdir(parents=True)\nOUT=ROOT/'docs/evidence'/('m6-operations-'+STAMP+'.json')\nE={'started_utc':STAMP,'scope':'Actual native loopback CLI, HTTP and constrained receive-window WebSocket. Original synthetic demo only; no live feed injected or exchange execution. Concurrent independent18-channel public recorder is running.','script':Path(__file__).read_text(),'api':[],'processes':[],'assertions':{},'completed':False}\nclient=httpx.Client(base_url='http://127.0.0.1:8067',timeout=30)\nprocess=None\nlog=None\n\ndef check(name,condition,detail=None):\n E['assertions'][name]={'passed':bool(condition),'detail':detail}\n if not condition:raise AssertionError(name)\n\ndef call(route,body=None,method=None,expected=(200,201),headers=None):\n response=client.request(method or ('GET' if body is None else 'POST'),route,json=body,headers=headers)\n value=response.json() if response.headers.get('content-type','').startswith('application/json') else {'text':response.text}\n raw=response.content\n path=LOCAL/('response-'+str(len(E['api']))+'.json')\n path.write_bytes(raw)\n observed=value\n if isinstance(value,dict) and value.get('type')=='frame':\n  observed={k:value.get(k) for k in ('type','session_id','generation','status','selection','source','replay','health','error')}\n  observed['book_present']=value.get('book') is not None\n  observed['telemetry']={k:v for k,v in value.get('telemetry',{}).items() if k!='ingestion'}\n elif isinstance(value,dict) and 'instruments' in value:\n  observed={'sources':value['sources'],'instrument_ids':[i['instrument_id'] for i in value['instruments']]}\n E['api'].append({'route':route,'method':method or ('GET' if body is None else 'POST'),'request':body if not body or len(json.dumps(body))<4096 else {'omitted_oversized_body_bytes':len(json.dumps(body))},'status':response.status_code,'observed':observed,'full_response':{'path':str(path),'sha256':hashlib.sha256(raw).hexdigest(),'bytes':len(raw)}})\n if response.status_code not in expected:raise RuntimeError(f'{route}: {response.status_code} {str(value)[:500]}')\n return value\n\ndef start():\n global process,log\n command=[str(ROOT/'.venv-upgrade/bin/python'),'-m','src.workstation.cli','serve','--port','8067','--max-sessions','3','--state-dir',str(LOCAL/'state')]\n path=LOCAL/('backend-'+str(len(E['processes']))+'.log')\n log=path.open('wb')\n started=time.monotonic()\n process=subprocess.Popen(command,cwd=ROOT,stdout=log,stderr=subprocess.STDOUT,env={**os.environ,'PYTHONPATH':str(ROOT)})\n E['processes'].append({'pid':process.pid,'command':command,'log_path':str(path)})\n deadline=started+60\n while time.monotonic()<deadline:\n  if process.poll() is not None:raise RuntimeError('backend exited during startup')\n  try:\n   if client.get('/health/live').status_code==200:return started\n  except httpx.TransportError:pass\n  time.sleep(.1)\n raise RuntimeError('startup deadline')\n\ndef stop():\n global process,log\n if process is None:return\n if process.poll() is None:process.send_signal(signal.SIGINT)\n try:process.wait(timeout=30)\n except subprocess.TimeoutExpired:\n  process.kill();process.wait(timeout=5);E['forced_termination']=True\n log.close()\n E['processes'][-1].update(exit_code=process.returncode,reaped=True,log=Path(E['processes'][-1]['log_path']).read_text())\n process=None\n\ndef action(frame,route,**values):\n return call('/api/v1/'+route,{'session_id':frame['session_id'],'generation':frame['generation'],**values})\n\nasync def slow_peer(frame,other):\n sock=socket.socket(socket.AF_INET,socket.SOCK_STREAM)\n sock.setsockopt(socket.SOL_SOCKET,socket.SO_RCVBUF,1024)\n sock.setblocking(False)\n await asyncio.get_running_loop().sock_connect(sock,('127.0.0.1',8067))\n async with connect('ws://127.0.0.1:8067/api/v1/stream?session_id='+frame['session_id'],sock=sock,max_queue=1,max_size=16*1024*1024,compression=None,ping_interval=None,close_timeout=2) as ws:\n  action(frame,'replay',action='play',speed='2')\n  samples=[]\n  for index in range(25):\n   await asyncio.sleep(1)\n   state=call('/api/v1/sessions/'+other['session_id'])\n   check('independent_client_survives_slow_peer_'+str(index),state['selection']==other['selection'] and state['replay']['cursor']==other['replay']['cursor'])\n   sessions=call('/api/v1/sessions')['sessions']\n   samples.append({'elapsed_seconds':index+1,'session_ids':[s['id'] for s in sessions]})\n   if not any(s['id']==frame['session_id'] for s in sessions):break\n  E['slow_peer_samples']=samples\n  E['slow_peer_evicted_before_close']=not any(s['id']==frame['session_id'] for s in sessions)\n  await ws.close()\n deadline=time.monotonic()+10\n while time.monotonic()<deadline:\n  sessions=call('/api/v1/sessions')['sessions']\n  if not any(s['id']==frame['session_id'] for s in sessions):break\n  await asyncio.sleep(.1)\n check('slow_peer_cleanup',not any(s['id']==frame['session_id'] for s in sessions))\n\ntry:\n started=start()\n check('liveness_not_readiness',call('/health/live')['live'] and not call('/health/ready',expected=(503,))['ready'])\n deadline=time.monotonic()+60\n while True:\n  catalog=call('/api/v1/instruments')\n  if any(s['mode']=='demo' and s['status']=='ready' for s in catalog['sources']):break\n  if time.monotonic()>deadline:raise RuntimeError('demo readiness deadline')\n  time.sleep(.1)\n btc='binance-global:spot-v3:spot:BTCUSDT'\n eth='binance-global:spot-v3:spot:ETHUSDT'\n sol='binance-global:spot-v3:spot:SOLUSDT'\n first=call('/api/v1/sessions',{'mode':'demo','instrument_id':btc})\n for _ in range(20):\n  if first['book'] is not None and first['health']['ready']:break\n  first=action(first,'replay',action='step',count=20)\n check('usable_native_demo',first['book'] is not None and first['health']['ready'])\n E['cold_process_to_usable_http_seconds']=time.monotonic()-started\n second=call('/api/v1/sessions',{'mode':'demo','instrument_id':eth})\n second=action(second,'replay',action='step',count=100)\n old_generation=first['generation']\n for instrument in (sol,eth,btc)*4:\n  first=action(first,'subscriptions',instrument_id=instrument)\n  check('selected_'+first['generation'],first['selection']['instrument_id']==instrument)\n check('independent_cursor_after_switches',call('/api/v1/sessions/'+second['session_id'])['replay']['cursor']==second['replay']['cursor'])\n call('/api/v1/subscriptions',{'session_id':first['session_id'],'generation':old_generation,'instrument_id':eth},expected=(409,))\n call('/api/v1/sessions',{'mode':'demo'},headers={'Origin':'https://untrusted.example'},expected=(403,))\n call('/health/live',headers={'Host':'untrusted.example'},expected=(400,))\n call('/api/v1/paper/query',{'session_id':first['session_id'],'generation':first['generation'],'padding':'x'*70000},expected=(413,))\n call('/api/v1/paper/query',{'session_id':first['session_id'],'generation':first['generation'],'unexpected':True},expected=(422,))\n third=call('/api/v1/sessions',{'mode':'demo','instrument_id':btc})\n third=action(third,'replay',action='step',count=1000)\n call('/api/v1/sessions',{'mode':'demo'},expected=(429,))\n asyncio.run(slow_peer(third,second))\n for frame in (first,second):call('/api/v1/sessions/'+frame['session_id'],method='DELETE')\n check('all_sessions_released',call('/api/v1/sessions')['sessions']==[])\n check('empty_server_not_ready',not call('/health/ready',expected=(503,))['ready'])\n old_ids={first['session_id'],second['session_id'],third['session_id']}\n stop();start()\n check('restart_has_no_old_sessions',call('/api/v1/sessions')['sessions']==[])\n new=call('/api/v1/sessions',{'mode':'demo','instrument_id':btc})\n check('restart_new_session_identity',new['session_id'] not in old_ids)\n call('/api/v1/sessions/'+new['session_id'],method='DELETE')\n E['completed']=True\nexcept Exception as exc:E['error']={'type':type(exc).__name__,'message':str(exc),'traceback':traceback.format_exc()}\nfinally:\n stop();client.close()\n E['finished_utc']=datetime.now(timezone.utc).isoformat()\n OUT.write_text(json.dumps(E,indent=2)+'\\n')\n print(json.dumps({'evidence':str(OUT),'completed':E['completed'],'error':E.get('error'),'cold_process_to_usable_http_seconds':E.get('cold_process_to_usable_http_seconds'),'slow_peer_evicted_before_close':E.get('slow_peer_evicted_before_close')},indent=2))\nraise SystemExit(0 if E['completed'] else 1)\n",
+  "api": [
+    {
+      "route": "/health/live",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "live": true
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-0.json",
+        "sha256": "4a9218693a2d1a8a0adfbe64e0f05740c08d3c1fa41e7903601ac1867766970b",
+        "bytes": 13
+      }
+    },
+    {
+      "route": "/health/ready",
+      "method": "GET",
+      "request": null,
+      "status": 503,
+      "observed": {
+        "ready": false,
+        "reasons": [
+          "no_ready_source",
+          "no_synchronized_session"
+        ],
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-1.json",
+        "sha256": "77b0efd530d714ded4b66b04dc6647851631b686f9507bd6cad1cb5d2d9560a4",
+        "bytes": 300
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-2.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-3.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-4.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-5.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-6.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-7.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-8.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-9.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-10.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-11.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-12.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-13.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-14.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-15.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-16.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-17.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-18.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-19.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-20.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-21.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-22.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-23.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-24.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-25.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-26.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-27.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-28.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-29.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-30.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-31.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-32.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-33.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "loading",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-34.json",
+        "sha256": "a2d19a92e8dd30e9d3d2165611ca3ee6b4169b11fe673841a954a171379c034e",
+        "bytes": 19033
+      }
+    },
+    {
+      "route": "/api/v1/instruments",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "ready",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ],
+        "instrument_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT",
+          "binance-global:spot-v3:spot:ETHUSDT",
+          "binance-global:spot-v3:spot:SOLUSDT",
+          "hyperliquid:info:perpetual:BTC",
+          "hyperliquid:info:perpetual:ETH",
+          "hyperliquid:info:perpetual:SOL",
+          "hyperliquid:info:perpetual:HYPE",
+          "hyperliquid:info:spot:@107",
+          "coinbase:advanced-trade:spot:BTC-USD",
+          "coinbase:advanced-trade:spot:ETH-USD",
+          "coinbase:advanced-trade:spot:SOL-USD",
+          "kraken:spot-v2:spot:BTC/USD",
+          "kraken:spot-v2:spot:ETH/USD",
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-35.json",
+        "sha256": "6ae49e4fbcbee2dd955e3a2e340a243b9670a75c0b5105bc904cf67c30f148b0",
+        "bytes": 19031
+      }
+    },
+    {
+      "route": "/api/v1/sessions",
+      "method": "POST",
+      "request": {
+        "mode": "demo",
+        "instrument_id": "binance-global:spot-v3:spot:BTCUSDT"
+      },
+      "status": 201,
+      "observed": {
+        "type": "frame",
+        "session_id": "3d55e55602ec4532862fb0e64460f87a",
+        "generation": "1",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:BTCUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "169",
+            "ordinal": "169",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 0,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135810293418977"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-36.json",
+        "sha256": "6e3424fc83a3ec37e697e784ad0ebddd46ae69b5f51df7d931e1bd38e2007689",
+        "bytes": 84915
+      }
+    },
+    {
+      "route": "/api/v1/sessions",
+      "method": "POST",
+      "request": {
+        "mode": "demo",
+        "instrument_id": "binance-global:spot-v3:spot:ETHUSDT"
+      },
+      "status": 201,
+      "observed": {
+        "type": "frame",
+        "session_id": "89ce08d5669f4e2ab2931c0c78c7160f",
+        "generation": "1",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "169",
+            "ordinal": "169",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 0,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135810426177806"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-37.json",
+        "sha256": "6fbd3dc4240ea549d2ef88d1b449e3cfb88dc699352a20607f6da42eb796f0f8",
+        "bytes": 83320
+      }
+    },
+    {
+      "route": "/api/v1/replay",
+      "method": "POST",
+      "request": {
+        "session_id": "89ce08d5669f4e2ab2931c0c78c7160f",
+        "generation": "1",
+        "action": "step",
+        "count": 100
+      },
+      "status": 200,
+      "observed": {
+        "type": "frame",
+        "session_id": "89ce08d5669f4e2ab2931c0c78c7160f",
+        "generation": "1",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "269",
+            "ordinal": "269",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 2,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135810486474476"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-38.json",
+        "sha256": "247396fe1c0e32d36f9962f00d5ef5b83e3348666ae07e11e3a36f868c58681c",
+        "bytes": 96437
+      }
+    },
+    {
+      "route": "/api/v1/subscriptions",
+      "method": "POST",
+      "request": {
+        "session_id": "3d55e55602ec4532862fb0e64460f87a",
+        "generation": "1",
+        "instrument_id": "binance-global:spot-v3:spot:SOLUSDT"
+      },
+      "status": 200,
+      "observed": {
+        "type": "frame",
+        "session_id": "3d55e55602ec4532862fb0e64460f87a",
+        "generation": "2",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:SOLUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "169",
+            "ordinal": "169",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 0,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135810644921190"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-39.json",
+        "sha256": "e68fbf1734eee63c997439e7c783d41fe1bae3773fe7c0b4d6f4bfbfc4d149a6",
+        "bytes": 83217
+      }
+    },
+    {
+      "route": "/api/v1/subscriptions",
+      "method": "POST",
+      "request": {
+        "session_id": "3d55e55602ec4532862fb0e64460f87a",
+        "generation": "2",
+        "instrument_id": "binance-global:spot-v3:spot:ETHUSDT"
+      },
+      "status": 200,
+      "observed": {
+        "type": "frame",
+        "session_id": "3d55e55602ec4532862fb0e64460f87a",
+        "generation": "3",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "169",
+            "ordinal": "169",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 0,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135810770974469"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-40.json",
+        "sha256": "7364788dd7bedd93d8eb4ce7c4eabeeba4e08aee16da04552de258d93c168328",
+        "bytes": 83320
+      }
+    },
+    {
+      "route": "/api/v1/subscriptions",
+      "method": "POST",
+      "request": {
+        "session_id": "3d55e55602ec4532862fb0e64460f87a",
+        "generation": "3",
+        "instrument_id": "binance-global:spot-v3:spot:BTCUSDT"
+      },
+      "status": 200,
+      "observed": {
+        "type": "frame",
+        "session_id": "3d55e55602ec4532862fb0e64460f87a",
+        "generation": "4",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:BTCUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "169",
+            "ordinal": "169",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 0,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135810908716861"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-41.json",
+        "sha256": "acd5226fc7d4ea88b79ed3f5833ee36d569085f0ae0cf6b1e68f69b5a2b67511",
+        "bytes": 84915
+      }
+    },
+    {
+      "route": "/api/v1/subscriptions",
+      "method": "POST",
+      "request": {
+        "session_id": "3d55e55602ec4532862fb0e64460f87a",
+        "generation": "4",
+        "instrument_id": "binance-global:spot-v3:spot:SOLUSDT"
+      },
+      "status": 200,
+      "observed": {
+        "type": "frame",
+        "session_id": "3d55e55602ec4532862fb0e64460f87a",
+        "generation": "5",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:SOLUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "169",
+            "ordinal": "169",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 0,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135810975753862"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-42.json",
+        "sha256": "51d04729b9a78f0bc403d7356c5d9dbbeb33b95833adc7a31648cf772147f3ae",
+        "bytes": 83217
+      }
+    },
+    {
+      "route": "/api/v1/subscriptions",
+      "method": "POST",
+      "request": {
+        "session_id": "3d55e55602ec4532862fb0e64460f87a",
+        "generation": "5",
+        "instrument_id": "binance-global:spot-v3:spot:ETHUSDT"
+      },
+      "status": 200,
+      "observed": {
+        "type": "frame",
+        "session_id": "3d55e55602ec4532862fb0e64460f87a",
+        "generation": "6",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "169",
+            "ordinal": "169",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 0,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135811039005390"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-43.json",
+        "sha256": "97a6263eab87287f26a156666e02b318bd813f2a69f2458487d532ba925d4ca4",
+        "bytes": 83320
+      }
+    },
+    {
+      "route": "/api/v1/subscriptions",
+      "method": "POST",
+      "request": {
+        "session_id": "3d55e55602ec4532862fb0e64460f87a",
+        "generation": "6",
+        "instrument_id": "binance-global:spot-v3:spot:BTCUSDT"
+      },
+      "status": 200,
+      "observed": {
+        "type": "frame",
+        "session_id": "3d55e55602ec4532862fb0e64460f87a",
+        "generation": "7",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:BTCUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "169",
+            "ordinal": "169",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 0,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135811162953576"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-44.json",
+        "sha256": "238dfeeabdf1f3bc16a51b18923e39074d309c10dbf7b7b85d0c99c2970ba11e",
+        "bytes": 84915
+      }
+    },
+    {
+      "route": "/api/v1/subscriptions",
+      "method": "POST",
+      "request": {
+        "session_id": "3d55e55602ec4532862fb0e64460f87a",
+        "generation": "7",
+        "instrument_id": "binance-global:spot-v3:spot:SOLUSDT"
+      },
+      "status": 200,
+      "observed": {
+        "type": "frame",
+        "session_id": "3d55e55602ec4532862fb0e64460f87a",
+        "generation": "8",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:SOLUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "169",
+            "ordinal": "169",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 0,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135811295174228"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-45.json",
+        "sha256": "c15233948397d28baef81aaefd4019b3194cd72af96bee194330f970fdf59d07",
+        "bytes": 83217
+      }
+    },
+    {
+      "route": "/api/v1/subscriptions",
+      "method": "POST",
+      "request": {
+        "session_id": "3d55e55602ec4532862fb0e64460f87a",
+        "generation": "8",
+        "instrument_id": "binance-global:spot-v3:spot:ETHUSDT"
+      },
+      "status": 200,
+      "observed": {
+        "type": "frame",
+        "session_id": "3d55e55602ec4532862fb0e64460f87a",
+        "generation": "9",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "169",
+            "ordinal": "169",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 0,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135811429295623"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-46.json",
+        "sha256": "d0945376b309b53fdda65cfb6fd2c84aa31c2e7b8be9c1ddbc92023921f0ff25",
+        "bytes": 83320
+      }
+    },
+    {
+      "route": "/api/v1/subscriptions",
+      "method": "POST",
+      "request": {
+        "session_id": "3d55e55602ec4532862fb0e64460f87a",
+        "generation": "9",
+        "instrument_id": "binance-global:spot-v3:spot:BTCUSDT"
+      },
+      "status": 200,
+      "observed": {
+        "type": "frame",
+        "session_id": "3d55e55602ec4532862fb0e64460f87a",
+        "generation": "10",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:BTCUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "169",
+            "ordinal": "169",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 0,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135811640597953"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-47.json",
+        "sha256": "b7cafb691ae45f49b5705d874c3fb60500e0efae32db3e4a2a9890ac7289c078",
+        "bytes": 84917
+      }
+    },
+    {
+      "route": "/api/v1/subscriptions",
+      "method": "POST",
+      "request": {
+        "session_id": "3d55e55602ec4532862fb0e64460f87a",
+        "generation": "10",
+        "instrument_id": "binance-global:spot-v3:spot:SOLUSDT"
+      },
+      "status": 200,
+      "observed": {
+        "type": "frame",
+        "session_id": "3d55e55602ec4532862fb0e64460f87a",
+        "generation": "11",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:SOLUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "169",
+            "ordinal": "169",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 0,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135811863736934"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-48.json",
+        "sha256": "53a39451efb154a1bddec2c27ebae0ac8bc27fa93a81b2d6a44d844a2b33dfed",
+        "bytes": 83219
+      }
+    },
+    {
+      "route": "/api/v1/subscriptions",
+      "method": "POST",
+      "request": {
+        "session_id": "3d55e55602ec4532862fb0e64460f87a",
+        "generation": "11",
+        "instrument_id": "binance-global:spot-v3:spot:ETHUSDT"
+      },
+      "status": 200,
+      "observed": {
+        "type": "frame",
+        "session_id": "3d55e55602ec4532862fb0e64460f87a",
+        "generation": "12",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "169",
+            "ordinal": "169",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 0,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135812046381012"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-49.json",
+        "sha256": "fa845b52889a2bb0b671239e168083072101d47cf9426b20d09b967b4e90d41e",
+        "bytes": 83322
+      }
+    },
+    {
+      "route": "/api/v1/subscriptions",
+      "method": "POST",
+      "request": {
+        "session_id": "3d55e55602ec4532862fb0e64460f87a",
+        "generation": "12",
+        "instrument_id": "binance-global:spot-v3:spot:BTCUSDT"
+      },
+      "status": 200,
+      "observed": {
+        "type": "frame",
+        "session_id": "3d55e55602ec4532862fb0e64460f87a",
+        "generation": "13",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:BTCUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "169",
+            "ordinal": "169",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 0,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135812276090130"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-50.json",
+        "sha256": "d2d2a5783059445c65e05ff5a9bdf76870f4cc81833e3eee14ec5027d81507e4",
+        "bytes": 84917
+      }
+    },
+    {
+      "route": "/api/v1/sessions/89ce08d5669f4e2ab2931c0c78c7160f",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "type": "frame",
+        "session_id": "89ce08d5669f4e2ab2931c0c78c7160f",
+        "generation": "1",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "269",
+            "ordinal": "269",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 2,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135812292715701"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-51.json",
+        "sha256": "8caade8697565ad75645c1df23eee2dafa194c1147776bd0fc720b455a8e7efa",
+        "bytes": 96437
+      }
+    },
+    {
+      "route": "/api/v1/subscriptions",
+      "method": "POST",
+      "request": {
+        "session_id": "3d55e55602ec4532862fb0e64460f87a",
+        "generation": "1",
+        "instrument_id": "binance-global:spot-v3:spot:ETHUSDT"
+      },
+      "status": 409,
+      "observed": {
+        "detail": "obsolete session generation"
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-52.json",
+        "sha256": "23874a61641dc7c6d005c7ad00c5bfea9df4a9bc0c59cd63d53f84452edb0e3b",
+        "bytes": 40
+      }
+    },
+    {
+      "route": "/api/v1/sessions",
+      "method": "POST",
+      "request": {
+        "mode": "demo"
+      },
+      "status": 403,
+      "observed": {
+        "detail": "origin not allowed"
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-53.json",
+        "sha256": "84741ddbb2edbf3291e7227d17cd7ce08e1b71c2497bc1124e429ed446053a40",
+        "bytes": 31
+      }
+    },
+    {
+      "route": "/health/live",
+      "method": "GET",
+      "request": null,
+      "status": 400,
+      "observed": {
+        "text": "Invalid host header"
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-54.json",
+        "sha256": "90d293e0042f8a466db75237b86545958237485c75eb712ec7b728de7cf810b3",
+        "bytes": 19
+      }
+    },
+    {
+      "route": "/api/v1/paper/query",
+      "method": "POST",
+      "request": {
+        "omitted_oversized_body_bytes": 70085
+      },
+      "status": 413,
+      "observed": {
+        "detail": "request body too large"
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-55.json",
+        "sha256": "d80a83be26c28729ad4ef2b3be2c7782b9ecfc57d36b5b6e21d7a801ab43990f",
+        "bytes": 35
+      }
+    },
+    {
+      "route": "/api/v1/paper/query",
+      "method": "POST",
+      "request": {
+        "session_id": "3d55e55602ec4532862fb0e64460f87a",
+        "generation": "13",
+        "unexpected": true
+      },
+      "status": 422,
+      "observed": {
+        "detail": [
+          {
+            "type": "extra_forbidden",
+            "loc": [
+              "body",
+              "unexpected"
+            ],
+            "msg": "Extra inputs are not permitted",
+            "input": true
+          }
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-56.json",
+        "sha256": "f541518a47752c7384a92132e1019337bc8f3b8b40429ffddd7167257b6c14cc",
+        "bytes": 119
+      }
+    },
+    {
+      "route": "/api/v1/sessions",
+      "method": "POST",
+      "request": {
+        "mode": "demo",
+        "instrument_id": "binance-global:spot-v3:spot:BTCUSDT"
+      },
+      "status": 201,
+      "observed": {
+        "type": "frame",
+        "session_id": "1f8edee881ba405bb6e941f37c6ddb95",
+        "generation": "1",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:BTCUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "169",
+            "ordinal": "169",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 0,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135812487331416"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-57.json",
+        "sha256": "a319d5eaa6fae7c6495026a970967902f6931276311a22987a3cbd153ea9f6e0",
+        "bytes": 84915
+      }
+    },
+    {
+      "route": "/api/v1/replay",
+      "method": "POST",
+      "request": {
+        "session_id": "1f8edee881ba405bb6e941f37c6ddb95",
+        "generation": "1",
+        "action": "step",
+        "count": 1000
+      },
+      "status": 200,
+      "observed": {
+        "type": "frame",
+        "session_id": "1f8edee881ba405bb6e941f37c6ddb95",
+        "generation": "1",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:BTCUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "1169",
+            "ordinal": "1169",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 25,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135814182317512"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-58.json",
+        "sha256": "af91a05cbc3bb27f3e788a14dbb797e0751df0e0616b0ecb121b419ce75bfae8",
+        "bytes": 207989
+      }
+    },
+    {
+      "route": "/api/v1/sessions",
+      "method": "POST",
+      "request": {
+        "mode": "demo"
+      },
+      "status": 503,
+      "observed": {
+        "detail": "terminal session capacity reached"
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/response-59.json",
+        "sha256": "d6dd47cab3971378e9b9189ee945371166c1bb23017cf0ac9c440cabdd981620",
+        "bytes": 46
+      }
+    }
+  ],
+  "processes": [
+    {
+      "pid": 81295,
+      "command": [
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/.venv-upgrade/bin/python",
+        "-m",
+        "src.workstation.cli",
+        "serve",
+        "--port",
+        "8067",
+        "--max-sessions",
+        "3",
+        "--state-dir",
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/state"
+      ],
+      "log_path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T182915Z/backend-0.log",
+      "exit_code": 2,
+      "reaped": true,
+      "log": "INFO:     Started server process [81295]\nINFO:     Waiting for application startup.\nINFO:     Application startup complete.\nINFO:     Uvicorn running on http://127.0.0.1:8067 (Press CTRL+C to quit)\nINFO:     127.0.0.1:54397 - \"GET /health/live HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /health/live HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /health/ready HTTP/1.1\" 503 Service Unavailable\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/instruments HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"POST /api/v1/sessions HTTP/1.1\" 201 Created\nINFO:     127.0.0.1:54397 - \"POST /api/v1/sessions HTTP/1.1\" 201 Created\nINFO:     127.0.0.1:54397 - \"POST /api/v1/replay HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"POST /api/v1/subscriptions HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"POST /api/v1/subscriptions HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"POST /api/v1/subscriptions HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"POST /api/v1/subscriptions HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"POST /api/v1/subscriptions HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"POST /api/v1/subscriptions HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"POST /api/v1/subscriptions HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"POST /api/v1/subscriptions HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"POST /api/v1/subscriptions HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"POST /api/v1/subscriptions HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"POST /api/v1/subscriptions HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"POST /api/v1/subscriptions HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"GET /api/v1/sessions/89ce08d5669f4e2ab2931c0c78c7160f HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"POST /api/v1/subscriptions HTTP/1.1\" 409 Conflict\nINFO:     127.0.0.1:54397 - \"POST /api/v1/sessions HTTP/1.1\" 403 Forbidden\nINFO:     127.0.0.1:54397 - \"GET /health/live HTTP/1.1\" 400 Bad Request\nINFO:     127.0.0.1:54397 - \"POST /api/v1/paper/query HTTP/1.1\" 413 Content Too Large\nINFO:     127.0.0.1:54397 - \"POST /api/v1/paper/query HTTP/1.1\" 422 Unprocessable Content\nINFO:     127.0.0.1:54397 - \"POST /api/v1/sessions HTTP/1.1\" 201 Created\nINFO:     127.0.0.1:54397 - \"POST /api/v1/replay HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54397 - \"POST /api/v1/sessions HTTP/1.1\" 503 Service Unavailable\nINFO:     Shutting down\nINFO:     Waiting for application shutdown.\nINFO:     Application shutdown complete.\nINFO:     Finished server process [81295]\n{\"complete\": false, \"status\": \"interrupted\"}\n"
+    }
+  ],
+  "assertions": {
+    "liveness_not_readiness": {
+      "passed": true,
+      "detail": null
+    },
+    "usable_native_demo": {
+      "passed": true,
+      "detail": null
+    },
+    "selected_2": {
+      "passed": true,
+      "detail": null
+    },
+    "selected_3": {
+      "passed": true,
+      "detail": null
+    },
+    "selected_4": {
+      "passed": true,
+      "detail": null
+    },
+    "selected_5": {
+      "passed": true,
+      "detail": null
+    },
+    "selected_6": {
+      "passed": true,
+      "detail": null
+    },
+    "selected_7": {
+      "passed": true,
+      "detail": null
+    },
+    "selected_8": {
+      "passed": true,
+      "detail": null
+    },
+    "selected_9": {
+      "passed": true,
+      "detail": null
+    },
+    "selected_10": {
+      "passed": true,
+      "detail": null
+    },
+    "selected_11": {
+      "passed": true,
+      "detail": null
+    },
+    "selected_12": {
+      "passed": true,
+      "detail": null
+    },
+    "selected_13": {
+      "passed": true,
+      "detail": null
+    },
+    "independent_cursor_after_switches": {
+      "passed": true,
+      "detail": null
+    }
+  },
+  "completed": false,
+  "cold_process_to_usable_http_seconds": 6.9556023689801805,
+  "error": {
+    "type": "RuntimeError",
+    "message": "/api/v1/sessions: 503 {'detail': 'terminal session capacity reached'}",
+    "traceback": "Traceback (most recent call last):\n  File \"/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations.py\", line 135, in <module>\n    call('/api/v1/sessions',{'mode':'demo'},expected=(429,))\n    ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations.py\", line 44, in call\n    if response.status_code not in expected:raise RuntimeError(f'{route}: {response.status_code} {str(value)[:500]}')\n                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nRuntimeError: /api/v1/sessions: 503 {'detail': 'terminal session capacity reached'}\n"
+  },
+  "finished_utc": "2026-11-01T18:29:27.482290+00:00"
+}

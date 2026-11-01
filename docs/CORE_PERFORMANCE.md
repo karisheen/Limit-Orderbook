@@ -390,3 +390,168 @@ slots overflowed while2,048 retained all8,258 offered items, peaked at591 items 
 cap, native depth, required-event fidelity and checkpoint cadence are unchanged.
 This measured finite-burst correction does not establish a30-minute or24-hour
 soak pass. Historical512-item measurements above remain unchanged.
+
+## Later M5 service correction and M6 acceptance
+
+The preceding512/2048-slot results remain historical. A later live run exhausted
+2048 recorder slots while the first Arrow table conversion initialized lazily.
+Production now prepares an empty table under the real schema before admission
+and uses4096 items with the unchanged128MiB byte cap. No raw input, required
+normalized transaction, native depth or checkpoint cadence was discarded to
+make this pass. The retained failed run, measured correction and fresh complete
+18-channel30-minute capture are linked from [current readiness](READINESS.md).
+
+The terminal's separate required analytical sink uses256 items/128MiB, counting
+detached in-flight ownership until completion. It submits up to32 already-
+admitted deliveries per worker call in original atomic order; it does not
+coalesce analytical evidence. Per-immutable-book depth totals and frozen
+standing-liquidity tuples are reused only while their native book identity is
+unchanged. Freshness, clocks, trade windows, eligibility and checkpoints remain
+independently evaluated.
+
+The isolated5,000-bid/5,000-ask,100-clock-query diagnostic measured:
+
+| Implementation | Wall seconds | Process CPU seconds |
+| --- | ---: | ---: |
+| Before immutable-book cache |3.415724936 |2.935197 |
+| After immutable-book cache |0.094367886 |0.091319 |
+
+Both the analytical snapshot hash
+`d500b09b8b93c6ff8ebac290dbfc79644bb760bc554fafbf03dc248270af5957`
+and checkpoint/state hash
+`45f1baad1bf2dd28ac1e48a79545fb6d06abbd500a4fb6d0d59bb94656322c42`
+were unchanged. The before profile exposed four million repeated valuations;
+the fixed input/clock/script and original failure evidence are retained in
+`evidence/m5-depth-service-before.json`, `m5-depth-service-after.json` and
+`m5-service-integration.json`. The earlier asynchronous live profile also
+included unrelated event-loop work and is not exclusive owner CPU attribution.
+
+Current M6 native receive-to-validation and four real1x/2x render cohorts,
+including startup failures, causal measurement windows, limited burst margin,
+all commands/hashes and screenshots, are reported in [readiness](READINESS.md).
+Do not substitute reducer-only timing, a synthetic scheduling queue, original
+recording timestamp age or browser draw submission for those boundaries.
+Measured normal-load budgets currently justify retaining Python rather than
+introducing an unmeasured cross-language component.
+
+## M6 complete-source finite replay
+
+[Full report and embedded harness](evidence/m6-pipeline-90s.json) measured the
+unchanged final native implementation on macOS13.7.8/Darwin22.6.0,
+MacBookPro14,1, Intel i5-7360U2.30GHz,4 logical CPUs,8GiB RAM, Python3.13.5.
+The complete12-stream Binance-global/Hyperliquid BTC/ETH/SOL source manifest is
+`d12553c14ee31de1e66db3d2e9247000b81a976826f4f3da8ae072d4622ee5f5`:
+4,252 raw frames,4,276 batches,4,523 events,192 checkpoints. Event mix is
+2,371 book updates,2,068 trades,72 controls and12 explicit `owner_stopped` gaps;
+zero gaps declare capture loss. Original dropped counts/queue highwaters were
+not recorded and remain unknown. Neither venue supplies a book checksum in
+these streams; sequence/shape validation is not a checksum claim.
+
+All native depth was retained: Hyperliquid20 levels per side; observed Binance
+maxima by book were4834/5000,5016/5002 and5008/5015 bid/ask levels. Native
+retained depth is not complete venue-global liquidity. The source's89.207064s
+raw receive span averaged47.664387 frames/s and50.702263 events/s; the peak
+receive-highwater-aligned one-second bucket had193 raw frames.
+
+Both paced runs decoded every raw frame exactly once, matched every normalized
+transaction byte-for-byte and matched final book/state/clock. Scheduling follows
+receive highwater in recorded delivery order, preserving994 disclosed receive
+regressions rather than reordering source evidence. This is a bounded512-token
+metadata queue feeding serial native raw replay, **not** the live feed queue.
+
+| Finite load | Scheduled batches/s | Wall s | CPU s | Peak RSS bytes | Metadata queue highwater | Rejected / remaining |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+|1x|45.004662|97.658637|26.283855|227897344|111|0 / 0|
+|2x|90.009325|49.766759|23.790763|217563136|228|0 / 0|
+
+Every one of2,297 committed valid incremental transactions contributes to each
+row below. Cold/recovery bootstrap, replacement/reset snapshots, staged updates,
+trades and controls/gaps remain separate populations in the full report.
+
+| Load / boundary | p50 ms | p95 ms | p99 ms |
+| --- | ---: | ---: | ---: |
+|1x native decode|0.511210|1.518246|4.004929|
+|1x native reducer apply/validation|3.155741|7.287113|9.461381|
+|1x complete raw replay step, including reader/parity/normalization|6.429200|12.744653|16.911342|
+|1x synthetic metadata queue wait|0.269738|59.241244|1292.972496|
+|2x native decode|0.463126|1.293993|3.935874|
+|2x native reducer apply/validation|2.953460|5.884393|8.815897|
+|2x complete raw replay step, including reader/parity/normalization|5.898796|11.143244|17.340272|
+|2x synthetic metadata queue wait|4.555066|1754.379602|2354.861307|
+
+Nested stages overlap and must not be added. These queue tails are retained,
+not called live-latency passes. The original historical recording predates the
+final source: its receive-to-normalized upper bound for valid incremental
+transactions was p9567.236081ms/p99989.912102ms, exceeding the initial budgets.
+It cannot separate original decode/validation or establish exact receive-to-valid
+latency. Original timestamps remain unchanged. The separately captured current
+native live measurement in [readiness](READINESS.md) establishes only its declared
+finite normal-load window, not an unconditional latency SLO.
+
+## M6 recorder throughput and explicit saturation
+
+[Complete writer report](evidence/m6-recording-90s.json) uses the same hardware,
+complete source and unchanged production checkpoint cadence1000. All8,528
+raw/batch inputs were predecoded under a128MiB admission limit; production
+resident accounting charged38,146,891 bytes. Reader/decode transients and process
+RSS are separate. Runs were sequential, without a concurrent collector/browser.
+
+| Load | Offered batches/s | Written batches/s including startup/drain/seal | Load wall s | CPU s | Process lifetime peak RSS bytes | Queue highwater items / bytes | Complete |
+| --- | ---: | ---: | ---: | ---: | ---: | --- | --- |
+|1x|45.001767|43.609867|98.051204|20.164639|258768896|161 / 8181261|yes|
+|2x|89.998083|83.540845|51.184543|20.358186|335446016|229 / 8376926|yes|
+|Unpaced finite saturation attempt|7784.556587|326.744213|6.319928|6.140228|346251264|4096 / 24957093|**no**|
+
+The highest tested **complete paced** input sustained89.998083 batches/s for
+47.512123 producer seconds, with83.540845 written batches/s over its entire
+51.184543-second load. This is a finite demonstrated rate, not the absolute
+maximum sustainable throughput or a long-run guarantee. Both paced outputs
+preserved all raw/normalized/checkpoint logical bytes, all counts and final
+book/state; raw/normalized replay and strict output checkpoint seek matched.
+Both drained fully with zero rejection, zero accepted-but-unwritten records and
+no deliberate drops. Their12 source gaps are explicit owner stops, not capture loss.
+
+The unpaced attempt reached the real4,096-item production limit and rejected one
+offer. It retained2,054 raw frames/2,065 batches, left2,198 raw frames/2,211 batches
+unoffered and sealed **incomplete** with `queue_overflow` and
+`benchmark_offer_rejected`. All accepted records drained; its retained-prefix
+replay/checkpoint parity passed, but it does not match the complete source.
+The326.744213 partial-write rate is not a healthy sustainable-capacity result.
+No retry, hidden backpressure, increased queue or payload clipping converted
+this overload into a pass.
+
+| Load / measured boundary | p50 ms | p95 ms | p99 ms |
+| --- | ---: | ---: | ---: |
+|1x accepted normalized batch to worker dispatch|1.672749|77.358578|479.059693|
+|1x worker event handling inclusive|1.896960|5.899325|14.765342|
+|2x accepted normalized batch to worker dispatch|3.776684|394.746105|573.686811|
+|2x worker event handling inclusive|1.817219|7.152962|14.229982|
+|Unpaced accepted normalized batch to worker dispatch|3342.832984|4671.625415|5331.296837|
+|Unpaced worker event handling inclusive|0.269659|3.997970|9.306110|
+
+Dispatch includes pre-dispatch disk checks; inclusive nested stages overlap.
+These are writer observations, not live receive-to-valid or browser latency.
+Original capture dropped counts/queue highwaters remain unknown. The retained
+version1 report incorrectly described original processing/publication stamps as
+absent: this writer benchmark **did not analyze them**. The finite pipeline
+report above does analyze available original stamps. The tool now emits version2
+with `source_processing_and_publication_timestamps_analyzed=false`, not an
+availability claim. Original reports were not rewritten. The corrected actual
+tool completed all three native2-second demo loads with full source parity;
+[smoke evidence](evidence/m6-recording-disclosure-smoke.json), Ruff lint and
+format checks passed. Native production source and measurement code were unchanged.
+
+The original complete source was copied non-destructively out of its temporary
+worktree into ignored local data; all77 regular files matched SHA256:
+[retention receipt](evidence/m6-source-retention.json). Large recordings are not
+published to Git. On this workstation, reproduce with a fresh output directory:
+
+```sh
+uv run --locked --offline --no-sync python tools/benchmark_recording.py \
+  --source data/m6-reference/4498db3b-f4a2-4fff-a32e-a97221fa21ee \
+  --output-root data/recording-benchmark-reproduction \
+  --max-load-seconds 180 --preload-byte-limit 134217728
+```
+
+Other machines must supply a verified source or generate the licensed synthetic
+demo; they must not label a different dataset as this measured source.

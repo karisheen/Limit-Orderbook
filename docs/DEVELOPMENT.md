@@ -6,7 +6,7 @@ The workstation requires **Python 3.13** (minimum 3.13.0; Python 3.14 and later
 are not yet supported). The reproducible CI interpreter is **CPython 3.13.5**.
 Use a modern OpenSSL-backed interpreter, not the macOS system Python. CI pins
 **uv 0.8.4**; use that version for matching dependency-management behavior.
-The frontend uses **Node.js 22** and npm when `frontend/package.json` exists.
+The frontend uses **Node.js 22.22.0** and **npm 10.9.4**.
 No Docker, database service, exchange credentials, or wallet is needed for the
 offline development checks.
 
@@ -24,6 +24,7 @@ package manager, then initialize the default environment:
 ```sh
 uv python install 3.13.5
 uv sync --locked --python 3.13.5 --group dev
+npm --prefix frontend ci
 ./tools/check.sh
 ```
 
@@ -31,6 +32,7 @@ To use the existing upgrade environment instead:
 
 ```sh
 UV_PROJECT_ENVIRONMENT=.venv-upgrade uv sync --locked --python 3.13.5 --group dev
+npm --prefix frontend ci
 ./tools/check.sh
 ```
 
@@ -69,8 +71,8 @@ resolve a different environment silently.
 3. mypy on `src/workstation`, including bodies of untyped functions. Untyped
    third-party dependencies may lack stubs (`ignore_missing_imports = true`);
    project errors are not globally suppressed.
-4. The frontend production build if `frontend/package.json` exists; otherwise
-   an explicit not-applicable message, not a claimed frontend pass.
+4. Node syntax checks for browser tooling, frontend lint/unit tests, and the
+   TypeScript/Vite production build.
 
 The thin Streamlit client shares the native API/core; the duplicate legacy
 collectors, reducers and analytics have been removed. Its protocol and exact
@@ -97,15 +99,15 @@ default and from CI; running them is a deliberate separate action:
 uv run --locked --offline --no-sync python -m pytest -m network
 ```
 
-Use the explicit `python -m src.workstation.cli probe --network` and
-`record --network` commands for real public-service checks; see the README for
-venue/asset selection and capture replay. The old `tests/smoke_live.py` and its
-separate collectors were retired. Offline fixture success is not live-feed validation.
+Use `python tools/probe_feeds.py --live` and
+`python -m src.workstation.cli record --network` for real public-service checks;
+see the README for venue/asset selection and capture replay. The old
+`tests/smoke_live.py` and its separate collectors were retired.
+Offline fixture success is not live-feed validation.
 
 ## Frontend and legacy UI
 
-Once the frontend package exists, install its committed npm lock before
-running the shared checks:
+Install the committed npm lock before running the shared checks:
 
 ```sh
 npm --prefix frontend ci

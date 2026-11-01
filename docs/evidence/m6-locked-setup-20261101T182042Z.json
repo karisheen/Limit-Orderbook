@@ -1,0 +1,33 @@
+{
+  "scope": "Fresh isolated locked offline Python environment, real native synthetic demo, npm ci and production build. Existing recording interpreter is not modified.",
+  "script": "\"\"\"Actual locked setup and native demo smoke; no dependency refresh.\"\"\"\nfrom datetime import datetime, timezone\nimport hashlib\nimport json\nimport os\nfrom pathlib import Path\nimport subprocess\nimport time\nROOT=Path(__file__).resolve().parents[2]\nstamp=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')\nlocal=ROOT/'data/m6-smoke'/('setup-'+stamp)\nlocal.mkdir(parents=True)\nlocks=['uv.lock','pyproject.toml','frontend/package-lock.json','frontend/package.json']\ndef hashes():return {p:hashlib.sha256((ROOT/p).read_bytes()).hexdigest() for p in locks}\nevidence={'scope':'Fresh isolated locked offline Python environment, real native synthetic demo, npm ci and production build. Existing recording interpreter is not modified.','script':Path(__file__).read_text(),'started_utc':stamp,'before':hashes(),'steps':[],'completed':False}\nenv={**os.environ,'PATH':str(ROOT/'.tools/node/bin')+os.pathsep+os.environ['PATH'],'PYTHONPATH':str(ROOT)}\ncommands=[('python_locked_setup',['uv','sync','--locked','--offline','--python','3.13.5','--group','dev'],{**env,'UV_PROJECT_ENVIRONMENT':str(local/'python')}),('native_demo',[str(local/'python/bin/python'),'-m','src.workstation.cli','demo','--duration','2','--root',str(local/'demo')],env),('frontend_locked_setup',['npm','--prefix','frontend','ci'],env),('frontend_production_build',['npm','--prefix','frontend','run','build'],env)]\ntry:\n for name,command,environment in commands:\n  start=time.monotonic()\n  result=subprocess.run(command,cwd=ROOT,env=environment,capture_output=True,text=True,timeout=600)\n  evidence['steps'].append({'name':name,'command':command,'exit_code':result.returncode,'wall_seconds':time.monotonic()-start,'stdout':result.stdout,'stderr':result.stderr})\n  if result.returncode:raise RuntimeError(name+' failed')\n evidence['after']=hashes()\n evidence['completed']=evidence['before']==evidence['after']\n if not evidence['completed']:raise RuntimeError('lock or manifest changed')\nexcept Exception as exc:evidence['error']=str(exc)\nfinally:\n evidence['finished_utc']=datetime.now(timezone.utc).isoformat()\n output=ROOT/'docs/evidence'/('m6-locked-setup-'+stamp+'.json')\n output.write_text(json.dumps(evidence,indent=2)+'\\n')\n print(json.dumps({'evidence':str(output),'completed':evidence['completed'],'steps':[{k:v for k,v in row.items() if k not in ('stdout','stderr')} for row in evidence['steps']]},indent=2))\nraise SystemExit(0 if evidence['completed'] else 1)\n",
+  "started_utc": "20261101T182042Z",
+  "before": {
+    "uv.lock": "5963c7bf860f122c0b549ecfe102f7500a7c384e4f1d043c57bd4d097eadf58d",
+    "pyproject.toml": "c220e8917e0b1a81f389b96d9499fcb2a3eee4a96891cb306a937ef1d444bc87",
+    "frontend/package-lock.json": "b6683113c863734bf1e3c56c3b73623e89437c2a40b18270bc7ab740bad81fdd",
+    "frontend/package.json": "37ce036eaeb273bf786152872add623dcba0cdfc6a3b0f235f6ebaf2a219d2d9"
+  },
+  "steps": [
+    {
+      "name": "python_locked_setup",
+      "command": [
+        "uv",
+        "sync",
+        "--locked",
+        "--offline",
+        "--python",
+        "3.13.5",
+        "--group",
+        "dev"
+      ],
+      "exit_code": 1,
+      "wall_seconds": 0.45976050398894586,
+      "stdout": "",
+      "stderr": "Using CPython 3.13.5\nCreating virtual environment at: data/m6-smoke/setup-20261101T182042Z/python\nResolved 61 packages in 37ms\n  \u00d7 Failed to download `pyarrow==26.0.0`\n  \u2570\u2500\u25b6 Network connectivity is disabled, but the\n      requested data wasn't found in the cache for:\n      `https://files.pythonhosted.org/packages/69/ef/b1a675f79c9babfd4fcd99af62141d3c2d1a78a524e311b0c6b80110445a/pyarrow-26.0.0-cp313-cp313-macosx_12_0_x86_64.whl`\n  help: `pyarrow` (v26.0.0) was included because `limit-orderbook-workstation`\n        (v0.1.0) depends on `pyarrow`\n"
+    }
+  ],
+  "completed": false,
+  "error": "python_locked_setup failed",
+  "finished_utc": "2026-11-01T18:20:43.164180+00:00"
+}

@@ -1,0 +1,1402 @@
+{
+  "started_utc": "20261101T183107Z",
+  "scope": "Actual native loopback CLI, HTTP and constrained receive-window WebSocket. Original synthetic demo only; no live feed injected or exchange execution. Concurrent independent18-channel public recorder is running.",
+  "script": "\"\"\"Actual loopback process/HTTP/socket smoke with explicitly synthetic market input.\"\"\"\nimport asyncio\nfrom datetime import datetime, timezone\nimport hashlib\nimport json\nimport os\nfrom pathlib import Path\nimport signal\nimport socket\nimport subprocess\nimport time\nimport traceback\nimport httpx\nfrom websockets.asyncio.client import connect\n\nROOT=Path(__file__).resolve().parents[2]\nSTAMP=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')\nLOCAL=ROOT/'data/m6-smoke'/('operations-'+STAMP)\nLOCAL.mkdir(parents=True)\nOUT=ROOT/'docs/evidence'/('m6-operations-'+STAMP+'.json')\nE={'started_utc':STAMP,'scope':'Actual native loopback CLI, HTTP and constrained receive-window WebSocket. Original synthetic demo only; no live feed injected or exchange execution. Concurrent independent18-channel public recorder is running.','script':Path(__file__).read_text(),'api':[],'processes':[],'assertions':{},'completed':False}\nclient=httpx.Client(base_url='http://127.0.0.1:8067',timeout=30)\nprocess=None\nlog=None\n\ndef check(name,condition,detail=None):\n E['assertions'][name]={'passed':bool(condition),'detail':detail}\n if not condition:raise AssertionError(name)\n\ndef call(route,body=None,method=None,expected=(200,201),headers=None):\n response=client.request(method or ('GET' if body is None else 'POST'),route,json=body,headers=headers)\n value=response.json() if response.headers.get('content-type','').startswith('application/json') else {'text':response.text}\n raw=response.content\n path=LOCAL/('response-'+str(len(E['api']))+'.json')\n path.write_bytes(raw)\n observed=value\n if isinstance(value,dict) and value.get('type')=='frame':\n  observed={k:value.get(k) for k in ('type','session_id','generation','status','selection','source','replay','health','error')}\n  observed['book_present']=value.get('book') is not None\n  observed['telemetry']={k:v for k,v in value.get('telemetry',{}).items() if k!='ingestion'}\n elif isinstance(value,dict) and 'instruments' in value:\n  observed={'sources':value['sources'],'instrument_ids':[i['instrument_id'] for i in value['instruments']]}\n E['api'].append({'route':route,'method':method or ('GET' if body is None else 'POST'),'request':body if not body or len(json.dumps(body))<4096 else {'omitted_oversized_body_bytes':len(json.dumps(body))},'status':response.status_code,'observed':observed,'full_response':{'path':str(path),'sha256':hashlib.sha256(raw).hexdigest(),'bytes':len(raw)}})\n if response.status_code not in expected:raise RuntimeError(f'{route}: {response.status_code} {str(value)[:500]}')\n return value\n\ndef start():\n global process,log\n command=[str(ROOT/'.venv-upgrade/bin/python'),'-m','src.workstation.cli','serve','--port','8067','--max-sessions','3','--state-dir',str(LOCAL/'state')]\n path=LOCAL/('backend-'+str(len(E['processes']))+'.log')\n log=path.open('wb')\n started=time.monotonic()\n process=subprocess.Popen(command,cwd=ROOT,stdout=log,stderr=subprocess.STDOUT,env={**os.environ,'PYTHONPATH':str(ROOT)})\n E['processes'].append({'pid':process.pid,'command':command,'log_path':str(path)})\n deadline=started+60\n while time.monotonic()<deadline:\n  if process.poll() is not None:raise RuntimeError('backend exited during startup')\n  try:\n   if client.get('/health/live').status_code==200:return started\n  except httpx.TransportError:pass\n  time.sleep(.1)\n raise RuntimeError('startup deadline')\n\ndef stop():\n global process,log\n if process is None:return\n if process.poll() is None:process.send_signal(signal.SIGINT)\n try:process.wait(timeout=30)\n except subprocess.TimeoutExpired:\n  process.kill();process.wait(timeout=5);E['forced_termination']=True\n log.close()\n E['processes'][-1].update(exit_code=process.returncode,reaped=True,log=Path(E['processes'][-1]['log_path']).read_text())\n process=None\n\ndef action(frame,route,**values):\n return call('/api/v1/'+route,{'session_id':frame['session_id'],'generation':frame['generation'],**values})\n\nasync def slow_peer(frame,other):\n sock=socket.socket(socket.AF_INET,socket.SOCK_STREAM)\n sock.setsockopt(socket.SOL_SOCKET,socket.SO_RCVBUF,1024)\n sock.setblocking(False)\n await asyncio.get_running_loop().sock_connect(sock,('127.0.0.1',8067))\n async with connect('ws://127.0.0.1:8067/api/v1/stream?session_id='+frame['session_id'],sock=sock,max_queue=1,max_size=16*1024*1024,compression=None,ping_interval=None,close_timeout=2) as ws:\n  action(frame,'replay',action='play',speed='2')\n  samples=[]\n  for index in range(25):\n   await asyncio.sleep(1)\n   state=call('/api/v1/sessions/'+other['session_id'])\n   check('independent_client_survives_slow_peer_'+str(index),state['selection']==other['selection'] and state['replay']['cursor']==other['replay']['cursor'])\n   sessions=call('/api/v1/sessions')['sessions']\n   samples.append({'elapsed_seconds':index+1,'session_ids':[s['id'] for s in sessions]})\n   if not any(s['id']==frame['session_id'] for s in sessions):break\n  E['slow_peer_samples']=samples\n  E['slow_peer_evicted_before_close']=not any(s['id']==frame['session_id'] for s in sessions)\n  await ws.close()\n deadline=time.monotonic()+10\n while time.monotonic()<deadline:\n  sessions=call('/api/v1/sessions')['sessions']\n  if not any(s['id']==frame['session_id'] for s in sessions):break\n  await asyncio.sleep(.1)\n check('slow_peer_cleanup',not any(s['id']==frame['session_id'] for s in sessions))\n\ntry:\n E['continuation_of']='m6-operations-20261101T182915Z.json'\n E['continuation_scope']='Only capacity/slow-peer/cleanup/restart remain. Prior startup,12 switches,independent cursor and input-boundary checks passed before the harness incorrectly expected429 instead of the native503 capacity contract.'\n started=start()\n btc='binance-global:spot-v3:spot:BTCUSDT'\n eth='binance-global:spot-v3:spot:ETHUSDT'\n sol='binance-global:spot-v3:spot:SOLUSDT'\n first=call('/api/v1/sessions',{'mode':'demo','instrument_id':btc})\n second=call('/api/v1/sessions',{'mode':'demo','instrument_id':eth})\n second=action(second,'replay',action='step',count=100)\n third=call('/api/v1/sessions',{'mode':'demo','instrument_id':btc})\n third=action(third,'replay',action='step',count=1000)\n call('/api/v1/sessions',{'mode':'demo'},expected=(503,))\n asyncio.run(slow_peer(third,second))\n for frame in (first,second):call('/api/v1/sessions/'+frame['session_id'],method='DELETE')\n check('all_sessions_released',call('/api/v1/sessions')['sessions']==[])\n check('empty_server_not_ready',not call('/health/ready',expected=(503,))['ready'])\n old_ids={first['session_id'],second['session_id'],third['session_id']}\n stop();start()\n check('restart_has_no_old_sessions',call('/api/v1/sessions')['sessions']==[])\n new=call('/api/v1/sessions',{'mode':'demo','instrument_id':btc})\n check('restart_new_session_identity',new['session_id'] not in old_ids)\n call('/api/v1/sessions/'+new['session_id'],method='DELETE')\n E['completed']=True\nexcept Exception as exc:E['error']={'type':type(exc).__name__,'message':str(exc),'traceback':traceback.format_exc()}\nfinally:\n stop();client.close()\n E['finished_utc']=datetime.now(timezone.utc).isoformat()\n OUT.write_text(json.dumps(E,indent=2)+'\\n')\n print(json.dumps({'evidence':str(OUT),'completed':E['completed'],'error':E.get('error'),'cold_process_to_usable_http_seconds':E.get('cold_process_to_usable_http_seconds'),'slow_peer_evicted_before_close':E.get('slow_peer_evicted_before_close')},indent=2))\nraise SystemExit(0 if E['completed'] else 1)\n",
+  "api": [
+    {
+      "route": "/api/v1/sessions",
+      "method": "POST",
+      "request": {
+        "mode": "demo",
+        "instrument_id": "binance-global:spot-v3:spot:BTCUSDT"
+      },
+      "status": 201,
+      "observed": {
+        "type": "frame",
+        "session_id": "71478c0ffaa64897a2fbf2874fa6f804",
+        "generation": "1",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:BTCUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "169",
+            "ordinal": "169",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 0,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135919239597070"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/response-0.json",
+        "sha256": "7e5a933c1473efe14ccf358bb4bbb1845a8a8ea45a0d11d97173e6544905e857",
+        "bytes": 84915
+      }
+    },
+    {
+      "route": "/api/v1/sessions",
+      "method": "POST",
+      "request": {
+        "mode": "demo",
+        "instrument_id": "binance-global:spot-v3:spot:ETHUSDT"
+      },
+      "status": 201,
+      "observed": {
+        "type": "frame",
+        "session_id": "50cdbb2f4e944544a09ebaaef23f6cbe",
+        "generation": "1",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "169",
+            "ordinal": "169",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 0,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135919373534053"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/response-1.json",
+        "sha256": "ec716843d69d3233b1de8373c758dfde40718dc13dad1261c7e552801336fc17",
+        "bytes": 83320
+      }
+    },
+    {
+      "route": "/api/v1/replay",
+      "method": "POST",
+      "request": {
+        "session_id": "50cdbb2f4e944544a09ebaaef23f6cbe",
+        "generation": "1",
+        "action": "step",
+        "count": 100
+      },
+      "status": 200,
+      "observed": {
+        "type": "frame",
+        "session_id": "50cdbb2f4e944544a09ebaaef23f6cbe",
+        "generation": "1",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "269",
+            "ordinal": "269",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 2,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135919438429636"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/response-2.json",
+        "sha256": "fba30cc67373cd18750a2d86b36cb391651209dd466407117f0fffa7d6537d0e",
+        "bytes": 96437
+      }
+    },
+    {
+      "route": "/api/v1/sessions",
+      "method": "POST",
+      "request": {
+        "mode": "demo",
+        "instrument_id": "binance-global:spot-v3:spot:BTCUSDT"
+      },
+      "status": 201,
+      "observed": {
+        "type": "frame",
+        "session_id": "ef0c1b3bafe34532bf3f495a7fdf5f2f",
+        "generation": "1",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:BTCUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "169",
+            "ordinal": "169",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 0,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135919584094007"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/response-3.json",
+        "sha256": "c1cb2c9ec20efcf595d02c328641af138f7274d6dd758b580e9d0eab156dac77",
+        "bytes": 84915
+      }
+    },
+    {
+      "route": "/api/v1/replay",
+      "method": "POST",
+      "request": {
+        "session_id": "ef0c1b3bafe34532bf3f495a7fdf5f2f",
+        "generation": "1",
+        "action": "step",
+        "count": 1000
+      },
+      "status": 200,
+      "observed": {
+        "type": "frame",
+        "session_id": "ef0c1b3bafe34532bf3f495a7fdf5f2f",
+        "generation": "1",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:BTCUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "1169",
+            "ordinal": "1169",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 25,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135920105858403"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/response-4.json",
+        "sha256": "702b2acea85aff1b2e7aa34e743e7a8e925ae8afd3c468d3e715adf694444627",
+        "bytes": 207989
+      }
+    },
+    {
+      "route": "/api/v1/sessions",
+      "method": "POST",
+      "request": {
+        "mode": "demo"
+      },
+      "status": 503,
+      "observed": {
+        "detail": "terminal session capacity reached"
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/response-5.json",
+        "sha256": "d6dd47cab3971378e9b9189ee945371166c1bb23017cf0ac9c440cabdd981620",
+        "bytes": 46
+      }
+    },
+    {
+      "route": "/api/v1/replay",
+      "method": "POST",
+      "request": {
+        "session_id": "ef0c1b3bafe34532bf3f495a7fdf5f2f",
+        "generation": "1",
+        "action": "play",
+        "speed": "2"
+      },
+      "status": 200,
+      "observed": {
+        "type": "frame",
+        "session_id": "ef0c1b3bafe34532bf3f495a7fdf5f2f",
+        "generation": "1",
+        "status": "playing",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:BTCUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "1169",
+            "ordinal": "1169",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "playing",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 25,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135920158212721"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/response-6.json",
+        "sha256": "c936e75e291c0d0d890a37d72d98e143c9353240fd69c663d5142de7d40bcbf0",
+        "bytes": 207991
+      }
+    },
+    {
+      "route": "/api/v1/sessions/50cdbb2f4e944544a09ebaaef23f6cbe",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "type": "frame",
+        "session_id": "50cdbb2f4e944544a09ebaaef23f6cbe",
+        "generation": "1",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "269",
+            "ordinal": "269",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 2,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135921192962369"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/response-7.json",
+        "sha256": "2942d000d5c8dc0e5099d2ed61178224dc9de81b155083b2bc9b5aa99f516ce8",
+        "bytes": 96437
+      }
+    },
+    {
+      "route": "/api/v1/sessions",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sessions": [
+          {
+            "id": "71478c0ffaa64897a2fbf2874fa6f804",
+            "generation": "1",
+            "mode": "demo",
+            "source_id": "synthetic-demo-v3-180s",
+            "status": "paused"
+          },
+          {
+            "id": "50cdbb2f4e944544a09ebaaef23f6cbe",
+            "generation": "1",
+            "mode": "demo",
+            "source_id": "synthetic-demo-v3-180s",
+            "status": "paused"
+          },
+          {
+            "id": "ef0c1b3bafe34532bf3f495a7fdf5f2f",
+            "generation": "1",
+            "mode": "demo",
+            "source_id": "synthetic-demo-v3-180s",
+            "status": "playing"
+          }
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/response-8.json",
+        "sha256": "36fd8d3871f37c1955a0f7588b91c29b3b0537919556212e15b604dbe0b0426c",
+        "bytes": 399
+      }
+    },
+    {
+      "route": "/api/v1/sessions/50cdbb2f4e944544a09ebaaef23f6cbe",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "type": "frame",
+        "session_id": "50cdbb2f4e944544a09ebaaef23f6cbe",
+        "generation": "1",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "269",
+            "ordinal": "269",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 2,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135922219854254"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/response-9.json",
+        "sha256": "2b580a51a2c5f0fc8e62a506a113c475fb1f4b56a50b48cac864d95edb4d7f6c",
+        "bytes": 96437
+      }
+    },
+    {
+      "route": "/api/v1/sessions",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sessions": [
+          {
+            "id": "71478c0ffaa64897a2fbf2874fa6f804",
+            "generation": "1",
+            "mode": "demo",
+            "source_id": "synthetic-demo-v3-180s",
+            "status": "paused"
+          },
+          {
+            "id": "50cdbb2f4e944544a09ebaaef23f6cbe",
+            "generation": "1",
+            "mode": "demo",
+            "source_id": "synthetic-demo-v3-180s",
+            "status": "paused"
+          },
+          {
+            "id": "ef0c1b3bafe34532bf3f495a7fdf5f2f",
+            "generation": "1",
+            "mode": "demo",
+            "source_id": "synthetic-demo-v3-180s",
+            "status": "playing"
+          }
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/response-10.json",
+        "sha256": "36fd8d3871f37c1955a0f7588b91c29b3b0537919556212e15b604dbe0b0426c",
+        "bytes": 399
+      }
+    },
+    {
+      "route": "/api/v1/sessions/50cdbb2f4e944544a09ebaaef23f6cbe",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "type": "frame",
+        "session_id": "50cdbb2f4e944544a09ebaaef23f6cbe",
+        "generation": "1",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "269",
+            "ordinal": "269",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 2,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135923240836133"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/response-11.json",
+        "sha256": "69737787ccbe996168cbc03a2959bcc6fde9cb1f79cf51cb257d224e6c74052a",
+        "bytes": 96437
+      }
+    },
+    {
+      "route": "/api/v1/sessions",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sessions": [
+          {
+            "id": "71478c0ffaa64897a2fbf2874fa6f804",
+            "generation": "1",
+            "mode": "demo",
+            "source_id": "synthetic-demo-v3-180s",
+            "status": "paused"
+          },
+          {
+            "id": "50cdbb2f4e944544a09ebaaef23f6cbe",
+            "generation": "1",
+            "mode": "demo",
+            "source_id": "synthetic-demo-v3-180s",
+            "status": "paused"
+          },
+          {
+            "id": "ef0c1b3bafe34532bf3f495a7fdf5f2f",
+            "generation": "1",
+            "mode": "demo",
+            "source_id": "synthetic-demo-v3-180s",
+            "status": "playing"
+          }
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/response-12.json",
+        "sha256": "36fd8d3871f37c1955a0f7588b91c29b3b0537919556212e15b604dbe0b0426c",
+        "bytes": 399
+      }
+    },
+    {
+      "route": "/api/v1/sessions/50cdbb2f4e944544a09ebaaef23f6cbe",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "type": "frame",
+        "session_id": "50cdbb2f4e944544a09ebaaef23f6cbe",
+        "generation": "1",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "269",
+            "ordinal": "269",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 2,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135924263405607"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/response-13.json",
+        "sha256": "100e3ae5be3b2a376e74c8e137453d5361a3261769b6285c2b3b22dcb2a12c9c",
+        "bytes": 96437
+      }
+    },
+    {
+      "route": "/api/v1/sessions",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sessions": [
+          {
+            "id": "71478c0ffaa64897a2fbf2874fa6f804",
+            "generation": "1",
+            "mode": "demo",
+            "source_id": "synthetic-demo-v3-180s",
+            "status": "paused"
+          },
+          {
+            "id": "50cdbb2f4e944544a09ebaaef23f6cbe",
+            "generation": "1",
+            "mode": "demo",
+            "source_id": "synthetic-demo-v3-180s",
+            "status": "paused"
+          },
+          {
+            "id": "ef0c1b3bafe34532bf3f495a7fdf5f2f",
+            "generation": "1",
+            "mode": "demo",
+            "source_id": "synthetic-demo-v3-180s",
+            "status": "playing"
+          }
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/response-14.json",
+        "sha256": "36fd8d3871f37c1955a0f7588b91c29b3b0537919556212e15b604dbe0b0426c",
+        "bytes": 399
+      }
+    },
+    {
+      "route": "/api/v1/sessions/50cdbb2f4e944544a09ebaaef23f6cbe",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "type": "frame",
+        "session_id": "50cdbb2f4e944544a09ebaaef23f6cbe",
+        "generation": "1",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "269",
+            "ordinal": "269",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 2,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135925289037211"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/response-15.json",
+        "sha256": "5ffcfb26cecba02c08d53cb341e52ca14833992699696891bd68f23a19f1697f",
+        "bytes": 96437
+      }
+    },
+    {
+      "route": "/api/v1/sessions",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sessions": [
+          {
+            "id": "71478c0ffaa64897a2fbf2874fa6f804",
+            "generation": "1",
+            "mode": "demo",
+            "source_id": "synthetic-demo-v3-180s",
+            "status": "paused"
+          },
+          {
+            "id": "50cdbb2f4e944544a09ebaaef23f6cbe",
+            "generation": "1",
+            "mode": "demo",
+            "source_id": "synthetic-demo-v3-180s",
+            "status": "paused"
+          },
+          {
+            "id": "ef0c1b3bafe34532bf3f495a7fdf5f2f",
+            "generation": "1",
+            "mode": "demo",
+            "source_id": "synthetic-demo-v3-180s",
+            "status": "playing"
+          }
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/response-16.json",
+        "sha256": "36fd8d3871f37c1955a0f7588b91c29b3b0537919556212e15b604dbe0b0426c",
+        "bytes": 399
+      }
+    },
+    {
+      "route": "/api/v1/sessions/50cdbb2f4e944544a09ebaaef23f6cbe",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "type": "frame",
+        "session_id": "50cdbb2f4e944544a09ebaaef23f6cbe",
+        "generation": "1",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "269",
+            "ordinal": "269",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 2,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135926312075037"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/response-17.json",
+        "sha256": "91e6f165c7e747966a82313782ab6ec65507c46b406501cdc8be038b2ee6a2c6",
+        "bytes": 96437
+      }
+    },
+    {
+      "route": "/api/v1/sessions",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sessions": [
+          {
+            "id": "71478c0ffaa64897a2fbf2874fa6f804",
+            "generation": "1",
+            "mode": "demo",
+            "source_id": "synthetic-demo-v3-180s",
+            "status": "paused"
+          },
+          {
+            "id": "50cdbb2f4e944544a09ebaaef23f6cbe",
+            "generation": "1",
+            "mode": "demo",
+            "source_id": "synthetic-demo-v3-180s",
+            "status": "paused"
+          },
+          {
+            "id": "ef0c1b3bafe34532bf3f495a7fdf5f2f",
+            "generation": "1",
+            "mode": "demo",
+            "source_id": "synthetic-demo-v3-180s",
+            "status": "playing"
+          }
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/response-18.json",
+        "sha256": "36fd8d3871f37c1955a0f7588b91c29b3b0537919556212e15b604dbe0b0426c",
+        "bytes": 399
+      }
+    },
+    {
+      "route": "/api/v1/sessions/50cdbb2f4e944544a09ebaaef23f6cbe",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "type": "frame",
+        "session_id": "50cdbb2f4e944544a09ebaaef23f6cbe",
+        "generation": "1",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "269",
+            "ordinal": "269",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 2,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135927335911007"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/response-19.json",
+        "sha256": "3373326689123a0396543def909d956dae74fa0ae553ea4dde25411e02cb907e",
+        "bytes": 96437
+      }
+    },
+    {
+      "route": "/api/v1/sessions",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sessions": [
+          {
+            "id": "71478c0ffaa64897a2fbf2874fa6f804",
+            "generation": "1",
+            "mode": "demo",
+            "source_id": "synthetic-demo-v3-180s",
+            "status": "paused"
+          },
+          {
+            "id": "50cdbb2f4e944544a09ebaaef23f6cbe",
+            "generation": "1",
+            "mode": "demo",
+            "source_id": "synthetic-demo-v3-180s",
+            "status": "paused"
+          }
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/response-20.json",
+        "sha256": "dade96a02ad9c1ddf2393c3965f6e5660f697e6a4892cbd77347618ccbdf14be",
+        "bytes": 270
+      }
+    },
+    {
+      "route": "/api/v1/sessions",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sessions": [
+          {
+            "id": "71478c0ffaa64897a2fbf2874fa6f804",
+            "generation": "1",
+            "mode": "demo",
+            "source_id": "synthetic-demo-v3-180s",
+            "status": "paused"
+          },
+          {
+            "id": "50cdbb2f4e944544a09ebaaef23f6cbe",
+            "generation": "1",
+            "mode": "demo",
+            "source_id": "synthetic-demo-v3-180s",
+            "status": "paused"
+          }
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/response-21.json",
+        "sha256": "dade96a02ad9c1ddf2393c3965f6e5660f697e6a4892cbd77347618ccbdf14be",
+        "bytes": 270
+      }
+    },
+    {
+      "route": "/api/v1/sessions/71478c0ffaa64897a2fbf2874fa6f804",
+      "method": "DELETE",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "closed": true
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/response-22.json",
+        "sha256": "fc77b5831e1795c8de5fcce3b8939de723c7abc50225584ea800a2c7355ed241",
+        "bytes": 15
+      }
+    },
+    {
+      "route": "/api/v1/sessions/50cdbb2f4e944544a09ebaaef23f6cbe",
+      "method": "DELETE",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "closed": true
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/response-23.json",
+        "sha256": "fc77b5831e1795c8de5fcce3b8939de723c7abc50225584ea800a2c7355ed241",
+        "bytes": 15
+      }
+    },
+    {
+      "route": "/api/v1/sessions",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sessions": []
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/response-24.json",
+        "sha256": "a1179f88a4a67a27ff6c7922fd583ba4fc86888f4882350e58bb15d0158adb76",
+        "bytes": 15
+      }
+    },
+    {
+      "route": "/health/ready",
+      "method": "GET",
+      "request": null,
+      "status": 503,
+      "observed": {
+        "ready": false,
+        "reasons": [
+          "no_synchronized_session"
+        ],
+        "sources": [
+          {
+            "id": "synthetic-demo-v3-180s",
+            "mode": "demo",
+            "label": "Synthetic 180s / 38 streams (memory, not recording)",
+            "status": "ready",
+            "synthetic": true,
+            "recording": false,
+            "duration_ns": "180000000000",
+            "streams": 38,
+            "reasons": []
+          }
+        ]
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/response-25.json",
+        "sha256": "0dfe6df3f2dabcbafb346740d9f9c47ce4f57bb465160afff2385d946fb2ebdf",
+        "bytes": 280
+      }
+    },
+    {
+      "route": "/api/v1/sessions",
+      "method": "GET",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "sessions": []
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/response-26.json",
+        "sha256": "a1179f88a4a67a27ff6c7922fd583ba4fc86888f4882350e58bb15d0158adb76",
+        "bytes": 15
+      }
+    },
+    {
+      "route": "/api/v1/sessions",
+      "method": "POST",
+      "request": {
+        "mode": "demo",
+        "instrument_id": "binance-global:spot-v3:spot:BTCUSDT"
+      },
+      "status": 201,
+      "observed": {
+        "type": "frame",
+        "session_id": "5b66684f94fd413188b7b757b36b5b8e",
+        "generation": "1",
+        "status": "paused",
+        "selection": {
+          "instrument_id": "binance-global:spot-v3:spot:BTCUSDT"
+        },
+        "source": {
+          "id": "synthetic-demo-v3-180s",
+          "mode": "demo",
+          "label": "Synthetic 180s / 38 streams (memory, not recording)",
+          "status": "ready",
+          "synthetic": true,
+          "recording": false,
+          "duration_ns": "180000000000",
+          "streams": 38,
+          "reasons": []
+        },
+        "replay": {
+          "cursor": {
+            "delivery_index": "169",
+            "ordinal": "169",
+            "event_index": "0"
+          },
+          "speed": "1",
+          "status": "paused",
+          "total_deliveries": "6970"
+        },
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "error": null,
+        "book_present": true,
+        "telemetry": {
+          "queue_depth": 0,
+          "queue_highwater": 0,
+          "coalesced": 0,
+          "overflows": 0,
+          "ack_expired": 0,
+          "observer_duration_ms": null,
+          "queue_wait_ms": null,
+          "publish_to_ack_upper_bound_ms": null,
+          "browser_receive_to_paint_ms": null,
+          "published_mono_ns": "135939293893668"
+        }
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/response-27.json",
+        "sha256": "9a390d752bd2179d1f114a73e16e8498d2c2163e2ffe60e5f79725354f15830b",
+        "bytes": 84915
+      }
+    },
+    {
+      "route": "/api/v1/sessions/5b66684f94fd413188b7b757b36b5b8e",
+      "method": "DELETE",
+      "request": null,
+      "status": 200,
+      "observed": {
+        "closed": true
+      },
+      "full_response": {
+        "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/response-28.json",
+        "sha256": "fc77b5831e1795c8de5fcce3b8939de723c7abc50225584ea800a2c7355ed241",
+        "bytes": 15
+      }
+    }
+  ],
+  "processes": [
+    {
+      "pid": 81535,
+      "command": [
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/.venv-upgrade/bin/python",
+        "-m",
+        "src.workstation.cli",
+        "serve",
+        "--port",
+        "8067",
+        "--max-sessions",
+        "3",
+        "--state-dir",
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/state"
+      ],
+      "log_path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/backend-0.log",
+      "exit_code": 2,
+      "reaped": true,
+      "log": "INFO:     Started server process [81535]\nINFO:     Waiting for application startup.\nINFO:     Application startup complete.\nINFO:     Uvicorn running on http://127.0.0.1:8067 (Press CTRL+C to quit)\nINFO:     127.0.0.1:54451 - \"GET /health/live HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54451 - \"POST /api/v1/sessions HTTP/1.1\" 201 Created\nINFO:     127.0.0.1:54451 - \"POST /api/v1/sessions HTTP/1.1\" 201 Created\nINFO:     127.0.0.1:54451 - \"POST /api/v1/replay HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54451 - \"POST /api/v1/sessions HTTP/1.1\" 201 Created\nINFO:     127.0.0.1:54451 - \"POST /api/v1/replay HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54451 - \"POST /api/v1/sessions HTTP/1.1\" 503 Service Unavailable\nINFO:     127.0.0.1:54455 - \"WebSocket /api/v1/stream?session_id=ef0c1b3bafe34532bf3f495a7fdf5f2f\" [accepted]\nINFO:     connection open\nINFO:     127.0.0.1:54451 - \"POST /api/v1/replay HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54451 - \"GET /api/v1/sessions/50cdbb2f4e944544a09ebaaef23f6cbe HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54451 - \"GET /api/v1/sessions HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54451 - \"GET /api/v1/sessions/50cdbb2f4e944544a09ebaaef23f6cbe HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54451 - \"GET /api/v1/sessions HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54451 - \"GET /api/v1/sessions/50cdbb2f4e944544a09ebaaef23f6cbe HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54451 - \"GET /api/v1/sessions HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54451 - \"GET /api/v1/sessions/50cdbb2f4e944544a09ebaaef23f6cbe HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54451 - \"GET /api/v1/sessions HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54451 - \"GET /api/v1/sessions/50cdbb2f4e944544a09ebaaef23f6cbe HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54451 - \"GET /api/v1/sessions HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54451 - \"GET /api/v1/sessions/50cdbb2f4e944544a09ebaaef23f6cbe HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54451 - \"GET /api/v1/sessions HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54451 - \"GET /api/v1/sessions/50cdbb2f4e944544a09ebaaef23f6cbe HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54451 - \"GET /api/v1/sessions HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54451 - \"GET /api/v1/sessions HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54451 - \"DELETE /api/v1/sessions/71478c0ffaa64897a2fbf2874fa6f804 HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54451 - \"DELETE /api/v1/sessions/50cdbb2f4e944544a09ebaaef23f6cbe HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54451 - \"GET /api/v1/sessions HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54451 - \"GET /health/ready HTTP/1.1\" 503 Service Unavailable\nINFO:     Shutting down\nINFO:     Waiting for application shutdown.\nINFO:     Application shutdown complete.\nINFO:     Finished server process [81535]\n{\"complete\": false, \"status\": \"interrupted\"}\n"
+    },
+    {
+      "pid": 81699,
+      "command": [
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/.venv-upgrade/bin/python",
+        "-m",
+        "src.workstation.cli",
+        "serve",
+        "--port",
+        "8067",
+        "--max-sessions",
+        "3",
+        "--state-dir",
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/state"
+      ],
+      "log_path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/operations-20261101T183107Z/backend-1.log",
+      "exit_code": 2,
+      "reaped": true,
+      "log": "INFO:     Started server process [81699]\nINFO:     Waiting for application startup.\nINFO:     Application startup complete.\nINFO:     Uvicorn running on http://127.0.0.1:8067 (Press CTRL+C to quit)\nINFO:     127.0.0.1:54495 - \"GET /health/live HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54495 - \"GET /api/v1/sessions HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:54495 - \"POST /api/v1/sessions HTTP/1.1\" 201 Created\nINFO:     127.0.0.1:54495 - \"DELETE /api/v1/sessions/5b66684f94fd413188b7b757b36b5b8e HTTP/1.1\" 200 OK\nINFO:     Shutting down\nINFO:     Waiting for application shutdown.\nINFO:     Application shutdown complete.\nINFO:     Finished server process [81699]\n{\"complete\": false, \"status\": \"interrupted\"}\n"
+    }
+  ],
+  "assertions": {
+    "independent_client_survives_slow_peer_0": {
+      "passed": true,
+      "detail": null
+    },
+    "independent_client_survives_slow_peer_1": {
+      "passed": true,
+      "detail": null
+    },
+    "independent_client_survives_slow_peer_2": {
+      "passed": true,
+      "detail": null
+    },
+    "independent_client_survives_slow_peer_3": {
+      "passed": true,
+      "detail": null
+    },
+    "independent_client_survives_slow_peer_4": {
+      "passed": true,
+      "detail": null
+    },
+    "independent_client_survives_slow_peer_5": {
+      "passed": true,
+      "detail": null
+    },
+    "independent_client_survives_slow_peer_6": {
+      "passed": true,
+      "detail": null
+    },
+    "slow_peer_cleanup": {
+      "passed": true,
+      "detail": null
+    },
+    "all_sessions_released": {
+      "passed": true,
+      "detail": null
+    },
+    "empty_server_not_ready": {
+      "passed": true,
+      "detail": null
+    },
+    "restart_has_no_old_sessions": {
+      "passed": true,
+      "detail": null
+    },
+    "restart_new_session_identity": {
+      "passed": true,
+      "detail": null
+    }
+  },
+  "completed": true,
+  "continuation_of": "m6-operations-20261101T182915Z.json",
+  "continuation_scope": "Only capacity/slow-peer/cleanup/restart remain. Prior startup,12 switches,independent cursor and input-boundary checks passed before the harness incorrectly expected429 instead of the native503 capacity contract.",
+  "slow_peer_samples": [
+    {
+      "elapsed_seconds": 1,
+      "session_ids": [
+        "71478c0ffaa64897a2fbf2874fa6f804",
+        "50cdbb2f4e944544a09ebaaef23f6cbe",
+        "ef0c1b3bafe34532bf3f495a7fdf5f2f"
+      ]
+    },
+    {
+      "elapsed_seconds": 2,
+      "session_ids": [
+        "71478c0ffaa64897a2fbf2874fa6f804",
+        "50cdbb2f4e944544a09ebaaef23f6cbe",
+        "ef0c1b3bafe34532bf3f495a7fdf5f2f"
+      ]
+    },
+    {
+      "elapsed_seconds": 3,
+      "session_ids": [
+        "71478c0ffaa64897a2fbf2874fa6f804",
+        "50cdbb2f4e944544a09ebaaef23f6cbe",
+        "ef0c1b3bafe34532bf3f495a7fdf5f2f"
+      ]
+    },
+    {
+      "elapsed_seconds": 4,
+      "session_ids": [
+        "71478c0ffaa64897a2fbf2874fa6f804",
+        "50cdbb2f4e944544a09ebaaef23f6cbe",
+        "ef0c1b3bafe34532bf3f495a7fdf5f2f"
+      ]
+    },
+    {
+      "elapsed_seconds": 5,
+      "session_ids": [
+        "71478c0ffaa64897a2fbf2874fa6f804",
+        "50cdbb2f4e944544a09ebaaef23f6cbe",
+        "ef0c1b3bafe34532bf3f495a7fdf5f2f"
+      ]
+    },
+    {
+      "elapsed_seconds": 6,
+      "session_ids": [
+        "71478c0ffaa64897a2fbf2874fa6f804",
+        "50cdbb2f4e944544a09ebaaef23f6cbe",
+        "ef0c1b3bafe34532bf3f495a7fdf5f2f"
+      ]
+    },
+    {
+      "elapsed_seconds": 7,
+      "session_ids": [
+        "71478c0ffaa64897a2fbf2874fa6f804",
+        "50cdbb2f4e944544a09ebaaef23f6cbe"
+      ]
+    }
+  ],
+  "slow_peer_evicted_before_close": true,
+  "finished_utc": "2026-11-01T18:31:33.229353+00:00"
+}

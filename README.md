@@ -23,10 +23,13 @@ dashboard is a thin native-API observation client, not a second market-data engi
 - **M5:** native alerts/evidence, Hyperliquid context, paper/journal persistence
   and research CLI/report tabs are implemented. These workflows are simulations
   and analysis, not exchange execution or evidence of profitable signals.
-- **M6 / operational acceptance:** implementation alone does not establish final
-  acceptance, sustained capture readiness or latency compliance.
+- **M6:** local-only defaults, locked setup, multi-client/restart/fault recovery,
+  a complete30-minute Binance-global/Hyperliquid capture with full replay parity,
+  and measured native/rendering behavior. Evidence includes failed attempts,
+  bootstrap/tail-latency limits and the explicitly unrun24-hour soak.
 
 For current acceptance status and executed evidence, see the
+[operational readiness and recovery](docs/READINESS.md),
 [full acceptance backlog](docs/UPGRADE_BACKLOG.md),
 [delivery/evidence handoff](docs/OMP_UPGRADE_HANDOFF.md),
 [architecture decisions](docs/ARCHITECTURE.md) and
@@ -45,10 +48,8 @@ uv run --locked --offline --no-sync python -m src.workstation.cli serve
 ```
 
 Open `http://127.0.0.1:8000`. This default is an explicitly **synthetic offline
-demo**, not a live feed or a recording. The full 180-second/24-stream scenario
-reached usable HTTP data in **2.642 s** in one cold-process sample; no durable
-capture is generated on startup. Health distinguishes process liveness from
-synchronized session data.
+demo**, not a live feed or a recording. No durable capture is generated on
+startup. Health distinguishes process liveness from synchronized session data.
 
 Use `serve --capture data/workstation/SESSION_ID` for verified recorded replay,
 or `serve --network` to opt into public live discovery/collection. Do not run a
@@ -108,7 +109,8 @@ The initial failed run and corrected run are retained in
 [`docs/evidence/`](docs/evidence/); see [feed validation](docs/FEED_VALIDATION.md)
 for exact commands and [contracts](docs/CONTRACTS.md) for loss, freshness,
 ownership and source-transition semantics. No fixture data fills gaps in live
-history. Streamlit still uses its temporary legacy service until terminal parity.
+history. Streamlit uses the same native API as the React terminal, without
+separate exchange collectors or financial formulas.
 
 ## Record, replay and offline demo
 
@@ -134,8 +136,8 @@ Incomplete/corrupt captures are not silently accepted. The recorder owns its
 subscription leases independently of browser clients; capture starts before
 synchronization, and CLI readiness labels that distinction.
 
-The complete **durable** synthetic build took **16.307 s** on the measured
-workstation; the terminal's independent memory-backed startup is described above.
+The terminal's memory-backed demo and the `demo` command's durable capture
+are separate workflows; neither represents historical exchange activity.
 See [recording](docs/RECORDING.md), [replay](docs/REPLAY.md), [demo/CLI](docs/DEMO.md)
 and the handoff for exact evidence, budgets, recovery and source limitations.
 

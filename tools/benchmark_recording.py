@@ -635,7 +635,7 @@ def writer_load(args, manifest, name, speed, preloaded):
         else "unpaced finite saturation attempt; predecoded input"
         if preloaded is not None
         else "unpaced finite saturation attempt; file-generation limited",
-        "source_publication_timestamps_available": False,
+        "source_processing_and_publication_timestamps_analyzed": False,
         "source_local_processing_latency": None,
         "output_path": str(recorder.path),
         "offered_raw": offered_raw,
@@ -804,7 +804,7 @@ def main():
     if args.output_root == args.source or args.source in args.output_root.parents:
         parser.error("output-root cannot be within the source capture")
     report = {
-        "schema_version": 1,
+        "schema_version": 2,
         "kind": "managed_recording_offline_benchmark",
         "started_wall_ns": time.time_ns(),
         "runtime": sys.version,
@@ -831,7 +831,7 @@ def main():
         },
         "hash_encoding": "logical evidence: uint64 big-endian length-prefixed noncanonical workstation wire; raw ordinal order, normalized delivery order, checkpoints descending delivery then stream",
         "limitations": [
-            "No network or UI. Original processing/publication timestamps are absent; receive-highwater schedules are synthetic, not original callback timing or network latency.",
+            "No network or UI. Original processing/publication timestamps are not analyzed by this writer benchmark; receive-highwater schedules are synthetic, not original callback timing or network latency.",
             "Default input streams with two-item lookahead. Explicit predecode mode admits the entire bounded source under its production resident-accounting cap; decoding transients/caches and whole-process RSS are separate. OS caches are not evicted.",
             "Timing wrappers perturb the workload. Nested worker/replay stages overlap and must not be summed. Accepted-to-dispatch includes pre-dispatch disk checks, not exact deque residence.",
             "Process CPU includes producer and worker; RSS is process lifetime highwater, not per-load allocation. Baseline, 2x burst, unpaced are sequential in the same process.",
