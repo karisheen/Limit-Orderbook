@@ -1,0 +1,36 @@
+{
+  "kind": "actual-public-durable-ownership",
+  "root": "data/m2-smoke/live-ownership-jg_8hgqj",
+  "venue": "binance-global",
+  "attached": {
+    "physical_owners": 1,
+    "references": 2,
+    "old_epoch": 1,
+    "fresh_epoch": 2
+  },
+  "browser_closed": {
+    "physical_owners": 1,
+    "references": 1,
+    "new_deliveries": 23,
+    "eligible": true,
+    "reasons": []
+  },
+  "retired_distinct_clients": 20,
+  "max_concurrent_clients": 4,
+  "final": {
+    "physical_owners": 0,
+    "complete": true,
+    "incomplete_reasons": [],
+    "raw_count": 32,
+    "event_count": 34,
+    "batch_count": 34,
+    "same_stream_retained": true,
+    "capture": "data/m2-smoke/live-ownership-jg_8hgqj/10250133-64b3-4369-a379-ee2e406f7b28"
+  },
+  "raw_normalized_equal": true,
+  "final_hashes": [
+    "abc90fc06f3e8aecbe8818a503555ec4bca2d6d900147086ada6972e644ab480",
+    "457a2dbe0d4fcdd9e054dfe1b5ec154af3774874f2a74acfa63cf3293370fd74",
+    "5640d607eacc620c4bbb338520b391af3d3458b46da738945642c8a689aaecde"
+  ]
+}

@@ -22,6 +22,8 @@ from ..events import (
     SequenceInfo,
     SubscriptionKey,
     Trade,
+    is_local_control,
+    local_control_ref,
 )
 from ..instruments import Instrument, MetadataSnapshot
 from ..precision import exact_json_loads, nonnegative_int, text
@@ -316,7 +318,13 @@ def wrap_decoded(
     decoded = result.events + tuple(
         DecodedEvent(control) for control in result.controls
     )
-    return tuple(
+    local = frame.transport == "local" and frame.endpoint_id == "supervisor"
+    reference = (
+        local_control_ref(frame.stream_id, frame.ingest_ordinal)
+        if local
+        else frame.ref()
+    )
+    envelopes = tuple(
         EventEnvelope(
             session_id=frame.session_id,
             segment_id=segment_id,
@@ -336,6 +344,10 @@ def wrap_decoded(
             source_mode=source_mode,
             sequence=event.sequence,
             checksum=event.checksum,
+            raw_ref=reference,
         )
         for index, event in enumerate(decoded)
     )
+    if local and not all(is_local_control(event) for event in envelopes):
+        raise ValueError("unsupported supervisor local evidence")
+    return envelopes

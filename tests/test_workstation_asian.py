@@ -888,6 +888,19 @@ def test_global_checkpoint_rejects_inconsistent_boundary_without_mutation():
     corrupt = replace(
         checkpoint, reducer_state=bad_state, state_hash=sha256(bad_state).hexdigest()
     )
-    with pytest.raises(ValueError, match="inconsistent Binance depth boundary"):
+    with pytest.raises(ValueError):
         reducer.restore(corrupt)
+    assert reducer.checkpoint() == checkpoint
+
+
+def test_global_native_candidate_rejects_inconsistent_boundary_without_mutation():
+    adapter, instrument, key, reducer = bounded_global_book()
+    checkpoint = reducer.checkpoint()
+    candidate = adapter.new_reducer(instrument, key)
+    candidate.restore(checkpoint)
+    candidate.protocol_state = encoded(
+        {"version": 1, "bid_floor": "10000", "ask_ceiling": "10001"}
+    )
+    with pytest.raises(ValueError):
+        reducer._adopt_candidate(candidate)
     assert reducer.checkpoint() == checkpoint

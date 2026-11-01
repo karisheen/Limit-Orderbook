@@ -779,11 +779,10 @@ class BookReducer:
             raise ValueError("invalidation requires a Gap payload")
         return self.apply((gap,))
 
-    def checkpoint(self) -> BookCheckpoint:
-        from .wire import dumps
-
+    def _state(self) -> ReducerState:
+        """Capture immutable native state without a persistence round trip."""
         bids, asks = self._levels(self._bids, self._asks)
-        state = ReducerState(
+        return ReducerState(
             self.instrument.instrument_id,
             self.instrument.metadata_version,
             self.key,
@@ -806,6 +805,11 @@ class BookReducer:
             tuple(self.buffered_events),
             self.protocol_state,
         )
+
+    def checkpoint(self) -> BookCheckpoint:
+        from .wire import dumps
+
+        state = self._state()
         encoded = dumps(state, canonical=False)
         event = self._last_event
         return BookCheckpoint(
@@ -836,6 +840,40 @@ class BookReducer:
         if sha256(checkpoint.reducer_state).hexdigest() != checkpoint.state_hash:
             raise ValueError("checkpoint state hash mismatch")
         state = loads(checkpoint.reducer_state, ReducerState)
+        if state.book != checkpoint.book or state.segment_id != checkpoint.segment_id:
+            raise ValueError("inconsistent checkpoint book")
+        event = state.last_event
+        if (
+            checkpoint.session_id,
+            checkpoint.stream_id,
+            checkpoint.ordinal,
+            checkpoint.event_index,
+        ) != (
+            event.session_id if event else None,
+            event.stream_id if event else None,
+            event.ingest_ordinal if event else None,
+            event.event_index if event else None,
+        ):
+            raise ValueError("inconsistent checkpoint position")
+        self._restore_state(state)
+
+    def _adopt_candidate(self, candidate: "BookReducer") -> None:
+        """Commit a private reducer using the same native restore validation.
+
+        Bootstrap candidates have already applied every native event validator.
+        Avoid encoding and decoding their immutable state merely to transfer it;
+        _restore_state still checks consistency and constructs independent maps.
+        Adapter overrides retain their protocol validation and atomic rollback.
+        """
+        if (
+            candidate.instrument.metadata_version != self.instrument.metadata_version
+            or candidate.adapter_revision != self.adapter_revision
+            or candidate.config_hash != self.config_hash
+        ):
+            raise ValueError("incompatible checkpoint configuration")
+        self._restore_state(candidate._state())
+
+    def _restore_state(self, state: ReducerState) -> None:
         if (
             state.instrument_id,
             state.metadata_version,
@@ -854,8 +892,6 @@ class BookReducer:
             self.effective_depth,
         ):
             raise ValueError("incompatible reducer state")
-        if state.book != checkpoint.book or state.segment_id != checkpoint.segment_id:
-            raise ValueError("inconsistent checkpoint book")
         if state.quality.capabilities != self.capabilities:
             raise ValueError("incompatible checkpoint capabilities")
         if state.synchronized and (
@@ -879,18 +915,6 @@ class BookReducer:
                 self.instrument.validate_price(level.price)
             self.instrument.validate_quantity(level.quantity)
         event = state.last_event
-        if (
-            checkpoint.session_id,
-            checkpoint.stream_id,
-            checkpoint.ordinal,
-            checkpoint.event_index,
-        ) != (
-            event.session_id if event else None,
-            event.stream_id if event else None,
-            event.ingest_ordinal if event else None,
-            event.event_index if event else None,
-        ):
-            raise ValueError("inconsistent checkpoint position")
         if event is not None and (
             state.last_order != event.order_key
             or event.key != self.key

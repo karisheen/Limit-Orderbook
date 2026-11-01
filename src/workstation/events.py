@@ -10,6 +10,7 @@ from .precision import MAX_MARKET_DATA_BYTES, choice, decimal, nonnegative_int, 
 from .quality import SOURCE_MODES, SourceMode
 
 SCHEMA_VERSION = 1
+_EMPTY_PAYLOAD_SHA256 = sha256(b"").hexdigest()
 
 
 class SessionId(Identifier):
@@ -119,6 +120,14 @@ class RawFrame:
             raise ValueError("raw payload hash mismatch")
         object.__setattr__(self, "payload_sha256", digest)
 
+    def ref(self) -> "RawRef":
+        """Stable logical stream reference, independent of rotated storage paths."""
+        return RawRef(
+            f"raw:{sha256(self.stream_id.encode()).hexdigest()}",
+            self.ingest_ordinal,
+            self.payload_sha256,
+        )
+
 
 @dataclass(frozen=True)
 class SequenceInfo:
@@ -169,6 +178,15 @@ class RawRef:
             c not in "0123456789abcdef" for c in self.payload_sha256
         ):
             raise ValueError("invalid SHA256")
+
+
+def local_control_ref(stream_id: StreamId, ordinal: int) -> RawRef:
+    """Explicit supervisor evidence origin; no public frame is claimed."""
+    return RawRef(
+        f"local:{sha256(stream_id.encode()).hexdigest()}",
+        ordinal,
+        _EMPTY_PAYLOAD_SHA256,
+    )
 
 
 @dataclass(frozen=True)
@@ -470,6 +488,26 @@ class EventEnvelope:
         )
 
 
+_LOCAL_CONTROL_KINDS = frozenset(("source_change", "clock_tick", "reset", "disconnect"))
+
+
+def is_local_control(event: EventEnvelope) -> bool:
+    """Only explicitly marked supervisor controls may lack captured raw input."""
+    return (
+        event.raw_ref is not None
+        and event.raw_ref.file_id.startswith("local:")
+        and event.raw_ref.file_id
+        == f"local:{sha256(event.stream_id.encode()).hexdigest()}"
+        and event.raw_ref.frame_ordinal == event.ingest_ordinal
+        and event.raw_ref.payload_sha256 == _EMPTY_PAYLOAD_SHA256
+        and (
+            isinstance(event.payload, Gap)
+            or isinstance(event.payload, Control)
+            and event.payload.kind in _LOCAL_CONTROL_KINDS
+        )
+    )
+
+
 def synthetic_frame(
     payload: bytes = b"{}",
     *,
@@ -522,4 +560,12 @@ def synthetic_envelope(
         source_mode="demo",
     )
     values.update(overrides)
+    if "raw_ref" not in overrides and (
+        isinstance(payload, Gap)
+        or isinstance(payload, Control)
+        and payload.kind in _LOCAL_CONTROL_KINDS
+    ):
+        values["raw_ref"] = local_control_ref(
+            values["stream_id"], values["ingest_ordinal"]
+        )
     return EventEnvelope(**values)

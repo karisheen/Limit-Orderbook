@@ -1,0 +1,668 @@
+{
+  "scope": "Preserved incomplete real-data prefix; profiling overhead, not live capacity/latency proof",
+  "core": {
+    "same_workload": true,
+    "positions_equal": true,
+    "positions": [
+      100,
+      200,
+      300,
+      400,
+      445
+    ],
+    "apply_seconds_before": 13.957823715987615,
+    "apply_seconds_after_native_transfer": 4.269627438930911,
+    "checkpoint_seconds_before": 8.946316330999252,
+    "checkpoint_seconds_after_native_transfer": 8.154149843991036,
+    "source_sha256_after_native_transfer": {
+      "src/workstation/book.py": "f908201f41719b1d7726af4a38df0a3a166660c7312d21c4e9428e63053e4a74",
+      "src/workstation/projection.py": "a237e10fc36de628851576ec571ab659f33bdcf67b0a731e22d3c33b818d8136",
+      "src/workstation/adapters/binance.py": "ce02eb26c3ab8b4cebe975240201f9d1fc7403391cffdaab947cc3758d8853ca",
+      "src/workstation/wire.py": "d614245970759fc246b096243216c49d4eaba622eaf071899c7f1152e2c23e0e",
+      "src/workstation/precision.py": "0734ee946b152c669f9ef4cd4f9a4eab90a5054511abd72f426c0d7323a21918"
+    },
+    "scope": "Real incomplete recorded prefix only; cProfile overhead/concurrent profiling, not live throughput claim. No tests/build/lint/formatters run."
+  },
+  "writer": {
+    "before": "before-isolated",
+    "after": "after-union",
+    "source_manifest_sha256": "92c5172cd1c22e9e2b6bb182457656a3a0f5b4578a2ee972ca759b46ccb7ab9d",
+    "same_source_manifest": true,
+    "same_limits_and_config": true,
+    "same_counts": true,
+    "counts": {
+      "raw": 440,
+      "events": 533,
+      "batches": 445,
+      "checkpoints": 60
+    },
+    "hashes_equal_before_after": true,
+    "hashes_equal_original": true,
+    "output_hashes": {
+      "raw": "7f0152e2c90a34b6b97110627cf8b5c8b1a1ce6a8848473237c65ddea3aea0e1",
+      "events": "1a9953e2c771535813a5083f9c8e9f3c30790d92e1cffcd314681e40b72622f6",
+      "checkpoints": "dda7d183d96fb9ed600c636ed2a420ec0d5e3a8d9ea20591de19a22931ec0a30"
+    },
+    "retained_incomplete_source": true,
+    "before_seconds": 31.68844624000485,
+    "after_seconds": 19.71368713999982,
+    "elapsed_reduction_percent": 37.78903834321666,
+    "before_health": {
+      "state": "incomplete",
+      "queue_count": 0,
+      "queue_bytes": 0,
+      "high_water_count": 2,
+      "high_water_bytes": 4373121,
+      "incomplete_reasons": [
+        "profile_of_incomplete_source",
+        "queue_overflow",
+        "no_valid_book:binance-global:spot-v3:spot:BTCUSDT",
+        "no_valid_book:hyperliquid:info:perpetual:BTC",
+        "no_valid_book:hyperliquid:info:perpetual:ETH",
+        "no_valid_book:binance-global:spot-v3:spot:SOLUSDT",
+        "no_valid_book:binance-global:spot-v3:spot:ETHUSDT",
+        "no_valid_book:hyperliquid:info:perpetual:SOL",
+        "source_capture_incomplete:8657f494-665e-4d5c-8f73-7fb6a28f04a2",
+        "source_capture_incomplete:c8dad252-bedf-491e-b4fd-d35c8bdb2703",
+        "source_capture_incomplete:996df515-e9b8-4b3f-99c4-745a5d8a0789",
+        "source_capture_incomplete:df9ea7f8-bf01-482c-8671-52601512aa2e",
+        "source_capture_incomplete:1b5d3053-2930-43a8-892e-9cdeccfc239e",
+        "source_capture_incomplete:5e04e20d-c6a5-4dc9-b57a-80a9f6f5a882",
+        "source_capture_incomplete:73c9086a-1e86-411a-ae71-f90bdc961c88",
+        "source_capture_incomplete:cc2cd7cd-d1a3-4177-8838-eac807f9e95f",
+        "source_capture_incomplete:c0afcd8b-cb69-4cbc-abbc-3acb42b3b0f0",
+        "source_capture_incomplete:bbb696ae-9876-4354-9b66-8a3cb6c99551",
+        "source_capture_incomplete:9f5ad784-4e67-479f-9455-129fa5a54233",
+        "source_capture_incomplete:8f8920f6-167e-4324-afdc-a2b1f6328779",
+        "feed_capture_incomplete"
+      ],
+      "written_bytes": 4803637
+    },
+    "after_health": {
+      "state": "incomplete",
+      "queue_count": 0,
+      "queue_bytes": 0,
+      "high_water_count": 2,
+      "high_water_bytes": 4373121,
+      "incomplete_reasons": [
+        "profile_of_incomplete_source",
+        "queue_overflow",
+        "no_valid_book:binance-global:spot-v3:spot:BTCUSDT",
+        "no_valid_book:hyperliquid:info:perpetual:BTC",
+        "no_valid_book:hyperliquid:info:perpetual:ETH",
+        "no_valid_book:binance-global:spot-v3:spot:SOLUSDT",
+        "no_valid_book:binance-global:spot-v3:spot:ETHUSDT",
+        "no_valid_book:hyperliquid:info:perpetual:SOL",
+        "source_capture_incomplete:8657f494-665e-4d5c-8f73-7fb6a28f04a2",
+        "source_capture_incomplete:c8dad252-bedf-491e-b4fd-d35c8bdb2703",
+        "source_capture_incomplete:996df515-e9b8-4b3f-99c4-745a5d8a0789",
+        "source_capture_incomplete:df9ea7f8-bf01-482c-8671-52601512aa2e",
+        "source_capture_incomplete:1b5d3053-2930-43a8-892e-9cdeccfc239e",
+        "source_capture_incomplete:5e04e20d-c6a5-4dc9-b57a-80a9f6f5a882",
+        "source_capture_incomplete:73c9086a-1e86-411a-ae71-f90bdc961c88",
+        "source_capture_incomplete:cc2cd7cd-d1a3-4177-8838-eac807f9e95f",
+        "source_capture_incomplete:c0afcd8b-cb69-4cbc-abbc-3acb42b3b0f0",
+        "source_capture_incomplete:bbb696ae-9876-4354-9b66-8a3cb6c99551",
+        "source_capture_incomplete:9f5ad784-4e67-479f-9455-129fa5a54233",
+        "source_capture_incomplete:8f8920f6-167e-4324-afdc-a2b1f6328779",
+        "feed_capture_incomplete"
+      ],
+      "written_bytes": 4803637
+    },
+    "before_source_code_sha256": {
+      "src/workstation/recording.py": "637c02e43a9d3446e3bac6dd7f288442e3c25c50a994089fbabb9c827822dd3f",
+      "src/workstation/wire.py": "d614245970759fc246b096243216c49d4eaba622eaf071899c7f1152e2c23e0e",
+      "src/workstation/book.py": "f908201f41719b1d7726af4a38df0a3a166660c7312d21c4e9428e63053e4a74",
+      "src/workstation/projection.py": "a237e10fc36de628851576ec571ab659f33bdcf67b0a731e22d3c33b818d8136",
+      "src/workstation/adapters/binance.py": "ed53a1fe96c538c931274ce95a9dfa993132b5f9b1b0cc4d437815d69d9782a3",
+      "src/workstation/precision.py": "0734ee946b152c669f9ef4cd4f9a4eab90a5054511abd72f426c0d7323a21918"
+    },
+    "after_source_code_sha256": {
+      "src/workstation/recording.py": "637c02e43a9d3446e3bac6dd7f288442e3c25c50a994089fbabb9c827822dd3f",
+      "src/workstation/wire.py": "4ffc74cce31c35bd7c4bc177d13fb9c8a43c806f14bfb170687725981a676698",
+      "src/workstation/book.py": "f908201f41719b1d7726af4a38df0a3a166660c7312d21c4e9428e63053e4a74",
+      "src/workstation/projection.py": "a237e10fc36de628851576ec571ab659f33bdcf67b0a731e22d3c33b818d8136",
+      "src/workstation/adapters/binance.py": "ce02eb26c3ab8b4cebe975240201f9d1fc7403391cffdaab947cc3758d8853ca",
+      "src/workstation/precision.py": "0734ee946b152c669f9ef4cd4f9a4eab90a5054511abd72f426c0d7323a21918"
+    },
+    "commands": [
+      "PYTHONPATH=. .venv-upgrade/bin/python data/m2-profile-writer/profile_isolated.py before-isolated",
+      "PYTHONPATH=. .venv-upgrade/bin/python data/m2-profile-writer/profile_isolated.py after-union"
+    ],
+    "attribution": "Baseline book.py contains state/restore factoring, but old Binance bootstrap still calls checkpoint/restore; union changes wire.py plus Binance native-state adoption. recording.py unchanged because serialization, not storage IO, dominates.",
+    "caveat": "cProfile actual owned worker on finite preserved incomplete source; offline self-feeding offers remove producer polling. Includes offer accounting and import cost; not isolated live-network throughput. No tests/build/lint run by WriterPerf."
+  },
+  "core_before": {
+    "command": "PYTHONPATH=. .venv-upgrade/bin/python data/m2-profile-core/profile_projection.py before",
+    "python": "3.13.5 (main, Jul 23 2025, 00:30:58) [Clang 20.1.4 ]",
+    "capture": "data/m2-smoke/live-cli-3hjtn5tf/captures/9ec8ec8a-5cd8-4fe3-807c-33b5549f746a",
+    "manifest_sha256": "92c5172cd1c22e9e2b6bb182457656a3a0f5b4578a2ee972ca759b46ccb7ab9d",
+    "complete": false,
+    "incomplete_reasons": [
+      "queue_overflow",
+      "no_valid_book:binance-global:spot-v3:spot:BTCUSDT",
+      "no_valid_book:hyperliquid:info:perpetual:BTC",
+      "no_valid_book:hyperliquid:info:perpetual:ETH",
+      "no_valid_book:binance-global:spot-v3:spot:SOLUSDT",
+      "no_valid_book:binance-global:spot-v3:spot:ETHUSDT",
+      "no_valid_book:hyperliquid:info:perpetual:SOL",
+      "source_capture_incomplete:8657f494-665e-4d5c-8f73-7fb6a28f04a2",
+      "source_capture_incomplete:c8dad252-bedf-491e-b4fd-d35c8bdb2703",
+      "source_capture_incomplete:996df515-e9b8-4b3f-99c4-745a5d8a0789",
+      "source_capture_incomplete:df9ea7f8-bf01-482c-8671-52601512aa2e",
+      "source_capture_incomplete:1b5d3053-2930-43a8-892e-9cdeccfc239e",
+      "source_capture_incomplete:5e04e20d-c6a5-4dc9-b57a-80a9f6f5a882",
+      "source_capture_incomplete:73c9086a-1e86-411a-ae71-f90bdc961c88",
+      "source_capture_incomplete:cc2cd7cd-d1a3-4177-8838-eac807f9e95f",
+      "source_capture_incomplete:c0afcd8b-cb69-4cbc-abbc-3acb42b3b0f0",
+      "source_capture_incomplete:bbb696ae-9876-4354-9b66-8a3cb6c99551",
+      "source_capture_incomplete:9f5ad784-4e67-479f-9455-129fa5a54233",
+      "source_capture_incomplete:8f8920f6-167e-4324-afdc-a2b1f6328779",
+      "feed_capture_incomplete"
+    ],
+    "batch_count": 445,
+    "event_count": 533,
+    "source_changes": 32186,
+    "config": {
+      "dedup_capacity": "50000",
+      "poll_interval": "2",
+      "stop_drain_timeout": "5",
+      "capture_scope": "selected_public_book_and_trades",
+      "duration_seconds": "20"
+    },
+    "checkpoint_interval": 100,
+    "apply_seconds_profiled": 13.957823715987615,
+    "checkpoint_seconds_profiled": 8.946316330999252,
+    "max_retained_levels_per_side": {
+      "73c9086a-1e86-411a-ae71-f90bdc961c88": 20,
+      "c0afcd8b-cb69-4cbc-abbc-3acb42b3b0f0": 20,
+      "9f5ad784-4e67-479f-9455-129fa5a54233": 20,
+      "8657f494-665e-4d5c-8f73-7fb6a28f04a2": 5007,
+      "1b5d3053-2930-43a8-892e-9cdeccfc239e": 5000,
+      "996df515-e9b8-4b3f-99c4-745a5d8a0789": 5019
+    },
+    "positions": [
+      {
+        "delivery": 100,
+        "book_hash": "45d5af70e38bf13a2442d5771b25382aba38f093ba3feae1c29b9e5f51621ce3",
+        "state_hash": "d1d6202863ce228ebd6a2093b5983f285c7c602a78ce9a127ab1abaf74b69d30",
+        "checkpoints_hash": "5d96211275839ce2426d598c45743c252aa172fcb8c768649c7a13847c2a7133",
+        "auxiliary_hash": "16d506051068421324ed7af7ff8425748c8f77174c6a59ca89202400374d9787"
+      },
+      {
+        "delivery": 200,
+        "book_hash": "84815df559a6ce151244b617e9bae913a008a8cbddcf396cdb95541486e92284",
+        "state_hash": "32f27dbb229ea4f10a1c56332a2f4d899ba8414dabf8689f7686c9aa990ebcca",
+        "checkpoints_hash": "c654895c208916b1b048d34667a9e4ebd423feeb2b32b94e4b1de267e0ea7451",
+        "auxiliary_hash": "e839d0ff12a7682d677c8652c9358489655bff8ff23546474c0c7f5d4e087086"
+      },
+      {
+        "delivery": 300,
+        "book_hash": "572ec1f6d362683cb83b5cd9d11f15efd44623c100fc2f07c932541ad0a65fa2",
+        "state_hash": "a2fb64815b430cc82d0e255d71bfce5297369da9eb839d8d9c00af904df9e18b",
+        "checkpoints_hash": "63ba6f222474ff56be438b1f15b7b17d4611af20480b60ca963767fa61a6c881",
+        "auxiliary_hash": "008381bea0d2a67c392a8444f22fd32fdebdd56f0c63112479214d6fcfcf0945"
+      },
+      {
+        "delivery": 400,
+        "book_hash": "6792ad4564cd3fbaca120c8755d870aac3d7589d04af1031138402f80b8e7123",
+        "state_hash": "5d297cc49ca212d5010956d5ac12f07328b9a5cb6be6e72750255718be4ebe3c",
+        "checkpoints_hash": "e7dd8d6d0be49fffa0110b766828a4db9d413c65f8e4ceb3cf79e80cf70815a7",
+        "auxiliary_hash": "9cf3b71ae56f378de72ff833e4581792e9bf450a4568b71d35fd8ed75f28886b"
+      },
+      {
+        "delivery": 445,
+        "book_hash": "061586e019731cbdf9b3926082700648b474cc1b4f9129f5316bb5828aa9f0dc",
+        "state_hash": "9af20a648baaf4a2efc56f376cff881dba1efb06c18b854c0909bfc150eea265",
+        "checkpoints_hash": "0dbad755755133679c297a194f94ddd944eba82292eb22383423136837402b12",
+        "auxiliary_hash": "a7b52b1885281249a1cf4f77d9dbaddcfafe6c14882892bdc1c8c5f0dc83e233"
+      }
+    ],
+    "timing_caveat": "cProfile overhead and concurrent writer profiling; not isolated end-to-end throughput"
+  },
+  "core_after": {
+    "command": "PYTHONPATH=. .venv-upgrade/bin/python data/m2-profile-core/profile_projection.py after-native-transfer",
+    "python": "3.13.5 (main, Jul 23 2025, 00:30:58) [Clang 20.1.4 ]",
+    "capture": "data/m2-smoke/live-cli-3hjtn5tf/captures/9ec8ec8a-5cd8-4fe3-807c-33b5549f746a",
+    "manifest_sha256": "92c5172cd1c22e9e2b6bb182457656a3a0f5b4578a2ee972ca759b46ccb7ab9d",
+    "complete": false,
+    "incomplete_reasons": [
+      "queue_overflow",
+      "no_valid_book:binance-global:spot-v3:spot:BTCUSDT",
+      "no_valid_book:hyperliquid:info:perpetual:BTC",
+      "no_valid_book:hyperliquid:info:perpetual:ETH",
+      "no_valid_book:binance-global:spot-v3:spot:SOLUSDT",
+      "no_valid_book:binance-global:spot-v3:spot:ETHUSDT",
+      "no_valid_book:hyperliquid:info:perpetual:SOL",
+      "source_capture_incomplete:8657f494-665e-4d5c-8f73-7fb6a28f04a2",
+      "source_capture_incomplete:c8dad252-bedf-491e-b4fd-d35c8bdb2703",
+      "source_capture_incomplete:996df515-e9b8-4b3f-99c4-745a5d8a0789",
+      "source_capture_incomplete:df9ea7f8-bf01-482c-8671-52601512aa2e",
+      "source_capture_incomplete:1b5d3053-2930-43a8-892e-9cdeccfc239e",
+      "source_capture_incomplete:5e04e20d-c6a5-4dc9-b57a-80a9f6f5a882",
+      "source_capture_incomplete:73c9086a-1e86-411a-ae71-f90bdc961c88",
+      "source_capture_incomplete:cc2cd7cd-d1a3-4177-8838-eac807f9e95f",
+      "source_capture_incomplete:c0afcd8b-cb69-4cbc-abbc-3acb42b3b0f0",
+      "source_capture_incomplete:bbb696ae-9876-4354-9b66-8a3cb6c99551",
+      "source_capture_incomplete:9f5ad784-4e67-479f-9455-129fa5a54233",
+      "source_capture_incomplete:8f8920f6-167e-4324-afdc-a2b1f6328779",
+      "feed_capture_incomplete"
+    ],
+    "batch_count": 445,
+    "event_count": 533,
+    "source_changes": 32186,
+    "config": {
+      "dedup_capacity": "50000",
+      "poll_interval": "2",
+      "stop_drain_timeout": "5",
+      "capture_scope": "selected_public_book_and_trades",
+      "duration_seconds": "20"
+    },
+    "checkpoint_interval": 100,
+    "apply_seconds_profiled": 4.269627438930911,
+    "checkpoint_seconds_profiled": 8.154149843991036,
+    "max_retained_levels_per_side": {
+      "73c9086a-1e86-411a-ae71-f90bdc961c88": 20,
+      "c0afcd8b-cb69-4cbc-abbc-3acb42b3b0f0": 20,
+      "9f5ad784-4e67-479f-9455-129fa5a54233": 20,
+      "8657f494-665e-4d5c-8f73-7fb6a28f04a2": 5007,
+      "1b5d3053-2930-43a8-892e-9cdeccfc239e": 5000,
+      "996df515-e9b8-4b3f-99c4-745a5d8a0789": 5019
+    },
+    "positions": [
+      {
+        "delivery": 100,
+        "book_hash": "45d5af70e38bf13a2442d5771b25382aba38f093ba3feae1c29b9e5f51621ce3",
+        "state_hash": "d1d6202863ce228ebd6a2093b5983f285c7c602a78ce9a127ab1abaf74b69d30",
+        "checkpoints_hash": "5d96211275839ce2426d598c45743c252aa172fcb8c768649c7a13847c2a7133",
+        "auxiliary_hash": "16d506051068421324ed7af7ff8425748c8f77174c6a59ca89202400374d9787"
+      },
+      {
+        "delivery": 200,
+        "book_hash": "84815df559a6ce151244b617e9bae913a008a8cbddcf396cdb95541486e92284",
+        "state_hash": "32f27dbb229ea4f10a1c56332a2f4d899ba8414dabf8689f7686c9aa990ebcca",
+        "checkpoints_hash": "c654895c208916b1b048d34667a9e4ebd423feeb2b32b94e4b1de267e0ea7451",
+        "auxiliary_hash": "e839d0ff12a7682d677c8652c9358489655bff8ff23546474c0c7f5d4e087086"
+      },
+      {
+        "delivery": 300,
+        "book_hash": "572ec1f6d362683cb83b5cd9d11f15efd44623c100fc2f07c932541ad0a65fa2",
+        "state_hash": "a2fb64815b430cc82d0e255d71bfce5297369da9eb839d8d9c00af904df9e18b",
+        "checkpoints_hash": "63ba6f222474ff56be438b1f15b7b17d4611af20480b60ca963767fa61a6c881",
+        "auxiliary_hash": "008381bea0d2a67c392a8444f22fd32fdebdd56f0c63112479214d6fcfcf0945"
+      },
+      {
+        "delivery": 400,
+        "book_hash": "6792ad4564cd3fbaca120c8755d870aac3d7589d04af1031138402f80b8e7123",
+        "state_hash": "5d297cc49ca212d5010956d5ac12f07328b9a5cb6be6e72750255718be4ebe3c",
+        "checkpoints_hash": "e7dd8d6d0be49fffa0110b766828a4db9d413c65f8e4ceb3cf79e80cf70815a7",
+        "auxiliary_hash": "9cf3b71ae56f378de72ff833e4581792e9bf450a4568b71d35fd8ed75f28886b"
+      },
+      {
+        "delivery": 445,
+        "book_hash": "061586e019731cbdf9b3926082700648b474cc1b4f9129f5316bb5828aa9f0dc",
+        "state_hash": "9af20a648baaf4a2efc56f376cff881dba1efb06c18b854c0909bfc150eea265",
+        "checkpoints_hash": "0dbad755755133679c297a194f94ddd944eba82292eb22383423136837402b12",
+        "auxiliary_hash": "a7b52b1885281249a1cf4f77d9dbaddcfafe6c14882892bdc1c8c5f0dc83e233"
+      }
+    ],
+    "timing_caveat": "cProfile overhead and concurrent writer profiling; not isolated end-to-end throughput"
+  },
+  "writer_before": {
+    "source": "data/m2-smoke/live-cli-3hjtn5tf/captures/9ec8ec8a-5cd8-4fe3-807c-33b5549f746a",
+    "source_manifest_sha256": "92c5172cd1c22e9e2b6bb182457656a3a0f5b4578a2ee972ca759b46ccb7ab9d",
+    "source_code_sha256": {
+      "src/workstation/recording.py": "637c02e43a9d3446e3bac6dd7f288442e3c25c50a994089fbabb9c827822dd3f",
+      "src/workstation/wire.py": "d614245970759fc246b096243216c49d4eaba622eaf071899c7f1152e2c23e0e",
+      "src/workstation/book.py": "f908201f41719b1d7726af4a38df0a3a166660c7312d21c4e9428e63053e4a74",
+      "src/workstation/projection.py": "a237e10fc36de628851576ec571ab659f33bdcf67b0a731e22d3c33b818d8136",
+      "src/workstation/adapters/binance.py": "ed53a1fe96c538c931274ce95a9dfa993132b5f9b1b0cc4d437815d69d9782a3",
+      "src/workstation/precision.py": "0734ee946b152c669f9ef4cd4f9a4eab90a5054511abd72f426c0d7323a21918"
+    },
+    "source_complete": false,
+    "source_reasons": [
+      "queue_overflow",
+      "no_valid_book:binance-global:spot-v3:spot:BTCUSDT",
+      "no_valid_book:hyperliquid:info:perpetual:BTC",
+      "no_valid_book:hyperliquid:info:perpetual:ETH",
+      "no_valid_book:binance-global:spot-v3:spot:SOLUSDT",
+      "no_valid_book:binance-global:spot-v3:spot:ETHUSDT",
+      "no_valid_book:hyperliquid:info:perpetual:SOL",
+      "source_capture_incomplete:8657f494-665e-4d5c-8f73-7fb6a28f04a2",
+      "source_capture_incomplete:c8dad252-bedf-491e-b4fd-d35c8bdb2703",
+      "source_capture_incomplete:996df515-e9b8-4b3f-99c4-745a5d8a0789",
+      "source_capture_incomplete:df9ea7f8-bf01-482c-8671-52601512aa2e",
+      "source_capture_incomplete:1b5d3053-2930-43a8-892e-9cdeccfc239e",
+      "source_capture_incomplete:5e04e20d-c6a5-4dc9-b57a-80a9f6f5a882",
+      "source_capture_incomplete:73c9086a-1e86-411a-ae71-f90bdc961c88",
+      "source_capture_incomplete:cc2cd7cd-d1a3-4177-8838-eac807f9e95f",
+      "source_capture_incomplete:c0afcd8b-cb69-4cbc-abbc-3acb42b3b0f0",
+      "source_capture_incomplete:bbb696ae-9876-4354-9b66-8a3cb6c99551",
+      "source_capture_incomplete:9f5ad784-4e67-479f-9455-129fa5a54233",
+      "source_capture_incomplete:8f8920f6-167e-4324-afdc-a2b1f6328779",
+      "feed_capture_incomplete"
+    ],
+    "source_file_hashes": {
+      "checkpoints/aux-16d506051068421324ed7af7ff8425748c8f77174c6a59ca89202400374d9787.json.gz": "af75e2a0a41d02e93d73f08ddb9fa7725cc8c55a9d7e83836c48a1eecc8a8f88",
+      "checkpoints/00000001.jsonl.gz": "df356963ff08640bb2bf234a6d3e538cbb739b29efd8663117ee0ce35da0750e",
+      "checkpoints/aux-e839d0ff12a7682d677c8652c9358489655bff8ff23546474c0c7f5d4e087086.json.gz": "68a6d5b37ed1f44b49c665aeb2fad81aec698a10d3303f57d909684566f1e7cf",
+      "checkpoints/00000002.jsonl.gz": "716c5f4674cf09ced43f568b9e5b975f0335c3cb19f415309ce381a5c1fa9486",
+      "checkpoints/aux-008381bea0d2a67c392a8444f22fd32fdebdd56f0c63112479214d6fcfcf0945.json.gz": "dbe633dccf06b60e8c482035cfdd943de0c9e1f86b6d1d4d01e03617921bcdca",
+      "checkpoints/00000003.jsonl.gz": "0a77e459a394076dffc42c768b3f94de70b60dfbaeeaa0966ecf942eaefb1d16",
+      "checkpoints/aux-9cf3b71ae56f378de72ff833e4581792e9bf450a4568b71d35fd8ed75f28886b.json.gz": "7cc46c2216bd13a7c3e3d89f6568a8fd35a76c1f79465a16b621cb0e27de8088",
+      "checkpoints/00000004.jsonl.gz": "4fe1bd2a3d09e15975d7eaa5f19b6f68bde3b00ef451c079babd0c3009262251",
+      "normalized/48f70d22b221ea8c6ce9b65f/00000001.parquet": "14ba6c2259c4c10da088df43bf682bed4090db50c2c6f4033d28d83f7bc3c83b",
+      "normalized/decedee85ec8d9ba922b0aeb/00000002.parquet": "90ffb441f850a73b0fbec5747c0426bae73f1839ce855cc7143d727e299a9fc6",
+      "normalized/fde3017ac79b138cf926624a/00000003.parquet": "e024816a2b201b6cabb3344ec5398c2a79b62816fb7409ca60497296a65f4c6f",
+      "normalized/2a934c72bb314307af61ea65/00000004.parquet": "0cc0ba29df59f19f3572f3eb1f2a0a11518b75de1d2a40519948ebfddb6c1da3",
+      "normalized/b048b730efd07adebec0ccda/00000005.parquet": "3c197dc945c50c4bf459946abb406c1798c30d90aeb7d51307abfc65b0df3029",
+      "normalized/00548220dfdc13b4dfd07c29/00000006.parquet": "1daeb2c6c113170846301edc1a56b753b12781c8349e4522b6104f47e460d515",
+      "normalized/6cbf2542ae19a70a65143123/00000007.parquet": "2f179711cf3fe1cf9689956a109be0f4fa988e2a7b94cd273d0474887417e301",
+      "normalized/b83693aed6c2e8e89565de84/00000008.parquet": "a5bdf2fb19a50d5ba21ed5275cef0820143b3bd236d1bbf4f02e514710b73b96",
+      "normalized/a62bcee1c2929169908b3fc7/00000009.parquet": "45cc90d203a3b8dcd503e37929707ceec863a38fd241271ab57b399afbad012e",
+      "normalized/c25fd6b29961eedc87c4d415/00000010.parquet": "7f6ce27a034874347b8b015cfbf488bbc0ca8a5df12dbf96d49aefa824a953be",
+      "normalized/a4390a9b34d921e653aea510/00000011.parquet": "fdfc28ffd60eac7a613d3cf006d12ffbbe1195a1f32a94c1e20ee1a3c77ed9a8",
+      "normalized/b066ad203521518058af8c79/00000012.parquet": "dde306d7a626e2afb388cf60b173d99a148fead29d38e28b528bebdbc38bfb10",
+      "checkpoints/aux-a7b52b1885281249a1cf4f77d9dbaddcfafe6c14882892bdc1c8c5f0dc83e233.json.gz": "c574d781c04ee2bc2597bde7fdf74a18b16ed1c965c3e0f7036079f361878fbf",
+      "checkpoints/00000005.jsonl.gz": "baf8e9f6e3f838fe62139f4e458833e8c265fdcc1386108944339fb62d65d2f3",
+      "raw/00000001.jsonl.gz": "55f47bfc6babf5b6be204b109255e8e5a32dca95f4c91c0e0153cf53ebae0620",
+      "index.sqlite3": "b0e3bc8e31ca214e037e14571faf9f1b0955c6aba8949ecbc9419e1700a06a40"
+    },
+    "limits": {
+      "queue_count": 512,
+      "queue_bytes": 134217728,
+      "raw_rotation_bytes": 16777216,
+      "parquet_batch_count": 128,
+      "parquet_batch_bytes": 16777216,
+      "max_row_bytes": 268435456,
+      "max_files": 100000,
+      "max_streams": 1024,
+      "min_free_bytes": 67108864,
+      "managed_budget_bytes": 10737418240,
+      "retention_max_sessions": 100,
+      "finalize_timeout": 30.0,
+      "checkpoint_interval_batches": 100,
+      "max_query_rows": 10000,
+      "parquet_buffer_count": 4096,
+      "reader_cache_bytes": 33554432,
+      "reader_cache_count": 8192,
+      "checkpoint_group_count": 64,
+      "checkpoint_group_bytes": 16777216
+    },
+    "config": [
+      [
+        "dedup_capacity",
+        "50000"
+      ],
+      [
+        "poll_interval",
+        "2"
+      ],
+      [
+        "stop_drain_timeout",
+        "5"
+      ],
+      [
+        "capture_scope",
+        "selected_public_book_and_trades"
+      ],
+      [
+        "duration_seconds",
+        "20"
+      ]
+    ],
+    "source_raw_hash": "7f0152e2c90a34b6b97110627cf8b5c8b1a1ce6a8848473237c65ddea3aea0e1",
+    "source_events_hash": "1a9953e2c771535813a5083f9c8e9f3c30790d92e1cffcd314681e40b72622f6",
+    "source_checkpoints_hash": "dda7d183d96fb9ed600c636ed2a420ec0d5e3a8d9ea20591de19a22931ec0a30",
+    "writer_elapsed_seconds": 31.68844624000485,
+    "output_counts": {
+      "raw": 440,
+      "events": 533,
+      "batches": 445,
+      "checkpoints": 60
+    },
+    "output_complete": false,
+    "output_reasons": [
+      "profile_of_incomplete_source",
+      "queue_overflow",
+      "no_valid_book:binance-global:spot-v3:spot:BTCUSDT",
+      "no_valid_book:hyperliquid:info:perpetual:BTC",
+      "no_valid_book:hyperliquid:info:perpetual:ETH",
+      "no_valid_book:binance-global:spot-v3:spot:SOLUSDT",
+      "no_valid_book:binance-global:spot-v3:spot:ETHUSDT",
+      "no_valid_book:hyperliquid:info:perpetual:SOL",
+      "source_capture_incomplete:8657f494-665e-4d5c-8f73-7fb6a28f04a2",
+      "source_capture_incomplete:c8dad252-bedf-491e-b4fd-d35c8bdb2703",
+      "source_capture_incomplete:996df515-e9b8-4b3f-99c4-745a5d8a0789",
+      "source_capture_incomplete:df9ea7f8-bf01-482c-8671-52601512aa2e",
+      "source_capture_incomplete:1b5d3053-2930-43a8-892e-9cdeccfc239e",
+      "source_capture_incomplete:5e04e20d-c6a5-4dc9-b57a-80a9f6f5a882",
+      "source_capture_incomplete:73c9086a-1e86-411a-ae71-f90bdc961c88",
+      "source_capture_incomplete:cc2cd7cd-d1a3-4177-8838-eac807f9e95f",
+      "source_capture_incomplete:c0afcd8b-cb69-4cbc-abbc-3acb42b3b0f0",
+      "source_capture_incomplete:bbb696ae-9876-4354-9b66-8a3cb6c99551",
+      "source_capture_incomplete:9f5ad784-4e67-479f-9455-129fa5a54233",
+      "source_capture_incomplete:8f8920f6-167e-4324-afdc-a2b1f6328779",
+      "feed_capture_incomplete"
+    ],
+    "output_hashes": {
+      "raw": "7f0152e2c90a34b6b97110627cf8b5c8b1a1ce6a8848473237c65ddea3aea0e1",
+      "events": "1a9953e2c771535813a5083f9c8e9f3c30790d92e1cffcd314681e40b72622f6",
+      "checkpoints": "dda7d183d96fb9ed600c636ed2a420ec0d5e3a8d9ea20591de19a22931ec0a30"
+    },
+    "health": {
+      "state": "incomplete",
+      "queue_count": 0,
+      "queue_bytes": 0,
+      "high_water_count": 2,
+      "high_water_bytes": 4373121,
+      "incomplete_reasons": [
+        "profile_of_incomplete_source",
+        "queue_overflow",
+        "no_valid_book:binance-global:spot-v3:spot:BTCUSDT",
+        "no_valid_book:hyperliquid:info:perpetual:BTC",
+        "no_valid_book:hyperliquid:info:perpetual:ETH",
+        "no_valid_book:binance-global:spot-v3:spot:SOLUSDT",
+        "no_valid_book:binance-global:spot-v3:spot:ETHUSDT",
+        "no_valid_book:hyperliquid:info:perpetual:SOL",
+        "source_capture_incomplete:8657f494-665e-4d5c-8f73-7fb6a28f04a2",
+        "source_capture_incomplete:c8dad252-bedf-491e-b4fd-d35c8bdb2703",
+        "source_capture_incomplete:996df515-e9b8-4b3f-99c4-745a5d8a0789",
+        "source_capture_incomplete:df9ea7f8-bf01-482c-8671-52601512aa2e",
+        "source_capture_incomplete:1b5d3053-2930-43a8-892e-9cdeccfc239e",
+        "source_capture_incomplete:5e04e20d-c6a5-4dc9-b57a-80a9f6f5a882",
+        "source_capture_incomplete:73c9086a-1e86-411a-ae71-f90bdc961c88",
+        "source_capture_incomplete:cc2cd7cd-d1a3-4177-8838-eac807f9e95f",
+        "source_capture_incomplete:c0afcd8b-cb69-4cbc-abbc-3acb42b3b0f0",
+        "source_capture_incomplete:bbb696ae-9876-4354-9b66-8a3cb6c99551",
+        "source_capture_incomplete:9f5ad784-4e67-479f-9455-129fa5a54233",
+        "source_capture_incomplete:8f8920f6-167e-4324-afdc-a2b1f6328779",
+        "feed_capture_incomplete"
+      ],
+      "written_bytes": 4803637
+    },
+    "command": "PYTHONPATH=. .venv-upgrade/bin/python data/m2-profile-writer/profile_isolated.py before-isolated",
+    "caveat": "Writer-thread cProfile includes offline offer accounting but no producer polling; concurrent timings are hotspot evidence, not live latency."
+  },
+  "writer_after": {
+    "source": "data/m2-smoke/live-cli-3hjtn5tf/captures/9ec8ec8a-5cd8-4fe3-807c-33b5549f746a",
+    "source_manifest_sha256": "92c5172cd1c22e9e2b6bb182457656a3a0f5b4578a2ee972ca759b46ccb7ab9d",
+    "source_code_sha256": {
+      "src/workstation/recording.py": "637c02e43a9d3446e3bac6dd7f288442e3c25c50a994089fbabb9c827822dd3f",
+      "src/workstation/wire.py": "4ffc74cce31c35bd7c4bc177d13fb9c8a43c806f14bfb170687725981a676698",
+      "src/workstation/book.py": "f908201f41719b1d7726af4a38df0a3a166660c7312d21c4e9428e63053e4a74",
+      "src/workstation/projection.py": "a237e10fc36de628851576ec571ab659f33bdcf67b0a731e22d3c33b818d8136",
+      "src/workstation/adapters/binance.py": "ce02eb26c3ab8b4cebe975240201f9d1fc7403391cffdaab947cc3758d8853ca",
+      "src/workstation/precision.py": "0734ee946b152c669f9ef4cd4f9a4eab90a5054511abd72f426c0d7323a21918"
+    },
+    "source_complete": false,
+    "source_reasons": [
+      "queue_overflow",
+      "no_valid_book:binance-global:spot-v3:spot:BTCUSDT",
+      "no_valid_book:hyperliquid:info:perpetual:BTC",
+      "no_valid_book:hyperliquid:info:perpetual:ETH",
+      "no_valid_book:binance-global:spot-v3:spot:SOLUSDT",
+      "no_valid_book:binance-global:spot-v3:spot:ETHUSDT",
+      "no_valid_book:hyperliquid:info:perpetual:SOL",
+      "source_capture_incomplete:8657f494-665e-4d5c-8f73-7fb6a28f04a2",
+      "source_capture_incomplete:c8dad252-bedf-491e-b4fd-d35c8bdb2703",
+      "source_capture_incomplete:996df515-e9b8-4b3f-99c4-745a5d8a0789",
+      "source_capture_incomplete:df9ea7f8-bf01-482c-8671-52601512aa2e",
+      "source_capture_incomplete:1b5d3053-2930-43a8-892e-9cdeccfc239e",
+      "source_capture_incomplete:5e04e20d-c6a5-4dc9-b57a-80a9f6f5a882",
+      "source_capture_incomplete:73c9086a-1e86-411a-ae71-f90bdc961c88",
+      "source_capture_incomplete:cc2cd7cd-d1a3-4177-8838-eac807f9e95f",
+      "source_capture_incomplete:c0afcd8b-cb69-4cbc-abbc-3acb42b3b0f0",
+      "source_capture_incomplete:bbb696ae-9876-4354-9b66-8a3cb6c99551",
+      "source_capture_incomplete:9f5ad784-4e67-479f-9455-129fa5a54233",
+      "source_capture_incomplete:8f8920f6-167e-4324-afdc-a2b1f6328779",
+      "feed_capture_incomplete"
+    ],
+    "source_file_hashes": {
+      "checkpoints/aux-16d506051068421324ed7af7ff8425748c8f77174c6a59ca89202400374d9787.json.gz": "af75e2a0a41d02e93d73f08ddb9fa7725cc8c55a9d7e83836c48a1eecc8a8f88",
+      "checkpoints/00000001.jsonl.gz": "df356963ff08640bb2bf234a6d3e538cbb739b29efd8663117ee0ce35da0750e",
+      "checkpoints/aux-e839d0ff12a7682d677c8652c9358489655bff8ff23546474c0c7f5d4e087086.json.gz": "68a6d5b37ed1f44b49c665aeb2fad81aec698a10d3303f57d909684566f1e7cf",
+      "checkpoints/00000002.jsonl.gz": "716c5f4674cf09ced43f568b9e5b975f0335c3cb19f415309ce381a5c1fa9486",
+      "checkpoints/aux-008381bea0d2a67c392a8444f22fd32fdebdd56f0c63112479214d6fcfcf0945.json.gz": "dbe633dccf06b60e8c482035cfdd943de0c9e1f86b6d1d4d01e03617921bcdca",
+      "checkpoints/00000003.jsonl.gz": "0a77e459a394076dffc42c768b3f94de70b60dfbaeeaa0966ecf942eaefb1d16",
+      "checkpoints/aux-9cf3b71ae56f378de72ff833e4581792e9bf450a4568b71d35fd8ed75f28886b.json.gz": "7cc46c2216bd13a7c3e3d89f6568a8fd35a76c1f79465a16b621cb0e27de8088",
+      "checkpoints/00000004.jsonl.gz": "4fe1bd2a3d09e15975d7eaa5f19b6f68bde3b00ef451c079babd0c3009262251",
+      "normalized/48f70d22b221ea8c6ce9b65f/00000001.parquet": "14ba6c2259c4c10da088df43bf682bed4090db50c2c6f4033d28d83f7bc3c83b",
+      "normalized/decedee85ec8d9ba922b0aeb/00000002.parquet": "90ffb441f850a73b0fbec5747c0426bae73f1839ce855cc7143d727e299a9fc6",
+      "normalized/fde3017ac79b138cf926624a/00000003.parquet": "e024816a2b201b6cabb3344ec5398c2a79b62816fb7409ca60497296a65f4c6f",
+      "normalized/2a934c72bb314307af61ea65/00000004.parquet": "0cc0ba29df59f19f3572f3eb1f2a0a11518b75de1d2a40519948ebfddb6c1da3",
+      "normalized/b048b730efd07adebec0ccda/00000005.parquet": "3c197dc945c50c4bf459946abb406c1798c30d90aeb7d51307abfc65b0df3029",
+      "normalized/00548220dfdc13b4dfd07c29/00000006.parquet": "1daeb2c6c113170846301edc1a56b753b12781c8349e4522b6104f47e460d515",
+      "normalized/6cbf2542ae19a70a65143123/00000007.parquet": "2f179711cf3fe1cf9689956a109be0f4fa988e2a7b94cd273d0474887417e301",
+      "normalized/b83693aed6c2e8e89565de84/00000008.parquet": "a5bdf2fb19a50d5ba21ed5275cef0820143b3bd236d1bbf4f02e514710b73b96",
+      "normalized/a62bcee1c2929169908b3fc7/00000009.parquet": "45cc90d203a3b8dcd503e37929707ceec863a38fd241271ab57b399afbad012e",
+      "normalized/c25fd6b29961eedc87c4d415/00000010.parquet": "7f6ce27a034874347b8b015cfbf488bbc0ca8a5df12dbf96d49aefa824a953be",
+      "normalized/a4390a9b34d921e653aea510/00000011.parquet": "fdfc28ffd60eac7a613d3cf006d12ffbbe1195a1f32a94c1e20ee1a3c77ed9a8",
+      "normalized/b066ad203521518058af8c79/00000012.parquet": "dde306d7a626e2afb388cf60b173d99a148fead29d38e28b528bebdbc38bfb10",
+      "checkpoints/aux-a7b52b1885281249a1cf4f77d9dbaddcfafe6c14882892bdc1c8c5f0dc83e233.json.gz": "c574d781c04ee2bc2597bde7fdf74a18b16ed1c965c3e0f7036079f361878fbf",
+      "checkpoints/00000005.jsonl.gz": "baf8e9f6e3f838fe62139f4e458833e8c265fdcc1386108944339fb62d65d2f3",
+      "raw/00000001.jsonl.gz": "55f47bfc6babf5b6be204b109255e8e5a32dca95f4c91c0e0153cf53ebae0620",
+      "index.sqlite3": "b0e3bc8e31ca214e037e14571faf9f1b0955c6aba8949ecbc9419e1700a06a40"
+    },
+    "limits": {
+      "queue_count": 512,
+      "queue_bytes": 134217728,
+      "raw_rotation_bytes": 16777216,
+      "parquet_batch_count": 128,
+      "parquet_batch_bytes": 16777216,
+      "max_row_bytes": 268435456,
+      "max_files": 100000,
+      "max_streams": 1024,
+      "min_free_bytes": 67108864,
+      "managed_budget_bytes": 10737418240,
+      "retention_max_sessions": 100,
+      "finalize_timeout": 30.0,
+      "checkpoint_interval_batches": 100,
+      "max_query_rows": 10000,
+      "parquet_buffer_count": 4096,
+      "reader_cache_bytes": 33554432,
+      "reader_cache_count": 8192,
+      "checkpoint_group_count": 64,
+      "checkpoint_group_bytes": 16777216
+    },
+    "config": [
+      [
+        "dedup_capacity",
+        "50000"
+      ],
+      [
+        "poll_interval",
+        "2"
+      ],
+      [
+        "stop_drain_timeout",
+        "5"
+      ],
+      [
+        "capture_scope",
+        "selected_public_book_and_trades"
+      ],
+      [
+        "duration_seconds",
+        "20"
+      ]
+    ],
+    "source_raw_hash": "7f0152e2c90a34b6b97110627cf8b5c8b1a1ce6a8848473237c65ddea3aea0e1",
+    "source_events_hash": "1a9953e2c771535813a5083f9c8e9f3c30790d92e1cffcd314681e40b72622f6",
+    "source_checkpoints_hash": "dda7d183d96fb9ed600c636ed2a420ec0d5e3a8d9ea20591de19a22931ec0a30",
+    "writer_elapsed_seconds": 19.71368713999982,
+    "output_counts": {
+      "raw": 440,
+      "events": 533,
+      "batches": 445,
+      "checkpoints": 60
+    },
+    "output_complete": false,
+    "output_reasons": [
+      "profile_of_incomplete_source",
+      "queue_overflow",
+      "no_valid_book:binance-global:spot-v3:spot:BTCUSDT",
+      "no_valid_book:hyperliquid:info:perpetual:BTC",
+      "no_valid_book:hyperliquid:info:perpetual:ETH",
+      "no_valid_book:binance-global:spot-v3:spot:SOLUSDT",
+      "no_valid_book:binance-global:spot-v3:spot:ETHUSDT",
+      "no_valid_book:hyperliquid:info:perpetual:SOL",
+      "source_capture_incomplete:8657f494-665e-4d5c-8f73-7fb6a28f04a2",
+      "source_capture_incomplete:c8dad252-bedf-491e-b4fd-d35c8bdb2703",
+      "source_capture_incomplete:996df515-e9b8-4b3f-99c4-745a5d8a0789",
+      "source_capture_incomplete:df9ea7f8-bf01-482c-8671-52601512aa2e",
+      "source_capture_incomplete:1b5d3053-2930-43a8-892e-9cdeccfc239e",
+      "source_capture_incomplete:5e04e20d-c6a5-4dc9-b57a-80a9f6f5a882",
+      "source_capture_incomplete:73c9086a-1e86-411a-ae71-f90bdc961c88",
+      "source_capture_incomplete:cc2cd7cd-d1a3-4177-8838-eac807f9e95f",
+      "source_capture_incomplete:c0afcd8b-cb69-4cbc-abbc-3acb42b3b0f0",
+      "source_capture_incomplete:bbb696ae-9876-4354-9b66-8a3cb6c99551",
+      "source_capture_incomplete:9f5ad784-4e67-479f-9455-129fa5a54233",
+      "source_capture_incomplete:8f8920f6-167e-4324-afdc-a2b1f6328779",
+      "feed_capture_incomplete"
+    ],
+    "output_hashes": {
+      "raw": "7f0152e2c90a34b6b97110627cf8b5c8b1a1ce6a8848473237c65ddea3aea0e1",
+      "events": "1a9953e2c771535813a5083f9c8e9f3c30790d92e1cffcd314681e40b72622f6",
+      "checkpoints": "dda7d183d96fb9ed600c636ed2a420ec0d5e3a8d9ea20591de19a22931ec0a30"
+    },
+    "health": {
+      "state": "incomplete",
+      "queue_count": 0,
+      "queue_bytes": 0,
+      "high_water_count": 2,
+      "high_water_bytes": 4373121,
+      "incomplete_reasons": [
+        "profile_of_incomplete_source",
+        "queue_overflow",
+        "no_valid_book:binance-global:spot-v3:spot:BTCUSDT",
+        "no_valid_book:hyperliquid:info:perpetual:BTC",
+        "no_valid_book:hyperliquid:info:perpetual:ETH",
+        "no_valid_book:binance-global:spot-v3:spot:SOLUSDT",
+        "no_valid_book:binance-global:spot-v3:spot:ETHUSDT",
+        "no_valid_book:hyperliquid:info:perpetual:SOL",
+        "source_capture_incomplete:8657f494-665e-4d5c-8f73-7fb6a28f04a2",
+        "source_capture_incomplete:c8dad252-bedf-491e-b4fd-d35c8bdb2703",
+        "source_capture_incomplete:996df515-e9b8-4b3f-99c4-745a5d8a0789",
+        "source_capture_incomplete:df9ea7f8-bf01-482c-8671-52601512aa2e",
+        "source_capture_incomplete:1b5d3053-2930-43a8-892e-9cdeccfc239e",
+        "source_capture_incomplete:5e04e20d-c6a5-4dc9-b57a-80a9f6f5a882",
+        "source_capture_incomplete:73c9086a-1e86-411a-ae71-f90bdc961c88",
+        "source_capture_incomplete:cc2cd7cd-d1a3-4177-8838-eac807f9e95f",
+        "source_capture_incomplete:c0afcd8b-cb69-4cbc-abbc-3acb42b3b0f0",
+        "source_capture_incomplete:bbb696ae-9876-4354-9b66-8a3cb6c99551",
+        "source_capture_incomplete:9f5ad784-4e67-479f-9455-129fa5a54233",
+        "source_capture_incomplete:8f8920f6-167e-4324-afdc-a2b1f6328779",
+        "feed_capture_incomplete"
+      ],
+      "written_bytes": 4803637
+    },
+    "command": "PYTHONPATH=. .venv-upgrade/bin/python data/m2-profile-writer/profile_isolated.py after-union",
+    "caveat": "Writer-thread cProfile includes offline offer accounting but no producer polling; concurrent timings are hotspot evidence, not live latency."
+  },
+  "workloads": {
+    "data/m2-profile-core/profile_projection.py": "\"\"\"Profile the preserved incomplete real capture; no network or correctness gate.\"\"\"\nimport argparse\nimport cProfile\nimport hashlib\nimport io\nimport json\nfrom pathlib import Path\nimport pstats\nimport sys\nimport time\n\nfrom src.workstation.events import BookUpdate\nfrom src.workstation.projection import RecordingProjection\nfrom src.workstation.recording import RecordingReader\nfrom src.workstation.wire import dumps\n\nparser = argparse.ArgumentParser()\nparser.add_argument(\"label\")\nargs = parser.parse_args()\nout = Path(__file__).parent\ncapture = Path(\"data/m2-smoke/live-cli-3hjtn5tf/captures/9ec8ec8a-5cd8-4fe3-807c-33b5549f746a\")\nwith RecordingReader(capture, allow_incomplete=True) as reader:\n    manifest = reader.manifest\n    batches = tuple(reader.iter_batches())\nconfig = dict(manifest.config)\nprojection = RecordingProjection(manifest.streams, dedup_capacity=int(config.get(\"dedup_capacity\", \"50000\")), poll_interval=float(config.get(\"poll_interval\", \"2\")))\napply_profile = cProfile.Profile()\ncheckpoint_profile = cProfile.Profile()\napply_seconds = checkpoint_seconds = 0.0\npositions = []\nmax_levels = {}\nfor index, batch in enumerate(batches, 1):\n    start = time.perf_counter()\n    apply_profile.runcall(projection.apply_batch, batch)\n    apply_seconds += time.perf_counter() - start\n    for stream, reducer in projection.reducers.items():\n        if reducer.book is not None:\n            max_levels[str(stream)] = max(max_levels.get(str(stream), 0), len(reducer.book.bids), len(reducer.book.asks))\n    if index % manifest.limits.checkpoint_interval_batches == 0 or index == len(batches):\n        start = time.perf_counter()\n        checkpoints = checkpoint_profile.runcall(projection.checkpoints)\n        auxiliary = checkpoint_profile.runcall(projection.checkpoint_state)\n        checkpoint_seconds += time.perf_counter() - start\n        positions.append({\"delivery\": index, \"book_hash\": projection.book_hash, \"state_hash\": projection.state_hash, \"checkpoints_hash\": hashlib.sha256(dumps(checkpoints)).hexdigest(), \"auxiliary_hash\": hashlib.sha256(auxiliary).hexdigest()})\nfor name, profile in ((\"apply\", apply_profile), (\"checkpoints\", checkpoint_profile)):\n    profile.dump_stats(str(out / f\"{args.label}-{name}.prof\"))\n    text = io.StringIO()\n    pstats.Stats(profile, stream=text).strip_dirs().sort_stats(\"cumulative\").print_stats(60)\n    (out / f\"{args.label}-{name}.txt\").write_text(text.getvalue())\nresult = {\"command\": f\"PYTHONPATH=. .venv-upgrade/bin/python data/m2-profile-core/profile_projection.py {args.label}\", \"python\": sys.version, \"capture\": str(capture), \"manifest_sha256\": hashlib.sha256((capture / \"manifest.json\").read_bytes()).hexdigest(), \"complete\": manifest.complete, \"incomplete_reasons\": manifest.incomplete_reasons, \"batch_count\": len(batches), \"event_count\": sum(len(batch.events) for batch in batches), \"source_changes\": sum(len(event.payload.changes) for batch in batches for event in batch.events if isinstance(event.payload, BookUpdate)), \"config\": config, \"checkpoint_interval\": manifest.limits.checkpoint_interval_batches, \"apply_seconds_profiled\": apply_seconds, \"checkpoint_seconds_profiled\": checkpoint_seconds, \"max_retained_levels_per_side\": max_levels, \"positions\": positions, \"timing_caveat\": \"cProfile overhead and concurrent writer profiling; not isolated end-to-end throughput\"}\n(out / f\"{args.label}-summary.json\").write_text(json.dumps(result, indent=2) + \"\\n\")\nprint(json.dumps(result, indent=2))\n",
+    "data/m2-profile-writer/profile_isolated.py": "\"\"\"Offline actual writer service profile; source losses remain explicitly incomplete.\n\nThe worker offers the next preserved immutable item after writing the current one.\nThe producer is parked, avoiding CPython 3.13 cProfile cross-thread contamination.\nThis profiles actual Recorder._run dispatch, compression, projection, SQLite and\nsealing with unchanged limits, not a live-capture or real-time-throughput claim.\n\"\"\"\nimport cProfile\nfrom dataclasses import asdict\nimport hashlib\nimport io\nimport json\nfrom pathlib import Path\nimport pstats\nimport sys\nimport time\nfrom src.workstation import wire\nfrom src.workstation.recording import Recorder, RecordingReader\n\nSOURCE = Path('data/m2-smoke/live-cli-3hjtn5tf/captures/9ec8ec8a-5cd8-4fe3-807c-33b5549f746a')\noutput = Path('data/m2-profile-writer') / sys.argv[1]\noutput.mkdir()\nsource_code = {str(path): hashlib.sha256(path.read_bytes()).hexdigest() for path in (\n    Path('src/workstation/recording.py'), Path('src/workstation/wire.py'),\n    Path('src/workstation/book.py'), Path('src/workstation/projection.py'),\n    Path('src/workstation/adapters/binance.py'), Path('src/workstation/precision.py'),\n)}\nwith RecordingReader(SOURCE, allow_incomplete=True) as reader:\n    original = reader.manifest\n    raw = list(reader.iter_raw())\n    batches = list(reader.iter_batches())\n    original_checkpoints = list(reader.iter_checkpoints())\nraw_by_key = {(frame.stream_id, frame.ingest_ordinal): frame for frame in raw}\noffered = set()\nworkload = []\nfor batch in batches:\n    event = batch.events[0]\n    key = (event.stream_id, event.ingest_ordinal)\n    if key in raw_by_key and key not in offered:\n        workload.append(('raw', raw_by_key[key]))\n        offered.add(key)\n    workload.append(('events', batch.events))\nworkload.extend(('raw', frame) for frame in raw if (frame.stream_id, frame.ingest_ordinal) not in offered)\n\nclass ProfiledRecorder(Recorder):\n    def _advance(self):\n        item = next(self._source_items, None)\n        if item is None:\n            for reason in original.incomplete_reasons:\n                self.mark_incomplete(reason)\n            with self._condition:\n                self._closing = True\n        elif item[0] == 'raw':\n            self.append_raw(item[1])\n        else:\n            self.append_events(item[1])\n\n    def _write_raw(self, frame):\n        super()._write_raw(frame)\n        self._advance()\n\n    def _write_events(self, batch):\n        super()._write_events(batch)\n        self._advance()\n\n    def _run(self):\n        self._source_items = iter(workload)\n        self.mark_incomplete('profile_of_incomplete_source')\n        self._advance()\n        profiler = cProfile.Profile()\n        started = time.perf_counter()\n        profiler.runcall(super()._run)\n        self.profile_elapsed = time.perf_counter() - started\n        profiler.dump_stats(str(output / 'writer.prof'))\n        report = io.StringIO()\n        pstats.Stats(profiler, stream=report).strip_dirs().sort_stats('cumulative').print_stats(80)\n        (output / 'writer.txt').write_text(report.getvalue())\n\nrecorder = ProfiledRecorder(\n    output / 'captures', session_id=original.session_id, clock_id=original.clock_id,\n    streams=original.streams, config=original.config, limits=original.limits,\n    provenance='Offline writer profile of incomplete original capture; not live or complete history',\n    code_revision=original.code_revision, license=original.license,\n)\nrecorder._thread.join()\nmanifest = recorder._manifest\n\ndef digest(values):\n    state = hashlib.sha256()\n    for value in values:\n        payload = wire.dumps(value, canonical=False)\n        state.update(len(payload).to_bytes(8, 'big'))\n        state.update(payload)\n    return state.hexdigest()\n\ndef checkpoint_hash(checkpoints):\n    return digest((cp.delivery_index, cp.checkpoint, cp.observer_state) for cp in checkpoints)\n\nwith RecordingReader(recorder.path, allow_incomplete=True) as reader:\n    hashes = {\n        'raw': digest(sorted(reader.iter_raw(), key=lambda frame: (str(frame.stream_id), frame.ingest_ordinal))),\n        'events': digest(batch.events for batch in reader.iter_batches()),\n        'checkpoints': checkpoint_hash(reader.iter_checkpoints()),\n    }\nsummary = {\n    'source': str(SOURCE),\n    'source_manifest_sha256': hashlib.sha256((SOURCE / 'manifest.json').read_bytes()).hexdigest(),\n    'source_code_sha256': source_code,\n    'source_complete': original.complete,\n    'source_reasons': original.incomplete_reasons,\n    'source_file_hashes': {record.path: record.sha256 for record in original.files},\n    'limits': asdict(original.limits), 'config': original.config,\n    'source_raw_hash': digest(sorted(raw, key=lambda frame: (str(frame.stream_id), frame.ingest_ordinal))),\n    'source_events_hash': digest(batch.events for batch in batches),\n    'source_checkpoints_hash': checkpoint_hash(original_checkpoints),\n    'writer_elapsed_seconds': recorder.profile_elapsed,\n    'output_counts': {'raw': manifest.raw_count, 'events': manifest.event_count,\n                      'batches': manifest.batch_count, 'checkpoints': manifest.checkpoint_count},\n    'output_complete': manifest.complete, 'output_reasons': manifest.incomplete_reasons,\n    'output_hashes': hashes, 'health': asdict(recorder.health),\n    'command': f'PYTHONPATH=. .venv-upgrade/bin/python data/m2-profile-writer/profile_isolated.py {sys.argv[1]}',\n    'caveat': 'Writer-thread cProfile includes offline offer accounting but no producer polling; concurrent timings are hotspot evidence, not live latency.',\n}\n(output / 'summary.json').write_text(json.dumps(summary, indent=2) + '\\n')\nprint(json.dumps({key: value for key, value in summary.items() if key not in ('source_file_hashes', 'limits', 'source_reasons', 'output_reasons', 'health')}, indent=2))\n"
+  },
+  "reproduction": "Extract the workload text to its recorded relative path and run its command with a new output label on a chosen source revision. Requires the retained local real-data capture; raw market data is not redistributed. Labels do not restore historical code. Original source/code hashes and measurements remain separate evidence."
+}

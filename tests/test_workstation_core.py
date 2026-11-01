@@ -1187,6 +1187,63 @@ def test_checkpoint_restores_exact_lexical_maps_protocol_buffer_and_next_result(
         replace(checkpoint, reducer_state=b"corrupted")
 
 
+def test_native_candidate_transfer_matches_checkpoint_restore_and_future_results():
+    instrument, key, candidate = fixture_core(sequence_validator=monotonic_sequence)
+    old_book = candidate.apply(
+        (envelope(instrument, key, sequence=SequenceInfo("u", last="10")),)
+    ).book
+    assert old_book is not None
+    pending = envelope(
+        instrument,
+        key,
+        "delta",
+        changes=(LevelChange("bid", D("99.000"), D("3.0000")),),
+        ordinal=2,
+        sequence=SequenceInfo("u", last="20"),
+    )
+    candidate.buffered_events = (pending,)
+    candidate.protocol_state = b'{"bridge":"10","lexical":"1.000"}'
+    checkpoint = candidate.checkpoint()
+    old_bytes = dumps(old_book, canonical=False)
+    _, _, adopted = fixture_core(sequence_validator=monotonic_sequence)
+    _, _, restored = fixture_core(sequence_validator=monotonic_sequence)
+    adopted._adopt_candidate(candidate)
+    restored.restore(loads(dumps(checkpoint)))
+    assert adopted.checkpoint() == restored.checkpoint() == checkpoint
+    assert str(adopted.book.bids[0].price) == "99.00"
+    assert str(adopted.book.bids[0].quantity) == "1.000"
+    candidate_result = candidate.apply((pending,))
+    assert adopted.checkpoint() == checkpoint
+    assert adopted.apply((pending,)) == restored.apply((pending,)) == candidate_result
+    assert adopted.checkpoint() == restored.checkpoint() == candidate.checkpoint()
+    assert str(adopted.book.bids[0].price) == "99.000"
+    assert str(adopted.book.bids[0].quantity) == "3.0000"
+    candidate.reset(1, "next-segment")
+    assert adopted.checkpoint() == restored.checkpoint()
+    assert dumps(old_book, canonical=False) == old_bytes
+
+
+@pytest.mark.parametrize(
+    "attribute,value",
+    [
+        ("config_hash", "different"),
+        ("adapter_revision", "different"),
+        ("max_levels", 1),
+        ("_last_order", (999, 0)),
+    ],
+)
+def test_native_candidate_transfer_rejects_incompatible_state_atomically(
+    attribute, value
+):
+    _, _, candidate, _ = healthy()
+    _, _, target, _ = healthy()
+    before = target.checkpoint()
+    setattr(candidate, attribute, value)
+    with pytest.raises(ValueError):
+        target._adopt_candidate(candidate)
+    assert target.checkpoint() == before
+
+
 def test_checkpoint_before_initialization_and_after_invalidation_roundtrip():
     instrument, key, reducer = fixture_core()
     empty = reducer.checkpoint()

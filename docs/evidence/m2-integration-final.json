@@ -1,0 +1,118 @@
+{
+  "runtime": "3.13.5 (main, Jul 23 2025, 00:30:58) [Clang 20.1.4 ]",
+  "platform": "macOS-13.7.8-x86_64-i386-64bit-Mach-O",
+  "root": "data/m2-smoke/verified-wxfwis3o",
+  "default_demo": {
+    "elapsed_seconds": 16.307089983994956,
+    "book_hash": "d6551567f5fd85ab56933327e0af2a8a6f6d1c7125d0dee97b63f4b9d4721d65",
+    "capture": "data/m2-smoke/verified-wxfwis3o/default/synthetic-demo-v2-180s",
+    "capture_complete": true,
+    "command": "demo",
+    "cursor": {
+      "delivery_index": "4410",
+      "event_index": "0",
+      "ordinal": "4410"
+    },
+    "fixture_license": "CC0-1.0",
+    "incomplete_reasons": [],
+    "live_projection_equivalent": true,
+    "mode": "normalized",
+    "source_quality": "Recorded modes and source limitations are retained; playback is not live market access.",
+    "state_hash": "60635b3a0bf3e2c07431fb6789282543cc40946374ad2f46332a7acff2aa2eff",
+    "status": "finished",
+    "synthetic": true
+  },
+  "default_persistence_replay": {
+    "manifest_sha256": "11ed94ed0ed35d84ebed7b14866de2da13b0f02ca145f3dc5d0f5e63c4b9fe6f",
+    "complete": true,
+    "raw_count": 4368,
+    "event_count": 4410,
+    "batch_count": 4410,
+    "checkpoint_count": 1452,
+    "streams": 24,
+    "code_revision": "workstation-source-sha256:b1a93ef63279a623c7ee818da7f7b90a9537be322a4501174d32b6c910236898",
+    "files_by_kind": {
+      "checkpoint_aux": 84,
+      "checkpoint": 84,
+      "normalized": 48,
+      "raw": 1,
+      "catalog": 1
+    },
+    "sealed_bytes": 7215169,
+    "book_hash": "d6551567f5fd85ab56933327e0af2a8a6f6d1c7125d0dee97b63f4b9d4721d65",
+    "state_hash": "0b7919e461102d413334ef802147ef070181be9f2c88ed7b35656a1f28f932e3",
+    "clock_hash": "8282e625336d2e42e2d15d61ef330be6706f138b8599db6b0b76deb995bda8da",
+    "raw_normalized_equal": true,
+    "observer_backward_seek_equal": true,
+    "checkpoint_seek_status": "restored",
+    "duckdb_range_query_equal": true,
+    "parquet_columns": [
+      "delivery_index",
+      "stream_id",
+      "instrument_id",
+      "venue",
+      "ingest_ordinal",
+      "receive_wall_ns",
+      "receive_mono_ns",
+      "source_mode",
+      "segment_id",
+      "payload_kind",
+      "event_count",
+      "payload"
+    ],
+    "parquet_compression": [
+      "ZSTD"
+    ],
+    "sqlite_counts": {
+      "raw": 4368,
+      "batches": 4410,
+      "checkpoints": 1452
+    }
+  },
+  "small_demo_seconds": 3.89092903699202,
+  "inspect": {
+    "elapsed_seconds": 1.6991017660038779,
+    "top_level_fields": [
+      "capture",
+      "command",
+      "history",
+      "manifest",
+      "verification_scope",
+      "verified"
+    ]
+  },
+  "raw_cli": {
+    "elapsed_seconds": 1.4840267060062615,
+    "status": "finished",
+    "source_hash_equal": true
+  },
+  "paced_pause_resume": [
+    {
+      "speed": "2",
+      "book_hash": "725329be4672497c763793ab49dc4d55459b4703556db43c6b79932dcb213822",
+      "state_hash": "74a1da93f563e2b532901afc3b6eb66b232767376787eb1f1bad7d8e3236759b",
+      "clock_hash": "9dde2306c1d5ff825dcc9188da801cd480b9872c9820ade574bafc7de0ea8ade",
+      "status": "finished"
+    },
+    {
+      "speed": "20",
+      "book_hash": "725329be4672497c763793ab49dc4d55459b4703556db43c6b79932dcb213822",
+      "state_hash": "74a1da93f563e2b532901afc3b6eb66b232767376787eb1f1bad7d8e3236759b",
+      "clock_hash": "9dde2306c1d5ff825dcc9188da801cd480b9872c9820ade574bafc7de0ea8ade",
+      "status": "finished"
+    }
+  ],
+  "corruption": [
+    {
+      "kind": "raw",
+      "rejected": true,
+      "reason": "capture file hash/size mismatch: raw/00000001.jsonl.gz"
+    },
+    {
+      "kind": "normalized",
+      "rejected": true,
+      "reason": "capture file hash/size mismatch: normalized/818af0ea6e78377affb9abaa/00000001.parquet"
+    }
+  ],
+  "note": "Actual schema2 CLI and persisted-consumer smoke. Default180s cold generation+verification+replay16.3071s, not a claim of instant UI startup. Final terminal startup is evaluated separately inM3/M4."
+}

@@ -1448,7 +1448,7 @@ def test_known_lost_ordinals_include_flushed_queue_not_other_stream(loss_kind):
             < gap.last_missing_ordinal
         )
         assert gap.affected_streams == (feed.stream_id,)
-        assert gap.capture_lost == (loss_kind == "capture")
+        assert gap.capture_lost  # Raw or required normalized delivery was lost.
         assert feed.queue.empty() and feed.queued_bytes == 0
         feed._gap("unknown_disconnect")
         assert events[-1].payload.first_missing_ordinal is None

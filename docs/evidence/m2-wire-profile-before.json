@@ -1,0 +1,9 @@
+{
+  "kind": "profiled-codec-baseline",
+  "runtime": "CPython3.13.5",
+  "platform": "macOS-13.7.8-x86_64-i386-64bit",
+  "workload": "100 lossless wire.dumps/loads roundtrips;32 LevelChange records per EventEnvelope;5147 encoded bytes",
+  "scope": "Profiler-enabled timings, not ingestion/render latency or an unprofiled throughput claim",
+  "script_sha256": "a87da5cc825f64cd50c924b7716ca27b141202e56228825021b668b4d1c08880",
+  "output": "{\"events\": 100, \"changes_per_event\": 32, \"bytes_per_event\": 5147, \"elapsed_seconds_profiled\": 2.041945479999413}\n         4383303 function calls (4308403 primitive calls) in 2.032 seconds\n\n   Ordered by: cumulative time\n   List reduced from 80 to 12 due to restriction <12>\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n      100    0.001    0.000    1.302    0.013 <repo>/src/workstation/wire.py:139(dumps)\n22600/100    0.057    0.000    1.290    0.013 <repo>/src/workstation/wire.py:31(to_wire)\n     7200    0.516    0.000    1.178    0.000 <repo>/src/workstation/wire.py:16(_registry)\n      100    0.001    0.000    0.739    0.007 <repo>/src/workstation/wire.py:152(loads)\n      100    0.001    0.000    0.723    0.007 <repo>/src/workstation/wire.py:131(from_wire)\n31300/100    0.133    0.000    0.688    0.007 <repo>/src/workstation/wire.py:59(_decode)\n     3400    0.004    0.000    0.561    0.000 <repo>/src/workstation/wire.py:85(<genexpr>)\n   540300    0.252    0.000    0.409    0.000 <python-runtime>/lib/python3.13/dataclasses.py:1331(is_dataclass)\n  2506400    0.380    0.000    0.380    0.000 {built-in method builtins.isinstance}\n     3500    0.091    0.000    0.257    0.000 <python-runtime>/lib/python3.13/typing.py:2403(get_type_hints)\n    19300    0.084    0.000    0.168    0.000 <repo>/src/workstation/precision.py:38(decimal)\n   605900    0.113    0.000    0.113    0.000 {built-in method builtins.hasattr}\n\n\n\n"
+}

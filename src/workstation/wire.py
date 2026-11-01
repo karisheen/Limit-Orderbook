@@ -4,6 +4,7 @@ import base64
 import binascii
 from dataclasses import fields, is_dataclass
 from decimal import Decimal
+from functools import lru_cache
 import json
 import types
 from typing import Union, get_args, get_origin, get_type_hints
@@ -11,12 +12,14 @@ from typing import Union, get_args, get_origin, get_type_hints
 from .precision import canonical_decimal, decimal, exact_json_loads
 
 WIRE_SCHEMA_VERSION = 1
+_DECIMAL_MEMO_LIMIT = 8192
 
 
-def _registry():
+@lru_cache(maxsize=1)
+def _registry() -> dict[str, type]:
     from . import book, events, instruments, precision, quality
 
-    result = {}
+    result: dict[str, type] = {}
     for module in (book, events, instruments, precision, quality):
         for name, cls in vars(module).items():
             if (
@@ -28,12 +31,34 @@ def _registry():
     return result
 
 
+@lru_cache(maxsize=128)
+def _record_hints(record_type):
+    return get_type_hints(record_type)
+
+
+@lru_cache(maxsize=128)
+def _record_fields(record_type: type) -> tuple[tuple[str, ...], frozenset[str]]:
+    names = tuple(field.name for field in fields(record_type))
+    return names, frozenset((*names, "$type"))
+
+
 def to_wire(value, *, canonical: bool = True):
+    # Only lexical scalar strings are memoized, for this one call. Numeric Decimal
+    # equality would merge distinct scales and can even bypass exponent bounds.
+    return _to_wire(value, canonical, {})
+
+
+def _to_wire(value, canonical, decimal_memo):
     if value is None or isinstance(value, (bool, str)):
         return value
     if isinstance(value, Decimal):
-        # Public wire is canonical; checkpoints explicitly retain scale/exponent.
-        return canonical_decimal(value) if canonical else str(decimal(value))
+        lexical = str(Decimal(value))
+        encoded = decimal_memo.get(lexical)
+        if encoded is None:
+            encoded = canonical_decimal(value) if canonical else str(decimal(value))
+            if len(decimal_memo) < _DECIMAL_MEMO_LIMIT:
+                decimal_memo[lexical] = encoded
+        return encoded
     if isinstance(value, int):
         return str(value)
     if isinstance(value, bytes):
@@ -46,13 +71,13 @@ def to_wire(value, *, canonical: bool = True):
         return {
             "$type": type(value).__name__,
             **{
-                field.name: to_wire(getattr(value, field.name), canonical=canonical)
-                for field in fields(value)
+                name: _to_wire(getattr(value, name), canonical, decimal_memo)
+                for name in _record_fields(_registry()[type(value).__name__])[0]
             },
         }
     if isinstance(value, (tuple, frozenset)):
         items = sorted(value) if isinstance(value, frozenset) else value
-        return [to_wire(item, canonical=canonical) for item in items]
+        return [_to_wire(item, canonical, decimal_memo) for item in items]
     raise ValueError(f"unsupported wire type: {type(value).__name__}")
 
 
@@ -120,10 +145,10 @@ def _decode(value, expected):
     if isinstance(expected, type) and is_dataclass(expected):
         if not isinstance(value, dict) or value.get("$type") != expected.__name__:
             raise ValueError("incorrect wire record type")
-        names = {field.name for field in fields(expected)}
-        if set(value) != names | {"$type"}:
+        names, allowed = _record_fields(expected)
+        if value.keys() != allowed:
             raise ValueError("missing/unknown wire fields")
-        hints = get_type_hints(expected)
+        hints = _record_hints(expected)
         return expected(**{name: _decode(value[name], hints[name]) for name in names})
     raise ValueError(f"unsupported wire annotation: {expected}")
 

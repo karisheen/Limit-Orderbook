@@ -1,0 +1,409 @@
+{
+  "assets": [
+    "BTC",
+    "ETH",
+    "SOL"
+  ],
+  "book_hash": "addf0fe4ddff4ca7e4581bcaea2f010621c36d9a3e04f799bd36f1c9a0ec1a22",
+  "capture": "data/m2-smoke/live-cli-gry1ld8s/captures/9b355ab1-b2a2-4dbb-ae67-a47710272382",
+  "checks_passed": true,
+  "code_revision": "workstation-source-sha256:6f5665b8342651897e66da18d4f0198f190b3b74035418a1937d776fc71df3ab",
+  "complete": true,
+  "counts": {
+    "batch_count": "703",
+    "checkpoint_count": "216",
+    "event_count": "826",
+    "raw_count": "679"
+  },
+  "cursor": {
+    "delivery_index": "703",
+    "event_index": "0",
+    "ordinal": "703"
+  },
+  "dependency_evidence": [
+    {
+      "checked_wall_ns": "1793512313978889000",
+      "dependencies": [
+        [
+          "metadata",
+          "available"
+        ],
+        [
+          "snapshot",
+          "available"
+        ],
+        [
+          "trades",
+          "available"
+        ],
+        [
+          "ws",
+          "available"
+        ]
+      ],
+      "detail": "product_dependency_probe",
+      "probed_instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+      "state": "available",
+      "venue": "binance-global"
+    },
+    {
+      "checked_wall_ns": "1793512317305183000",
+      "dependencies": [
+        [
+          "metadata",
+          "available"
+        ],
+        [
+          "snapshot",
+          "available"
+        ],
+        [
+          "trades",
+          "available"
+        ],
+        [
+          "ws",
+          "available"
+        ]
+      ],
+      "detail": "product_dependency_probe",
+      "probed_instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+      "state": "available",
+      "venue": "binance-global"
+    },
+    {
+      "checked_wall_ns": "1793512313851928000",
+      "dependencies": [
+        [
+          "metadata",
+          "available"
+        ],
+        [
+          "snapshot",
+          "available"
+        ],
+        [
+          "trades",
+          "available"
+        ],
+        [
+          "ws",
+          "available"
+        ]
+      ],
+      "detail": "product_dependency_probe",
+      "probed_instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+      "state": "available",
+      "venue": "binance-global"
+    }
+  ],
+  "duration_seconds": 20,
+  "event_kinds": [
+    {
+      "channel": "book",
+      "count": 467,
+      "kind": "BookUpdate",
+      "venue": "binance-global"
+    },
+    {
+      "channel": "book",
+      "count": 6,
+      "kind": "Control",
+      "venue": "binance-global"
+    },
+    {
+      "channel": "book",
+      "count": 3,
+      "kind": "Gap",
+      "venue": "binance-global"
+    },
+    {
+      "channel": "trades",
+      "count": 6,
+      "kind": "Control",
+      "venue": "binance-global"
+    },
+    {
+      "channel": "trades",
+      "count": 3,
+      "kind": "Gap",
+      "venue": "binance-global"
+    },
+    {
+      "channel": "trades",
+      "count": 155,
+      "kind": "Trade",
+      "venue": "binance-global"
+    },
+    {
+      "channel": "book",
+      "count": 12,
+      "kind": "BookUpdate",
+      "venue": "hyperliquid"
+    },
+    {
+      "channel": "book",
+      "count": 6,
+      "kind": "Control",
+      "venue": "hyperliquid"
+    },
+    {
+      "channel": "book",
+      "count": 3,
+      "kind": "Gap",
+      "venue": "hyperliquid"
+    },
+    {
+      "channel": "trades",
+      "count": 6,
+      "kind": "Control",
+      "venue": "hyperliquid"
+    },
+    {
+      "channel": "trades",
+      "count": 3,
+      "kind": "Gap",
+      "venue": "hyperliquid"
+    },
+    {
+      "channel": "trades",
+      "count": 156,
+      "kind": "Trade",
+      "venue": "hyperliquid"
+    }
+  ],
+  "incomplete_reasons": [],
+  "manifest_sha256": "c1f2b35a0f5c897679cc9aa53a2e6bece6019945e094f1daabb34b67bc237cbf",
+  "normalized_replay_exit": 0,
+  "normalized_replay_seconds": 16.91645943200274,
+  "raw_normalized_equal": true,
+  "raw_replay_exit": 0,
+  "raw_replay_seconds": 19.312522357999114,
+  "record_exit": 0,
+  "record_seconds": 47.64186617199448,
+  "root": "data/m2-smoke/live-cli-gry1ld8s",
+  "source_statuses": [
+    {
+      "capture_complete": true,
+      "connection_epoch": "1",
+      "key": {
+        "aggregation": [],
+        "api_family": "spot-v3",
+        "channel": "book",
+        "depth": "5000",
+        "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+        "venue": "binance-global"
+      },
+      "lifecycle": "live",
+      "queue_bytes": "0",
+      "queue_depth": "0",
+      "reason": "starting",
+      "reference_count": "1",
+      "stream_id": "2fbdb2ec-6eba-4979-8ba5-a3a7fd714f36"
+    },
+    {
+      "capture_complete": true,
+      "connection_epoch": "1",
+      "key": {
+        "aggregation": [],
+        "api_family": "spot-v3",
+        "channel": "trades",
+        "depth": null,
+        "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+        "venue": "binance-global"
+      },
+      "lifecycle": "live",
+      "queue_bytes": "0",
+      "queue_depth": "0",
+      "reason": "starting",
+      "reference_count": "1",
+      "stream_id": "5d3a3325-0f8c-4c0b-a7ab-f9c9cf8caab2"
+    },
+    {
+      "capture_complete": true,
+      "connection_epoch": "1",
+      "key": {
+        "aggregation": [],
+        "api_family": "spot-v3",
+        "channel": "book",
+        "depth": "5000",
+        "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+        "venue": "binance-global"
+      },
+      "lifecycle": "live",
+      "queue_bytes": "0",
+      "queue_depth": "0",
+      "reason": "starting",
+      "reference_count": "1",
+      "stream_id": "ba225fbd-1e54-432a-ab31-5964c898bf05"
+    },
+    {
+      "capture_complete": true,
+      "connection_epoch": "1",
+      "key": {
+        "aggregation": [],
+        "api_family": "spot-v3",
+        "channel": "trades",
+        "depth": null,
+        "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+        "venue": "binance-global"
+      },
+      "lifecycle": "live",
+      "queue_bytes": "0",
+      "queue_depth": "0",
+      "reason": "starting",
+      "reference_count": "1",
+      "stream_id": "19a00c06-dfc8-4050-be9c-d365652ffba0"
+    },
+    {
+      "capture_complete": true,
+      "connection_epoch": "1",
+      "key": {
+        "aggregation": [],
+        "api_family": "spot-v3",
+        "channel": "book",
+        "depth": "5000",
+        "instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+        "venue": "binance-global"
+      },
+      "lifecycle": "live",
+      "queue_bytes": "0",
+      "queue_depth": "0",
+      "reason": "starting",
+      "reference_count": "1",
+      "stream_id": "94c871e1-78b5-4230-b6ee-08238f9676c5"
+    },
+    {
+      "capture_complete": true,
+      "connection_epoch": "1",
+      "key": {
+        "aggregation": [],
+        "api_family": "spot-v3",
+        "channel": "trades",
+        "depth": null,
+        "instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+        "venue": "binance-global"
+      },
+      "lifecycle": "live",
+      "queue_bytes": "0",
+      "queue_depth": "0",
+      "reason": "starting",
+      "reference_count": "1",
+      "stream_id": "94ee92d9-61a8-4bc1-8e8b-766ff842c7ae"
+    },
+    {
+      "capture_complete": true,
+      "connection_epoch": "1",
+      "key": {
+        "aggregation": [],
+        "api_family": "info",
+        "channel": "book",
+        "depth": "20",
+        "instrument_id": "hyperliquid:info:perpetual:BTC",
+        "venue": "hyperliquid"
+      },
+      "lifecycle": "live",
+      "queue_bytes": "0",
+      "queue_depth": "0",
+      "reason": "starting",
+      "reference_count": "1",
+      "stream_id": "b0210ff3-2527-49ba-8e92-b679642e9687"
+    },
+    {
+      "capture_complete": true,
+      "connection_epoch": "1",
+      "key": {
+        "aggregation": [],
+        "api_family": "info",
+        "channel": "trades",
+        "depth": null,
+        "instrument_id": "hyperliquid:info:perpetual:BTC",
+        "venue": "hyperliquid"
+      },
+      "lifecycle": "live",
+      "queue_bytes": "0",
+      "queue_depth": "0",
+      "reason": "starting",
+      "reference_count": "1",
+      "stream_id": "9a5400b0-9607-46f5-a993-0c3e0bb81d54"
+    },
+    {
+      "capture_complete": true,
+      "connection_epoch": "1",
+      "key": {
+        "aggregation": [],
+        "api_family": "info",
+        "channel": "book",
+        "depth": "20",
+        "instrument_id": "hyperliquid:info:perpetual:ETH",
+        "venue": "hyperliquid"
+      },
+      "lifecycle": "live",
+      "queue_bytes": "0",
+      "queue_depth": "0",
+      "reason": "starting",
+      "reference_count": "1",
+      "stream_id": "abbf9522-9042-4958-8367-ec5415a0459d"
+    },
+    {
+      "capture_complete": true,
+      "connection_epoch": "1",
+      "key": {
+        "aggregation": [],
+        "api_family": "info",
+        "channel": "trades",
+        "depth": null,
+        "instrument_id": "hyperliquid:info:perpetual:ETH",
+        "venue": "hyperliquid"
+      },
+      "lifecycle": "live",
+      "queue_bytes": "0",
+      "queue_depth": "0",
+      "reason": "starting",
+      "reference_count": "1",
+      "stream_id": "1a8f5794-e13f-4b00-a4b9-cffae56c275a"
+    },
+    {
+      "capture_complete": true,
+      "connection_epoch": "1",
+      "key": {
+        "aggregation": [],
+        "api_family": "info",
+        "channel": "book",
+        "depth": "20",
+        "instrument_id": "hyperliquid:info:perpetual:SOL",
+        "venue": "hyperliquid"
+      },
+      "lifecycle": "live",
+      "queue_bytes": "0",
+      "queue_depth": "0",
+      "reason": "starting",
+      "reference_count": "1",
+      "stream_id": "6ccc4081-58b4-4e78-9c38-d1fe15b8b525"
+    },
+    {
+      "capture_complete": true,
+      "connection_epoch": "1",
+      "key": {
+        "aggregation": [],
+        "api_family": "info",
+        "channel": "trades",
+        "depth": null,
+        "instrument_id": "hyperliquid:info:perpetual:SOL",
+        "venue": "hyperliquid"
+      },
+      "lifecycle": "live",
+      "queue_bytes": "0",
+      "queue_depth": "0",
+      "reason": "starting",
+      "reference_count": "1",
+      "stream_id": "09424353-51c7-496d-bef8-284e22536779"
+    }
+  ],
+  "state_hash": "c963b3189750d493c38b9bde20761687c0e8da09b04d388f7f3d21e0c8c9b1b0",
+  "synthetic": false,
+  "venues": [
+    "binance-global",
+    "hyperliquid"
+  ]
+}
