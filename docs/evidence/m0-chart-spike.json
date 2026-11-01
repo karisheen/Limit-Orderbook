@@ -1,0 +1,243 @@
+{
+  "schema_version": 1,
+  "status": "measured",
+  "generated_at_utc": "2026-11-01T02:18:36.176Z",
+  "environment": {
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+    "platform": "MacIntel",
+    "hardware_concurrency": 8,
+    "device_memory_gib": 8,
+    "device_pixel_ratio": 1.25,
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "screen": {
+      "width": 1440,
+      "height": 988
+    },
+    "visibility": "visible",
+    "hardware_model": "Not exposed by browser; record separately"
+  },
+  "dataset": {
+    "kind": "synthetic",
+    "seed": 1592594996,
+    "generator": "xorshift32 high byte",
+    "fnv1a32": "4126b06c",
+    "columns": 240,
+    "rows": 120,
+    "cells": 28800
+  },
+  "method": {
+    "logical_width": 960,
+    "logical_height": 480,
+    "warmups_per_primitive": 2,
+    "samples_per_primitive": 10,
+    "order": "alternating",
+    "rendering": "full rebuild/redraw; no incremental reuse",
+    "palette": "fixed 256-entry RGB; same frame shift for both primitives",
+    "timing": "performance.now; submission plus forced layout, then two animation-frame opportunities",
+    "exclusions": "No GPU completion guarantee, no ingestion, no production terminal benchmark, no memory measurement",
+    "dependencies": "None; browser-native Canvas2D and SVG"
+  },
+  "summaries_ms": {
+    "canvas2d": {
+      "submit_and_layout": {
+        "min": 21.099999994039536,
+        "p50": 46.70000000298023,
+        "p95": 148.20000000298023,
+        "p99": 148.20000000298023,
+        "max": 148.20000000298023
+      },
+      "two_frame_opportunities": {
+        "min": 32.099999994039536,
+        "p50": 68.70000000298023,
+        "p95": 165.79999999701977,
+        "p99": 165.79999999701977,
+        "max": 165.79999999701977
+      }
+    },
+    "svg": {
+      "submit_and_layout": {
+        "min": 348.19999998807907,
+        "p50": 402.70000000298023,
+        "p95": 697.4000000059605,
+        "p99": 697.4000000059605,
+        "max": 697.4000000059605
+      },
+      "two_frame_opportunities": {
+        "min": 409.69999998807907,
+        "p50": 519.5,
+        "p95": 909.5999999940395,
+        "p99": 909.5999999940395,
+        "max": 909.5999999940395
+      }
+    }
+  },
+  "samples": {
+    "canvas2d": [
+      {
+        "sample": 1,
+        "submit_and_layout_ms": 148.20000000298023,
+        "two_frame_opportunities_ms": 165.79999999701977,
+        "dom_elements": 1,
+        "css_width": 960,
+        "css_height": 480
+      },
+      {
+        "sample": 2,
+        "submit_and_layout_ms": 107.09999999403954,
+        "two_frame_opportunities_ms": 130.69999998807907,
+        "dom_elements": 1,
+        "css_width": 960,
+        "css_height": 480
+      },
+      {
+        "sample": 3,
+        "submit_and_layout_ms": 47.599999994039536,
+        "two_frame_opportunities_ms": 68.40000000596046,
+        "dom_elements": 1,
+        "css_width": 960,
+        "css_height": 480
+      },
+      {
+        "sample": 4,
+        "submit_and_layout_ms": 49,
+        "two_frame_opportunities_ms": 85.29999999701977,
+        "dom_elements": 1,
+        "css_width": 960,
+        "css_height": 480
+      },
+      {
+        "sample": 5,
+        "submit_and_layout_ms": 42.80000001192093,
+        "two_frame_opportunities_ms": 66.40000000596046,
+        "dom_elements": 1,
+        "css_width": 960,
+        "css_height": 480
+      },
+      {
+        "sample": 6,
+        "submit_and_layout_ms": 65.29999999701977,
+        "two_frame_opportunities_ms": 97,
+        "dom_elements": 1,
+        "css_width": 960,
+        "css_height": 480
+      },
+      {
+        "sample": 7,
+        "submit_and_layout_ms": 21.099999994039536,
+        "two_frame_opportunities_ms": 32.099999994039536,
+        "dom_elements": 1,
+        "css_width": 960,
+        "css_height": 480
+      },
+      {
+        "sample": 8,
+        "submit_and_layout_ms": 46.70000000298023,
+        "two_frame_opportunities_ms": 68.70000000298023,
+        "dom_elements": 1,
+        "css_width": 960,
+        "css_height": 480
+      },
+      {
+        "sample": 9,
+        "submit_and_layout_ms": 35,
+        "two_frame_opportunities_ms": 54.1000000089407,
+        "dom_elements": 1,
+        "css_width": 960,
+        "css_height": 480
+      },
+      {
+        "sample": 10,
+        "submit_and_layout_ms": 44.20000000298023,
+        "two_frame_opportunities_ms": 74.29999999701977,
+        "dom_elements": 1,
+        "css_width": 960,
+        "css_height": 480
+      }
+    ],
+    "svg": [
+      {
+        "sample": 1,
+        "submit_and_layout_ms": 697.4000000059605,
+        "two_frame_opportunities_ms": 800.5,
+        "dom_elements": 28801,
+        "css_width": 960,
+        "css_height": 480
+      },
+      {
+        "sample": 2,
+        "submit_and_layout_ms": 583.5,
+        "two_frame_opportunities_ms": 909.5999999940395,
+        "dom_elements": 28801,
+        "css_width": 960,
+        "css_height": 480
+      },
+      {
+        "sample": 3,
+        "submit_and_layout_ms": 348.19999998807907,
+        "two_frame_opportunities_ms": 409.69999998807907,
+        "dom_elements": 28801,
+        "css_width": 960,
+        "css_height": 480
+      },
+      {
+        "sample": 4,
+        "submit_and_layout_ms": 402.70000000298023,
+        "two_frame_opportunities_ms": 519.5,
+        "dom_elements": 28801,
+        "css_width": 960,
+        "css_height": 480
+      },
+      {
+        "sample": 5,
+        "submit_and_layout_ms": 506.29999999701977,
+        "two_frame_opportunities_ms": 622.0999999940395,
+        "dom_elements": 28801,
+        "css_width": 960,
+        "css_height": 480
+      },
+      {
+        "sample": 6,
+        "submit_and_layout_ms": 395.5,
+        "two_frame_opportunities_ms": 496.40000000596046,
+        "dom_elements": 28801,
+        "css_width": 960,
+        "css_height": 480
+      },
+      {
+        "sample": 7,
+        "submit_and_layout_ms": 474.5,
+        "two_frame_opportunities_ms": 556.9000000059605,
+        "dom_elements": 28801,
+        "css_width": 960,
+        "css_height": 480
+      },
+      {
+        "sample": 8,
+        "submit_and_layout_ms": 350.69999998807907,
+        "two_frame_opportunities_ms": 442.09999999403954,
+        "dom_elements": 28801,
+        "css_width": 960,
+        "css_height": 480
+      },
+      {
+        "sample": 9,
+        "submit_and_layout_ms": 491.5,
+        "two_frame_opportunities_ms": 593.7000000029802,
+        "dom_elements": 28801,
+        "css_width": 960,
+        "css_height": 480
+      },
+      {
+        "sample": 10,
+        "submit_and_layout_ms": 371.20000000298023,
+        "two_frame_opportunities_ms": 477,
+        "dom_elements": 28801,
+        "css_width": 960,
+        "css_height": 480
+      }
+    ]
+  }
+}

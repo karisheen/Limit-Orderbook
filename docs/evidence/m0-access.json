@@ -1,0 +1,162 @@
+{
+  "observed_at": "2026-11-01T02:15:52.849030+00:00",
+  "scope": "Endpoint/channel access only, not synchronized adapter validation",
+  "rest": [
+    {
+      "venue": "binance-global",
+      "capability": "metadata",
+      "url": "https://data-api.binance.vision/api/v3/exchangeInfo?symbol=BTCUSDT",
+      "status": 200,
+      "bytes": 5348,
+      "seconds": 0.669,
+      "shape": [
+        "timezone",
+        "serverTime",
+        "rateLimits",
+        "exchangeFilters",
+        "symbols"
+      ]
+    },
+    {
+      "venue": "coinbase",
+      "capability": "metadata",
+      "url": "https://api.coinbase.com/api/v3/brokerage/market/products/BTC-USD",
+      "status": 200,
+      "bytes": 1220,
+      "seconds": 0.174,
+      "shape": [
+        "product_id",
+        "price",
+        "price_percentage_change_24h",
+        "volume_24h",
+        "volume_percentage_change_24h",
+        "base_increment",
+        "quote_increment",
+        "quote_min_size"
+      ]
+    },
+    {
+      "venue": "kraken",
+      "capability": "metadata",
+      "url": "https://api.kraken.com/0/public/AssetPairs?pair=XBTUSD",
+      "status": 200,
+      "bytes": 561,
+      "seconds": 0.268,
+      "shape": [
+        "error",
+        "result"
+      ]
+    },
+    {
+      "venue": "binance-global",
+      "capability": "BTC:depth",
+      "url": "https://data-api.binance.vision/api/v3/depth?symbol=BTCUSDT&limit=5",
+      "status": 200,
+      "bytes": 367,
+      "seconds": 0.663,
+      "shape": [
+        "lastUpdateId",
+        "bids",
+        "asks"
+      ]
+    },
+    {
+      "venue": "binance-global",
+      "capability": "BTC:trades",
+      "url": "https://data-api.binance.vision/api/v3/trades?symbol=BTCUSDT&limit=5",
+      "status": 200,
+      "bytes": 734,
+      "seconds": 0.66,
+      "shape": "array[5]"
+    },
+    {
+      "venue": "binance-global",
+      "capability": "ETH:depth",
+      "url": "https://data-api.binance.vision/api/v3/depth?symbol=ETHUSDT&limit=5",
+      "status": 200,
+      "bytes": 357,
+      "seconds": 1.061,
+      "shape": [
+        "lastUpdateId",
+        "bids",
+        "asks"
+      ]
+    },
+    {
+      "venue": "binance-global",
+      "capability": "ETH:trades",
+      "url": "https://data-api.binance.vision/api/v3/trades?symbol=ETHUSDT&limit=5",
+      "status": 200,
+      "bytes": 730,
+      "seconds": 0.671,
+      "shape": "array[5]"
+    },
+    {
+      "venue": "binance-global",
+      "capability": "SOL:depth",
+      "url": "https://data-api.binance.vision/api/v3/depth?symbol=SOLUSDT&limit=5",
+      "status": 200,
+      "bytes": 358,
+      "seconds": 0.664,
+      "shape": [
+        "lastUpdateId",
+        "bids",
+        "asks"
+      ]
+    },
+    {
+      "venue": "binance-global",
+      "capability": "SOL:trades",
+      "url": "https://data-api.binance.vision/api/v3/trades?symbol=SOLUSDT&limit=5",
+      "status": 200,
+      "bytes": 717,
+      "seconds": 0.584,
+      "shape": "array[5]"
+    }
+  ],
+  "websocket": [
+    {
+      "venue": "binance-global",
+      "url": "wss://data-stream.binance.vision:443/stream?streams=btcusdt@depth@100ms/btcusdt@trade",
+      "frames": 94,
+      "channels": [
+        "btcusdt@depth@100ms",
+        "btcusdt@trade"
+      ]
+    },
+    {
+      "venue": "coinbase",
+      "url": "wss://advanced-trade-ws.coinbase.com",
+      "frames": 161,
+      "channels": [
+        "l2_data",
+        "heartbeats",
+        "market_trades",
+        "subscriptions"
+      ]
+    },
+    {
+      "venue": "kraken",
+      "url": "wss://ws.kraken.com/v2",
+      "frames": 175,
+      "channels": [
+        "status",
+        "unknown",
+        "heartbeat",
+        "book",
+        "trade"
+      ]
+    },
+    {
+      "venue": "hyperliquid",
+      "url": "wss://api.hyperliquid.xyz/ws",
+      "frames": 20,
+      "channels": [
+        "l2Book",
+        "subscriptionResponse",
+        "trades",
+        "activeAssetCtx"
+      ]
+    }
+  ]
+}
