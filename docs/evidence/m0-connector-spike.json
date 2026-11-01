@@ -1,0 +1,186 @@
+{
+  "environment": {
+    "machine": "x86_64",
+    "platform": "macOS-13.7.8-x86_64-i386-64bit-Mach-O",
+    "python": "3.13.5 (main, Jul 23 2025, 00:30:58) [Clang 20.1.4 ]"
+  },
+  "fixtures": {
+    "actual_crc32": 3310070434,
+    "checks": {
+      "corruption_changes_checksum": true,
+      "decimal_scale_preserved": true,
+      "float_first_counterexample_detected": true,
+      "invalid_authoritative_values_rejected": true,
+      "large_id_transported_as_string": true,
+      "normalized_string_roundtrip_crc_matches": true,
+      "precision_stress_roundtrip_exact": true,
+      "published_kraken_crc_matches": true,
+      "raw_bytes_roundtrip_exact": true,
+      "raw_replay_crc_matches": true
+    },
+    "corrupted_crc32": 3216232415,
+    "expected_crc32": 3310070434,
+    "fixture_sha256": "b6ec52bb4ab28a32015ddf1bfcedc647f6dde2a8a07be85bd70c41e4c1b33751",
+    "normalized_envelope_sha256": "31962de3faf207011b4a47c803f4bdd72dcc58a7c8daceb4525e491bde52e38f",
+    "precision_counterexample": {
+      "float_first_then_decimal": "100.0",
+      "note": "Generic lossy-path control; not an executed CCXT result",
+      "original": "100.000000000000000001"
+    },
+    "provenance": {
+      "kraken_vector": "https://docs.kraken.com/exchange/guides/websockets/book-checksum-v2",
+      "precision_vector": "synthetic, not a listed product"
+    },
+    "replay_crc32": 3310070434,
+    "scope": "Independent direct-contract fixture, NOT a production adapter or library runtime test",
+    "status": "passed"
+  },
+  "generated_at_utc": "2026-11-01T02:18:23.312987+00:00",
+  "library_runtime_tests": "not_run; neither competing ingestion stack is installed by this spike",
+  "schema_version": 1,
+  "sources": {
+    "files": [
+      {
+        "library": "cryptofeed",
+        "marker_lines": {
+          "ADDITIONAL TERM": [
+            15
+          ],
+          "GNU Affero General Public License": [
+            4,
+            38,
+            70,
+            91,
+            592,
+            602,
+            606,
+            664,
+            671,
+            673
+          ]
+        },
+        "path": "LICENSE",
+        "revision": "61438078e330bc5277f30a4ef241de34b28fab76",
+        "sha256": "e43efa771be8126a2576ce33dbca5a027d93da1c2748ce4ecc6101068f0170c5",
+        "status": "markers_found",
+        "url": "https://raw.githubusercontent.com/bmoscon/cryptofeed/61438078e330bc5277f30a4ef241de34b28fab76/LICENSE"
+      },
+      {
+        "library": "cryptofeed",
+        "marker_lines": {
+          "\"Cython>=3.1\"": [
+            7
+          ],
+          "\"order_book>=1.1.0\"": [
+            47
+          ],
+          "requires-python = \">=3.13\"": [
+            40
+          ]
+        },
+        "path": "pyproject.toml",
+        "revision": "61438078e330bc5277f30a4ef241de34b28fab76",
+        "sha256": "235047130a8b739a414f1c2cfc7bc3dffe1c9761930ec72c40ea8209f131dcb9",
+        "status": "markers_found",
+        "url": "https://raw.githubusercontent.com/bmoscon/cryptofeed/61438078e330bc5277f30a4ef241de34b28fab76/pyproject.toml"
+      },
+      {
+        "library": "cryptofeed",
+        "marker_lines": {
+          "checksum=checksum": [
+            207
+          ],
+          "checksum_format='KRAKEN'": [
+            170
+          ],
+          "parse_float=Decimal": [
+            210,
+            312
+          ],
+          "raw=msg": [
+            207
+          ]
+        },
+        "path": "cryptofeed/exchanges/kraken.py",
+        "revision": "61438078e330bc5277f30a4ef241de34b28fab76",
+        "sha256": "08a89f64383e8f88521e7c5a44079072c2698b57194ac98e607478a1200a238c",
+        "status": "markers_found",
+        "url": "https://raw.githubusercontent.com/bmoscon/cryptofeed/61438078e330bc5277f30a4ef241de34b28fab76/cryptofeed/exchanges/kraken.py"
+      },
+      {
+        "library": "cryptofeed",
+        "marker_lines": {
+          "async def on_ws": [
+            149,
+            186,
+            197
+          ],
+          "class PcapRecorder": [
+            68
+          ]
+        },
+        "path": "cryptofeed/capture/recorder.py",
+        "revision": "61438078e330bc5277f30a4ef241de34b28fab76",
+        "sha256": "13caeeff394d5464510f88e9b73fe674de8d77d12435fe24f5767e1505ad9794",
+        "status": "markers_found",
+        "url": "https://raw.githubusercontent.com/bmoscon/cryptofeed/61438078e330bc5277f30a4ef241de34b28fab76/cryptofeed/capture/recorder.py"
+      },
+      {
+        "library": "ccxt",
+        "marker_lines": {
+          "MIT License": [
+            1
+          ]
+        },
+        "path": "LICENSE.txt",
+        "revision": "a1bd1dd550c67db735107447b698a34a34c2efa6",
+        "sha256": "1086fddb6d4084c1d5ef1175ff9e524c574a4c5b27255258911a58d8b9efa39c",
+        "status": "markers_found",
+        "url": "https://raw.githubusercontent.com/ccxt/ccxt/a1bd1dd550c67db735107447b698a34a34c2efa6/LICENSE.txt"
+      },
+      {
+        "library": "ccxt",
+        "marker_lines": {
+          "'checksum': False": [
+            76
+          ],
+          "client.resolve(orderbook, messageHash)": [
+            1047
+          ],
+          "self.safe_number(delta, 'price')": [
+            1053
+          ],
+          "self.safe_number(delta, 'qty')": [
+            1054
+          ]
+        },
+        "path": "python/ccxt/pro/kraken.py",
+        "revision": "a1bd1dd550c67db735107447b698a34a34c2efa6",
+        "sha256": "f66e3fa34380ec88a0d0327674f736b257b3957de4d2be5417dc124685f4cf71",
+        "status": "markers_found",
+        "url": "https://raw.githubusercontent.com/ccxt/ccxt/a1bd1dd550c67db735107447b698a34a34c2efa6/python/ccxt/pro/kraken.py"
+      },
+      {
+        "library": "ccxt",
+        "marker_lines": {
+          "json_parser.loads": [
+            332
+          ],
+          "on_message_callback": [
+            39,
+            65,
+            71,
+            335
+          ]
+        },
+        "path": "python/ccxt/async_support/base/ws/client.py",
+        "revision": "a1bd1dd550c67db735107447b698a34a34c2efa6",
+        "sha256": "c31d926d87b9e074e816e3e6cbbdb03fc01a52ac4206608caf1d79ccb3145b5d",
+        "status": "markers_found",
+        "url": "https://raw.githubusercontent.com/ccxt/ccxt/a1bd1dd550c67db735107447b698a34a34c2efa6/python/ccxt/async_support/base/ws/client.py"
+      }
+    ],
+    "mode": "Pinned source/API inspection only; source is never imported or executed",
+    "status": "inspected"
+  }
+}

@@ -1,0 +1,118 @@
+{
+  "observed_at": "2026-11-01T02:16:14.949831+00:00",
+  "scope": "HTTP capability access; adapter integrity not yet validated",
+  "results": [
+    {
+      "venue": "hyperliquid",
+      "capability": "metadata",
+      "status": 200,
+      "bytes": 17743,
+      "shape": [
+        "universe",
+        "marginTables",
+        "collateralToken"
+      ]
+    },
+    {
+      "venue": "hyperliquid",
+      "capability": "spot_metadata",
+      "status": 200,
+      "bytes": 141060,
+      "shape": [
+        "universe",
+        "tokens"
+      ]
+    },
+    {
+      "venue": "hyperliquid",
+      "capability": "context",
+      "status": 200,
+      "bytes": 72288,
+      "shape": "array[2]"
+    },
+    {
+      "venue": "hyperliquid",
+      "capability": "mids",
+      "status": 200,
+      "bytes": 25719,
+      "shape": [
+        "#114910",
+        "#114911",
+        "#114920",
+        "#114921"
+      ]
+    },
+    {
+      "venue": "hyperliquid",
+      "capability": "BTC:depth",
+      "status": 200,
+      "bytes": 1574,
+      "shape": [
+        "coin",
+        "time",
+        "levels"
+      ]
+    },
+    {
+      "venue": "hyperliquid",
+      "capability": "BTC:trades",
+      "status": 200,
+      "bytes": 2751,
+      "shape": "array[10]"
+    },
+    {
+      "venue": "hyperliquid",
+      "capability": "ETH:depth",
+      "status": 200,
+      "bytes": 1588,
+      "shape": [
+        "coin",
+        "time",
+        "levels"
+      ]
+    },
+    {
+      "venue": "hyperliquid",
+      "capability": "ETH:trades",
+      "status": 200,
+      "bytes": 2730,
+      "shape": "array[10]"
+    },
+    {
+      "venue": "hyperliquid",
+      "capability": "SOL:depth",
+      "status": 200,
+      "bytes": 1457,
+      "shape": [
+        "coin",
+        "time",
+        "levels"
+      ]
+    },
+    {
+      "venue": "hyperliquid",
+      "capability": "SOL:trades",
+      "status": 200,
+      "bytes": 2705,
+      "shape": "array[10]"
+    },
+    {
+      "venue": "hyperliquid",
+      "capability": "HYPE:depth",
+      "status": 200,
+      "bytes": 1440,
+      "shape": [
+        "coin",
+        "time",
+        "levels"
+      ]
+    },
+    {
+      "venue": "hyperliquid",
+      "capability": "HYPE:trades",
+      "status": 200,
+      "bytes": 2723,
+      "shape": "array[10]"
+    }
+  ]
+}

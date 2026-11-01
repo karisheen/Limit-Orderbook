@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M0 heatmap primitive spike — synthetic data</title>
+<style>
+  :root { color-scheme: dark; font: 14px system-ui, sans-serif; background: #15191e; color: #e8edf2; }
+  body { max-width: 1020px; margin: 20px auto; padding: 0 16px; }
+  h1 { font-size: 22px; } h2 { font-size: 16px; }
+  button, input { font: inherit; padding: 6px; margin: 4px; }
+  input { width: 85px; } label { white-space: nowrap; }
+  #stage { width: 960px; height: 480px; max-width: 100%; border: 1px solid #56616d; }
+  #stage canvas, #stage svg { display: block; width: 100%; height: 100%; }
+  pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+  #status { min-height: 24px; } .muted { color: #bdc7d2; }
+</style>
+</head>
+<body>
+<h1>Dense liquidity grid primitive spike (synthetic)</h1>
+<p>Native Canvas2D versus SVG rectangles, identical seeded cells and fixed colors.
+No market connection, external assets, chart package, or CDN.</p>
+<form id="controls">
+  <label>Time columns <input id="columns" type="number" min="10" max="500" value="240" required></label>
+  <label>Price rows <input id="rows" type="number" min="10" max="200" value="120" required></label>
+  <label>Samples <input id="samples" type="number" min="3" max="40" value="10" required></label>
+  <button id="run" type="submit">Run comparison</button>
+  <button id="download" type="button" disabled>Download JSON</button>
+</form>
+<p id="status" role="status" aria-live="polite">Not run.</p>
+<div id="stage" role="img" aria-label="Synthetic heatmap; time increases right, price rows increase downward"></div>
+<p class="muted">Fixed 960 × 480 logical pixel grid; intensity means synthetic quantity (0–255), not executed volume.
+Blue is lower quantity, yellow higher. Complete redraws include element creation and layout measurement.
+Two requestAnimationFrame callbacks measure frame opportunities, not verified GPU completion or feed-to-display latency.</p>
+<h2>Machine-readable results</h2>
+<pre id="results">No measurements yet.</pre>
+<script>
+"use strict";
+(() => {
+  const WIDTH = 960, HEIGHT = 480, SEED = 0x5eed1234, WARMUPS = 2;
+  const stage = document.getElementById("stage");
+  const status = document.getElementById("status");
+  const results = document.getElementById("results");
+  const controls = document.getElementById("controls");
+  const download = document.getElementById("download");
+  const palette = Array.from({length: 256}, (_, i) => `rgb(${i},${Math.floor(40 + i * 0.7)},${160 - Math.floor(i * 0.5)})`);
+  let running = false;
+  window.chartSpikeResults = null;
+
+  function seededCells(count) {
+    let state = SEED;
+    const data = new Uint8Array(count);
+    for (let i = 0; i < count; i++) {
+      state ^= state << 13; state ^= state >>> 17; state ^= state << 5;
+      data[i] = state >>> 24;
+    }
+    return data;
+  }
+
+  // Portable deterministic checksum for dataset identity, not a cryptographic hash.
+  function fnv1a(data) {
+    let hash = 0x811c9dc5;
+    for (const value of data) hash = Math.imul(hash ^ value, 0x01000193) >>> 0;
+    return hash.toString(16).padStart(8, "0");
+  }
+
+  function drawCanvas(data, columns, rows, shift, dpr) {
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(WIDTH * dpr); canvas.height = Math.round(HEIGHT * dpr);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas2D unavailable");
+    ctx.scale(dpr, dpr);
+    const cellWidth = WIDTH / columns, cellHeight = HEIGHT / rows;
+    for (let y = 0, i = 0; y < rows; y++) {
+      for (let x = 0; x < columns; x++, i++) {
+        ctx.fillStyle = palette[(data[i] + shift) & 255];
+        ctx.fillRect(x * cellWidth, y * cellHeight, cellWidth, cellHeight);
+      }
+    }
+    stage.replaceChildren(canvas);
+  }
+
+  function drawSVG(data, columns, rows, shift) {
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", `0 0 ${WIDTH} ${HEIGHT}`);
+    svg.setAttribute("preserveAspectRatio", "none");
+    svg.setAttribute("shape-rendering", "crispEdges");
+    const cellWidth = WIDTH / columns, cellHeight = HEIGHT / rows;
+    for (let y = 0, i = 0; y < rows; y++) {
+      for (let x = 0; x < columns; x++, i++) {
+        const rect = document.createElementNS(ns, "rect");
+        rect.setAttribute("x", x * cellWidth); rect.setAttribute("y", y * cellHeight);
+        rect.setAttribute("width", cellWidth); rect.setAttribute("height", cellHeight);
+        rect.setAttribute("fill", palette[(data[i] + shift) & 255]);
+        svg.appendChild(rect);
+      }
+    }
+    stage.replaceChildren(svg);
+  }
+
+  function frameOpportunity() {
+    return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  }
+
+  function summarize(samples, key) {
+    const ordered = samples.map(row => row[key]).sort((a, b) => a - b);
+    const percentile = p => ordered[Math.max(0, Math.ceil(ordered.length * p) - 1)];
+    return {min: ordered[0], p50: percentile(0.5), p95: percentile(0.95), p99: percentile(0.99), max: ordered[ordered.length - 1]};
+  }
+
+  async function measure(kind, data, columns, rows, shift, dpr) {
+    stage.replaceChildren();
+    await frameOpportunity(); // Clear previous primitive outside the measured work.
+    if (document.visibilityState !== "visible") throw new Error("Keep the benchmark tab visible");
+    const start = performance.now();
+    if (kind === "canvas2d") drawCanvas(data, columns, rows, shift, dpr);
+    else drawSVG(data, columns, rows, shift);
+    const layout = stage.firstElementChild.getBoundingClientRect();
+    const submitted = performance.now();
+    await frameOpportunity();
+    const opportunity = performance.now();
+    if (document.visibilityState !== "visible") throw new Error("Tab hidden during sample; results discarded");
+    return {
+      submit_and_layout_ms: submitted - start,
+      two_frame_opportunities_ms: opportunity - start,
+      dom_elements: stage.querySelectorAll("*").length,
+      css_width: layout.width, css_height: layout.height,
+    };
+  }
+
+  async function run() {
+    if (running) throw new Error("Comparison already running");
+    if (!controls.reportValidity()) throw new Error("Invalid grid/sample settings");
+    if (document.visibilityState !== "visible") throw new Error("Keep the benchmark tab visible");
+    const columns = Number(document.getElementById("columns").value);
+    const rows = Number(document.getElementById("rows").value);
+    const count = Number(document.getElementById("samples").value);
+    if (![columns, rows, count].every(Number.isInteger)) throw new Error("Settings must be integers");
+    const dpr = window.devicePixelRatio || 1;
+    const data = seededCells(columns * rows);
+    const measurements = {canvas2d: [], svg: []};
+    let visibilityChanged = false;
+    const visibilityListener = () => { visibilityChanged = true; };
+    document.addEventListener("visibilitychange", visibilityListener);
+    running = true;
+    window.chartSpikeResults = null;
+    download.disabled = true;
+    for (const field of controls.elements) field.disabled = true;
+    results.textContent = "Running; no results published yet.";
+    try {
+      for (let sample = -WARMUPS; sample < count; sample++) {
+        const order = (sample + WARMUPS) % 2 === 0 ? ["canvas2d", "svg"] : ["svg", "canvas2d"];
+        for (const kind of order) {
+          status.textContent = `${sample < 0 ? "Warmup" : "Sample " + (sample + 1) + "/" + count}: ${kind}`;
+          const measured = await measure(kind, data, columns, rows, (sample + WARMUPS) * 7, dpr);
+          if (sample >= 0) measurements[kind].push({sample: sample + 1, ...measured});
+        }
+      }
+      if (visibilityChanged) throw new Error("Visibility changed during run; rerun with tab visible");
+      const report = {
+        schema_version: 1,
+        status: "measured",
+        generated_at_utc: new Date().toISOString(),
+        environment: {
+          user_agent: navigator.userAgent, platform: navigator.platform,
+          hardware_concurrency: navigator.hardwareConcurrency,
+          device_memory_gib: navigator.deviceMemory ?? null,
+          device_pixel_ratio: dpr,
+          viewport: {width: innerWidth, height: innerHeight},
+          screen: {width: screen.width, height: screen.height},
+          visibility: document.visibilityState,
+          hardware_model: "Not exposed by browser; record separately",
+        },
+        dataset: {kind: "synthetic", seed: SEED, generator: "xorshift32 high byte", fnv1a32: fnv1a(data), columns, rows, cells: data.length},
+        method: {
+          logical_width: WIDTH, logical_height: HEIGHT, warmups_per_primitive: WARMUPS,
+          samples_per_primitive: count, order: "alternating", rendering: "full rebuild/redraw; no incremental reuse",
+          palette: "fixed 256-entry RGB; same frame shift for both primitives",
+          timing: "performance.now; submission plus forced layout, then two animation-frame opportunities",
+          exclusions: "No GPU completion guarantee, no ingestion, no production terminal benchmark, no memory measurement",
+          dependencies: "None; browser-native Canvas2D and SVG",
+        },
+        summaries_ms: Object.fromEntries(Object.entries(measurements).map(([kind, samples]) => [kind, {
+          submit_and_layout: summarize(samples, "submit_and_layout_ms"),
+          two_frame_opportunities: summarize(samples, "two_frame_opportunities_ms"),
+        }])),
+        samples: measurements,
+      };
+      window.chartSpikeResults = report;
+      results.textContent = JSON.stringify(report, null, 2);
+      status.textContent = "Measured. Download results; timings describe this browser and workload only.";
+      return report;
+    } catch (error) {
+      status.textContent = `Failed: ${error.message}`;
+      results.textContent = JSON.stringify({status: "failed", error: error.message}, null, 2);
+      throw error;
+    } finally {
+      document.removeEventListener("visibilitychange", visibilityListener);
+      running = false;
+      for (const field of controls.elements) field.disabled = false;
+      download.disabled = window.chartSpikeResults === null;
+    }
+  }
+
+  window.runChartSpike = run;
+  controls.addEventListener("submit", event => { event.preventDefault(); run().catch(console.error); });
+  download.addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify(window.chartSpikeResults, null, 2) + "\n"], {type: "application/json"});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url; link.download = "chart-spike-results.json"; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+  if (new URLSearchParams(location.search).get("autorun") === "1") run().catch(console.error);
+})();
+</script>
+</body>
+</html>
