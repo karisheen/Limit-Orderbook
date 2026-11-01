@@ -1,0 +1,15 @@
+{
+  "scenario": "Actual managed-capture HTTP creation latency diagnosis, not rendering latency",
+  "client_read_timeout_before_seconds": 10,
+  "client_elapsed_budget_seconds": 30,
+  "request": {
+    "mode": "replay",
+    "source_id": "c80446bb40004c2badb31298469a20b3",
+    "instrument_id": "binance-global:spot-v3:spot:BTCUSDT"
+  },
+  "wall_seconds": 18.17569710099697,
+  "http_status": 201,
+  "error": "TypeError: null is not an object (evaluating 'frame.book.presentation')",
+  "interpretation": "HTTP creation succeeded. The probe's optional book metadata lookup failed because the initial replay prefix had no selected book; this is a diagnostic-script error, not an HTTP failure.",
+  "owned_session_closed": true
+}

@@ -25,6 +25,7 @@ export interface Level { price: DecimalText; quantity: DecimalText }
 export interface Book {
   instrument_id: string; bids: Level[]; asks: Level[]; quality: Quality;
   asof: Reference; revision: string;
+  presentation: { depth_limit: number; bids_omitted: number; asks_omitted: number };
 }
 export interface Metric {
   name: string; value: DecimalText | null; unit: string; instrument_id: string; venue: string;
@@ -41,6 +42,7 @@ export interface DisplayEvidence { side: string; price: string; kind: string; qu
 export interface Analytics {
   instrument_id: string; metrics: Metric[]; tape: TapePrint[];
   profile: ProfileLevel[]; display_evidence: DisplayEvidence[]; reasons: string[];
+  presentation: { profile_limit: number; profile_omitted: number; evidence_limit: number; evidence_omitted: number };
 }
 export interface ProcessingObservation {
   clock_id: string; ingest_ordinal: string; receive_mono_ns: string; queue_exit_mono_ns: string;

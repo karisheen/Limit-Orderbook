@@ -321,7 +321,7 @@ async function runScenario(speed) {
   };
   const frameEvidence = (frame, origin, retain) => {
     if (frame?.type !== 'frame') return;
-    scenario.source_frame = { frame_id: frame.frame_id, session_id: frame.session_id, generation: frame.generation, status: frame.status, source: frame.source, selection: frame.selection, replay: frame.replay, health: frame.health, telemetry: frame.telemetry, book: frame.book ? { bid_levels: frame.book.bids.length, ask_levels: frame.book.asks.length, quality: frame.book.quality, asof: frame.book.asof } : null };
+    scenario.source_frame = { frame_id: frame.frame_id, session_id: frame.session_id, generation: frame.generation, status: frame.status, source: frame.source, selection: frame.selection, replay: frame.replay, health: frame.health, telemetry: frame.telemetry, book: frame.book ? { bid_levels: frame.book.bids.length, ask_levels: frame.book.asks.length, presentation: frame.book.presentation, quality: frame.book.quality, asof: frame.book.asof } : null };
     const expired = frame.telemetry?.ack_expired;
     if (!retain) {
       if (scenario.window_start_ms === undefined && Number.isInteger(expired) && expired >= 0) scenario.frame_ack_baseline = expired;

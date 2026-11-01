@@ -24,8 +24,9 @@ to `http://127.0.0.1:8000`; the sidebar permits only HTTP loopback origins
 (`127.0.0.1`, `localhost`, or `[::1]`). Select the source and **exact native
 instrument**, then select **Open / apply native selection**. The source catalog
 can be refreshed while the backend prepares metadata. **Connect / reconnect**
-releases this document's previous API session and changes/reopens its HTTP
-connection; subsequently open the selected source/instrument.
+probes the candidate's native catalog before releasing this document's previous
+API session. An unavailable candidate leaves the working connection/session intact.
+After a successful replacement, open the selected source/instrument.
 
 The default backend is the offline, synthetic 180-second / 24-stream memory
 scenario, not a recording or live exchange history. Existing operator-managed
@@ -52,6 +53,8 @@ build does not prevent use of these API-backed Streamlit views.
   instrument ID and full source-specific metadata. Source classification,
   readiness, reasons, native quality/coverage and as-of references are visible.
   A not-ready frame is explicitly diagnostic, not execution-eligible.
+  Frame depth omissions are disclosed separately from native reconstruction
+  coverage; grouped ladder and financial inputs retain full native depth.
 - **Ladder/depth:** server-grouped native rows and server cumulative base
   quantities. Exact quantum text defaults to the source's native tick when
   known. Unknown/variable rules are disclosed by the server; display quanta
@@ -69,6 +72,8 @@ build does not prevent use of these API-backed Streamlit views.
   provenance, native public prints, aggressor provenance, unknown valuation,
   subscription-history labels and exact evidence. Missing values say
   `Unavailable`; they are never replaced by zero.
+  Bounded profile/evidence prefixes show omitted counts; metrics still use the
+  full eligible native window.
 - **Size-cost comparison:** exact base quantity or quote budget, selected side,
   optional explicit assumed fees with provenance/date, and explicit latency /
   rebalance scenarios. The API supplies the native depth walk and directed
@@ -108,10 +113,13 @@ Generation-bound cost output is replaced before slower historical plotting.
 Recenter is consumed once by the matching session/generation, not on every poll.
 Polling defaults to every two seconds, with five/ten-second options or manual
 refresh. Requests are sequential, use one connection, disable environment
-proxies and redirects, and have two-second
-connect/pool and ten-second read/write timeouts. Streaming responses check a
-30-second elapsed budget between chunks (a blocked read can add at most its
-ten-second timeout), cap decoded output at 12 MiB, and cap requests at 64 KiB.
+proxies and redirects, and have two-second connect/pool and ordinary ten-second
+read/write timeouts. Session creation alone allows 30-second read/write
+initialization while the backend verifies its managed capture; verification is
+not skipped. Streaming responses check a 30-second elapsed budget between
+chunks (a blocked read can add at most that operation's read timeout), cap
+decoded output at 12 MiB, and cap requests at 64 KiB. Captures exceeding these
+bounds fail explicitly rather than enabling unbounded requests.
 No automatic retries, remote fallback or fabricated market evidence is used.
 
 **Close this document's API session** explicitly deletes only that session.

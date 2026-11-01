@@ -169,6 +169,24 @@ test('exact instrument selection, grouped cumulative depth and pinned time range
   expect(linkedTime).toBeLessThan(BigInt(centered.end_ns));
 });
 
+test('linked DOM price outside the chart viewport never selects a different price row', async ({ page }) => {
+  await openDemo(page);
+  await body<VisualGrid>(nextResponse(page, 'visualization'));
+  const panned = nextResponse(page, 'visualization', request => request.price_offset_rows === 128);
+  for (let index = 0; index < 16; index++) await page.getByRole('button', { name: 'Pan prices higher', exact: true }).click();
+  const grid = await body<VisualGrid>(panned);
+  const bid = page.getByTestId('grouped-ladder').locator('tr.bid').first();
+  const price = await bid.locator('td').nth(1).locator('.number').getAttribute('title');
+  expect(price).not.toBeNull();
+  expect(grid.prices).not.toContain(price);
+  await bid.hover();
+  await expect(page.getByRole('tooltip')).toContainText(`Price cell ${price}`);
+  await expect(page.getByRole('tooltip')).toContainText('Resting B unknown · A unknown');
+  await page.locator('.m4-chart-readout summary').first().click();
+  await expect(page.getByRole('combobox', { name: 'Exact price row', exact: true })).toHaveValue('');
+  await expect(page.locator('.m4-chart-readout table').first().locator('tbody tr')).toHaveCount(0);
+});
+
 test('view pause holds chart and DOM evidence while replay continues independently', async ({ page }) => {
   const { latestFrame } = await openDemo(page);
   await body<VisualGrid>(nextResponse(page, 'visualization'));

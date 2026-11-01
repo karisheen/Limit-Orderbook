@@ -29,8 +29,10 @@ and report `interval_segment_discontinuity`.
 Price origin is always zero. Exact Decimal display steps are explicit options;
 known fixed ticks supply compatible multiples, while variable/unknown ticks
 report `display_quantum_not_native_tick`. A display quantum is not an executable
-price rule. The initial midpoint anchor persists until explicit recenter or
-instrument selection. Price panning changes the viewport, not economic bins.
+price rule. The initial midpoint anchor persists during streaming until explicit
+recenter or instrument selection. Replay rewind/reset clears this evidence-derived
+anchor and reconstructs it from the available prefix; a future midpoint cannot
+survive at an earlier cursor. Price panning changes the viewport, not economic bins.
 The base sampling quantum is one second; explicit five- and ten-second requests
 select retained exact boundary evidence. No incoming range or percentile
 changes a historical price grid or liquidity hash. Color transfer belongs to
@@ -85,6 +87,10 @@ encoded size, trade and flow-quality evidence conservatively from encoded size,
 and a 256 KiB reserve for bounded query identity and discontinuity state. Oldest evidence is evicted;
 retained start and truncation are exposed. A native book too large for a sampled
 history budget produces an unavailable sample, never a clipped native book.
+These are maximum capacities, not a promised retained duration: deep native books
+can exhaust the conservative byte budget well before the requested time range.
+The real Binance benchmark visibly shows that truncation rather than filling
+evicted history with zero or current depth.
 The native reducer, recorder, raw schemas, and live collection remain unchanged.
 The current owner already holds the current full native book; this module does
 not create a second current-depth reconstruction.

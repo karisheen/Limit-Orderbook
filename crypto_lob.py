@@ -33,10 +33,14 @@ with st.sidebar:
         backend_url = st.text_input("Loopback API origin", value=DEFAULT_BACKEND)
         reconnect = st.form_submit_button("Connect / reconnect")
     if reconnect:
+        replacement = None
         try:
             # Validate before releasing a working connection.
             replacement = ApiClient(backend_url)
+            replacement.catalog()
         except ApiError as error:
+            if replacement is not None:
+                replacement.close()
             unavailable(error)
         else:
             try:

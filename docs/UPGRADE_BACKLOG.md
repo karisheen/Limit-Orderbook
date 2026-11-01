@@ -71,7 +71,7 @@ Scope source: `LIMIT_ORDERBOOK_OMP_UPGRADE_PROMPT.md`, sections 1–14. This fil
 | M4-08 | M4 | [x] Heatmap uses immutable documented time/price grid and quantity/sampling convention; adding history cannot rebin/recolor prior cells. Only explicit user aggregation change reprojects; persisted contrast/legend control changes are visible. | 2, 7 |
 | M4-09 | M4 | [x] Missing intervals/unknown depth distinct from observed zero. Source/venue/gap segments are visible; stable historical coordinates survive rerenders/seeks. Trade overlays do not fill missing book history or disguise unknown side. | 7 |
 | M4-10 | M4 | [x] Bounded CPU/memory/cache/GPU resources, visible-range history queries and incremental tile updates. Rendering throttles/coalesces independently of full-fidelity collection; pause-view never pauses recording. Dispose pane resources; no fixture data overlays into live. | 3, 7 |
-| M4-11 | M4 | [ ] Measure publish-to-render p95 <=250ms and responsive UI during replay 2x peak bursts on declared fixture/hardware; retain original results and explain any revised budget. Include trade overlays, pan/zoom, cursor/input response and streaming layout stability. | 10 |
+| M4-11 | M4 | [x] Measure publish-to-render p95 <=250ms and responsive UI during replay 2x peak bursts on declared fixture/hardware; retain original results and explain any revised budget. Include trade overlays, pan/zoom, cursor/input response and streaming layout stability. | 10 |
 | M4-12 | M4 | [x] Principal end-to-end workflow chooses asset, inspects exact instrument, adjusts aggregation/range, compares size costs and explains unavailable metrics; later M5 extends through local alert/paper/journal/replay. Accessible HTML controls/tables coexist with dense Canvas/WebGL. | 7, 10 |
 | M4-13 | M4 | [x] New terminal reaches legacy ladder/depth/heatmap/multivenue parity with shared analytics before documenting Streamlit's supported legacy status. Remove obsolete duplicated logic/callers when cutover is complete, not temporary compatibility by indefinite dual engines. | 3 |
 | M5-01 | M5 | [ ] Local configurable alerts cover spread/depth shocks, large prints, OFI/imbalance, persistent liquidity and net-cost conditions. Store instrument/venue/time/window/threshold and supporting-input snapshot. No email/chat/webhooks by default. | 9 |
@@ -102,13 +102,14 @@ Scope source: `LIMIT_ORDERBOOK_OMP_UPGRADE_PROMPT.md`, sections 1–14. This fil
 | D-05 | Every milestone | [ ] Focused PR includes behavior/decisions/exact checks/limits/screenshots and milestone handoff, tied to final head; draft while appropriate. Review/address findings, satisfy checks/protections and merge completed milestone to verified default preferably preserving useful commits. No invented approvals/protection bypass; partial/failing work stays branched. | 14.5–6 |
 | D-06 | Every milestone | [ ] Update OMP_UPGRADE_HANDOFF with completed work, exact commands/results, pending work, changed decisions and next action; branch/commit/push/PR/merge evidence. Continue later milestones from integrated result. If incomplete session, leave working verified increment and explicit continuation, never claim M0 completes M1–M6. | 11, 14.7 |
 
-M4 closure evidence: `OMP_UPGRADE_HANDOFF.md`, `evidence/m4-terminal-browser.json`,
-the20-case actual-backend browser suite, and retained workspace/legacy before-after
+M4 closure evidence: `OMP_UPGRADE_HANDOFF.md`, `evidence/m4-terminal-browser-final.json`,
+the21-case actual-backend browser suite, and retained workspace/legacy before-after
 evidence. M4-04's DOM/tape and cost tabs work; alert/position/journal tabs close
 with their real M5 engines rather than placeholders. M4-11's declared synthetic
-cohorts pass, but the real full-depth workload remains below requested rates and
-above the original upper-bound budget; see `evidence/m4-render-attempts.json`.
-That limitation remains open, not converted into a passing performance claim.
+and corrected full-native recorded cohorts pass at both laptop sizes, including
+actual1×/2× source rates and the original250ms publication-to-ACK upper-bound
+budget. Earlier failed/inconclusive measurements remain in
+`evidence/m4-render-attempts.json`; sustained recorder/operational acceptance remains M6.
 
 ## Closure rules
 

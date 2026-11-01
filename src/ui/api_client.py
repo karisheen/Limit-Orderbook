@@ -100,6 +100,7 @@ class ApiClient:
         *,
         body: dict[str, Any] | None = None,
         params: dict[str, str] | None = None,
+        read_timeout: float | None = None,
     ) -> dict[str, Any]:
         if self._closed:
             raise ApiError("This client is closed. Use Connect / reconnect.")
@@ -116,6 +117,9 @@ class ApiClient:
                 headers={"Content-Type": "application/json"}
                 if body is not None
                 else None,
+                timeout=self._http.timeout
+                if read_timeout is None
+                else httpx.Timeout(read_timeout, connect=2.0, pool=2.0),
             ) as response:
                 data = bytearray()
                 for chunk in response.iter_bytes():
@@ -203,6 +207,9 @@ class ApiClient:
                     "source_id": source_id,
                     "instrument_id": instrument_id,
                 },
+                # Managed captures are verified before the owned reader is usable.
+                # Initialization may exceed the ordinary 10-second polling timeout.
+                read_timeout=REQUEST_DEADLINE_SECONDS,
             )
         )
 

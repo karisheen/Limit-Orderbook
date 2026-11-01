@@ -1,0 +1,17 @@
+{
+  "scenario": "actual Streamlit real-capture frame omission disclosure",
+  "checks_passed": false,
+  "screenshots": [],
+  "errors": [
+    "Error: expect(locator).toBeVisible() failed\n\nLocator: getByText(/Frame presentation: first 100 levels per side;/)\nExpected: visible\nTimeout: 60000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 60000ms\n  - waiting for getByText(/Frame presentation: first 100 levels per side;/)\n\n    at Proxy.<anonymous> (/Users/dakariantoine/Developer/personal/limit-orderbook/frontend/node_modules/playwright/lib/matchers/expect.js:213:24)\n    at file:///Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/legacy_depth_disclosure.mjs:31:28"
+  ],
+  "source_hashes": {
+    "crypto_lob.py": "7ba46607852584afd60b77ac56e5b1b4b4b538b3014fb5290d073fd0cd4b0488",
+    "src/ui/components.py": "85c32b262206c518e0c8d21c3897d3564cfbdf2173563c2f737c2cab8d809a5b",
+    "src/ui/api_client.py": "692bd52dd707ae4a48b8d7730d5ddb58bdcffaf4429a0beb8cb728d47e3ca1af",
+    "src/workstation/runtime.py": "0485bad6d4e572b2c9d2ac70fd82e9287a9baaa2ed31a1197c6b6c37c44a0e20",
+    "src/workstation/analytics.py": "8d84eb15e1518c7f117fbe4e28289c48eacef1e35d54f1a1c09453d1e776b507"
+  },
+  "browser": "145.0.7632.6",
+  "browser_reaped": true
+}

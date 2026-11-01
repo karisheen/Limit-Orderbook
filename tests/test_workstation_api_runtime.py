@@ -706,3 +706,135 @@ def test_busy_presentation_keeps_completed_evidence_but_fences_generation(
             await runtime.close()
 
     asyncio.run(scenario())
+
+
+def test_bounded_frames_preserve_native_depth_costs_and_complete_metrics():
+    from src.workstation.api import CostRequest
+    from src.workstation.projection import RecordingProjection
+    from src.workstation.recording import RecordedBatch
+    from src.workstation.replay import ReplaySourceDescriptor
+
+    spec = next(
+        item
+        for item in demo_source().streams
+        if item.instrument.venue == "coinbase"
+        and item.instrument.base.ticker == "BTC"
+        and item.key.channel == "book"
+    )
+    projection = RecordingProjection((spec,))
+    batches, frames = [], {}
+    for ordinal in (1, 2):
+        updates = (
+            [
+                {
+                    "side": side,
+                    "price_level": str(price),
+                    "new_quantity": "1",
+                    "event_time": "2025-01-01T00:00:00Z",
+                }
+                for side, prices in (
+                    ("bid", range(60000, 59750, -1)),
+                    ("offer", range(60001, 60251)),
+                )
+                for price in prices
+            ]
+            if ordinal == 1
+            else [
+                {
+                    "side": "bid",
+                    "price_level": str(price),
+                    "new_quantity": "2",
+                    "event_time": "2025-01-01T00:01:00Z",
+                }
+                for price in range(60000, 59900, -1)
+            ]
+        )
+        frame = RawFrame(
+            "presentation-fixture",
+            spec.stream_id,
+            "connection",
+            1,
+            "presentation-clock",
+            ordinal,
+            1735689600000000000 + (ordinal - 1) * 60_000_000_000,
+            1_000_000_000 + (ordinal - 1) * 60_000_000_000,
+            "ws",
+            "wss://advanced-trade-ws.coinbase.com",
+            json.dumps(
+                {
+                    "channel": "l2_data",
+                    "sequence_num": ordinal - 1,
+                    "events": [
+                        {
+                            "type": "snapshot" if ordinal == 1 else "update",
+                            "product_id": spec.instrument.native_symbol,
+                            "updates": updates,
+                        }
+                    ],
+                }
+            ).encode(),
+        )
+        events = projection.process_raw(
+            frame, segment_id=SegmentId("ws-1"), source_mode="ws_delta"
+        )
+        batches.append(RecordedBatch(ordinal, events))
+        frames[(str(spec.stream_id), ordinal)] = frame
+    source = MemoryReplaySource(
+        ReplaySourceDescriptor(
+            "presentation-fixture",
+            (spec,),
+            synthetic=True,
+            provenance="synthetic full-depth presentation regression",
+        ),
+        tuple(batches),
+        frames,
+        {
+            (event.ingest_ordinal, event.event_index): batch.delivery_index
+            for batch in batches
+            for event in batch.events
+        },
+        60_000_000_000,
+    )
+
+    async def scenario():
+        runtime = offline_runtime(source)
+        try:
+            session = await runtime.create(
+                instrument_id=str(spec.instrument.instrument_id)
+            )
+            frame = await session.frame()
+            assert len(frame["book"]["bids"]) == len(frame["book"]["asks"]) == 100
+            assert frame["book"]["asks"][-1]["price"] == "60100"
+            assert frame["book"]["presentation"] == {
+                "depth_limit": 100,
+                "bids_omitted": 150,
+                "asks_omitted": 150,
+            }
+            assert frame["book"]["quality"]["coverage"]["retained_ask_levels"] == "250"
+            assert len(frame["analytics"]["display_evidence"]) == 100
+            assert frame["analytics"]["presentation"]["evidence_omitted"] == 200
+            metric = next(
+                item
+                for item in frame["analytics"]["metrics"]
+                if item["name"] == "displayed_replenishment"
+            )
+            assert metric["value"] == "100"
+            request = CostRequest(
+                session_id=session.id,
+                generation=str(session.generation),
+                side="buy",
+                base_quantity="150",
+                fee_bps="0",
+                fee_provenance="Explicit regression assumption",
+                fee_date="2025-01-01",
+            )
+            result = await session.work(session._costs, request)
+            assert result["estimate"]["filled_base_quantity"] == "150"
+            assert result["estimate"]["unfilled_base_quantity"] == "0"
+            assert result["estimate"]["notional_quote"] == "9011325"
+            assert result["estimate"]["partial"] is False
+            assert result["estimate"]["consumed_levels"][-1]["price"] == "60150"
+        finally:
+            await runtime.close()
+
+    asyncio.run(scenario())

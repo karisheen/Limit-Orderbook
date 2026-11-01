@@ -427,6 +427,15 @@ def test_reprojection_uses_retained_native_levels_and_pan_is_not_rebinning():
     recentered = feed.query(recenter=True)
     assert recentered["price_min"] == "184"
     assert recentered["grid_id"] == coarse["grid_id"]
+    feed.history.reset()
+    empty = feed.query()
+    assert empty["price_min"] == "0"
+    assert empty["columns"] == []
+    for batch, books, reading in feed.deliveries[:2]:
+        feed.history.on_batch(batch, books, SimpleNamespace(reading=reading))
+    rebuilt = feed.query(price_step="1")
+    assert rebuilt["price_min"] == coarse["price_min"]
+    assert rebuilt["columns"] == coarse["columns"]
 
 
 def test_incremental_frontier_exclusion_and_generation_replacement():

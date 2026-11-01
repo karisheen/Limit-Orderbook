@@ -209,7 +209,7 @@ class VisualHistory:
         self.first_ns = None
         self.truncated = False
         self.trade_floor = None
-        self.anchor = getattr(self, "anchor", None)
+        self.anchor: Decimal | None = None
         self.price_step = getattr(self, "price_step", None)
         self.bucket_ns = getattr(self, "bucket_ns", SECOND)
         self.accounted_bytes = 256 * 1024  # bounded query fingerprints/ownership

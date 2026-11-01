@@ -55,6 +55,13 @@ def render_identity(frame: dict[str, Any], instrument: dict[str, Any]) -> None:
     reasons(frame["health"]["reasons"], label="Health")
     if frame.get("error"):
         st.error(frame["error"])
+    presentation = (frame.get("book") or {}).get("presentation")
+    if presentation and (presentation["bids_omitted"] or presentation["asks_omitted"]):
+        st.caption(
+            f"Frame presentation: first {presentation['depth_limit']} levels per side; "
+            f"{presentation['bids_omitted']} bids / {presentation['asks_omitted']} asks omitted. "
+            "Native reconstruction, grouped ladder and costs still use full retained depth."
+        )
     with st.expander("Exact native instrument, source and quality"):
         st.json(
             {
@@ -62,6 +69,7 @@ def render_identity(frame: dict[str, Any], instrument: dict[str, Any]) -> None:
                 "source": source,
                 "quality": (frame.get("book") or {}).get("quality"),
                 "asof": (frame.get("book") or {}).get("asof"),
+                "presentation": presentation,
             },
             expanded=False,
         )
@@ -78,6 +86,13 @@ def render_analytics(analytics: dict[str, Any] | None) -> None:
         st.info("Analytics unavailable for this selection / cursor.")
         return
     reasons(analytics.get("reasons", []), label="Analytics")
+    presentation = analytics["presentation"]
+    if presentation["profile_omitted"] or presentation["evidence_omitted"]:
+        st.caption(
+            f"Bounded presentation: {presentation['profile_omitted']} profile rows and "
+            f"{presentation['evidence_omitted']} evidence records omitted. "
+            "Metrics still use the full eligible native window."
+        )
     exact_table(
         [
             {

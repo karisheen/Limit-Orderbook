@@ -301,6 +301,59 @@ class AnalyticsCheckpoint:
             raise ValueError("duplicate analytics checkpoint streams")
 
 
+class _StandingEvidence:
+    """Owner-only evolving evidence; public snapshots/checkpoints remain immutable."""
+
+    __slots__ = (
+        "side",
+        "price",
+        "quantity",
+        "start_mono_ns",
+        "end_mono_ns",
+        "references",
+    )
+
+    def __init__(
+        self,
+        side: str,
+        price: Decimal,
+        quantity: Decimal,
+        start_mono_ns: int,
+        end_mono_ns: int,
+        references: tuple[EventEnvelopeRef, ...],
+    ):
+        self.side, self.price, self.quantity = side, price, quantity
+        self.start_mono_ns, self.end_mono_ns = start_mono_ns, end_mono_ns
+        self.references = references
+
+    def freeze(self) -> DisplayEvidence:
+        return DisplayEvidence(
+            self.side,
+            self.price,
+            "displayed_persistence",
+            self.quantity,
+            self.start_mono_ns,
+            self.end_mono_ns,
+            self.references,
+        )
+
+
+def _contains_price(book: Book, side: str, price: Decimal) -> bool:
+    """Search validated sorted native levels without copying full-depth keys."""
+    levels = book.bids if side == "bid" else book.asks
+    low, high = 0, len(levels)
+    while low < high:
+        middle = (low + high) // 2
+        candidate = levels[middle].price
+        if candidate == price:
+            return True
+        if (candidate > price) == (side == "bid"):
+            low = middle + 1
+        else:
+            high = middle
+    return False
+
+
 class _BookWindow:
     def __init__(self, key: SubscriptionKey) -> None:
         self.key = key
@@ -308,7 +361,7 @@ class _BookWindow:
         self.anchor: int | None = None
         self.samples: deque[BookSample] = deque()
         self.display: deque[DisplayEvidence] = deque()
-        self.standing: dict[tuple[str, Decimal], DisplayEvidence] = {}
+        self.standing: dict[tuple[str, Decimal], _StandingEvidence] = {}
         self.overflow_until = self.display_overflow_until = 0
 
 
@@ -746,17 +799,12 @@ class AnalyticsEngine:
                 for side, values in (("bid", book.bids), ("ask", book.asks))
                 for level in values[: self.config.max_display_levels]
             }
-            visible_prices = {
-                (side, level.price)
-                for side, values in (("bid", book.bids), ("ask", book.asks))
-                for level in values
-            }
             for identity, prior in tuple(state.standing.items()):
                 current = levels.get(identity)
                 # Only infer removal inside retained observed coverage, not a truncation edge.
                 visible = (
                     current is not None
-                    or identity not in visible_prices
+                    or not _contains_price(book, identity[0], identity[1])
                     and (
                         book.quality.coverage.full_depth
                         or identity[0] == "bid"
@@ -786,19 +834,22 @@ class AnalyticsEngine:
                     del state.standing[identity]
             for identity, level in levels.items():
                 standing_prior = state.standing.get(identity)
-                state.standing[identity] = DisplayEvidence(
-                    identity[0],
-                    identity[1],
-                    "displayed_persistence",
-                    level.quantity,
-                    standing_prior.start_mono_ns
-                    if standing_prior
-                    else book.asof.receive_mono_ns,
-                    book.asof.receive_mono_ns,
-                    (standing_prior.references[0], book.asof)
-                    if standing_prior
-                    else (book.asof,),
-                )
+                if standing_prior is not None:
+                    standing_prior.quantity = level.quantity
+                    standing_prior.end_mono_ns = book.asof.receive_mono_ns
+                    standing_prior.references = (
+                        standing_prior.references[0],
+                        book.asof,
+                    )
+                else:
+                    state.standing[identity] = _StandingEvidence(
+                        identity[0],
+                        identity[1],
+                        level.quantity,
+                        book.asof.receive_mono_ns,
+                        book.asof.receive_mono_ns,
+                        (book.asof,),
+                    )
         state.book = book
         self._trim(state, now.mono_ns)
 
@@ -1229,7 +1280,7 @@ class AnalyticsEngine:
         )
         standing = (
             tuple(
-                d
+                d.freeze()
                 for d in state.standing.values()
                 if d.end_mono_ns <= now.mono_ns
                 and d.end_mono_ns - d.start_mono_ns >= self.config.persistence_ns
@@ -1276,14 +1327,19 @@ class AnalyticsEngine:
         pulling_book_refs: deque[EventEnvelopeRef] = deque(
             maxlen=self.config.max_references
         )
+        flow_by_price_side: dict[tuple[Decimal, str], list[TapePrint]] = {}
+        for trade in flow:
+            if trade.base_quantity is not None:
+                flow_by_price_side.setdefault(
+                    (trade.trade.price, trade.trade.taker_side), []
+                ).append(trade)
         for item in display:
             matched = tuple(
                 t
-                for t in flow
-                if t.base_quantity is not None
-                and t.trade.price == item.price
-                and t.trade.taker_side == ("sell" if item.side == "bid" else "buy")
-                and item.start_mono_ns < t.asof.receive_mono_ns <= item.end_mono_ns
+                for t in flow_by_price_side.get(
+                    (item.price, "sell" if item.side == "bid" else "buy"), ()
+                )
+                if item.start_mono_ns < t.asof.receive_mono_ns <= item.end_mono_ns
             )
             executed = sum(
                 (t.base_quantity for t in matched if t.base_quantity is not None), ZERO
@@ -1350,7 +1406,7 @@ class AnalyticsEngine:
                 s.anchor,
                 tuple(s.samples),
                 tuple(s.display),
-                tuple(s.standing.values()),
+                tuple(d.freeze() for d in s.standing.values()),
                 s.overflow_until,
                 s.display_overflow_until,
             )
@@ -1411,7 +1467,17 @@ class AnalyticsEngine:
                 deque(saved.samples),
                 deque(saved.display),
             )
-            current.standing = {(d.side, d.price): d for d in saved.standing}
+            current.standing = {
+                (d.side, d.price): _StandingEvidence(
+                    d.side,
+                    d.price,
+                    d.quantity,
+                    d.start_mono_ns,
+                    d.end_mono_ns,
+                    d.references,
+                )
+                for d in saved.standing
+            }
             current.overflow_until, current.display_overflow_until = (
                 saved.overflow_until,
                 saved.display_overflow_until,

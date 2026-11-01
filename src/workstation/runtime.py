@@ -26,7 +26,7 @@ from typing import (
 )
 from uuid import uuid4
 
-from .analytics import AnalyticsEngine
+from .analytics import AnalyticsEngine, AnalyticsSnapshot
 from .book import Book
 from .demo import demo_source
 from .demo_memory import MemoryReplaySource
@@ -44,6 +44,9 @@ CaptureIdentity: TypeAlias = tuple[int, int, int, int, int, int]
 LiveDelivery: TypeAlias = tuple[tuple[EventEnvelope, ...], tuple[Book, ...], int, int]
 P = ParamSpec("P")
 R = TypeVar("R")
+FRAME_BOOK_LEVELS = 100
+FRAME_PROFILE_LEVELS = 200
+FRAME_DISPLAY_EVIDENCE = 100
 
 
 class ClientTelemetry(TypedDict):
@@ -92,6 +95,47 @@ def dto(value):
     if isinstance(value, (tuple, list, set, frozenset)):
         return [dto(item) for item in value]
     raise TypeError(f"unsupported terminal DTO: {type(value).__name__}")
+
+
+def _book_presentation(book: Book | None):
+    if book is None:
+        return None
+    result = {
+        field.name: dto(getattr(book, field.name))
+        for field in fields(book)
+        if field.name not in ("bids", "asks")
+    }
+    result["bids"] = dto(book.bids[:FRAME_BOOK_LEVELS])
+    result["asks"] = dto(book.asks[:FRAME_BOOK_LEVELS])
+    result["presentation"] = {
+        "depth_limit": FRAME_BOOK_LEVELS,
+        "bids_omitted": max(0, len(book.bids) - FRAME_BOOK_LEVELS),
+        "asks_omitted": max(0, len(book.asks) - FRAME_BOOK_LEVELS),
+    }
+    return result
+
+
+def _analytics_presentation(analytics: AnalyticsSnapshot | None):
+    if analytics is None:
+        return None
+    result = {
+        field.name: dto(getattr(analytics, field.name))
+        for field in fields(analytics)
+        if field.name not in ("profile", "display_evidence")
+    }
+    result["profile"] = dto(analytics.profile[:FRAME_PROFILE_LEVELS])
+    result["display_evidence"] = dto(
+        analytics.display_evidence[:FRAME_DISPLAY_EVIDENCE]
+    )
+    result["presentation"] = {
+        "profile_limit": FRAME_PROFILE_LEVELS,
+        "profile_omitted": max(0, len(analytics.profile) - FRAME_PROFILE_LEVELS),
+        "evidence_limit": FRAME_DISPLAY_EVIDENCE,
+        "evidence_omitted": max(
+            0, len(analytics.display_evidence) - FRAME_DISPLAY_EVIDENCE
+        ),
+    }
+    return result
 
 
 class RuntimeFailure(Exception):
@@ -384,8 +428,8 @@ class ClientSession:
                 "total_deliveries": str(total),
             }
         return (
-            dto(selected),
-            dto(analytics),
+            _book_presentation(selected),
+            _analytics_presentation(analytics),
             replay,
             {"ready": ready, "reasons": reasons},
         )

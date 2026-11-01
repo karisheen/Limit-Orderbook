@@ -345,3 +345,31 @@ samples do not establish latency percentiles; the separate tracemalloc pass
 perturbs timing and measures Python allocations rather than process RSS.
 The original queue-overflow evidence remains failed. Full pipeline/soak
 acceptance remains required in M6.
+
+### Full-depth frame transport and observer correction
+
+The production-frame profile `evidence/m4-real-presentation-profile.json` shows DTO conversion dominating frames carrying roughly10,000 native levels and growing display-evidence detail. The terminal already uses separate bounded ladder/history endpoints. Frame transport now publishes100 levels/side,200 profile rows and100 evidence records with explicit omitted counts; metrics, cost walks, native coverage and recording remain full-fidelity. Exact trade-evidence matching is indexed by price/taker side, preserving order and `(start,end]` matching.
+
+| Same real12-stream capture, bounded frame | Requested speed | Achieved source/wall rate | Publish→ACK p95 ms | Workload certification |
+| --- | ---: | ---: | ---: | --- |
+| 1440×900 | 1× | 1.043115× | 122.492967 | Passed |
+| 1440×900 | 2× | 1.521061× | 113.046112 | Inconclusive: under requested rate |
+
+These30-second cohorts keep the original250ms budget and ±10% requested-rate tolerance. Functional, sample, runtime/assets/source and API checks passed, but the2× rate still fails certification; a responsive browser is not proof of sufficient native playback throughput. Raw local evidence: `data/m4-benchmark/bounded-presentation-real-1440.json`.
+
+The subsequent2500-delivery profile covers44.476source seconds. Projection/reader took12.853profiled seconds; adding visualization/analytics took30.456. `_book_event` accounted for11.670cumulative seconds, including236,382 persistence-record constructions. `evidence/m4-real-replay-bounded-profile.json` retains the complete source hashes and call attribution. This motivates binary membership lookup over already validated sorted native levels and private mutable standing-evidence state, frozen only at public snapshot/checkpoint boundaries. Profiling overhead is material; actual browser rate and exact state-hash parity must verify the correction.
+
+The same2500-delivery profile after the observer correction took19.437seconds with visualization/analytics; projection-only stayed12.929seconds. Both modes retained identical native book hashes, exact complete observer/state hashes and final delivery2800 against the before profile. `evidence/m4-real-replay-indexed-profile.json` retains the after code hashes and attribution. This is actual deterministic parity, not inferred from tests; browser-rate certification remains a separate gate.
+
+### Certified real-capture render cohorts
+
+After that correction, both laptop sizes passed actual1×/2× source-rate, functional, sample, API, lifecycle, loaded-runtime and served-asset checks on the same12-stream capture. All30-second cohorts retained the original250ms budget and ±10% rate tolerance.
+
+| Viewport | Requested speed | Achieved source/wall rate | Publication→ACK p95 ms |
+| --- | ---: | ---: | ---: |
+| 1440×900 | 1× | 1.024933× | 221.510819 |
+| 1440×900 | 2× | 2.065725× | 124.768204 |
+| 1280×800 | 1× | 1.004050× | 102.686728 |
+| 1280×800 | 2× | 2.046775× | 127.937354 |
+
+`evidence/m4-render-attempts.json` retains these results beside every earlier failed/inconclusive attempt, exact commands/hashes/hardware, distributions and controls. Both `m4-real-render-{1440,1280}-2x.png` surfaces were visually inspected. The conservative historical32MiB budget truncates deep-book history well before some requested windows; missing regions remain hatched and disclosed. A busy owner can temporarily publish labeled last-completed diagnostic evidence. Neither condition is hidden by the benchmark. These results close finite playback/render acceptance, not sustained recorder or live-execution readiness.
