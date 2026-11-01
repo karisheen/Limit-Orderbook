@@ -23,6 +23,7 @@ export function useMarketView({ frame, connected, preferences: p, recenter, visu
   const latest = useRef(frame);
   latest.current = frame;
   const rangeStart = p.range?.start_ns, rangeEnd = p.range?.end_ns;
+  const rows = p.mode === 'footprint' || p.mode === 'profile' ? 32 : 128;
   useEffect(() => {
     const updateVisibility = () => setDocumentVisible(document.visibilityState === 'visible');
     document.addEventListener('visibilitychange', updateVisibility);
@@ -36,7 +37,7 @@ export function useMarketView({ frame, connected, preferences: p, recenter, visu
     if (!available) return;
     const controller = new AbortController();
     let timer: number | undefined;
-    const config = JSON.stringify([identity, p.follow, p.priceStep, p.bucket, p.priceOffset, p.rangeSeconds, rangeStart, rangeEnd, recenter]);
+    const config = JSON.stringify([identity, p.follow, p.priceStep, p.bucket, p.priceOffset, p.rangeSeconds, rangeStart, rangeEnd, recenter, rows]);
     let after: string | undefined;
     const refresh = async () => {
       if (controller.signal.aborted) return;
@@ -59,7 +60,8 @@ export function useMarketView({ frame, connected, preferences: p, recenter, visu
         const bucket = BigInt(p.bucket);
         const maxColumns = Math.max(1, Math.min(600, Number((visibleWidth + bucket - 1n) / bucket) + 1));
         const next = await visualization({ ...range, ...(p.priceStep ? { price_step: p.priceStep } : {}), bucket_ns: p.bucket,
-          price_offset_rows: p.priceOffset, rows: 128, max_columns: maxColumns, recenter: recenter !== centered.current,
+          price_offset_rows: p.priceOffset, rows, max_columns: maxColumns,
+          recenter: recenter !== centered.current || (!p.priceStep && p.priceOffset === 0 && chartRef.current != null && chartRef.current.rows !== rows),
           ...(after ? { after_column: after } : {}) }, controller.signal, time => { receivedAtMs = time; });
         if (controller.signal.aborted) return;
         centered.current = recenter;
@@ -76,7 +78,7 @@ export function useMarketView({ frame, connected, preferences: p, recenter, visu
     };
     timer = window.setTimeout(() => { void refresh(); }, 120);
     return () => { controller.abort(); clearTimeout(timer); };
-  }, [identity, available, p.paused, p.follow, p.priceStep, p.bucket, p.priceOffset, p.rangeSeconds, rangeStart, rangeEnd, recenter, visualization]);
+  }, [identity, available, p.paused, p.follow, p.priceStep, p.bucket, p.priceOffset, p.rangeSeconds, rangeStart, rangeEnd, recenter, rows, visualization]);
   useEffect(() => {
     domRef.current = null;
     setDom({ data: null, error: null, loading: false, identity });

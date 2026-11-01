@@ -1,0 +1,49 @@
+{
+  "action": "Actual UI selection from Hyperliquid BTC to Binance global SOLUSDT",
+  "frame": {
+    "version": "1",
+    "type": "frame",
+    "frame_id": "1720",
+    "session_id": "3ee3deeb63994830a0d1f61004681474",
+    "generation": "3",
+    "status": "error",
+    "selection": {
+      "instrument_id": "hyperliquid:info:perpetual:BTC"
+    },
+    "source": {
+      "id": "live",
+      "mode": "live",
+      "label": "Public live shared collector",
+      "status": "ready",
+      "synthetic": false,
+      "recording": false,
+      "duration_ns": null,
+      "streams": 0,
+      "reasons": []
+    },
+    "book": null,
+    "analytics": null,
+    "replay": null,
+    "health": {
+      "ready": false,
+      "reasons": [
+        "analytical_queue_overflow: reselect to establish fresh history"
+      ]
+    },
+    "telemetry": {
+      "queue_depth": 256,
+      "queue_highwater": 256,
+      "coalesced": 1156,
+      "overflows": 1,
+      "ack_expired": 37,
+      "observer_duration_ms": 178.30938,
+      "queue_wait_ms": 465.429775,
+      "publish_to_ack_upper_bound_ms": 35.634234,
+      "browser_receive_to_paint_ms": 33.80000001192093,
+      "published_mono_ns": "148180986101152",
+      "ingestion": []
+    },
+    "error": "analytical_queue_overflow: reselect to establish fresh history"
+  },
+  "observation": "New-source events accumulated while registry.replace awaited departed collector cleanup; the UI truthfully reported analytical_queue_overflow."
+}

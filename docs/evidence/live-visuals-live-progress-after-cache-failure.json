@@ -1,0 +1,5091 @@
+{
+  "harness_source": "\"\"\"Finite read-only observation of an actual browser-owned live session.\"\"\"\nimport json\nimport sys\nimport time\nfrom pathlib import Path\nfrom urllib.request import urlopen\n\nbase, session, seconds, destination = sys.argv[1:]\nduration = float(seconds)\nstart = time.monotonic()\nrows = []\nerror = None\ntry:\n    while time.monotonic() - start < duration:\n        with urlopen(f\"{base}/api/v1/sessions/{session}\", timeout=15) as response:\n            frame = json.load(response)\n        book = frame.get(\"book\")\n        telemetry = frame[\"telemetry\"]\n        instrument = frame[\"selection\"][\"instrument_id\"]\n        rows.append({\n            \"elapsed_seconds\": time.monotonic() - start,\n            \"session_id\": frame[\"session_id\"], \"generation\": frame[\"generation\"],\n            \"instrument_id\": instrument, \"status\": frame[\"status\"],\n            \"health\": frame[\"health\"], \"error\": frame[\"error\"],\n            \"book\": None if book is None else {\n                \"revision\": book[\"revision\"], \"asof\": book[\"asof\"],\n                \"quality\": book[\"quality\"], \"presentation\": book[\"presentation\"],\n                \"best_bid\": book[\"bids\"][:1], \"best_ask\": book[\"asks\"][:1],\n            },\n            \"telemetry\": {key: value for key, value in telemetry.items() if key != \"ingestion\"},\n            \"selected_streams\": [s for s in telemetry.get(\"ingestion\", []) if s[\"key\"][\"instrument_id\"] == instrument],\n            \"cvd\": [\n                {key: m[key] for key in (\"name\", \"value\", \"unit\", \"asof\", \"window\", \"eligibility\", \"formula_version\")}\n                for m in (frame.get(\"analytics\") or {}).get(\"metrics\", []) if m[\"name\"] == \"cvd_base\"\n            ],\n            \"tape_newest\": (frame.get(\"analytics\") or {}).get(\"tape\", [])[-1:],\n        })\n        if frame[\"status\"] in (\"unavailable\", \"error\") or telemetry[\"overflows\"]:\n            raise RuntimeError(f\"Native session failed: {frame['error']}\")\n        time.sleep(min(2, max(0, duration - (time.monotonic() - start))))\n    books = [r[\"book\"] for r in rows if r[\"book\"] is not None]\n    if not books or int(books[-1][\"revision\"]) <= int(books[0][\"revision\"]):\n        raise RuntimeError(\"No advancing actual native book revision observed\")\nexcept Exception as exc:\n    error = f\"{type(exc).__name__}: {exc}\"\nfinally:\n    report = {\"harness_source\": Path(__file__).read_text(), \"base_url\": base,\n              \"requested_seconds\": duration, \"elapsed_seconds\": time.monotonic() - start,\n              \"passed\": error is None, \"error\": error,\n              \"limitations\": \"Finite functional smoke, not isolated-host throughput/latency certification or uninterrupted venue-global coverage. Real browser remains open. GET frame queries add read work. Transient diagnostic health and original upstream reasons remain retained.\",\n              \"samples\": rows}\n    Path(destination).write_text(json.dumps(report, indent=2) + \"\\n\")\n    print(json.dumps({key: value for key, value in report.items() if key not in (\"harness_source\", \"samples\")}, indent=2))\n    print(f\"Observed {len(rows)} native frame samples; evidence: {destination}\")\nraise SystemExit(1 if error else 0)\n",
+  "base_url": "http://127.0.0.1:8001",
+  "requested_seconds": 300,
+  "elapsed_seconds": 156.23595144599676,
+  "passed": false,
+  "error": "RuntimeError: Native session failed: analytical_queue_overflow: reselect to establish fresh history",
+  "limitations": "Finite functional smoke, not isolated-host throughput/latency certification or uninterrupted venue-global coverage. Real browser remains open. GET frame queries add read work. Transient diagnostic health and original upstream reasons remain retained.",
+  "sample_count": 70,
+  "retention_note": "All progress rows summarized below; first and last native observations retained in full. No market values synthesized.",
+  "first": {
+    "elapsed_seconds": 0.08043742200243287,
+    "session_id": "8328f4d7233a47fcafac2be3fcd50770",
+    "generation": "2",
+    "instrument_id": "hyperliquid:info:perpetual:BTC",
+    "status": "live",
+    "health": {
+      "ready": true,
+      "reasons": []
+    },
+    "error": null,
+    "book": {
+      "revision": "4",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "1410",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572854002000000",
+        "receive_wall_ns": "1793572854407722000",
+        "receive_mono_ns": "150901584064924",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "quality": {
+        "lifecycle": "live",
+        "integrity": "valid",
+        "transport_alive": true,
+        "source_mode": "ws_snapshot",
+        "recorded_source_mode": null,
+        "last_transport_mono_ns": "150901584064924",
+        "last_book_observation_mono_ns": "150901584064924",
+        "last_book_change_mono_ns": "150901584064924",
+        "last_healthy_observation_mono_ns": "150901584064924",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+        "coverage": {
+          "subscribed_depth": "20",
+          "retained_bid_levels": "20",
+          "retained_ask_levels": "20",
+          "worst_bid": "77726",
+          "worst_ask": "77768",
+          "full_depth": false,
+          "source_aggregation": [
+            [
+              "fast",
+              "false"
+            ]
+          ],
+          "expected_cadence_ns": "500000000"
+        },
+        "capabilities": {
+          "snapshot": true,
+          "deltas": false,
+          "trades": false,
+          "sequence_scope": null,
+          "checksum_scope": null,
+          "exact_event_flow": false,
+          "reference_prices": [],
+          "asset_context": []
+        },
+        "continuous_since_ordinal": "1410",
+        "reason_codes": [],
+        "capture_complete": true
+      },
+      "presentation": {
+        "depth_limit": 100,
+        "bids_omitted": 0,
+        "asks_omitted": 0
+      },
+      "best_bid": [
+        {
+          "price": "77745",
+          "quantity": "7.35371"
+        }
+      ],
+      "best_ask": [
+        {
+          "price": "77746",
+          "quantity": "0.05457"
+        }
+      ]
+    },
+    "telemetry": {
+      "queue_depth": 0,
+      "queue_highwater": 74,
+      "coalesced": 0,
+      "overflows": 0,
+      "ack_expired": 0,
+      "observer_duration_ms": 0.68727,
+      "queue_wait_ms": 0.101707,
+      "publish_to_ack_upper_bound_ms": 51.133753,
+      "browser_receive_to_paint_ms": 40.599999994039536,
+      "published_mono_ns": "150902000436226"
+    },
+    "selected_streams": [
+      {
+        "key": {
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "instrument_id": "hyperliquid:info:perpetual:BTC",
+          "channel": "trades",
+          "depth": null,
+          "aggregation": []
+        },
+        "stream_id": "485d9450-b4fd-4659-aa03-796a4ff8ddff",
+        "reference_count": "1",
+        "lifecycle": "live",
+        "connection_epoch": "1",
+        "queue_depth": "0",
+        "queue_bytes": "0",
+        "reason": "starting",
+        "capture_complete": true,
+        "last_processing": {
+          "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+          "ingest_ordinal": "1371",
+          "receive_mono_ns": "150901231222889",
+          "queue_exit_mono_ns": "150901231489189",
+          "decode_start_mono_ns": "150901231493254",
+          "decode_end_mono_ns": "150901231919641",
+          "validation_end_mono_ns": "150901231998774",
+          "normalized_mono_ns": "150901232012895",
+          "publish_mono_ns": "150901232016345"
+        },
+        "processed_frames": "16",
+        "queue_highwater_count": "2",
+        "queue_highwater_bytes": "8265"
+      },
+      {
+        "key": {
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "instrument_id": "hyperliquid:info:perpetual:BTC",
+          "channel": "book",
+          "depth": "20",
+          "aggregation": []
+        },
+        "stream_id": "72f0341f-b416-4f89-96f4-e4bbd1de51cd",
+        "reference_count": "1",
+        "lifecycle": "live",
+        "connection_epoch": "1",
+        "queue_depth": "0",
+        "queue_bytes": "0",
+        "reason": "starting",
+        "capture_complete": true,
+        "last_processing": {
+          "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+          "ingest_ordinal": "1410",
+          "receive_mono_ns": "150901584064924",
+          "queue_exit_mono_ns": "150901584285010",
+          "decode_start_mono_ns": "150901584613139",
+          "decode_end_mono_ns": "150901587283054",
+          "validation_end_mono_ns": "150901588333744",
+          "normalized_mono_ns": "150901601342285",
+          "publish_mono_ns": "150901601344780"
+        },
+        "processed_frames": "5",
+        "queue_highwater_count": "1",
+        "queue_highwater_bytes": "1600"
+      },
+      {
+        "key": {
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "instrument_id": "hyperliquid:info:perpetual:BTC",
+          "channel": "context",
+          "depth": null,
+          "aggregation": []
+        },
+        "stream_id": "bfca9cbe-cf8f-42bd-a2d4-1db59c6dbe74",
+        "reference_count": "1",
+        "lifecycle": "live",
+        "connection_epoch": "1",
+        "queue_depth": "0",
+        "queue_bytes": "0",
+        "reason": "starting",
+        "capture_complete": true,
+        "last_processing": {
+          "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+          "ingest_ordinal": "1414",
+          "receive_mono_ns": "150901642024115",
+          "queue_exit_mono_ns": "150901643140645",
+          "decode_start_mono_ns": "150901643912941",
+          "decode_end_mono_ns": "150901644111896",
+          "validation_end_mono_ns": "150901644157312",
+          "normalized_mono_ns": "150901650286382",
+          "publish_mono_ns": "150901650287665"
+        },
+        "processed_frames": "13",
+        "queue_highwater_count": "1",
+        "queue_highwater_bytes": "311"
+      },
+      {
+        "key": {
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "instrument_id": "hyperliquid:info:perpetual:BTC",
+          "channel": "reference",
+          "depth": null,
+          "aggregation": []
+        },
+        "stream_id": "320592bb-4acf-4c34-8fc7-45545674eb7e",
+        "reference_count": "1",
+        "lifecycle": "live",
+        "connection_epoch": "1",
+        "queue_depth": "0",
+        "queue_bytes": "0",
+        "reason": "starting",
+        "capture_complete": true,
+        "last_processing": {
+          "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+          "ingest_ordinal": "1191",
+          "receive_mono_ns": "150899773721580",
+          "queue_exit_mono_ns": "150899774419548",
+          "decode_start_mono_ns": "150899785702035",
+          "decode_end_mono_ns": "150899786822083",
+          "validation_end_mono_ns": "150899786877832",
+          "normalized_mono_ns": "150899800930841",
+          "publish_mono_ns": "150899800932171"
+        },
+        "processed_frames": "3",
+        "queue_highwater_count": "1",
+        "queue_highwater_bytes": "25737"
+      }
+    ],
+    "cvd": [
+      {
+        "name": "cvd_base",
+        "value": null,
+        "unit": "BTC",
+        "asof": {
+          "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+          "ingest_ordinal": "1371",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793572853868000000",
+          "receive_wall_ns": "1793572854054873000",
+          "receive_mono_ns": "150901231222889",
+          "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+        },
+        "window": {
+          "start_mono_ns": "150841992700021",
+          "end_mono_ns": "150901992700021",
+          "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+          "definition": "receive_time_(start,end]"
+        },
+        "eligibility": {
+          "eligible": false,
+          "reasons": [
+            "trade_window_warming"
+          ],
+          "evaluated_at_mono_ns": "150901992700021",
+          "policy_version": "eligibility-v1"
+        },
+        "formula_version": "receive-window-known-aggressor-buy-minus-sell-v1"
+      }
+    ],
+    "tape_newest": [
+      {
+        "trade": {
+          "trade_id": "932446195455543",
+          "dedup_key": "[1793572853868,\"BTC\",932446195455543]",
+          "price": "77745",
+          "quantity": "0.02593",
+          "quantity_unit": "base",
+          "taker_side": "sell",
+          "side_provenance": "https://www.dwellir.com/docs/hyperliquid/trades#response-fields;side=A",
+          "is_subscription_history": false
+        },
+        "asof": {
+          "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+          "ingest_ordinal": "1371",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793572853868000000",
+          "receive_wall_ns": "1793572854054873000",
+          "receive_mono_ns": "150901231222889",
+          "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+        },
+        "stream_id": "485d9450-b4fd-4659-aa03-796a4ff8ddff",
+        "base_quantity": "0.02593",
+        "quote_notional": "2015.92785"
+      }
+    ]
+  },
+  "last": {
+    "elapsed_seconds": 156.23360572801903,
+    "session_id": "8328f4d7233a47fcafac2be3fcd50770",
+    "generation": "2",
+    "instrument_id": "hyperliquid:info:perpetual:BTC",
+    "status": "unavailable",
+    "health": {
+      "ready": false,
+      "reasons": [
+        "analytical_queue_overflow: reselect to establish fresh history"
+      ]
+    },
+    "error": "analytical_queue_overflow: reselect to establish fresh history",
+    "book": null,
+    "telemetry": {
+      "queue_depth": 0,
+      "queue_highwater": 131,
+      "coalesced": 0,
+      "overflows": 1,
+      "ack_expired": 11,
+      "observer_duration_ms": 37.041195,
+      "queue_wait_ms": 950.213454,
+      "publish_to_ack_upper_bound_ms": 34.239449,
+      "browser_receive_to_paint_ms": 31,
+      "published_mono_ns": "151058153802074"
+    },
+    "selected_streams": [
+      {
+        "key": {
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "instrument_id": "hyperliquid:info:perpetual:BTC",
+          "channel": "trades",
+          "depth": null,
+          "aggregation": []
+        },
+        "stream_id": "485d9450-b4fd-4659-aa03-796a4ff8ddff",
+        "reference_count": "1",
+        "lifecycle": "live",
+        "connection_epoch": "1",
+        "queue_depth": "0",
+        "queue_bytes": "0",
+        "reason": "starting",
+        "capture_complete": true,
+        "last_processing": {
+          "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+          "ingest_ordinal": "27062",
+          "receive_mono_ns": "151058016093125",
+          "queue_exit_mono_ns": "151058017124622",
+          "decode_start_mono_ns": "151058017125931",
+          "decode_end_mono_ns": "151058017384498",
+          "validation_end_mono_ns": "151058039250181",
+          "normalized_mono_ns": "151058039266580",
+          "publish_mono_ns": "151058039270390"
+        },
+        "processed_frames": "181",
+        "queue_highwater_count": "2",
+        "queue_highwater_bytes": "21983"
+      },
+      {
+        "key": {
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "instrument_id": "hyperliquid:info:perpetual:BTC",
+          "channel": "book",
+          "depth": "20",
+          "aggregation": []
+        },
+        "stream_id": "72f0341f-b416-4f89-96f4-e4bbd1de51cd",
+        "reference_count": "1",
+        "lifecycle": "live",
+        "connection_epoch": "1",
+        "queue_depth": "0",
+        "queue_bytes": "0",
+        "reason": "starting",
+        "capture_complete": true,
+        "last_processing": {
+          "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+          "ingest_ordinal": "26987",
+          "receive_mono_ns": "151056325696340",
+          "queue_exit_mono_ns": "151056325871794",
+          "decode_start_mono_ns": "151056326614348",
+          "decode_end_mono_ns": "151056327809011",
+          "validation_end_mono_ns": "151056328501940",
+          "normalized_mono_ns": "151056329842768",
+          "publish_mono_ns": "151056329844625"
+        },
+        "processed_frames": "42",
+        "queue_highwater_count": "1",
+        "queue_highwater_bytes": "1609"
+      },
+      {
+        "key": {
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "instrument_id": "hyperliquid:info:perpetual:BTC",
+          "channel": "context",
+          "depth": null,
+          "aggregation": []
+        },
+        "stream_id": "bfca9cbe-cf8f-42bd-a2d4-1db59c6dbe74",
+        "reference_count": "1",
+        "lifecycle": "live",
+        "connection_epoch": "1",
+        "queue_depth": "0",
+        "queue_bytes": "0",
+        "reason": "starting",
+        "capture_complete": true,
+        "last_processing": {
+          "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+          "ingest_ordinal": "27061",
+          "receive_mono_ns": "151058016040930",
+          "queue_exit_mono_ns": "151058043205997",
+          "decode_start_mono_ns": "151058074173315",
+          "decode_end_mono_ns": "151058074315288",
+          "validation_end_mono_ns": "151058074348455",
+          "normalized_mono_ns": "151058091628804",
+          "publish_mono_ns": "151058091629500"
+        },
+        "processed_frames": "173",
+        "queue_highwater_count": "6",
+        "queue_highwater_bytes": "1860"
+      },
+      {
+        "key": {
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "instrument_id": "hyperliquid:info:perpetual:BTC",
+          "channel": "reference",
+          "depth": null,
+          "aggregation": []
+        },
+        "stream_id": "320592bb-4acf-4c34-8fc7-45545674eb7e",
+        "reference_count": "1",
+        "lifecycle": "live",
+        "connection_epoch": "1",
+        "queue_depth": "0",
+        "queue_bytes": "0",
+        "reason": "starting",
+        "capture_complete": true,
+        "last_processing": {
+          "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+          "ingest_ordinal": "26922",
+          "receive_mono_ns": "151055991341130",
+          "queue_exit_mono_ns": "151055999503627",
+          "decode_start_mono_ns": "151056015485913",
+          "decode_end_mono_ns": "151056016655475",
+          "validation_end_mono_ns": "151056016710231",
+          "normalized_mono_ns": "151056080153382",
+          "publish_mono_ns": "151056080154806"
+        },
+        "processed_frames": "42",
+        "queue_highwater_count": "1",
+        "queue_highwater_bytes": "25737"
+      }
+    ],
+    "cvd": [],
+    "tape_newest": []
+  },
+  "progress": [
+    {
+      "elapsed_seconds": 0.08043742200243287,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "4",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "1410",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572854002000000",
+        "receive_wall_ns": "1793572854407722000",
+        "receive_mono_ns": "150901584064924",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77726",
+        "worst_ask": "77768",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 0,
+        "queue_highwater": 74,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 0.68727,
+        "queue_wait_ms": 0.101707,
+        "publish_to_ack_upper_bound_ms": 51.133753,
+        "browser_receive_to_paint_ms": 40.599999994039536,
+        "published_mono_ns": "150902000436226"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": null,
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": false,
+            "reasons": [
+              "trade_window_warming"
+            ],
+            "evaluated_at_mono_ns": "150901992700021",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150841992700021",
+            "end_mono_ns": "150901992700021",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 2.7647101299953647,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "4",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "1410",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572854002000000",
+        "receive_wall_ns": "1793572854407722000",
+        "receive_mono_ns": "150901584064924",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77726",
+        "worst_ask": "77768",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 34,
+        "queue_highwater": 74,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 15.355678,
+        "queue_wait_ms": 130.205559,
+        "publish_to_ack_upper_bound_ms": 37.972342,
+        "browser_receive_to_paint_ms": 26.799999982118607,
+        "published_mono_ns": "150904657973599"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": null,
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": false,
+            "reasons": [
+              "trade_window_warming"
+            ],
+            "evaluated_at_mono_ns": "150904608062948",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150844608062948",
+            "end_mono_ns": "150904608062948",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 4.821339760004776,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": false,
+        "reasons": [
+          "stale"
+        ]
+      },
+      "revision": "4",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "1410",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572854002000000",
+        "receive_wall_ns": "1793572854407722000",
+        "receive_mono_ns": "150901584064924",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77726",
+        "worst_ask": "77768",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 3,
+        "queue_highwater": 74,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 1.804171,
+        "queue_wait_ms": 5.598061,
+        "publish_to_ack_upper_bound_ms": 42.360691,
+        "browser_receive_to_paint_ms": 36.69999998807907,
+        "published_mono_ns": "150906733242288"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": null,
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": false,
+            "reasons": [
+              "trade_window_warming"
+            ],
+            "evaluated_at_mono_ns": "150906728312488",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150846728312488",
+            "end_mono_ns": "150906728312488",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 7.342840574012371,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": false,
+        "reasons": [
+          "owner_busy",
+          "last_completed_presentation"
+        ]
+      },
+      "revision": "5",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "1913",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572859427000000",
+        "receive_wall_ns": "1793572859759256000",
+        "receive_mono_ns": "150906935507374",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77726",
+        "worst_ask": "77768",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 39,
+        "queue_highwater": 74,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 249.738253,
+        "queue_wait_ms": 1367.844945,
+        "publish_to_ack_upper_bound_ms": 1365.914084,
+        "browser_receive_to_paint_ms": 24.5,
+        "published_mono_ns": "150909262026718"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": null,
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": false,
+            "reasons": [
+              "trade_window_warming"
+            ],
+            "evaluated_at_mono_ns": "150907558979642",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150847558979642",
+            "end_mono_ns": "150907558979642",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 9.381549850018928,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "5",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "1913",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572859427000000",
+        "receive_wall_ns": "1793572859759256000",
+        "receive_mono_ns": "150906935507374",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77726",
+        "worst_ask": "77768",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 1,
+        "queue_highwater": 74,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 1.005495,
+        "queue_wait_ms": 0.212076,
+        "publish_to_ack_upper_bound_ms": 39.857349,
+        "browser_receive_to_paint_ms": 31.30000001192093,
+        "published_mono_ns": "150911294425281"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": null,
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": false,
+            "reasons": [
+              "trade_window_warming"
+            ],
+            "evaluated_at_mono_ns": "150911288215185",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150851288215185",
+            "end_mono_ns": "150911288215185",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 12.105303677992197,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": false,
+        "reasons": [
+          "owner_busy",
+          "last_completed_presentation"
+        ]
+      },
+      "revision": "5",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "1913",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572859427000000",
+        "receive_wall_ns": "1793572859759256000",
+        "receive_mono_ns": "150906935507374",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77726",
+        "worst_ask": "77768",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 40,
+        "queue_highwater": 74,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 42.442545,
+        "queue_wait_ms": 18.644398,
+        "publish_to_ack_upper_bound_ms": 33.812768,
+        "browser_receive_to_paint_ms": 22.80000001192093,
+        "published_mono_ns": "150914021764685"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": null,
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": false,
+            "reasons": [
+              "trade_window_warming"
+            ],
+            "evaluated_at_mono_ns": "150912099965766",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150852099965766",
+            "end_mono_ns": "150912099965766",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 14.192500867007766,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "6",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "2905",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572864826000000",
+        "receive_wall_ns": "1793572865124621000",
+        "receive_mono_ns": "150912300780872",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77730",
+        "worst_ask": "77769",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 3,
+        "queue_highwater": 83,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 0.963229,
+        "queue_wait_ms": 0.083615,
+        "publish_to_ack_upper_bound_ms": 50.422056,
+        "browser_receive_to_paint_ms": 23.900000005960464,
+        "published_mono_ns": "150916098141713"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": null,
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": false,
+            "reasons": [
+              "trade_window_warming"
+            ],
+            "evaluated_at_mono_ns": "150916091267698",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150856091267698",
+            "end_mono_ns": "150916091267698",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 16.85384649701882,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": false,
+        "reasons": [
+          "owner_busy",
+          "last_completed_presentation"
+        ]
+      },
+      "revision": "6",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "2905",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572864826000000",
+        "receive_wall_ns": "1793572865124621000",
+        "receive_mono_ns": "150912300780872",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77730",
+        "worst_ask": "77769",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 40,
+        "queue_highwater": 83,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 0.779482,
+        "queue_wait_ms": 292.892375,
+        "publish_to_ack_upper_bound_ms": 165.854091,
+        "browser_receive_to_paint_ms": 50.30000001192093,
+        "published_mono_ns": "150918772672330"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": null,
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": false,
+            "reasons": [
+              "trade_window_warming"
+            ],
+            "evaluated_at_mono_ns": "150916891962978",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150856891962978",
+            "end_mono_ns": "150916891962978",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 18.92831898800796,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "7",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "3790",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572870133000000",
+        "receive_wall_ns": "1793572871288587000",
+        "receive_mono_ns": "150918464641773",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77733",
+        "worst_ask": "77772",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 0,
+        "queue_highwater": 83,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 1.113713,
+        "queue_wait_ms": 0.075535,
+        "publish_to_ack_upper_bound_ms": 45.001243,
+        "browser_receive_to_paint_ms": 32.400000005960464,
+        "published_mono_ns": "150920846677500"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": null,
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": false,
+            "reasons": [
+              "trade_window_warming"
+            ],
+            "evaluated_at_mono_ns": "150920802914537",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150860802914537",
+            "end_mono_ns": "150920802914537",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 21.294192030996783,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": false,
+        "reasons": [
+          "owner_busy",
+          "last_completed_presentation"
+        ]
+      },
+      "revision": "7",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "3790",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572870133000000",
+        "receive_wall_ns": "1793572871288587000",
+        "receive_mono_ns": "150918464641773",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77733",
+        "worst_ask": "77772",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 26,
+        "queue_highwater": 83,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 0.705979,
+        "queue_wait_ms": 0.139875,
+        "publish_to_ack_upper_bound_ms": 30.137338,
+        "browser_receive_to_paint_ms": 23,
+        "published_mono_ns": "150923206620934"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": null,
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": false,
+            "reasons": [
+              "trade_window_warming"
+            ],
+            "evaluated_at_mono_ns": "150921576917435",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150861576917435",
+            "end_mono_ns": "150921576917435",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 23.38667379601975,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "8",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "4512",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572875607000000",
+        "receive_wall_ns": "1793572875954172000",
+        "receive_mono_ns": "150923130147049",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77733",
+        "worst_ask": "77772",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 1,
+        "queue_highwater": 83,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 41.001969,
+        "queue_wait_ms": 0.420658,
+        "publish_to_ack_upper_bound_ms": 46.490238,
+        "browser_receive_to_paint_ms": 37.69999998807907,
+        "published_mono_ns": "150925297324566"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": null,
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": false,
+            "reasons": [
+              "trade_window_warming"
+            ],
+            "evaluated_at_mono_ns": "150925287307169",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150865287307169",
+            "end_mono_ns": "150925287307169",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 25.760176137991948,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": false,
+        "reasons": [
+          "owner_busy",
+          "last_completed_presentation"
+        ]
+      },
+      "revision": "8",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "4512",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572875607000000",
+        "receive_wall_ns": "1793572875954172000",
+        "receive_mono_ns": "150923130147049",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77733",
+        "worst_ask": "77772",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 31,
+        "queue_highwater": 83,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 1237.778339,
+        "queue_wait_ms": 0.131415,
+        "publish_to_ack_upper_bound_ms": 65.759042,
+        "browser_receive_to_paint_ms": 29,
+        "published_mono_ns": "150927634595582"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": null,
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": false,
+            "reasons": [
+              "trade_window_warming"
+            ],
+            "evaluated_at_mono_ns": "150926072821360",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150866072821360",
+            "end_mono_ns": "150926072821360",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 27.823041499999817,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "9",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "5615",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572880974000000",
+        "receive_wall_ns": "1793572881307263000",
+        "receive_mono_ns": "150928483146671",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77732",
+        "worst_ask": "77772",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 4,
+        "queue_highwater": 83,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 5.353075,
+        "queue_wait_ms": 4.112239,
+        "publish_to_ack_upper_bound_ms": 32.150752,
+        "browser_receive_to_paint_ms": 23.299999982118607,
+        "published_mono_ns": "150929736113455"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": null,
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": false,
+            "reasons": [
+              "trade_window_warming"
+            ],
+            "evaluated_at_mono_ns": "150929721718312",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150869721718312",
+            "end_mono_ns": "150929721718312",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 30.251752984011546,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": false,
+        "reasons": [
+          "owner_busy",
+          "last_completed_presentation"
+        ]
+      },
+      "revision": "9",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "5615",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572880974000000",
+        "receive_wall_ns": "1793572881307263000",
+        "receive_mono_ns": "150928483146671",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77732",
+        "worst_ask": "77772",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 17,
+        "queue_highwater": 83,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 22.006694,
+        "queue_wait_ms": 142.184012,
+        "publish_to_ack_upper_bound_ms": 58.246324,
+        "browser_receive_to_paint_ms": 26.900000005960464,
+        "published_mono_ns": "150932124728845"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": null,
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": false,
+            "reasons": [
+              "trade_window_warming"
+            ],
+            "evaluated_at_mono_ns": "150930469536040",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150870469536040",
+            "end_mono_ns": "150930469536040",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 32.2882336070179,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "10",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "6323",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572886363000000",
+        "receive_wall_ns": "1793572886644388000",
+        "receive_mono_ns": "150933820180568",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77733",
+        "worst_ask": "77772",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 0,
+        "queue_highwater": 83,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 1.004916,
+        "queue_wait_ms": 0.097209,
+        "publish_to_ack_upper_bound_ms": 42.273574,
+        "browser_receive_to_paint_ms": 33.5,
+        "published_mono_ns": "150934205014670"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": null,
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": false,
+            "reasons": [
+              "trade_window_warming"
+            ],
+            "evaluated_at_mono_ns": "150934198988461",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150874198988461",
+            "end_mono_ns": "150934198988461",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 34.69435727101518,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": false,
+        "reasons": [
+          "owner_busy",
+          "last_completed_presentation"
+        ]
+      },
+      "revision": "10",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "6323",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572886363000000",
+        "receive_wall_ns": "1793572886644388000",
+        "receive_mono_ns": "150933820180568",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77733",
+        "worst_ask": "77772",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 34,
+        "queue_highwater": 83,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 83.242199,
+        "queue_wait_ms": 137.34476,
+        "publish_to_ack_upper_bound_ms": 64.032856,
+        "browser_receive_to_paint_ms": 36,
+        "published_mono_ns": "150936613914814"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": null,
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": false,
+            "reasons": [
+              "trade_window_warming"
+            ],
+            "evaluated_at_mono_ns": "150934906658462",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150874906658462",
+            "end_mono_ns": "150934906658462",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 36.78691667600651,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "10",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "6323",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572886363000000",
+        "receive_wall_ns": "1793572886644388000",
+        "receive_mono_ns": "150933820180568",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77733",
+        "worst_ask": "77772",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 4,
+        "queue_highwater": 83,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 3.450144,
+        "queue_wait_ms": 0.467993,
+        "publish_to_ack_upper_bound_ms": 43.295536,
+        "browser_receive_to_paint_ms": 30.799999982118607,
+        "published_mono_ns": "150938700960360"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": null,
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": false,
+            "reasons": [
+              "trade_window_warming"
+            ],
+            "evaluated_at_mono_ns": "150938691635472",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150878691635472",
+            "end_mono_ns": "150938691635472",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 39.52497827701154,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": false,
+        "reasons": [
+          "owner_busy",
+          "last_completed_presentation"
+        ]
+      },
+      "revision": "11",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "7135",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572891433000000",
+        "receive_wall_ns": "1793572891787978000",
+        "receive_mono_ns": "150938963682388",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77733",
+        "worst_ask": "77772",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 41,
+        "queue_highwater": 83,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 195.847476,
+        "queue_wait_ms": 248.34698,
+        "publish_to_ack_upper_bound_ms": 87.768469,
+        "browser_receive_to_paint_ms": 35.5,
+        "published_mono_ns": "150941441168715"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": null,
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": false,
+            "reasons": [
+              "trade_window_warming"
+            ],
+            "evaluated_at_mono_ns": "150939438510952",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150879438510952",
+            "end_mono_ns": "150939438510952",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 41.59030380001059,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "11",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "7135",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572891433000000",
+        "receive_wall_ns": "1793572891787978000",
+        "receive_mono_ns": "150938963682388",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77733",
+        "worst_ask": "77772",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 5,
+        "queue_highwater": 83,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 6.892059,
+        "queue_wait_ms": 4.054178,
+        "publish_to_ack_upper_bound_ms": 68.959211,
+        "browser_receive_to_paint_ms": 35.099999994039536,
+        "published_mono_ns": "150943506357986"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": null,
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": false,
+            "reasons": [
+              "trade_window_warming"
+            ],
+            "evaluated_at_mono_ns": "150943495781457",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150883495781457",
+            "end_mono_ns": "150943495781457",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 43.93998705499689,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": false,
+        "reasons": [
+          "stale"
+        ]
+      },
+      "revision": "11",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "7135",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572891433000000",
+        "receive_wall_ns": "1793572891787978000",
+        "receive_mono_ns": "150938963682388",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77733",
+        "worst_ask": "77772",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 56,
+        "queue_highwater": 83,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 36.844712,
+        "queue_wait_ms": 86.072074,
+        "publish_to_ack_upper_bound_ms": 37.963642,
+        "browser_receive_to_paint_ms": 26.599999994039536,
+        "published_mono_ns": "150945854273913"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": null,
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": false,
+            "reasons": [
+              "trade_window_warming"
+            ],
+            "evaluated_at_mono_ns": "150945721175690",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150885721175690",
+            "end_mono_ns": "150945721175690",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 45.97719378300826,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "12",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "7959",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572896846000000",
+        "receive_wall_ns": "1793572898410777000",
+        "receive_mono_ns": "150945586368804",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77738",
+        "worst_ask": "77780",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 0,
+        "queue_highwater": 85,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 1.124851,
+        "queue_wait_ms": 0.101428,
+        "publish_to_ack_upper_bound_ms": 38.234058,
+        "browser_receive_to_paint_ms": 27.69999998807907,
+        "published_mono_ns": "150947887350340"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": null,
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": false,
+            "reasons": [
+              "trade_window_warming"
+            ],
+            "evaluated_at_mono_ns": "150947880849840",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150887880849840",
+            "end_mono_ns": "150947880849840",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 48.30317952099722,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": false,
+        "reasons": [
+          "owner_busy",
+          "last_completed_presentation"
+        ]
+      },
+      "revision": "12",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "7959",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572896846000000",
+        "receive_wall_ns": "1793572898410777000",
+        "receive_mono_ns": "150945586368804",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77738",
+        "worst_ask": "77780",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 42,
+        "queue_highwater": 85,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 101.065413,
+        "queue_wait_ms": 1402.333442,
+        "publish_to_ack_upper_bound_ms": 1275.678627,
+        "browser_receive_to_paint_ms": 30.69999998807907,
+        "published_mono_ns": "150950210992426"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": null,
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": false,
+            "reasons": [
+              "trade_window_warming"
+            ],
+            "evaluated_at_mono_ns": "150948707158599",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150888707158599",
+            "end_mono_ns": "150948707158599",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 50.37065775599331,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "13",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "8770",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572902251000000",
+        "receive_wall_ns": "1793572903066330000",
+        "receive_mono_ns": "150950241842397",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77735",
+        "worst_ask": "77780",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 17,
+        "queue_highwater": 85,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 9.355916,
+        "queue_wait_ms": 6.088083,
+        "publish_to_ack_upper_bound_ms": 54.179958,
+        "browser_receive_to_paint_ms": 38.400000005960464,
+        "published_mono_ns": "150952280259815"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "20.20944",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "150952269242564",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150892269242564",
+            "end_mono_ns": "150952269242564",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 53.272313776018564,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": false,
+        "reasons": [
+          "owner_busy",
+          "last_completed_presentation"
+        ]
+      },
+      "revision": "13",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "8770",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572902251000000",
+        "receive_wall_ns": "1793572903066330000",
+        "receive_mono_ns": "150950241842397",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77735",
+        "worst_ask": "77780",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 38,
+        "queue_highwater": 85,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 242.368121,
+        "queue_wait_ms": 1583.439198,
+        "publish_to_ack_upper_bound_ms": 58.815502,
+        "browser_receive_to_paint_ms": 31,
+        "published_mono_ns": "150955182644744"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "20.21064",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "150952968617895",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150892968617895",
+            "end_mono_ns": "150952968617895",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 55.331100103008794,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "14",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "10341",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572907693000000",
+        "receive_wall_ns": "1793572908118977000",
+        "receive_mono_ns": "150955294403018",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77755",
+        "worst_ask": "77796",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 7,
+        "queue_highwater": 85,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 2.493449,
+        "queue_wait_ms": 4.834916,
+        "publish_to_ack_upper_bound_ms": 37.630331,
+        "browser_receive_to_paint_ms": 29.200000017881393,
+        "published_mono_ns": "150957243370465"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "20.17585",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "150957229622715",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150897229622715",
+            "end_mono_ns": "150957229622715",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 57.549637193005765,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": false,
+        "reasons": [
+          "owner_busy",
+          "last_completed_presentation"
+        ]
+      },
+      "revision": "14",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "10341",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572907693000000",
+        "receive_wall_ns": "1793572908118977000",
+        "receive_mono_ns": "150955294403018",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77755",
+        "worst_ask": "77796",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 36,
+        "queue_highwater": 85,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 99.021116,
+        "queue_wait_ms": 152.883471,
+        "publish_to_ack_upper_bound_ms": 37.870595,
+        "browser_receive_to_paint_ms": 27.5,
+        "published_mono_ns": "150959448269442"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "20.17585",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "150958047007690",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150898047007690",
+            "end_mono_ns": "150958047007690",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 59.622375364007894,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "15",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "11244",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572912814000000",
+        "receive_wall_ns": "1793572913138921000",
+        "receive_mono_ns": "150960314261552",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77757",
+        "worst_ask": "77796",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 3,
+        "queue_highwater": 85,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 2.463042,
+        "queue_wait_ms": 23.364498,
+        "publish_to_ack_upper_bound_ms": 51.398073,
+        "browser_receive_to_paint_ms": 37.400000005960464,
+        "published_mono_ns": "150961527832453"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "20.26805",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "150961516381106",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150901516381106",
+            "end_mono_ns": "150961516381106",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 62.36509669199586,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": false,
+        "reasons": [
+          "owner_busy",
+          "last_completed_presentation"
+        ]
+      },
+      "revision": "15",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "11244",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572912814000000",
+        "receive_wall_ns": "1793572913138921000",
+        "receive_mono_ns": "150960314261552",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77757",
+        "worst_ask": "77796",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 39,
+        "queue_highwater": 85,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 52.298851,
+        "queue_wait_ms": 256.07354,
+        "publish_to_ack_upper_bound_ms": 66.174417,
+        "browser_receive_to_paint_ms": 37,
+        "published_mono_ns": "150964280030550"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "20.27525",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "150962405386108",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150902405386108",
+            "end_mono_ns": "150962405386108",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 64.40832065799623,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "16",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "12231",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572918175000000",
+        "receive_wall_ns": "1793572918608996000",
+        "receive_mono_ns": "150965784243229",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77757",
+        "worst_ask": "77799",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 0,
+        "queue_highwater": 92,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 0.797507,
+        "queue_wait_ms": 0.113931,
+        "publish_to_ack_upper_bound_ms": 36.509211,
+        "browser_receive_to_paint_ms": 26.599999994039536,
+        "published_mono_ns": "150966321795471"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "20.2759",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "150966311444389",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150906311444389",
+            "end_mono_ns": "150966311444389",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 66.65623304600012,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": false,
+        "reasons": [
+          "owner_busy",
+          "last_completed_presentation"
+        ]
+      },
+      "revision": "16",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "12231",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572918175000000",
+        "receive_wall_ns": "1793572918608996000",
+        "receive_mono_ns": "150965784243229",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77757",
+        "worst_ask": "77799",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 57,
+        "queue_highwater": 92,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 1323.753857,
+        "queue_wait_ms": 1450.677866,
+        "publish_to_ack_upper_bound_ms": 1222.783014,
+        "browser_receive_to_paint_ms": 26.5,
+        "published_mono_ns": "150968573578630"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "20.28332",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "150968479902084",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150908479902084",
+            "end_mono_ns": "150968479902084",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 68.7092663999938,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "16",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "12231",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572918175000000",
+        "receive_wall_ns": "1793572918608996000",
+        "receive_mono_ns": "150965784243229",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77757",
+        "worst_ask": "77799",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 3,
+        "queue_highwater": 92,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 0.99086,
+        "queue_wait_ms": 0.120332,
+        "publish_to_ack_upper_bound_ms": 46.613395,
+        "browser_receive_to_paint_ms": 37.39999997615814,
+        "published_mono_ns": "150970614063795"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "20.3933",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "150970602649131",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150910602649131",
+            "end_mono_ns": "150970602649131",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 71.14270367001882,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "17",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "13099",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572923498000000",
+        "receive_wall_ns": "1793572923876181000",
+        "receive_mono_ns": "150971051337934",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77759",
+        "worst_ask": "77800",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 35,
+        "queue_highwater": 92,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 28.846145,
+        "queue_wait_ms": 167.406153,
+        "publish_to_ack_upper_bound_ms": 42.254159,
+        "browser_receive_to_paint_ms": 26.80000001192093,
+        "published_mono_ns": "150973040673332"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "20.36342",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "150972991451079",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150912991451079",
+            "end_mono_ns": "150972991451079",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 73.24646410901914,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "17",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "13099",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572923498000000",
+        "receive_wall_ns": "1793572923876181000",
+        "receive_mono_ns": "150971051337934",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77759",
+        "worst_ask": "77800",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 7,
+        "queue_highwater": 92,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 19.789504,
+        "queue_wait_ms": 10.281259,
+        "publish_to_ack_upper_bound_ms": 49.133294,
+        "browser_receive_to_paint_ms": 24.099999994039536,
+        "published_mono_ns": "150975160936958"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "20.4151",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "150975142218045",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150915142218045",
+            "end_mono_ns": "150975142218045",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 75.45793763699476,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": false,
+        "reasons": [
+          "owner_busy",
+          "last_completed_presentation"
+        ]
+      },
+      "revision": "17",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "13099",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572923498000000",
+        "receive_wall_ns": "1793572923876181000",
+        "receive_mono_ns": "150971051337934",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77759",
+        "worst_ask": "77800",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 74,
+        "queue_highwater": 92,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 65.846626,
+        "queue_wait_ms": 1271.183421,
+        "publish_to_ack_upper_bound_ms": 49.324826,
+        "browser_receive_to_paint_ms": 24.19999998807907,
+        "published_mono_ns": "150977363037706"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "20.41296",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "150977162804335",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150917162804335",
+            "end_mono_ns": "150977162804335",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 77.51552567299223,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "18",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "13790",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572928887000000",
+        "receive_wall_ns": "1793572929982011000",
+        "receive_mono_ns": "150977157063847",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77759",
+        "worst_ask": "77799",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 11,
+        "queue_highwater": 92,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 6.10963,
+        "queue_wait_ms": 3.37032,
+        "publish_to_ack_upper_bound_ms": 42.75723,
+        "browser_receive_to_paint_ms": 29,
+        "published_mono_ns": "150979428354520"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "15.39709",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "150979415644723",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150919415644723",
+            "end_mono_ns": "150979415644723",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 79.8235199250048,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": false,
+        "reasons": [
+          "owner_busy",
+          "last_completed_presentation"
+        ]
+      },
+      "revision": "18",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "13790",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572928887000000",
+        "receive_wall_ns": "1793572929982011000",
+        "receive_mono_ns": "150977157063847",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77759",
+        "worst_ask": "77799",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 51,
+        "queue_highwater": 92,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 74.225526,
+        "queue_wait_ms": 1166.024853,
+        "publish_to_ack_upper_bound_ms": 76.709787,
+        "browser_receive_to_paint_ms": 27.899999976158142,
+        "published_mono_ns": "150981682303250"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "15.39709",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "150980210029344",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150920210029344",
+            "end_mono_ns": "150980210029344",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 81.88340660600807,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "19",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "15679",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572934233000000",
+        "receive_wall_ns": "1793572934585590000",
+        "receive_mono_ns": "150981760564783",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77734",
+        "worst_ask": "77792",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 13,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 5.232713,
+        "queue_wait_ms": 7.762309,
+        "publish_to_ack_upper_bound_ms": 48.950487,
+        "browser_receive_to_paint_ms": 34.79999998211861,
+        "published_mono_ns": "150983793793847"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "15.39266",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "150983784337022",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150923784337022",
+            "end_mono_ns": "150983784337022",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 84.48990860302001,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": false,
+        "reasons": [
+          "owner_busy",
+          "last_completed_presentation"
+        ]
+      },
+      "revision": "19",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "15679",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572934233000000",
+        "receive_wall_ns": "1793572934585590000",
+        "receive_mono_ns": "150981760564783",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77734",
+        "worst_ask": "77792",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 53,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 103.057608,
+        "queue_wait_ms": 1707.079667,
+        "publish_to_ack_upper_bound_ms": 241.293215,
+        "browser_receive_to_paint_ms": 22.19999998807907,
+        "published_mono_ns": "150986405523131"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "15.39321",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "150984600524814",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150924600524814",
+            "end_mono_ns": "150984600524814",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 86.53680584501126,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "20",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "17436",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572939344000000",
+        "receive_wall_ns": "1793572939647393000",
+        "receive_mono_ns": "150986822281245",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77735",
+        "worst_ask": "77775",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 0,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 0.692204,
+        "queue_wait_ms": 0.08525,
+        "publish_to_ack_upper_bound_ms": 35.350754,
+        "browser_receive_to_paint_ms": 27,
+        "published_mono_ns": "150988450538885"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "15.33749",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "150988442142667",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150928442142667",
+            "end_mono_ns": "150988442142667",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 88.75024640400079,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": false,
+        "reasons": [
+          "owner_busy",
+          "last_completed_presentation"
+        ]
+      },
+      "revision": "20",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "17436",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572939344000000",
+        "receive_wall_ns": "1793572939647393000",
+        "receive_mono_ns": "150986822281245",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77735",
+        "worst_ask": "77775",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 40,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 0.786195,
+        "queue_wait_ms": 0.113368,
+        "publish_to_ack_upper_bound_ms": 38.640364,
+        "browser_receive_to_paint_ms": 29.599999994039536,
+        "published_mono_ns": "150990657960578"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "15.33707",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "150990621003600",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150930621003600",
+            "end_mono_ns": "150990621003600",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 90.94100129901199,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "21",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "18217",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572944634000000",
+        "receive_wall_ns": "1793572944942340000",
+        "receive_mono_ns": "150992117137933",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77735",
+        "worst_ask": "77775",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 18,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 36.208919,
+        "queue_wait_ms": 35.347412,
+        "publish_to_ack_upper_bound_ms": 33.565967,
+        "browser_receive_to_paint_ms": 23.5,
+        "published_mono_ns": "150992854158252"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "15.24559",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "150992834690001",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150932834690001",
+            "end_mono_ns": "150992834690001",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 93.72631613301928,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "21",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "18217",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572944634000000",
+        "receive_wall_ns": "1793572944942340000",
+        "receive_mono_ns": "150992117137933",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77735",
+        "worst_ask": "77775",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 37,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 30.911443,
+        "queue_wait_ms": 300.817373,
+        "publish_to_ack_upper_bound_ms": 44.069857,
+        "browser_receive_to_paint_ms": 29.5,
+        "published_mono_ns": "150995608219431"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "15.2353",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "150995594236471",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150935594236471",
+            "end_mono_ns": "150995594236471",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 95.77976994999335,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "22",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "18900",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572949693000000",
+        "receive_wall_ns": "1793572949933371000",
+        "receive_mono_ns": "150997108083985",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77736",
+        "worst_ask": "77776",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 3,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 2.119787,
+        "queue_wait_ms": 0.212362,
+        "publish_to_ack_upper_bound_ms": 47.831557,
+        "browser_receive_to_paint_ms": 37.69999998807907,
+        "published_mono_ns": "150997692820416"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "15.23934",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "150997681450425",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150937681450425",
+            "end_mono_ns": "150997681450425",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 98.00386528999661,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": false,
+        "reasons": [
+          "owner_busy",
+          "last_completed_presentation"
+        ]
+      },
+      "revision": "22",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "18900",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572949693000000",
+        "receive_wall_ns": "1793572949933371000",
+        "receive_mono_ns": "150997108083985",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77736",
+        "worst_ask": "77776",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 42,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 9.169203,
+        "queue_wait_ms": 109.22064,
+        "publish_to_ack_upper_bound_ms": 41.938023,
+        "browser_receive_to_paint_ms": 32.599999994039536,
+        "published_mono_ns": "150999898974417"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "15.23934",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "150998389541608",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150938389541608",
+            "end_mono_ns": "150998389541608",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 100.04484043599223,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "22",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "18900",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572949693000000",
+        "receive_wall_ns": "1793572949933371000",
+        "receive_mono_ns": "150997108083985",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77736",
+        "worst_ask": "77776",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 0,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 1.229651,
+        "queue_wait_ms": 0.087221,
+        "publish_to_ack_upper_bound_ms": 38.793713,
+        "browser_receive_to_paint_ms": 31.099999994039536,
+        "published_mono_ns": "151001958365511"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "15.22148",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "151001950145554",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150941950145554",
+            "end_mono_ns": "151001950145554",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 102.59812835199409,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "23",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "19713",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572955050000000",
+        "receive_wall_ns": "1793572955408107000",
+        "receive_mono_ns": "151002582725849",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77736",
+        "worst_ask": "77775",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 32,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 24.485966,
+        "queue_wait_ms": 183.870199,
+        "publish_to_ack_upper_bound_ms": 207.316971,
+        "browser_receive_to_paint_ms": 38.89999997615814,
+        "published_mono_ns": "151004476828813"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "-4.77828",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "151004456428563",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150944456428563",
+            "end_mono_ns": "151004456428563",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 104.64624438202009,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "23",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "19713",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572955050000000",
+        "receive_wall_ns": "1793572955408107000",
+        "receive_mono_ns": "151002582725849",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77736",
+        "worst_ask": "77775",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 0,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 1.530804,
+        "queue_wait_ms": 0.1128,
+        "publish_to_ack_upper_bound_ms": 46.312486,
+        "browser_receive_to_paint_ms": 37.5,
+        "published_mono_ns": "151006558053913"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "-6.3198",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "151006547586270",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150946547586270",
+            "end_mono_ns": "151006547586270",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 106.84411708801053,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": false,
+        "reasons": [
+          "stale"
+        ]
+      },
+      "revision": "23",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "19713",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572955050000000",
+        "receive_wall_ns": "1793572955408107000",
+        "receive_mono_ns": "151002582725849",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77736",
+        "worst_ask": "77775",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 33,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 40.360103,
+        "queue_wait_ms": 118.715471,
+        "publish_to_ack_upper_bound_ms": 1169.220085,
+        "browser_receive_to_paint_ms": 29,
+        "published_mono_ns": "151008745861665"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "-6.33828",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "151008704515037",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150948704515037",
+            "end_mono_ns": "151008704515037",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 108.89495714500663,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "24",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "20301",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572960384000000",
+        "receive_wall_ns": "1793572961363040000",
+        "receive_mono_ns": "151008537557653",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77736",
+        "worst_ask": "77776",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 2,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 1.307566,
+        "queue_wait_ms": 1.302783,
+        "publish_to_ack_upper_bound_ms": 112.876129,
+        "browser_receive_to_paint_ms": 37.30000001192093,
+        "published_mono_ns": "151010809899013"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "-6.36794",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "151010795550552",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150950795550552",
+            "end_mono_ns": "151010795550552",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 111.42645737199928,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "24",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "20301",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572960384000000",
+        "receive_wall_ns": "1793572961363040000",
+        "receive_mono_ns": "151008537557653",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77736",
+        "worst_ask": "77776",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 38,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 21.509941,
+        "queue_wait_ms": 130.152094,
+        "publish_to_ack_upper_bound_ms": 47.497355,
+        "browser_receive_to_paint_ms": 35.5,
+        "published_mono_ns": "151013340421799"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "-6.43511",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "151013239980198",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150953239980198",
+            "end_mono_ns": "151013239980198",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 113.4830634050013,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "25",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "20856",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572965833000000",
+        "receive_wall_ns": "1793572966187480000",
+        "receive_mono_ns": "151013361914905",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77736",
+        "worst_ask": "77776",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 4,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 1.82136,
+        "queue_wait_ms": 2.372859,
+        "publish_to_ack_upper_bound_ms": 41.175054,
+        "browser_receive_to_paint_ms": 30.799999982118607,
+        "published_mono_ns": "151015391015410"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "-7.38447",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "151015379772567",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150955379772567",
+            "end_mono_ns": "151015379772567",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 115.86264291100088,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": false,
+        "reasons": [
+          "owner_busy",
+          "last_completed_presentation"
+        ]
+      },
+      "revision": "25",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "20856",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572965833000000",
+        "receive_wall_ns": "1793572966187480000",
+        "receive_mono_ns": "151013361914905",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77736",
+        "worst_ask": "77776",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 32,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 84.789377,
+        "queue_wait_ms": 1363.489587,
+        "publish_to_ack_upper_bound_ms": 1339.746021,
+        "browser_receive_to_paint_ms": 27.200000017881393,
+        "published_mono_ns": "151017769374948"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "-7.38509",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "151015864342695",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150955864342695",
+            "end_mono_ns": "151015864342695",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 117.91979057699791,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "26",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "21609",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572971228000000",
+        "receive_wall_ns": "1793572971575376000",
+        "receive_mono_ns": "151018749718678",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77735",
+        "worst_ask": "77775",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 1,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 0.641411,
+        "queue_wait_ms": 0.082736,
+        "publish_to_ack_upper_bound_ms": 40.386461,
+        "browser_receive_to_paint_ms": 32.099999994039536,
+        "published_mono_ns": "151019835960979"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "-7.38472",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "151019820821795",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150959820821795",
+            "end_mono_ns": "151019820821795",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 120.04786017001607,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": false,
+        "reasons": [
+          "owner_busy",
+          "last_completed_presentation"
+        ]
+      },
+      "revision": "26",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "21609",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572971228000000",
+        "receive_wall_ns": "1793572971575376000",
+        "receive_mono_ns": "151018749718678",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77735",
+        "worst_ask": "77775",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 43,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 25.667264,
+        "queue_wait_ms": 67.576531,
+        "publish_to_ack_upper_bound_ms": 45.550599,
+        "browser_receive_to_paint_ms": 34.900000005960464,
+        "published_mono_ns": "151021953129671"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "-7.45709",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "151021902964931",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150961902964931",
+            "end_mono_ns": "151021902964931",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 122.09888815099839,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": false,
+        "reasons": [
+          "stale"
+        ]
+      },
+      "revision": "26",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "21609",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572971228000000",
+        "receive_wall_ns": "1793572971575376000",
+        "receive_mono_ns": "151018749718678",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77735",
+        "worst_ask": "77775",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 0,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 0.470389,
+        "queue_wait_ms": 0.062587,
+        "publish_to_ack_upper_bound_ms": 78.801323,
+        "browser_receive_to_paint_ms": 38.79999998211861,
+        "published_mono_ns": "151024012813744"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "-6.75694",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "151023992004426",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150963992004426",
+            "end_mono_ns": "151023992004426",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 124.6863698810048,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": false,
+        "reasons": [
+          "owner_busy",
+          "last_completed_presentation"
+        ]
+      },
+      "revision": "27",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "22384",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572976554000000",
+        "receive_wall_ns": "1793572976859250000",
+        "receive_mono_ns": "151024033503707",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77735",
+        "worst_ask": "77775",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 28,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 20.566785,
+        "queue_wait_ms": 200.246616,
+        "publish_to_ack_upper_bound_ms": 59.363111,
+        "browser_receive_to_paint_ms": 35.400000005960464,
+        "published_mono_ns": "151026599398898"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "-6.75694",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "151024285504794",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150964285504794",
+            "end_mono_ns": "151024285504794",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 126.73485922001419,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "27",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "22384",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572976554000000",
+        "receive_wall_ns": "1793572976859250000",
+        "receive_mono_ns": "151024033503707",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77735",
+        "worst_ask": "77775",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 2,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 0.575241,
+        "queue_wait_ms": 0.155983,
+        "publish_to_ack_upper_bound_ms": 44.427202,
+        "browser_receive_to_paint_ms": 32.400000005960464,
+        "published_mono_ns": "151028646555780"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "-6.90781",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "151028635498625",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150968635498625",
+            "end_mono_ns": "151028635498625",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 128.94155976801994,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": false,
+        "reasons": [
+          "owner_busy",
+          "last_completed_presentation"
+        ]
+      },
+      "revision": "27",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "22384",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572976554000000",
+        "receive_wall_ns": "1793572976859250000",
+        "receive_mono_ns": "151024033503707",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77735",
+        "worst_ask": "77775",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 43,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 0.673686,
+        "queue_wait_ms": 112.822802,
+        "publish_to_ack_upper_bound_ms": 56.821692,
+        "browser_receive_to_paint_ms": 38.900000005960464,
+        "published_mono_ns": "151030827012994"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "-6.85933",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "151030748401327",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150970748401327",
+            "end_mono_ns": "151030748401327",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 131.0040251360042,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "28",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "22965",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572982050000000",
+        "receive_wall_ns": "1793572983520109000",
+        "receive_mono_ns": "151030694248847",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77735",
+        "worst_ask": "77775",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 6,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 3.628462,
+        "queue_wait_ms": 31.285597,
+        "publish_to_ack_upper_bound_ms": 43.720721,
+        "browser_receive_to_paint_ms": 32.5,
+        "published_mono_ns": "151032919059301"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "-6.91012",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "151032906210141",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150972906210141",
+            "end_mono_ns": "151032906210141",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 133.66301804201794,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "28",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "22965",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572982050000000",
+        "receive_wall_ns": "1793572983520109000",
+        "receive_mono_ns": "151030694248847",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77735",
+        "worst_ask": "77775",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 48,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 0,
+        "observer_duration_ms": 22.363204,
+        "queue_wait_ms": 1672.426996,
+        "publish_to_ack_upper_bound_ms": 58.305598,
+        "browser_receive_to_paint_ms": 35.099999994039536,
+        "published_mono_ns": "151035561771963"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "-6.91012",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "151035546476300",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150975546476300",
+            "end_mono_ns": "151035546476300",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 135.73111330301617,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "29",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "23457",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572987406000000",
+        "receive_wall_ns": "1793572988094910000",
+        "receive_mono_ns": "151035268971429",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77735",
+        "worst_ask": "77775",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 7,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 1,
+        "observer_duration_ms": 3.49856,
+        "queue_wait_ms": 0.550735,
+        "publish_to_ack_upper_bound_ms": 62.224613,
+        "browser_receive_to_paint_ms": 34.5,
+        "published_mono_ns": "151037637146707"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "-6.87076",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "151037621508231",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150977621508231",
+            "end_mono_ns": "151037621508231",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 138.30440067700692,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "29",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "23457",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572987406000000",
+        "receive_wall_ns": "1793572988094910000",
+        "receive_mono_ns": "151035268971429",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77735",
+        "worst_ask": "77775",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 62,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 3,
+        "observer_duration_ms": 22.804501,
+        "queue_wait_ms": 1932.282289,
+        "publish_to_ack_upper_bound_ms": 139.923142,
+        "browser_receive_to_paint_ms": 97.59999999403954,
+        "published_mono_ns": "151040215367617"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "-1.89267",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "151040187389065",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150980187389065",
+            "end_mono_ns": "151040187389065",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 140.35619243700057,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "30",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "24134",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572992788000000",
+        "receive_wall_ns": "1793572993100455000",
+        "receive_mono_ns": "151040274430608",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77735",
+        "worst_ask": "77775",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 1,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 3,
+        "observer_duration_ms": 0.50367,
+        "queue_wait_ms": 0.079584,
+        "publish_to_ack_upper_bound_ms": 46.635527,
+        "browser_receive_to_paint_ms": 38.5,
+        "published_mono_ns": "151042274244567"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "-1.16323",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "151042254280805",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150982254280805",
+            "end_mono_ns": "151042254280805",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 142.52144192700507,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": false,
+        "reasons": [
+          "owner_busy",
+          "last_completed_presentation"
+        ]
+      },
+      "revision": "30",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "24134",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572992788000000",
+        "receive_wall_ns": "1793572993100455000",
+        "receive_mono_ns": "151040274430608",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77735",
+        "worst_ask": "77775",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 44,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 5,
+        "observer_duration_ms": 0.434588,
+        "queue_wait_ms": 111.380856,
+        "publish_to_ack_upper_bound_ms": 57.194161,
+        "browser_receive_to_paint_ms": 44.5,
+        "published_mono_ns": "151044434567434"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "-1.16292",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "151044375704362",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150984375704362",
+            "end_mono_ns": "151044375704362",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 144.62255203200039,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "31",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "24960",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572998153000000",
+        "receive_wall_ns": "1793572998709733000",
+        "receive_mono_ns": "151045883613483",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77735",
+        "worst_ask": "77775",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 5,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 5,
+        "observer_duration_ms": 6.00004,
+        "queue_wait_ms": 39.563611,
+        "publish_to_ack_upper_bound_ms": 82.493971,
+        "browser_receive_to_paint_ms": 36.30000001192093,
+        "published_mono_ns": "151046539903707"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "-1.16867",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "151046523939937",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150986523939937",
+            "end_mono_ns": "151046523939937",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 147.31141492901952,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "31",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "24960",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793572998153000000",
+        "receive_wall_ns": "1793572998709733000",
+        "receive_mono_ns": "151045883613483",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77735",
+        "worst_ask": "77775",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 57,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 7,
+        "observer_duration_ms": 35.731548,
+        "queue_wait_ms": 204.102034,
+        "publish_to_ack_upper_bound_ms": 82.051436,
+        "browser_receive_to_paint_ms": 52.80000001192093,
+        "published_mono_ns": "151049226067083"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "-0.23249",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "151049202974966",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150989202974966",
+            "end_mono_ns": "151049202974966",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 149.36506859300425,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": true,
+        "reasons": []
+      },
+      "revision": "32",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "26194",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793573003440000000",
+        "receive_wall_ns": "1793573003747270000",
+        "receive_mono_ns": "151050921063995",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77744",
+        "worst_ask": "77784",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 7,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 7,
+        "observer_duration_ms": 3.158545,
+        "queue_wait_ms": 1.201901,
+        "publish_to_ack_upper_bound_ms": 39.272324,
+        "browser_receive_to_paint_ms": 23.599999994039536,
+        "published_mono_ns": "151051276769128"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "-0.31277",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "151051262877245",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150991262877245",
+            "end_mono_ns": "151051262877245",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 151.76039947001846,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": false,
+        "reasons": [
+          "owner_busy",
+          "last_completed_presentation"
+        ]
+      },
+      "revision": "32",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "26194",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793573003440000000",
+        "receive_wall_ns": "1793573003747270000",
+        "receive_mono_ns": "151050921063995",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77744",
+        "worst_ask": "77784",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 39,
+        "queue_highwater": 106,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 9,
+        "observer_duration_ms": 32.84048,
+        "queue_wait_ms": 163.78515,
+        "publish_to_ack_upper_bound_ms": 67.337508,
+        "browser_receive_to_paint_ms": 30.19999998807907,
+        "published_mono_ns": "151053648646876"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "-0.31533",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "151053546965094",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150993546965094",
+            "end_mono_ns": "151053546965094",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 154.19274026399944,
+      "status": "live",
+      "error": null,
+      "health": {
+        "ready": false,
+        "reasons": [
+          "owner_busy",
+          "last_completed_presentation"
+        ]
+      },
+      "revision": "32",
+      "asof": {
+        "session_id": "93758a72-3e0b-4a25-b574-e5a2c0d94d29",
+        "ingest_ordinal": "26194",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793573003440000000",
+        "receive_wall_ns": "1793573003747270000",
+        "receive_mono_ns": "151050921063995",
+        "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21"
+      },
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "worst_bid": "77744",
+        "worst_ask": "77784",
+        "full_depth": false,
+        "source_aggregation": [
+          [
+            "fast",
+            "false"
+          ]
+        ],
+        "expected_cadence_ns": "500000000"
+      },
+      "telemetry": {
+        "queue_depth": 130,
+        "queue_highwater": 130,
+        "coalesced": 0,
+        "overflows": 0,
+        "ack_expired": 9,
+        "observer_duration_ms": 37.041195,
+        "queue_wait_ms": 950.213454,
+        "publish_to_ack_upper_bound_ms": 195.8608,
+        "browser_receive_to_paint_ms": 28.69999998807907,
+        "published_mono_ns": "151056093196756"
+      },
+      "cvd": [
+        {
+          "name": "cvd_base",
+          "value": "-0.31515",
+          "unit": "BTC",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "151055029227591",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "150995029227591",
+            "end_mono_ns": "151055029227591",
+            "clock_id": "ce6e2edb-e602-4977-a28f-9255c8653a21",
+            "definition": "receive_time_(start,end]"
+          }
+        }
+      ]
+    },
+    {
+      "elapsed_seconds": 156.23360572801903,
+      "status": "unavailable",
+      "error": "analytical_queue_overflow: reselect to establish fresh history",
+      "health": {
+        "ready": false,
+        "reasons": [
+          "analytical_queue_overflow: reselect to establish fresh history"
+        ]
+      },
+      "revision": null,
+      "asof": null,
+      "coverage": null,
+      "telemetry": {
+        "queue_depth": 0,
+        "queue_highwater": 131,
+        "coalesced": 0,
+        "overflows": 1,
+        "ack_expired": 11,
+        "observer_duration_ms": 37.041195,
+        "queue_wait_ms": 950.213454,
+        "publish_to_ack_upper_bound_ms": 34.239449,
+        "browser_receive_to_paint_ms": 31,
+        "published_mono_ns": "151058153802074"
+      },
+      "cvd": []
+    }
+  ]
+}

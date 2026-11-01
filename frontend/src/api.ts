@@ -93,7 +93,7 @@ export interface CostInput {
   fee_bps?: string; fee_provenance?: string; fee_date?: string;
   latency_bps?: string; rebalance_quote?: string;
 }
-export interface Catalog { version: '1'; instruments: Instrument[]; sources: Source[] }
+export interface Catalog { version: '1'; instruments: Instrument[]; sources: Source[]; preferred_source_id?: string }
 export type ReplayAction = 'play' | 'pause' | 'step' | 'speed' | 'seek' | 'reset';
 
 export interface Candle {

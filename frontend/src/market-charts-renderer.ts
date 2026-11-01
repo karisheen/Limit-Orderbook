@@ -70,10 +70,14 @@ export class MarketRenderer {
     context.fillRect(0, 0, 2, canvas.height);
     for (let row = 0; row < canvas.height; row++) {
       const cell = column.cells[row];
+      const bid = column.eligible ? intensity(cell?.[0] ?? null, contrast) : null;
+      const ask = column.eligible ? intensity(cell?.[1] ?? null, contrast) : null;
+      const occupiedSide = bid != null && bid > 0 && ask === 0 ? 0 : ask != null && ask > 0 && bid === 0 ? 1 : null;
       for (let side = 0; side < 2; side++) {
-        const value = column.eligible ? intensity(cell?.[side] ?? null, contrast) : null;
+        const sourceSide = occupiedSide ?? side;
+        const value = sourceSide === 0 ? bid : ask;
         context.globalAlpha = value == null ? 1 : value === 0 ? 0 : 0.15 + value * 0.85;
-        context.fillStyle = value == null ? COLORS.missing : side === 0 ? COLORS.bid : COLORS.ask;
+        context.fillStyle = value == null ? COLORS.missing : sourceSide === 0 ? COLORS.bid : COLORS.ask;
         context.fillRect(side, canvas.height - row - 1, 1, 1);
       }
     }

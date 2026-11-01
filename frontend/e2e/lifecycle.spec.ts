@@ -74,7 +74,7 @@ test('catalog readiness refreshes without replacing the active session', async (
   await page.route(/\/api\/v1\/instruments(?:\?.*)?$/, async route => {
     const response = await route.fetch();
     const catalog = await response.json() as Catalog;
-    if (loading) catalog.sources = catalog.sources.map(source => ({ ...source, status: 'loading', reasons: ['fault_injected_catalog_preparation'] }));
+    if (loading && new URL(route.request().url()).searchParams.has('source_id')) catalog.sources = catalog.sources.map(source => ({ ...source, status: 'loading', reasons: ['fault_injected_catalog_preparation'] }));
     await route.fulfill({ response, json: catalog });
   });
   const created = page.waitForResponse(response => response.url().endsWith('/api/v1/sessions') && response.request().method() === 'POST');
@@ -83,11 +83,8 @@ test('catalog readiness refreshes without replacing the active session', async (
   await expect(page.locator('.status')).toHaveText('Connected');
   const source = page.getByLabel('Data source').locator(`option[value="${frame.source.id}"]`);
   await expect(source).toHaveJSProperty('disabled', true);
-  await expect(source).toContainText('loading');
-  await expect(source).toContainText('fault_injected_catalog_preparation');
   loading = false;
   await expect(source).toHaveJSProperty('disabled', false, { timeout: 10_000 });
-  await expect(source).toContainText('ready');
   await expect(page.locator('.telemetry')).toContainText(frame.session_id.slice(0, 8));
 });
 

@@ -60,7 +60,7 @@ export function MarketCharts(props: MarketChartsProps): ReactNode {
     observer.observe(element);
     resize();
     const intersection = new IntersectionObserver(entries => {
-      const next = entries[0]?.isIntersecting ?? false;
+      const next = entries.at(-1)?.isIntersecting ?? false;
       if (visible.current !== next) { visible.current = next; setVisibilityRevision(value => value + 1); }
     });
     intersection.observe(element);

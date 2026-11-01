@@ -1,6 +1,7 @@
 """Consumer-visible visual evidence, exact economics, and real replay regressions."""
 
 import asyncio
+from copy import deepcopy
 from dataclasses import replace
 from decimal import Decimal as D, localcontext
 from types import SimpleNamespace
@@ -200,6 +201,183 @@ def column_at(view, stamp):
 
 def cell_at(view, column, price):
     return column["cells"][view["prices"].index(price)]
+
+
+@pytest.mark.parametrize(
+    "base,mid", [("BTC", "60000"), ("ETH", "3000"), ("SOL", "150")]
+)
+def test_initial_auto_fit_shows_sparse_depth_and_exact_trade_volume(base, mid):
+    midpoint = D(mid)
+    feed = VisualFeed(synthetic_instrument(base=base))
+    bids = tuple(
+        (str(midpoint - distance), quantity)
+        for distance, quantity in ((1, "1.25"), (2, "2.75"))
+    )
+    asks = tuple(
+        (str(midpoint + distance), quantity)
+        for distance, quantity in ((1, "3.125"), (2, "4.875"))
+    )
+    feed.quote(0, bids=bids, asks=asks)
+    native = feed.book
+    feed.trade(SECOND // 5, "low", price=str(midpoint - D("3.25")), quantity="0.125")
+    feed.trade(SECOND // 2, "high", price=str(midpoint + D("3.75")), quantity="0.375")
+    feed.heartbeat(SECOND + 1)
+    view = feed.query(price_step=None, rows=128, start_ns=None)
+    low, step = D(view["price_min"]), D(view["price_step"])
+    high = low + view["rows"] * step
+    assert step > feed.instrument.tick_size
+    assert low <= midpoint - D("3.25") < midpoint + D("3.75") < high
+    column = column_at(view, SECOND)
+    assert column["eligible"]
+    assert sum(D(pair[0]) for pair in column["cells"]) == D("4")
+    assert sum(D(pair[1]) for pair in column["cells"]) == D("8")
+    assert sum(pair[0] != "0" for pair in column["cells"]) == 2
+    assert sum(pair[1] != "0" for pair in column["cells"]) == 2
+    candle = column_at(view, 0)["candle"]
+    assert D(candle["low"]) >= low
+    assert D(candle["high"]) < high
+    assert candle["volume"] == "0.5"
+    assert sum(D(row["buy_base"]) for row in view["profile"]) == D("0.5")
+    assert feed.book is native
+    assert len(native.bids) == len(native.asks) == 2
+
+
+@pytest.mark.parametrize(
+    "base,mid", [("BTC", "60000"), ("ETH", "3000"), ("SOL", "150")]
+)
+def test_initial_auto_fit_fine_tick_depth_conserves_native_quantities(base, mid):
+    midpoint = D(mid)
+    feed = VisualFeed(synthetic_instrument(base=base, tick_size="0.0001"))
+    bids = tuple((str(midpoint - D(index) / 100), "0.125") for index in range(1, 33))
+    asks = tuple((str(midpoint + D(index) / 100), "0.375") for index in range(1, 33))
+    feed.quote(0, bids=bids, asks=asks)
+    native = feed.book
+    feed.heartbeat(SECOND + 1)
+    view = feed.query(price_step=None, rows=128)
+    column = column_at(view, SECOND)
+    assert D(view["price_step"]) > feed.instrument.tick_size
+    assert sum(D(pair[0]) for pair in column["cells"]) == D("4")
+    assert sum(D(pair[1]) for pair in column["cells"]) == D("12")
+    assert sum(pair[0] != "0" for pair in column["cells"]) >= 16
+    assert sum(pair[1] != "0" for pair in column["cells"]) >= 16
+    assert feed.book is native
+    assert tuple(level.price for level in native.bids) == tuple(
+        D(price) for price, _ in bids
+    )
+
+
+def test_auto_fit_waits_for_valid_bootstrap_and_freezes_until_recenter():
+    feed = VisualFeed()
+    empty = feed.query(price_step=None)
+    assert empty["price_min"] == "0"
+    assert feed.history.price_step is None
+    feed.heartbeat(0)
+    feed.heartbeat(SECOND + 1)
+    unavailable = feed.query(price_step=None)
+    assert all(pair == [None, None] for pair in column_at(unavailable, SECOND)["cells"])
+    assert feed.history.price_step is None
+    feed.quote(2 * SECOND, bids=(("59999", "2"),), asks=(("60001", "3"),))
+    feed.heartbeat(3 * SECOND + 1)
+    initial = feed.query(price_step=None)
+    assert D(initial["price_min"]) <= 59999
+    assert D(initial["prices"][-1]) >= 60001
+    assert sum(D(pair[0]) for pair in column_at(initial, 3 * SECOND)["cells"]) == 2
+    assert all(pair == [None, None] for pair in column_at(initial, SECOND)["cells"])
+    feed.quote(4 * SECOND, bids=(("59900", "2"),), asks=(("60100", "3"),))
+    stable = feed.query(price_step=None)
+    assert stable["prices"] == initial["prices"]
+    assert stable["grid_id"] == initial["grid_id"]
+    panned = feed.query(price_step=None, price_offset_rows=10)
+    assert D(panned["price_min"]) == D(initial["price_min"]) + 10 * D(
+        initial["price_step"]
+    )
+    recentered = feed.query(price_step=None, recenter=True)
+    assert D(recentered["price_min"]) <= 59900
+    assert D(recentered["prices"][-1]) >= 60100
+    assert D(recentered["price_step"]) > D(initial["price_step"])
+    assert recentered["price_step"] in recentered["step_options"]
+    explicit = feed.query(price_step="0.01", recenter=True)
+    assert explicit["price_step"] == "0.01"
+    assert D(explicit["prices"][-1]) - D(explicit["price_min"]) == D("0.31")
+
+
+def test_auto_fit_large_quantum_is_selectable_and_ladder_conserves_native_depth():
+    feed = VisualFeed()
+    feed.quote(
+        0,
+        bids=(("59000", "1.25"), ("58000", "2.75")),
+        asks=(("61000", "3"), ("62000", "5")),
+    )
+    feed.heartbeat(SECOND + 1)
+    automatic = feed.query(price_step=None)
+    assert D(automatic["price_step"]) > 10
+    explicit = feed.query(price_step=automatic["price_step"])
+    assert explicit["prices"] == automatic["prices"]
+    ladder = grouped_ladder(
+        feed.book,
+        feed.instrument,
+        feed.clock.reading,
+        SimpleNamespace(price_step=automatic["price_step"], rows=20),
+        "7",
+    )
+    assert ladder["eligible"]
+    assert (
+        sum(D(row["base_quantity"]) for row in ladder["rows"] if row["side"] == "bid")
+        == 4
+    )
+    assert (
+        sum(D(row["base_quantity"]) for row in ladder["rows"] if row["side"] == "ask")
+        == 8
+    )
+
+
+def test_default_time_window_expands_from_real_subscription_not_clock_zero():
+    feed = VisualFeed()
+    origin = 900_000 * SECOND + SECOND // 4
+    feed.quote(origin)
+    feed.trade(origin + SECOND // 4, "observed", quantity="0.5")
+    feed.heartbeat(origin + 2 * SECOND)
+    initial = feed.query(price_step=None, start_ns=None)
+    assert initial["start_ns"] == str(origin // SECOND * SECOND)
+    assert int(initial["end_ns"]) - int(initial["start_ns"]) < 3 * SECOND
+    assert initial["retained_start_ns"] == str((origin // SECOND + 1) * SECOND)
+    assert "initial_partial_history" in initial["reasons"]
+    assert "requested_history_unavailable" in initial["reasons"]
+    assert [column["time_ns"] for column in initial["columns"]] == [
+        str((origin // SECOND + 1) * SECOND),
+        str((origin // SECOND + 2) * SECOND),
+    ]
+    explicit_start = origin - 100 * SECOND
+    requested = feed.query(price_step=None, start_ns=str(explicit_start))
+    assert requested["start_ns"] == str(explicit_start)
+    assert "requested_history_unavailable" in requested["reasons"]
+    feed.quote(origin + 200 * SECOND)
+    expanded = feed.query(price_step=None, start_ns=None)
+    assert int(expanded["end_ns"]) - int(expanded["start_ns"]) == 180 * SECOND
+
+
+def test_default_window_follows_retained_depth_without_hiding_truncation(monkeypatch):
+    monkeypatch.setattr(visuals, "MAX_COLUMNS", 4)
+    feed = VisualFeed()
+    origin = 1000 * SECOND
+    for index in range(9):
+        feed.quote(origin + index * SECOND)
+    feed.heartbeat(origin + 8 * SECOND + 1)
+    view = feed.query(start_ns=None, price_step=None)
+    retained = int(view["retained_start_ns"])
+    assert view["start_ns"] == str(retained)
+    assert retained > origin
+    assert view["truncated"]
+    assert "history_retention_truncated" in view["reasons"]
+    assert len(view["columns"]) == 4
+    assert all(column["eligible"] for column in view["columns"])
+    assert all(
+        sum(D(pair[0]) for pair in column["cells"]) == 4 for column in view["columns"]
+    )
+    requested_start = retained - SECOND // 2
+    explicit = feed.query(start_ns=str(requested_start), price_step=None)
+    assert explicit["start_ns"] == str(requested_start)
+    assert "requested_history_unavailable" in explicit["reasons"]
 
 
 def test_composite_observer_closes_metrics_before_later_delivery_and_keeps_old_cells():
@@ -459,6 +637,60 @@ def test_incremental_frontier_exclusion_and_generation_replacement():
     advanced = feed.query()
     assert advanced["trades"][0]["time_ns"] == str(SECOND)
     assert column_at(advanced, SECOND)["candle"]["volume"] == "1"
+
+
+def test_closed_metric_provenance_isolated_from_query_mutation_and_checkpoint_restore():
+    feed = VisualFeed()
+    feed.quote(0)
+    feed.trade(0, "anchor")
+    feed.trade(SECOND // 10, "observed-buy", quantity="2")
+    feed.quote(SECOND)
+    feed.heartbeat(2 * SECOND + 1)
+    first = feed.query()
+    pristine = deepcopy(first["columns"])
+    column = column_at(first, SECOND)
+    assert column["cvd"]["value"] == "2"
+    column["cvd"]["value"] = "corrupted by consumer"
+    column["cvd"]["references"].clear()
+    column["ofi"]["eligibility"]["reasons"].append("consumer mutation")
+    incremental = feed.query(after_column=first["next_after"])
+    assert not incremental["replace"]
+    assert incremental["columns"] == []
+    replacement = feed.history.query(view_request(), "8")
+    assert replacement["columns"] == pristine
+    checkpoint = feed.history.checkpoint()
+    feed.history.reset()
+    feed.history.restore(checkpoint)
+    assert feed.query()["columns"] == pristine
+
+
+def test_query_snapshot_retains_its_prefix_after_eviction_and_rejects_clock_cutover(
+    monkeypatch,
+):
+    monkeypatch.setattr(visuals, "MAX_COLUMNS", 4)
+    feed = VisualFeed()
+    feed.quote(0)
+    feed.trade(0, "anchor")
+    feed.trade(SECOND // 10, "observed", quantity="2")
+    feed.quote(SECOND)
+    feed.heartbeat(2 * SECOND + 1)
+    snapshot = feed.history.query_snapshot()
+    captured = snapshot.query(view_request(), "7")
+    assert column_at(captured, SECOND)["cvd"]["value"] == "2"
+    feed.quote(20 * SECOND, bids=(("99", "9"),))
+    assert int(feed.query(start_ns=str(17 * SECOND))["retained_start_ns"]) > int(
+        captured["end_ns"]
+    )
+    assert snapshot.query(view_request(), "7")["columns"] == captured["columns"]
+    assert feed.history.accept_query(snapshot)
+    assert feed.query(start_ns=str(17 * SECOND))["now_ns"] == str(20 * SECOND)
+    feed.deliver(
+        replace(
+            feed.event(Control("heartbeat"), 21 * SECOND),
+            clock_id="different-source-clock",
+        )
+    )
+    assert not feed.history.accept_query(snapshot)
 
 
 def test_column_and_cell_output_bounds_disclose_incomplete_history(monkeypatch):
@@ -791,7 +1023,11 @@ def test_real_replay_backward_seek_speed_parity_checkpoint_and_reprojection(tmp_
                         if expected is None:
                             expected = final
                         assert final == expected
-                        step = final["step_options"][1]
+                        step = next(
+                            option
+                            for option in final["step_options"]
+                            if option != final["price_step"]
+                        )
                         reprojected = observer.query(
                             view_request(start_ns=None, price_step=step), "1"
                         )

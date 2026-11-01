@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, errorMessage, request, streamUrl } from './api';
 import type { Catalog, Costs, CostInput, Frame, Mode, ReplayAction, VisualGrid, VisualizationInput, VisualizationAck, GroupedLadder, LadderInput, ProposalRisk, ProposalRiskInput } from './api';
+import { startupSource } from './workspace';
+import type { WorkspacePreferences } from './workspace';
 
 export interface ConnectionOptions { mode: Mode; source_id?: string; instrument_id?: string }
 interface Presentation { frame: Frame; receivedAt: number; acknowledge: boolean }
 interface SessionScope { active: boolean; connected: boolean; sessionId: string | null; sourceId: string | null }
 interface Mutation { scope: SessionScope; controller: AbortController; deferred: Presentation | null }
 
-export function useTerminal(initialOptions: ConnectionOptions = { mode: 'demo' }) {
+export function useTerminal(initialPreferences: Pick<WorkspacePreferences, 'source' | 'sourceExplicit' | 'instrument'>) {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [presentation, setPresentation] = useState<Presentation | null>(null);
   const [catalogError, setCatalogError] = useState<string | null>(null);
@@ -15,8 +17,10 @@ export function useTerminal(initialOptions: ConnectionOptions = { mode: 'demo' }
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [revision, setRevision] = useState(0);
-  const options = useRef<ConnectionOptions>(initialOptions);
-  const restoringSelection = useRef(Boolean(initialOptions.instrument_id));
+  const startup = useRef({ preferences: initialPreferences, search: window.location.search });
+  const options = useRef<ConnectionOptions>({ mode: 'demo' });
+  const sourceResolved = useRef(false);
+  const restoringSelection = useRef(Boolean(initialPreferences.instrument));
   const [preferenceNotice, setPreferenceNotice] = useState<string | null>(null);
   const queries = useRef(new Map<string, AbortController>());
   const current = useRef<Frame | null>(null);
@@ -117,19 +121,32 @@ export function useTerminal(initialOptions: ConnectionOptions = { mode: 'demo' }
         const nextCatalog = await request<Catalog>('/instruments', undefined, AbortSignal.any([abort.signal, AbortSignal.timeout(5000)]));
         if (!scope.active) return;
         setCatalog(nextCatalog);
-        const preferred = options.current.source_id;
-        if (preferred && !nextCatalog.sources.some(item => item.id === preferred && item.status === 'ready' && item.mode === options.current.mode)) {
-          const fallback = nextCatalog.sources.find(item => item.mode === options.current.mode && item.status === 'ready');
-          if (!fallback) throw new ApiError(`Saved ${options.current.mode} source is unavailable. Select another source explicitly; no demo substitution was made.`, 409);
-          options.current.source_id = fallback.id;
-          setPreferenceNotice(`Saved source ${preferred} is unavailable; using ${fallback.label} in the same ${fallback.mode} mode.`);
+        if (!sourceResolved.current) {
+          const resolved = startupSource(nextCatalog, startup.current.preferences, startup.current.search);
+          options.current = resolved.options;
+          setPreferenceNotice(resolved.notice);
+          sourceResolved.current = true;
         }
-        if (restoringSelection.current && options.current.instrument_id && options.current.source_id) {
+        const preferred = nextCatalog.sources.find(item => item.id === options.current.source_id && item.mode === options.current.mode);
+        if (!preferred || preferred.status !== 'ready') {
+          throw new ApiError(`Requested ${options.current.mode} source ${options.current.source_id} is ${preferred?.status ?? 'unavailable'}${preferred?.reasons.length ? `: ${preferred.reasons.join('; ')}` : ''}. Select another source explicitly; no demo substitution was made.`, 409);
+        }
+        if (options.current.source_id && ((restoringSelection.current && options.current.instrument_id) || (options.current.mode === 'live' && !options.current.instrument_id))) {
           const sourceCatalog = await request<Catalog>(`/instruments?source_id=${encodeURIComponent(options.current.source_id)}`, undefined, AbortSignal.any([abort.signal, AbortSignal.timeout(5000)]));
           if (!scope.active) return;
-          if (!sourceCatalog.instruments.some(item => item.instrument_id === options.current.instrument_id)) {
-            setPreferenceNotice(`Saved exact instrument is unavailable in this source; using the source's declared default.`);
+          if (options.current.instrument_id && !sourceCatalog.instruments.some(item => item.instrument_id === options.current.instrument_id)) {
+            setPreferenceNotice(`Saved exact instrument is unavailable in this source; using a source-native initial selection.`);
             delete options.current.instrument_id;
+          }
+          if (options.current.mode === 'live' && !options.current.instrument_id) {
+            const active = sourceCatalog.instruments.filter(item => item.status === 'active' && item.data_access !== 'blocked');
+            const accessible = active.filter(item => item.data_access === 'accessible');
+            const candidates = accessible.length ? accessible : active;
+            const initial = candidates.find(item => item.venue === 'binance-global' && item.market_type === 'spot' && item.native_symbol === 'BTCUSDT')
+              ?? candidates.find(item => item.venue === 'hyperliquid' && item.market_type === 'perpetual' && item.native_symbol === 'BTC')
+              ?? candidates[0];
+            if (!initial) throw new ApiError('This live source has no active native instrument available for initial selection.', 409);
+            options.current.instrument_id = initial.instrument_id;
           }
         }
         restoringSelection.current = false;
@@ -277,11 +294,12 @@ export function useTerminal(initialOptions: ConnectionOptions = { mode: 'demo' }
     return next;
   }, [mutate]);
   const source = useCallback((mode: Mode, sourceId: string) => {
-    restoringSelection.current = false;
+    restoringSelection.current = true;
+    sourceResolved.current = true;
     setPreferenceNotice(null);
-    // Recorded catalogs differ. The backend reflects a new source's exact default;
-    // live selection is explicit and never silently mapped across native identities.
-    options.current = { mode, source_id: sourceId, ...(mode === 'live' ? { instrument_id: options.current.instrument_id } : {}) };
+    // Source changes discard foreign identities. Live startup resolves an exact
+    // instrument from that source's own catalog before creating its session.
+    options.current = { mode, source_id: sourceId };
     retries.current = 0;
     setRevision(value => value + 1);
   }, []);

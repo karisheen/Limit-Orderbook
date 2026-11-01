@@ -993,13 +993,13 @@ def test_pending_paper_arrival_during_live_owner_replacement(
             assert submitted["snapshot"]["orders"][0]["status"] == "pending"
             actual_replace = registry.replace
 
-            async def delayed_replace(client_id, keys, generation):
+            async def delayed_replace(client_id, keys, generation, **options):
                 # Advance the quiet source frontier while ownership replacement
                 # is suspended, without feed events or a wall-time-dependent test.
                 await asyncio.sleep(0)
                 clock[0] += 1_050_000_000
                 clock[1] += 1_050_000_000
-                return await actual_replace(client_id, keys, generation)
+                return await actual_replace(client_id, keys, generation, **options)
 
             monkeypatch.setattr(registry, "replace", delayed_replace)
             selected = other if departed else original
@@ -1170,5 +1170,202 @@ def test_live_batched_owner_preserves_order_and_complete_observer_state(tmp_path
         finally:
             await runtime.close()
             await registry.close()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("cancel_cutover", (False, True))
+def test_live_selection_drains_new_source_while_departed_collectors_close(
+    tmp_path, monkeypatch, cancel_cutover
+):
+    async def scenario():
+        instruments = {
+            spec.instrument.base.ticker: spec.instrument
+            for spec in demo_source().streams
+            if spec.instrument.venue == "hyperliquid"
+            and spec.instrument.base.ticker in ("BTC", "SOL")
+        }
+        original, selected = instruments["BTC"], instruments["SOL"]
+        runtime, registry, _ = live_runtime(tmp_path, instruments=(original, selected))
+        entered, release = asyncio.Event(), asyncio.Event()
+        finish = registry._finish_entry
+        selection = None
+
+        async def held_close(key, entry):
+            if key.instrument_id == original.instrument_id:
+                entered.set()
+                await release.wait()
+            await finish(key, entry)
+
+        try:
+            session = await runtime.create("live", None, original.instrument_id)
+            monkeypatch.setattr(registry, "_finish_entry", held_close)
+            selection = asyncio.create_task(
+                runtime.select(session, str(session.generation), selected.instrument_id)
+            )
+            await asyncio.wait_for(entered.wait(), 5)
+            feed = next(
+                entry.supervisor
+                for key, entry in registry._entries.items()
+                if key.instrument_id == selected.instrument_id and key.channel == "book"
+            )
+            for index in range(300):
+                message = {
+                    "channel": "l2Book",
+                    "data": {
+                        "coin": selected.native_symbol,
+                        "time": 1700000000001 + index,
+                        "levels": [
+                            [{"px": "60000", "sz": str(index + 2), "n": 1}],
+                            [{"px": "60001", "sz": "2", "n": 1}],
+                        ],
+                    },
+                }
+                feed._receive(
+                    json.dumps(message).encode(),
+                    "ws",
+                    "wss://api.hyperliquid.xyz/ws",
+                    feed.epoch,
+                )
+                raw = feed.queue.get_nowait()
+                feed.queued_bytes -= len(raw.payload)
+                await feed._process(raw)
+            assert session.status == "loading"
+            assert session.telemetry["overflows"] == 0
+            async with asyncio.timeout(5):
+                while session.live_queue.qsize() or session.live_inflight:
+                    await asyncio.sleep(0.001)
+            assert not selection.done()
+            if cancel_cutover:
+                selection.cancel()
+            release.set()
+            if cancel_cutover:
+                with pytest.raises(asyncio.CancelledError):
+                    await selection
+                assert not registry.snapshot()
+            else:
+                frame = await selection
+                assert frame["selection"]["instrument_id"] == selected.instrument_id
+                assert frame["book"]["bids"][0]["quantity"] == "301"
+            assert session.live_bytes == 0
+            assert not any(
+                status.key.instrument_id == original.instrument_id
+                and status.key.channel in ("book", "trades")
+                for status in registry.snapshot()
+            )
+        finally:
+            release.set()
+            if selection is not None:
+                await asyncio.gather(selection, return_exceptions=True)
+            await runtime.close()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("cancel_query", (False, True))
+def test_visual_query_snapshot_does_not_block_live_ingestion_or_outlive_close(
+    tmp_path, monkeypatch, cancel_query
+):
+    import httpx
+
+    from src.workstation.api import create_app
+    from src.workstation.visuals import VisualHistory
+
+    async def scenario():
+        runtime, registry, instrument = live_runtime(tmp_path)
+        entered, release = threading.Event(), threading.Event()
+        original_query = VisualHistory.query
+        captured = {}
+        request = None
+        removal = None
+
+        def held_query(history, options, generation):
+            captured["now"] = history.clock.mono_ns
+            entered.set()
+            if not release.wait(15):
+                raise RuntimeError("test visualization was not released")
+            return original_query(history, options, generation)
+
+        try:
+            session = await runtime.create("live", "live", instrument.instrument_id)
+            async with asyncio.timeout(5):
+                while session.delivery < 4:
+                    await asyncio.sleep(0.001)
+            monkeypatch.setattr(VisualHistory, "query", held_query)
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=create_app(runtime)),
+                base_url="http://127.0.0.1",
+            ) as client:
+                request = asyncio.create_task(
+                    client.post(
+                        "/api/v1/visualization",
+                        json={
+                            "session_id": session.id,
+                            "generation": str(session.generation),
+                        },
+                    )
+                )
+                assert await asyncio.to_thread(entered.wait, 5)
+                feed = next(
+                    entry.supervisor
+                    for key, entry in registry._entries.items()
+                    if key.instrument_id == instrument.instrument_id
+                    and key.channel == "book"
+                )
+                for index in range(300):
+                    message = {
+                        "channel": "l2Book",
+                        "data": {
+                            "coin": instrument.native_symbol,
+                            "time": 1700000000001 + index,
+                            "levels": [
+                                [{"px": "60000", "sz": str(index + 2), "n": 1}],
+                                [{"px": "60001", "sz": "2", "n": 1}],
+                            ],
+                        },
+                    }
+                    feed._receive(
+                        json.dumps(message).encode(),
+                        "ws",
+                        "wss://api.hyperliquid.xyz/ws",
+                        feed.epoch,
+                    )
+                    raw = feed.queue.get_nowait()
+                    feed.queued_bytes -= len(raw.payload)
+                    await feed._process(raw)
+                assert session.status == "live"
+                assert session.telemetry["overflows"] == 0
+                async with asyncio.timeout(5):
+                    while session.live_queue.qsize() or session.live_inflight:
+                        await asyncio.sleep(0.001)
+                frame = await session.frame()
+                assert frame["book"]["bids"][0]["quantity"] == "301"
+                assert not request.done()
+                if cancel_query:
+                    request.cancel()
+                    removal = asyncio.create_task(runtime.remove(session.id))
+                    await asyncio.sleep(0)
+                    assert not request.done()
+                    assert not removal.done()
+                release.set()
+                if cancel_query:
+                    with pytest.raises(asyncio.CancelledError):
+                        await request
+                    await removal
+                    assert session.closed
+                    assert not registry.snapshot()
+                else:
+                    response = await request
+                    assert response.status_code == 200
+                    assert response.json()["now_ns"] == str(captured["now"])
+                    assert session.visuals.clock.mono_ns > captured["now"]
+                assert session.live_bytes == 0
+        finally:
+            release.set()
+            if request is not None:
+                await asyncio.gather(request, return_exceptions=True)
+            if removal is not None:
+                await asyncio.gather(removal, return_exceptions=True)
+            await runtime.close()
 
     asyncio.run(scenario())

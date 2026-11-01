@@ -1,0 +1,152 @@
+import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import type { Catalog, Frame } from '../src/api';
+
+// Real server sessions only: these checks do not substitute live frames or trades.
+const preferenceKey = 'limit-orderbook.workspace.v1';
+const creation = (page: Page) => page.waitForResponse(response => response.url().endsWith('/api/v1/sessions') && response.request().method() === 'POST');
+async function demoCatalog(page: Page) {
+  const response = await page.request.get('/api/v1/instruments');
+  expect(response.ok()).toBe(true);
+  const catalog = await response.json() as Catalog;
+  const demo = catalog.sources.find(source => source.mode === 'demo');
+  expect(demo).toBeDefined();
+  return { catalog, demo: demo! };
+}
+
+test('paused fixture supports scale recovery and independent replay controls', async ({ page, context }) => {
+  const { demo } = await demoCatalog(page);
+  let plays = 0;
+  page.on('request', request => {
+    if (request.url().endsWith('/api/v1/replay') && request.method() === 'POST' && request.postDataJSON().action === 'play') plays++;
+  });
+  const created = creation(page);
+  await page.goto(`/?source=${encodeURIComponent(demo.id)}`);
+  const frame = await (await created).json() as Frame;
+  await expect(page.locator('.status')).toHaveText('Connected');
+  expect(frame.status).toBe('paused');
+  await expect(page.getByTestId('synthetic-guidance')).toBeVisible();
+  await expect(page.getByTestId('grouped-ladder').locator('tr.bid').first()).toBeInViewport();
+  await expect(page.getByTestId('grouped-ladder').locator('tr.ask').last()).toBeInViewport();
+  expect(plays).toBe(0);
+  const aggregation = page.getByLabel('Price aggregation');
+  await expect(aggregation.locator('option').nth(1)).toBeAttached();
+  const explicitStep = await aggregation.locator('option').nth(1).getAttribute('value') ?? await aggregation.locator('option').nth(1).textContent();
+  const explicit = page.waitForResponse(response => response.url().endsWith('/api/v1/visualization') && response.request().postDataJSON().price_step === explicitStep);
+  await aggregation.selectOption(explicitStep!);
+  const narrow = await (await explicit).json();
+  expect(Number(narrow.price_min) + narrow.rows * Number(narrow.price_step)).toBeLessThan(Number(frame.book!.asks[0].price));
+  const footprintResponse = page.waitForResponse(response => response.url().endsWith('/api/v1/visualization') && response.request().postDataJSON().rows !== narrow.rows);
+  await page.getByRole('tab', { name: 'footprint', exact: true }).click();
+  const footprint = await (await footprintResponse).json();
+  expect(footprint.price_step).toBe(narrow.price_step);
+  expect(footprint.trades).toEqual(narrow.trades);
+  const automatic = page.waitForResponse(response => response.url().endsWith('/api/v1/visualization') && response.request().postDataJSON().recenter === true && response.request().postDataJSON().price_step === undefined);
+  await aggregation.selectOption('');
+  const refit = await (await automatic).json();
+  expect(Number(refit.price_min)).toBeLessThanOrEqual(Number(frame.book!.bids[0].price));
+  expect(Number(refit.price_min) + refit.rows * Number(refit.price_step)).toBeGreaterThan(Number(frame.book!.asks[0].price));
+  expect((await (await page.request.get(`/api/v1/sessions/${frame.session_id}`)).json() as Frame).status).toBe('paused');
+
+  const second = await context.newPage();
+  const secondCreated = creation(second);
+  await second.goto(`/?source=${encodeURIComponent(demo.id)}`);
+  const other = await (await secondCreated).json() as Frame;
+  expect(other.session_id).not.toBe(frame.session_id);
+  const play = page.waitForResponse(response => response.url().endsWith('/api/v1/replay') && response.request().postDataJSON().action === 'play');
+  await page.getByRole('button', { name: 'Play synthetic demo', exact: true }).click();
+  expect((await (await play).json() as Frame).status).toBe('playing');
+  expect((await (await page.request.get(`/api/v1/sessions/${other.session_id}`)).json() as Frame).status).toBe('paused');
+  await expect(second.locator('.cursor')).toContainText(`${other.replay!.cursor.delivery_index} /`);
+  expect(plays).toBe(1);
+  await second.close();
+});
+
+test('missing URL source never opens demo and explicit recovery persists the source choice', async ({ page }) => {
+  const { demo } = await demoCatalog(page);
+  let sessions = 0;
+  page.on('request', request => { if (request.url().endsWith('/api/v1/sessions') && request.method() === 'POST') sessions++; });
+  await page.goto('/?source=missing-source-regression');
+  await expect(page.locator('.error-banner[role="alert"]')).toBeVisible();
+  expect(sessions).toBe(0);
+  const created = creation(page);
+  await page.getByLabel('Data source').selectOption(demo.id);
+  expect((await (await created).json() as Frame).source.id).toBe(demo.id);
+  await expect.poll(() => page.evaluate(key => JSON.parse(localStorage.getItem(key) ?? '{}'), preferenceKey)).toMatchObject({ source: { id: demo.id, mode: 'demo' }, sourceExplicit: true });
+  expect(new URL(page.url()).searchParams.get('source')).toBe(demo.id);
+  const reloaded = creation(page);
+  await page.reload();
+  expect((await (await reloaded).json() as Frame).source.id).toBe(demo.id);
+});
+
+test('explicit saved paused demo survives a server live preference and URL override wins saved source', async ({ page }) => {
+  const { demo } = await demoCatalog(page);
+  await page.addInitScript(({ key, id }) => localStorage.setItem(key, JSON.stringify({ version: 1, source: { id, mode: 'demo' }, sourceExplicit: true, paused: true })), { key: preferenceKey, id: demo.id });
+  const created = creation(page);
+  await page.goto('/');
+  const frame = await (await created).json() as Frame;
+  expect(frame.source.id).toBe(demo.id);
+  expect(frame.status).toBe('paused');
+  await expect(page.getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'true');
+  await page.goto('/?source=missing-explicit-override');
+  await expect(page.locator('.error-banner[role="alert"]')).toBeVisible();
+  await expect(page.getByTestId('synthetic-guidance')).toHaveCount(0);
+});
+
+test('network launch migrates automatic legacy demo to actual public live with a visible notice', async ({ page }) => {
+  test.setTimeout(90_000);
+  const { catalog, demo } = await demoCatalog(page);
+  test.skip(catalog.preferred_source_id !== 'live', 'Requires operator-enabled public live server; offline mode is not promoted to network access.');
+  await page.addInitScript(({ key, id }) => localStorage.setItem(key, JSON.stringify({ version: 1, source: { id, mode: 'demo' } })), { key: preferenceKey, id: demo.id });
+  const created = creation(page);
+  await page.goto('/');
+  const frame = await (await created).json() as Frame;
+  expect(frame.source.mode).toBe('live');
+  expect(frame.source.synthetic).toBe(false);
+  await expect(page.locator('.warning-banner')).toBeVisible();
+  await expect(page.getByTestId('synthetic-guidance')).toHaveCount(0);
+  await expect(page.getByTestId('grouped-ladder').locator('tr.bid').first()).toBeInViewport();
+  await expect(page.getByTestId('grouped-ladder').locator('tr.ask').last()).toBeInViewport();
+  await page.getByLabel('Workspace preset').selectOption('ladder');
+  await expect(page.getByTestId('grouped-ladder').locator('tr.bid').first()).toBeInViewport();
+  await expect(page.getByTestId('grouped-ladder').locator('tr.ask').last()).toBeInViewport();
+  const scroll = page.locator('.ladder-scroll');
+  await scroll.evaluate(node => { node.scrollTop = 50; });
+  await page.waitForResponse(response => response.url().endsWith('/api/v1/ladder') && response.request().method() === 'POST');
+  await page.waitForResponse(response => response.url().endsWith('/api/v1/ladder') && response.request().method() === 'POST');
+  expect(await scroll.evaluate(node => node.scrollTop)).toBe(50);
+  await scroll.evaluate(node => { node.scrollTop = 0; });
+  await page.waitForResponse(response => response.url().endsWith('/api/v1/ladder') && response.request().method() === 'POST');
+  await page.waitForResponse(response => response.url().endsWith('/api/v1/ladder') && response.request().method() === 'POST');
+  expect(await scroll.evaluate(node => node.scrollTop)).toBe(0);
+  const regrouped = page.waitForResponse(response => response.url().endsWith('/api/v1/ladder') && response.request().method() === 'POST' && response.request().postDataJSON().rows === 50);
+  await page.getByLabel('Ladder rows').selectOption('50');
+  expect((await regrouped).ok()).toBe(true);
+  await expect(page.getByTestId('grouped-ladder').locator('tr.bid').first()).toBeInViewport();
+  await expect(page.getByTestId('grouped-ladder').locator('tr.ask').last()).toBeInViewport();
+  const instruments = page.locator('[data-instrument-id]');
+  const firstPage = await instruments.evaluateAll(nodes => nodes.map(node => node.getAttribute('data-instrument-id')));
+  expect(firstPage.length).toBeLessThanOrEqual(100);
+  await page.getByRole('button', { name: 'Next instrument page', exact: true }).click();
+  const secondPageId = await instruments.first().getAttribute('data-instrument-id');
+  expect(firstPage).not.toContain(secondPageId);
+  await page.getByLabel('Search instruments').fill(secondPageId!);
+  await expect(instruments).toHaveCount(1);
+  await expect(instruments).toHaveAttribute('data-instrument-id', secondPageId!);
+  await expect(page.getByRole('navigation', { name: 'Instrument pages' })).toHaveCount(0);
+  await page.getByLabel('Search instruments').fill('');
+  expect(await instruments.evaluateAll(nodes => nodes.map(node => node.getAttribute('data-instrument-id')))).toEqual(firstPage);
+  expect((await (await page.request.get(`/api/v1/sessions/${frame.session_id}`)).json() as Frame).selection).toEqual(frame.selection);
+  await page.getByLabel('Search instruments').fill('BTC');
+  await page.getByLabel('Filter venue').selectOption('hyperliquid');
+  await page.locator('[data-instrument-id="hyperliquid:info:perpetual:BTC"]').click();
+  await expect(page.getByLabel('Price aggregation').locator('option[value="100"]')).toBeAttached();
+  await page.getByLabel('Price aggregation').selectOption('100');
+  await expect(page.getByTestId('grouped-ladder').locator('tr.bid').first()).toBeVisible();
+  await expect(page.getByTestId('grouped-ladder').locator('tr.ask').last()).toBeVisible();
+  await expect.poll(() => scroll.evaluate(node => node.scrollHeight <= node.clientHeight)).toBe(true);
+  await page.getByLabel('Price aggregation').selectOption('');
+  await expect.poll(() => scroll.evaluate(node => node.scrollHeight > node.clientHeight)).toBe(true);
+  await expect(page.getByTestId('grouped-ladder').locator('tr.bid').first()).toBeInViewport();
+  await expect(page.getByTestId('grouped-ladder').locator('tr.ask').last()).toBeInViewport();
+});

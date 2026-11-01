@@ -7,6 +7,7 @@ shared; display bounds never clip the collector or reducer.
 
 from bisect import bisect_left, bisect_right
 from collections import deque
+from copy import copy
 from dataclasses import dataclass, fields, is_dataclass, replace
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_CEILING, ROUND_FLOOR, localcontext
@@ -111,7 +112,34 @@ def display_step(instrument, requested, previous=None):
         else previous or options[0]
     )
     if step not in options:
-        raise ValueError("unsupported display price quantum")
+        # Auto-fit can need a coarser quantum than the menu's initial choices.
+        # Accept the same 1/5 decade progression for explicit chart/ladder use.
+        multiple = (step / options[0]).normalize()
+        parts = multiple.as_tuple()
+        if multiple < 1 or parts.exponent < 0 or parts.digits not in ((1,), (5,)):
+            raise ValueError("unsupported display price quantum")
+    return step
+
+
+def fitted_step(instrument, book, trades, anchor, rows):
+    """Fit actual near-market levels and prints, without clipping native depth."""
+    count = max(1, rows // 4)
+    lower = book.bids[min(count, len(book.bids)) - 1].price
+    upper = book.asks[min(count, len(book.asks)) - 1].price
+    for observed in trades:
+        lower = min(lower, observed.print.trade.price)
+        upper = max(upper, observed.print.trade.price)
+    # Leave two cells of breathing room, including floor alignment at the top.
+    required = max(
+        (anchor - lower) / (rows // 2 - 2),
+        (upper - anchor) / (rows - rows // 2 - 2),
+    )
+    minimum = step_options(instrument)[0]
+    step = minimum
+    while step < required:
+        step *= 10
+    if step / 2 >= max(required, minimum):
+        step /= 2
     return step
 
 
@@ -198,6 +226,7 @@ class VisualHistory:
         self.engine.reset()
         self.samples: deque[Sample] = deque()
         self._sample_sizes: deque[int] = deque()
+        self._sample_metrics: dict[int, bytes] = {}
         self.trades: deque[ObservedTrade] = deque()
         self._trade_sizes: deque[int] = deque()
         self.discontinuities: deque[int] = deque()
@@ -212,7 +241,9 @@ class VisualHistory:
         self.truncated = False
         self.trade_floor = None
         self.anchor: Decimal | None = None
-        self.price_step = getattr(self, "price_step", None)
+        # Fitted scale is evidence-derived and must not survive a replay rewind.
+        # Clients retaining an explicit quantum send it on the next query.
+        self.price_step = None
         self.bucket_ns = getattr(self, "bucket_ns", SECOND)
         self.accounted_bytes = 256 * 1024  # bounded query fingerprints/ownership
         self._books = {}
@@ -255,6 +286,12 @@ class VisualHistory:
                 decimal_policy=DERIVED_DECIMAL_POLICY,
             )
         )
+        # Closed metric provenance is immutable. Encode it once, charge the
+        # retained bytes, and decode fresh HTTP containers for each query.
+        metric_bytes = json.dumps(
+            exact((sample.cvd, sample.ofi)), separators=(",", ":")
+        ).encode()
+        size += 256 + len(metric_bytes)
         if sample.book and self.book_bytes(sample.book) + size + 256 * 1024 > MAX_BYTES:
             sample = replace(
                 sample,
@@ -263,6 +300,7 @@ class VisualHistory:
             )
             size += 512
         self.samples.append(sample)
+        self._sample_metrics[id(sample)] = metric_bytes
         self._sample_sizes.append(size)
         self.accounted_bytes += size
         if sample.book:
@@ -276,6 +314,7 @@ class VisualHistory:
     def _drop_sample(self):
         sample = self.samples.popleft()
         self.accounted_bytes -= self._sample_sizes.popleft()
+        del self._sample_metrics[id(sample)]
         if sample.book:
             identity = id(sample.book)
             retained = self._books[identity]
@@ -577,6 +616,29 @@ class VisualHistory:
             self._retain_trade(ObservedTrade(*trade))
         self._trim()
 
+    def query_snapshot(self):
+        """Query-only view of one completed prefix; no reader or engine work."""
+        snapshot = copy(self)
+        snapshot.samples = self.samples.copy()
+        snapshot.trades = self.trades.copy()
+        snapshot.flow = self.flow.copy()
+        snapshot.discontinuities = self.discontinuities.copy()
+        snapshot._sample_metrics = self._sample_metrics.copy()
+        return snapshot
+
+    def accept_query(self, snapshot):
+        """Commit presentation state only, never overwrite advancing evidence."""
+        current_clock = self.clock.clock_id if self.clock else None
+        queried_clock = snapshot.clock.clock_id if snapshot.clock else None
+        if self.key != snapshot.key or current_clock != queried_clock:
+            return False
+        if snapshot.anchor is not None:
+            self.anchor = snapshot.anchor
+        self.price_step = snapshot.price_step
+        self.bucket_ns = snapshot.bucket_ns
+        self._last_query = snapshot._last_query
+        return True
+
     def query(self, request, generation):
         with localcontext(DECIMAL_CONTEXT):
             return self._query(request, generation)
@@ -593,17 +655,55 @@ class VisualHistory:
             raise ValueError("unsupported time quantum")
         now = self.clock.mono_ns if self.clock else 0
         end = min(int(request.end_ns), now) if request.end_ns is not None else now
+        retained = self.samples[0].time_ns if self.samples else None
+        first = self.first_ns or 0
+        first_boundary = ((first + SECOND - 1) // SECOND) * SECOND
+        # Trade/flow trimming can mark history truncated before any sampled
+        # depth is evicted. Keep that initial partial bucket visible.
+        history_start = (
+            retained if retained is not None and retained > first_boundary else first
+        )
         start = (
             int(request.start_ns)
             if request.start_ns is not None
-            else max(0, end - 180 * SECOND)
+            else max(
+                0,
+                end - 180 * SECOND,
+                min(end, history_start // bucket * bucket),
+            )
         )
         if start > end or end - start > MAX_COLUMNS * SECOND:
             raise ValueError("visual range must be ordered and at most 1800 seconds")
-        self.price_step, self.bucket_ns = step, bucket
-        if request.recenter and self.book and self.book.bids and self.book.asks:
-            self.anchor = (self.book.bids[0].price + self.book.asks[0].price) / 2
-        anchor = self.anchor or ZERO
+        visible_trades = [item for item in self.trades if start <= item.time_ns < end]
+        valid_book = (
+            self.book
+            if self.book
+            and self.book.bids
+            and self.book.asks
+            and self.clock
+            and evaluate(
+                self.book, instrument, "display", self.clock, EligibilityPolicy()
+            ).eligible
+            else None
+        )
+        if valid_book and (
+            request.recenter or self.anchor is None or self.price_step is None
+        ):
+            self.anchor = (valid_book.bids[0].price + valid_book.asks[0].price) / 2
+        if (
+            valid_book
+            and request.price_step is None
+            and (self.price_step is None or request.recenter)
+        ):
+            step = fitted_step(
+                instrument, valid_book, visible_trades, self.anchor, request.rows
+            )
+        # An unavailable bootstrap must not freeze the fallback quantum: the
+        # first validated two-sided book still gets its initial fit.
+        if valid_book or request.price_step is not None:
+            self.price_step = step
+        self.bucket_ns = bucket
+        anchor = self.anchor if self.anchor is not None else ZERO
         low = max(
             ZERO,
             floor(anchor, step)
@@ -630,7 +730,6 @@ class VisualHistory:
             reasons.append("initial_partial_bucket")
         if not self.trade_streams:
             reasons.append("trade_channel_unavailable")
-        retained = self.samples[0].time_ns if self.samples else None
         if self.first_ns is None or start < self.first_ns:
             reasons.append("initial_partial_history")
         if retained is None or start < retained:
@@ -652,7 +751,6 @@ class VisualHistory:
             reasons.append("column_output_limit")
         if not selected or selected[-1].time_ns + bucket > end:
             reasons.append("trailing_partial_history")
-        visible_trades = [item for item in self.trades if start <= item.time_ns < end]
         flow_reasons: dict[int, set[str]] = {}
         final_validation = None
         for stamp, failures, validated in self.flow:
@@ -690,6 +788,7 @@ class VisualHistory:
             column_id = digest(
                 (grid, sample.clock_id, sample.segment_id, sample.time_ns)
             )
+            cvd, ofi = json.loads(self._sample_metrics[id(sample)])
             column = {
                 "id": column_id,
                 "time_ns": str(sample.time_ns),
@@ -710,8 +809,8 @@ class VisualHistory:
                 "best_ask": exact(sample.book.asks[0].price)
                 if sample.book and sample.book.asks and not sample.reasons
                 else None,
-                "cvd": exact(sample.cvd),
-                "ofi": exact(sample.ofi),
+                "cvd": cvd,
+                "ofi": ofi,
                 "candle": None,
             }
             columns.append(column)
@@ -835,13 +934,21 @@ class VisualHistory:
         # large provenance references. Overlay counts have a separate hard cap.
         output_bytes = 0
         bounded_columns = []
+        current = {}
         for column in reversed(columns):
-            size = len(json.dumps(column, separators=(",", ":")).encode())
+            # Columns already contain exact HTTP scalars. Reuse their canonical
+            # bytes for the incremental hash instead of recursively copying and
+            # serializing the entire provenance tree again on the owner thread.
+            column_bytes = json.dumps(
+                column, sort_keys=True, separators=(",", ":")
+            ).encode()
+            size = len(column_bytes)
             if output_bytes + size > 4 * 1024 * 1024:
                 reasons.append("column_byte_output_limit")
                 break
             bounded_columns.append(column)
             output_bytes += size
+            current[column["id"]] = sha256(column_bytes).hexdigest()[:32]
         columns = list(reversed(bounded_columns))
         token = digest(
             (
@@ -859,7 +966,6 @@ class VisualHistory:
         identity = (grid, generation, low, request.rows)
         replace = True
         delivered = columns
-        current = {c["id"]: digest(c) for c in columns}
         if (
             self._last_query
             and request.after_column == self._last_query[0]
@@ -907,7 +1013,9 @@ class VisualHistory:
             "end_ns": str(end),
             "now_ns": str(now),
             "retained_start_ns": str(retained) if retained is not None else None,
-            "step_options": list(map(exact, step_options(instrument))),
+            "step_options": list(
+                map(exact, sorted(set((*step_options(instrument), step))))
+            ),
             "columns": delivered,
             "trades": plotted,
             "profile": [

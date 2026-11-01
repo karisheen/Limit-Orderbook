@@ -1,0 +1,145 @@
+{
+  "symptom": "The mode and view_id advanced while painted_view_id and the visible canvas remained on the prior mode. The renderer and host canvases remained connected and matched current refs.",
+  "cause": "The visibility callback used entries[0]; a single batch contained false then true. It retained false indefinitely. Use the final entry for this single observed target.",
+  "trigger": "Managed Chromium fullPage screenshot temporarily changed root viewport to1x1 then restored1568x900.",
+  "entries": [
+    [
+      {
+        "time": 142.2000000178814,
+        "visible": true,
+        "ratio": 1,
+        "target": "m4-chart-plot",
+        "rect": {
+          "x": 211,
+          "y": 316.390625,
+          "width": 926,
+          "height": 451.015625,
+          "top": 316.390625,
+          "right": 1137,
+          "bottom": 767.40625,
+          "left": 211
+        },
+        "root": {
+          "x": 0,
+          "y": 0,
+          "width": 1568,
+          "height": 900,
+          "top": 0,
+          "right": 1568,
+          "bottom": 900,
+          "left": 0
+        }
+      }
+    ],
+    [
+      {
+        "time": 16528.40000000596,
+        "visible": false,
+        "ratio": 0,
+        "target": "m4-chart-plot",
+        "rect": {
+          "x": 6,
+          "y": 716.390625,
+          "width": 308,
+          "height": 210,
+          "top": 716.390625,
+          "right": 314,
+          "bottom": 926.390625,
+          "left": 6
+        },
+        "root": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1,
+          "top": 0,
+          "right": 1,
+          "bottom": 1,
+          "left": 0
+        }
+      }
+    ],
+    [
+      {
+        "time": 16559.40000000596,
+        "visible": true,
+        "ratio": 1,
+        "target": "m4-chart-plot",
+        "rect": {
+          "x": 211,
+          "y": 323.390625,
+          "width": 926,
+          "height": 385.515625,
+          "top": 323.390625,
+          "right": 1137,
+          "bottom": 708.90625,
+          "left": 211
+        },
+        "root": {
+          "x": 0,
+          "y": 0,
+          "width": 1568,
+          "height": 900,
+          "top": 0,
+          "right": 1568,
+          "bottom": 900,
+          "left": 0
+        }
+      }
+    ],
+    [
+      {
+        "time": 18621.70000001788,
+        "visible": false,
+        "ratio": 0,
+        "target": "m4-chart-plot",
+        "rect": {
+          "x": 6,
+          "y": 716.390625,
+          "width": 308,
+          "height": 210,
+          "top": 716.390625,
+          "right": 314,
+          "bottom": 926.390625,
+          "left": 6
+        },
+        "root": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1,
+          "top": 0,
+          "right": 1,
+          "bottom": 1,
+          "left": 0
+        }
+      },
+      {
+        "time": 18662.40000000596,
+        "visible": true,
+        "ratio": 1,
+        "target": "m4-chart-plot",
+        "rect": {
+          "x": 211,
+          "y": 323.390625,
+          "width": 926,
+          "height": 385.515625,
+          "top": 323.390625,
+          "right": 1137,
+          "bottom": 708.90625,
+          "left": 211
+        },
+        "root": {
+          "x": 0,
+          "y": 0,
+          "width": 1568,
+          "height": 900,
+          "top": 0,
+          "right": 1568,
+          "bottom": 900,
+          "left": 0
+        }
+      }
+    ]
+  ]
+}
