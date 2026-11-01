@@ -176,10 +176,10 @@ class _FileStats:
 
 @dataclass(frozen=True)
 class RecorderLimits:
-    # Raw and normalized callbacks occupy separate slots. Retained public traces
-    # exceed 1,100 items in 0.5 s while full-depth checkpoint/flush service pauses
-    # the writer; keep finite burst headroom without relaxing the resident cap.
-    queue_count: int = 2048
+    # Raw and normalized callbacks occupy separate slots. The retained terminal
+    # burst exceeds 2,400 items in two seconds; native checkpoint service and
+    # live producer contention require finite headroom, not a larger byte cap.
+    queue_count: int = 4096
     queue_bytes: int = 128 * 1024 * 1024
     raw_rotation_bytes: int = 16 * 1024 * 1024
     parquet_batch_count: int = 128
@@ -704,8 +704,13 @@ class Recorder:
                     (session_id, session_id, "active", str(self.created_wall_ns)),
                 )
             # Imports and dependency failures surface before any feed lease starts.
-            import pyarrow  # noqa: F401
+            import pyarrow as pa
             import duckdb  # noqa: F401
+
+            # Arrow's first Python-to-table conversion lazily loads conversion
+            # dependencies. Prepare that path before admission, not during the
+            # first loss-intolerant flush while callbacks are arriving.
+            pa.Table.from_pylist([], schema=_parquet_schema())
             from .projection import RecordingProjection
 
             self._projection = RecordingProjection(

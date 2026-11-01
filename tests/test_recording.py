@@ -368,6 +368,55 @@ def test_raw_normalized_burst_drains_with_inflight_admission_bound(
         ]
 
 
+def test_cancelled_finalize_can_resume_without_losing_admitted_callbacks(
+    tmp_path, monkeypatch
+):
+    entered, release = threading.Event(), threading.Event()
+    original = Recorder._write_raw
+
+    def blocked(self, frame):
+        entered.set()
+        if not release.wait(10):
+            raise RuntimeError("finalization writer was not released")
+        original(self, frame)
+
+    monkeypatch.setattr(Recorder, "_write_raw", blocked)
+    recorder = recorder_at(tmp_path)
+    raw, event = fixture_message(fixture_stream())
+    recorder.append_raw(raw)
+    assert entered.wait(2)
+    recorder.append_events((event,))
+
+    async def finish():
+        task = asyncio.create_task(recorder.finalize())
+        await asyncio.sleep(0)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        # Cancellation cannot reopen admission or publish a partial success.
+        with pytest.raises(RecordingError, match="closed"):
+            recorder.append_raw(fixture_message(fixture_stream(), 2)[0])
+        assert not (recorder.path / "manifest.json").exists()
+        release.set()
+        manifest = await recorder.finalize()
+        assert await recorder.finalize() is manifest
+        return manifest
+
+    try:
+        manifest = asyncio.run(finish())
+    finally:
+        release.set()
+        recorder._thread.join(5)
+    assert manifest.complete
+    assert manifest.raw_count == manifest.batch_count == 1
+    with RecordingReader(recorder.path) as reader:
+        assert list(reader.iter_raw()) == [raw]
+        assert [batch.events for batch in reader.iter_batches()] == [(event,)]
+        checkpoints = list(reader.iter_checkpoints())
+        assert len(checkpoints) == 1
+        assert checkpoints[0].delivery_index == 1
+
+
 def test_writer_exception_propagates_to_future_offers_and_final_status(
     tmp_path, monkeypatch
 ):
@@ -389,6 +438,24 @@ def test_writer_exception_propagates_to_future_offers_and_final_status(
     assert recorder.health.terminal_failure
     with pytest.raises(RecordingError):
         recorder.append_raw(fixture_message(fixture_stream(), 2)[0])
+
+
+def test_parquet_preparation_failure_precedes_capture_admission(tmp_path, monkeypatch):
+    def unavailable_schema():
+        raise RuntimeError("synthetic Arrow preparation failure")
+
+    monkeypatch.setattr(recording, "_parquet_schema", unavailable_schema)
+    with pytest.raises(RuntimeError, match="Arrow preparation failure"):
+        recorder_at(tmp_path)
+    path = tmp_path / "synthetic-session"
+    assert not (path / "manifest.json").exists()
+    # Failed preparation releases ownership and cannot masquerade as a readable
+    # capture; startup recovery preserves its files in quarantine.
+    with pytest.raises(FileNotFoundError):
+        RecordingReader(path)
+    (recovered,) = recover_recordings(tmp_path)
+    assert recovered.name.startswith("quarantine-synthetic-session-")
+    assert not (recovered / "manifest.json").exists()
 
 
 def test_low_disk_and_managed_budget_fail_before_capture(tmp_path, monkeypatch):
