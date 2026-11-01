@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, errorMessage, request, streamUrl } from './api';
-import type { Catalog, Costs, CostInput, Frame, Mode, ReplayAction } from './api';
+import type { Catalog, Costs, CostInput, Frame, Mode, ReplayAction, VisualGrid, VisualizationInput, VisualizationAck, GroupedLadder, LadderInput, ProposalRisk, ProposalRiskInput } from './api';
 
-interface ConnectionOptions { mode: Mode; source_id?: string; instrument_id?: string }
+export interface ConnectionOptions { mode: Mode; source_id?: string; instrument_id?: string }
 interface Presentation { frame: Frame; receivedAt: number; acknowledge: boolean }
 interface SessionScope { active: boolean; connected: boolean; sessionId: string | null; sourceId: string | null }
 interface Mutation { scope: SessionScope; controller: AbortController }
 
-export function useTerminal() {
+export function useTerminal(initialOptions: ConnectionOptions = { mode: 'demo' }) {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [presentation, setPresentation] = useState<Presentation | null>(null);
   const [catalogError, setCatalogError] = useState<string | null>(null);
@@ -15,7 +15,10 @@ export function useTerminal() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [revision, setRevision] = useState(0);
-  const options = useRef<ConnectionOptions>({ mode: 'demo' });
+  const options = useRef<ConnectionOptions>(initialOptions);
+  const restoringSelection = useRef(Boolean(initialOptions.instrument_id));
+  const [preferenceNotice, setPreferenceNotice] = useState<string | null>(null);
+  const queries = useRef(new Map<string, AbortController>());
   const current = useRef<Frame | null>(null);
   const socket = useRef<WebSocket | null>(null);
   const lifecycle = useRef<SessionScope | null>(null);
@@ -48,6 +51,8 @@ export function useTerminal() {
     const invalidate = () => {
       scope.connected = false;
       current.current = null;
+      for (const controller of queries.current.values()) controller.abort();
+      queries.current.clear();
       pending = null;
       cancelAnimationFrame(renderRequest);
       renderRequest = 0;
@@ -103,6 +108,22 @@ export function useTerminal() {
         const nextCatalog = await request<Catalog>('/instruments', undefined, AbortSignal.any([abort.signal, AbortSignal.timeout(5000)]));
         if (!scope.active) return;
         setCatalog(nextCatalog);
+        const preferred = options.current.source_id;
+        if (preferred && !nextCatalog.sources.some(item => item.id === preferred && item.status === 'ready' && item.mode === options.current.mode)) {
+          const fallback = nextCatalog.sources.find(item => item.mode === options.current.mode && item.status === 'ready');
+          if (!fallback) throw new ApiError(`Saved ${options.current.mode} source is unavailable. Select another source explicitly; no demo substitution was made.`, 409);
+          options.current.source_id = fallback.id;
+          setPreferenceNotice(`Saved source ${preferred} is unavailable; using ${fallback.label} in the same ${fallback.mode} mode.`);
+        }
+        if (restoringSelection.current && options.current.instrument_id && options.current.source_id) {
+          const sourceCatalog = await request<Catalog>(`/instruments?source_id=${encodeURIComponent(options.current.source_id)}`, undefined, AbortSignal.any([abort.signal, AbortSignal.timeout(5000)]));
+          if (!scope.active) return;
+          if (!sourceCatalog.instruments.some(item => item.instrument_id === options.current.instrument_id)) {
+            setPreferenceNotice(`Saved exact instrument is unavailable in this source; using the source's declared default.`);
+            delete options.current.instrument_id;
+          }
+        }
+        restoringSelection.current = false;
         // Keep creation observable: a late response still needs its server session released.
         const first = await request<Frame>('/sessions', options.current);
         scope.sessionId = first.session_id;
@@ -231,21 +252,33 @@ export function useTerminal() {
   const select = useCallback((instrumentId: string) => mutate('/subscriptions', { instrument_id: instrumentId }), [mutate]);
   const replay = useCallback((action: ReplayAction, payload: Record<string, unknown> = {}) => mutate('/replay', { action, ...payload }), [mutate]);
   const source = useCallback((mode: Mode, sourceId: string) => {
+    restoringSelection.current = false;
+    setPreferenceNotice(null);
     // Recorded catalogs differ. The backend reflects a new source's exact default;
     // live selection is explicit and never silently mapped across native identities.
     options.current = { mode, source_id: sourceId, ...(mode === 'live' ? { instrument_id: options.current.instrument_id } : {}) };
     retries.current = 0;
     setRevision(value => value + 1);
   }, []);
-  const costs = useCallback(async (input: CostInput, signal: AbortSignal): Promise<Costs> => {
+  const query = useCallback(async <T extends object>(path: string, input: object, signal: AbortSignal, onReceive?: (receivedAtMs: number) => void): Promise<T> => {
     const active = current.current;
-    if (!active || !lifecycle.current?.connected || active.status === 'seeking') throw new ApiError('No current presentation is available for costs.', 409);
-    const result = await request<Costs>('/costs', { session_id: active.session_id, generation: active.generation, ...input }, signal);
-    if (current.current?.session_id !== active.session_id || current.current.generation !== result.generation) {
-      throw new ApiError('Cost response belongs to a replaced selection or replay cursor. Recalculate.', 409);
-    }
-    return result;
+    if (!active || !lifecycle.current?.connected || active.status === 'seeking') throw new ApiError('No current presentation is available for this query.', 409);
+    queries.current.get(path)?.abort();
+    const controller = new AbortController();
+    queries.current.set(path, controller);
+    try {
+      const result = await request<T>(path, { session_id: active.session_id, generation: active.generation, ...input }, AbortSignal.any([signal, controller.signal, AbortSignal.timeout(10000)]), undefined, onReceive);
+      if (controller.signal.aborted || !lifecycle.current?.connected || current.current?.session_id !== active.session_id || current.current.generation !== active.generation || ('generation' in result && result.generation !== active.generation)) {
+        throw new ApiError('Response belongs to obsolete source, selection or replay evidence. Request again.', 409);
+      }
+      return result;
+    } finally { if (queries.current.get(path) === controller) queries.current.delete(path); }
   }, []);
+  const costs = useCallback((input: CostInput, signal: AbortSignal) => query<Costs>('/costs', input, signal), [query]);
+  const visualization = useCallback((input: VisualizationInput, signal: AbortSignal, onReceive?: (receivedAtMs: number) => void) => query<VisualGrid>('/visualization', input, signal, onReceive), [query]);
+  const acknowledgeVisualization = useCallback((view_id: string, browser_receive_to_paint_ms: number, signal: AbortSignal) => query<VisualizationAck>('/visualization/ack', { view_id, browser_receive_to_paint_ms }, signal), [query]);
+  const ladder = useCallback((input: LadderInput, signal: AbortSignal) => query<GroupedLadder>('/ladder', input, signal), [query]);
+  const proposalRisk = useCallback((input: ProposalRiskInput, signal: AbortSignal) => query<ProposalRisk>('/proposal-risk', input, signal), [query]);
 
-  return { catalog, catalogError, frame: presentation?.frame ?? null, connection, error, busy, reconnect, select, replay, source, costs };
+  return { catalog, catalogError, preferenceNotice, frame: presentation?.frame ?? null, connection, error, busy, reconnect, select, replay, source, costs, visualization, acknowledgeVisualization, ladder, proposalRisk };
 }

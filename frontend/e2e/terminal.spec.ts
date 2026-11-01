@@ -20,8 +20,8 @@ test('exact selection, costs, replay and visible API errors', async ({ page }) =
   // Lot-invalid exact input is intentionally not rounded in the browser.
   await expect(page.getByTestId('estimate')).toBeEnabled();
   await page.getByLabel('Order size', { exact: true }).fill('0.01');
-  await page.getByLabel('Fee assumption').selectOption('assumed');
-  await page.getByLabel('Fee basis points').fill('12.5');
+  await page.getByLabel('Fee assumption', { exact: true }).selectOption('assumed');
+  await page.getByLabel('Fee basis points', { exact: true }).fill('12.5');
   await page.getByTestId('estimate').click();
   await expect(page.locator('.result-heading')).toBeVisible();
   await expect(page.locator('.estimate-grid')).toBeVisible();
@@ -35,7 +35,7 @@ test('exact selection, costs, replay and visible API errors', async ({ page }) =
   await expect(page.locator('.cursor')).toContainText('0 /');
   await page.getByLabel('Order size', { exact: true }).fill('not-a-decimal');
   await page.getByTestId('estimate').click();
-  await expect(page.getByRole('alert')).toContainText('HTTP');
+  await expect(page.locator('.costs-panel').filter({ has: page.getByRole('heading', { name: 'Proposed order & comparable venue costs', exact: true }) }).getByRole('alert')).toContainText('HTTP');
 });
 
 test('documents own independent sessions and closing releases one owner', async ({ browser, request }) => {

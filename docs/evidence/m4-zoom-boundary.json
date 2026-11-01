@@ -1,0 +1,25 @@
+{
+  "scenario": "Actual zoomedRange respects the API 1800-second maximum with a10-second sampling bucket",
+  "before": {
+    "exit_code": 1,
+    "observation": {
+      "range": {
+        "start_ns": "0",
+        "end_ns": "2000000000000"
+      },
+      "span_ns": "2000000000000",
+      "within_api_limit": false
+    }
+  },
+  "after": {
+    "exit_code": 0,
+    "observation": {
+      "range": {
+        "start_ns": "0",
+        "end_ns": "1800000000000"
+      },
+      "span_ns": "1800000000000",
+      "within_api_limit": true
+    }
+  }
+}

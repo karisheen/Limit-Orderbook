@@ -9,7 +9,7 @@
     "dev": "vite --host 127.0.0.1",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
-    "test": "node --experimental-strip-types --test src/format.test.ts",
+    "test": "node --experimental-strip-types --test src/*.test.ts",
     "test:e2e": "playwright test",
     "build": "npm run typecheck && vite build",
     "preview": "vite preview --host 127.0.0.1"

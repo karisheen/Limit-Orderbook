@@ -414,6 +414,9 @@ def test_reducer_trusted_path_keeps_public_constructor_validation(monkeypatch):
         replace(new, asks=(Level(D("98"), D("1")),))
     with pytest.raises(ValueError, match="identity"):
         replace(new, instrument_id="another-instrument")
+    for side in ("bids", "asks"):
+        with pytest.raises(ValueError):
+            replace(new, **{side: ()})
 
 
 @pytest.mark.parametrize(
@@ -644,6 +647,57 @@ def test_depth_is_protocol_opt_in_not_a_generic_display_slice():
         )
         assert len(result.book.bids) == expected
         assert result.book.quality.coverage.retained_bid_levels == expected
+
+
+@pytest.mark.parametrize("side", ["bid", "ask"])
+@pytest.mark.parametrize("kind", ["snapshot", "delta"])
+@pytest.mark.parametrize("invalid_field", ["price", "quantity"])
+def test_invalid_levels_beyond_retained_depth_reject_entire_message(
+    side, kind, invalid_field
+):
+    instrument, key, reducer, old = healthy(depth=1, truncate_depth=True)
+    old_wire = dumps(old)
+    price = D("98") if side == "bid" else D("102")
+    quantity = D("1")
+    if invalid_field == "price":
+        price += D("0.005")
+    else:
+        quantity = D("0.0001")
+    changes = (
+        LevelChange("bid", D("99"), D("7")),
+        LevelChange("ask", D("101"), D("8")),
+        LevelChange(side, price, quantity),
+    )
+
+    result = reducer.apply((envelope(instrument, key, kind, changes, ordinal=2),))
+
+    assert result.recovery is not None
+    assert result.book is not None
+    assert result.book.bids == old.bids
+    assert result.book.asks == old.asks
+    assert result.book.revision == old.revision
+    assert result.book.quality.integrity == "invalid"
+    assert not reducer.synchronized
+    assert dumps(old) == old_wire
+
+
+@pytest.mark.parametrize("side", ["bid", "ask"])
+def test_duplicate_snapshot_levels_beyond_retained_depth_are_rejected(side):
+    instrument, key, reducer = fixture_core(depth=1, truncate_depth=True)
+    price = D("98") if side == "bid" else D("102")
+    changes = (
+        LevelChange("bid", D("99"), D("1")),
+        LevelChange("ask", D("101"), D("1")),
+        LevelChange(side, price, D("1")),
+        LevelChange(side, price, D("2")),
+    )
+
+    result = reducer.apply((envelope(instrument, key, changes=changes),))
+
+    assert result.recovery is not None
+    assert result.book is None
+    assert reducer.quality.integrity == "invalid"
+    assert not reducer.synchronized
 
 
 def test_old_epoch_wrong_identity_and_duplicate_ordinals_do_not_mutate_state():

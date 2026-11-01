@@ -1,225 +1,162 @@
-# Current Streamlit compatibility path
+# Supported legacy Streamlit observation client
 
-`crypto_lob.py` remains the runnable live-data UI during the workstation upgrade.
-It uses `src/data`, `src/domain` and `src/ui`, with exact parsing shared from
-`src/workstation/precision.py`. It is **not** the planned React/TypeScript terminal
-or a completed integration of the workstation subscription/event pipeline.
+Streamlit is a thin client of the same native workstation API as the React
+terminal. It does not collect exchange data, maintain a second order book,
+calculate financial metrics, rebin history, or execute orders. A **separately
+running local backend is required**. No private credentials are requested.
 
-The M1 exact core and the safeguards below are implemented; **full feed
-integration and M1 acceptance remain pending**. **M2–M6 are not done**. This
-interim status will be replaced by later milestone documentation. The
-[full acceptance ledger](UPGRADE_BACKLOG.md), [handoff](OMP_UPGRADE_HANDOFF.md),
-[contracts](CONTRACTS.md) and [architecture decisions](ARCHITECTURE.md) preserve
-the remaining scope. Historical baseline audit findings are not current behavior
-claims. Source docstrings and regression fixtures are authoritative for the
-implementation described here; this document reports no test pass counts,
-performance measurements or new live-venue validation.
+## Run
 
-## Startup and ownership
-
-Use Python **3.13** (pinned development interpreter **3.13.5**) and uv **0.8.4**:
+From the repository root in the locked Python environment, start the backend:
 
 ```sh
-uv python install 3.13.5
-uv sync --locked --python 3.13.5 --group dev
-uv run --locked --offline --no-sync python -m streamlit run crypto_lob.py --server.address 127.0.0.1
+python -m src.workstation.cli serve
 ```
 
-See [DEVELOPMENT.md](DEVELOPMENT.md) for environment-selection and lock details.
-`--offline` applies to uv dependency management, **not market-data access**: the
-app contacts public venues. No wallet, JWT or private exchange credentials are
-required for this path. There is no implemented offline demo/replay launch implied
-by this command.
+Then, in another terminal using the same environment:
 
-The service is held in `st.session_state["legacy_orderbook_service"]`. Separate
-browser sessions have independent subscriptions, workers, snapshots and history;
-reruns within one session reuse its service. This fixes shared mutable browser
-selection, but can duplicate upstream subscriptions across sessions. It is a
-**temporary isolation strategy, not a shared reference-counted backend registry**.
-It does not establish headless recorder ownership or automatic cleanup on every
-browser disconnect.
+```sh
+streamlit run crypto_lob.py --server.address 127.0.0.1
+```
 
-Subscription replacement fences the old generation, clears its state, stops all
-old workers and joins them before starting replacements. Stale callbacks and
-wrong-instrument/venue publications are rejected. Selecting no exchanges stops
-the service; restarting the same subscription is supported after stopping.
+Open the Streamlit URL, normally `http://127.0.0.1:8501`. The API origin defaults
+to `http://127.0.0.1:8000`; the sidebar permits only HTTP loopback origins
+(`127.0.0.1`, `localhost`, or `[::1]`). Select the source and **exact native
+instrument**, then select **Open / apply native selection**. The source catalog
+can be refreshed while the backend prepares metadata. **Connect / reconnect**
+releases this document's previous API session and changes/reopens its HTTP
+connection; subsequently open the selected source/instrument.
 
-## Validation and precision
+The default backend is the offline, synthetic 180-second / 24-stream memory
+scenario, not a recording or live exchange history. Existing operator-managed
+recordings and public live data require explicit backend options:
 
-Prices and quantities are `Decimal` parsed from original text, integers or
-existing Decimal values, never binary floats or booleans. Shared parsing rejects
-nonfinite values and bounds text length, coefficient precision, exponent and
-magnitude. JSON decoding preserves decimal scale, rejects duplicate keys and
-nonfinite constants, and has an input-size limit. Incoming values are not rounded
-to make invalid data fit.
+```sh
+python -m src.workstation.cli serve --capture data/workstation/CAPTURE_ID
+python -m src.workstation.cli serve --network
+```
 
-Snapshots validate all rows before display truncation: malformed rows,
-nonpositive prices/quantities, duplicate prices, empty sides and locked/crossed
-books fail. Extra REST columns are ignored. Published snapshots contain immutable,
-sorted Decimal levels. Delta quantities are absolute replacements; zero deletes,
-and repeated price updates apply in wire order. `LiveBook` applies candidate
-changes transactionally; adapters invalidate reconstruction on bad messages and
-require a new snapshot rather than treating a later delta as initialization.
+Run only the intended backend, not all three commands together. The client uses
+opaque catalog IDs; it never submits capture paths. Live source ownership,
+recording verification, source readiness and instrument metadata remain the
+backend's responsibility. Do not start a competing live collector beside a
+recorder. See [API](API.md) for server options and constraints.
 
-These legacy checks do **not** establish full venue product metadata, tick/lot
-constraints or the workstation's complete instrument contracts. Snapshot times
-are local receive wall times, not verified venue event times. Float conversion is
-reserved for presentation boundaries; source book values remain Decimal.
+The sidebar links the full React terminal at the configured API origin. Its
+static frontend must be built as documented in [API](API.md); a missing React
+build does not prevent use of these API-backed Streamlit views.
 
-## Venue semantics
+## Views and controls
 
-### Kraken: depth 25 with top-10 CRC32
+- **Identity and quality:** exact native venue, API family, symbol, market type,
+  instrument ID and full source-specific metadata. Source classification,
+  readiness, reasons, native quality/coverage and as-of references are visible.
+  A not-ready frame is explicitly diagnostic, not execution-eligible.
+- **Ladder/depth:** server-grouped native rows and server cumulative base
+  quantities. Exact quantum text defaults to the source's native tick when
+  known. Unknown/variable rules are disclosed by the server; display quanta
+  are not executable price rules.
+- **Historical liquidity:** bounded `/visualization` grids, source-monotonic
+  sampling, server-persisted price anchor, explicit recenter/pan and exact
+  price/time controls. The client fetches complete bounded grids rather than
+  merging or rebinning history. Null cells stay gaps and covered zero stays
+  zero. Bid and ask cells are separate. The color ceiling is explicit and fixed
+  until the operator changes it; it is a plotting-only control, not adaptive
+  normalization. Server step options, completeness, truncation, quality
+  reasons and full exact grid/hash evidence remain inspectable. The initial
+  paused demo may have no closed historical columns: advance replay.
+- **Metrics/tape:** shared analytics values, units, eligibility, formula/window
+  provenance, native public prints, aggressor provenance, unknown valuation,
+  subscription-history labels and exact evidence. Missing values say
+  `Unavailable`; they are never replaced by zero.
+- **Size-cost comparison:** exact base quantity or quote budget, selected side,
+  optional explicit assumed fees with provenance/date, and explicit latency /
+  rebalance scenarios. The API supplies the native depth walk and directed
+  matrix, including incompatible/excluded pairs, partial fills and unknown
+  fees/FX/inventory. After submission, polling recomputes the same request at
+  the current cursor; selection, source or generation changes discard it.
+  This is hypothetical observation, not executable profit or an account view.
+- **Replay:** actual API play, pause, single/multi-delivery step, exact speed,
+  delivery-index seek and reset. Live sources do not offer replay controls.
+  Seek/reset/selection generations fence presentation and costs. Playback
+  advances only in the backend; the UI never invents history or pacing.
 
-The public v2 WebSocket subscribes to `book` at **25 levels per side**. All
-same-symbol payloads in a message are applied before final validation, then stored
-state is truncated to the subscribed depth. This avoids retaining displaced
-out-of-scope levels as ghost liquidity; the ladder slider does not set
-reconstruction depth.
+Economic metadata, inputs, timestamps, generations and evidence stay exact
+JSON strings through controls, requests, tables and expandable evidence.
+Raw JSON trees start collapsed, including inside expanders: opening a panel does
+not eagerly mount every historical cell/trade as a browser DOM node. Full exact
+evidence remains available for deliberate drill-down.
+Price and source-time coordinates remain exact categorical strings, so adjacent
+sub-float prices cannot collapse into one row/level. Ladder price categories
+follow server bid/ask ordering and represent displayed levels, not proportional
+gap widths; heatmap categories are the server's uniform exact grid rows.
+Only cumulative-quantity plot heights and color intensities use floating point.
+Hover data retains exact price/quantity text. Recenter resets the keyed viewport
+offset to zero before requesting a new server anchor, including later polls.
+Python response receipt is **not browser paint latency**; this client does not
+issue frame or visualization paint ACKs.
 
-CRC32 uses exact fixed-point price/quantity text from the top 10 asks ascending,
-then the top 10 bids descending, preserving scale before stripping decimal points
-and leading zeros. A required checksum is checked against the completed book.
-Missing/mismatching checksum or invalid reconstruction resets the book and
-requires a fresh snapshot. Mixed-symbol payloads fail; unrelated channels/symbols
-are ignored. This is **25-level reconstruction with top-10 checksum coverage**,
-not full-depth verification. REST fallback uses Kraken depth snapshots, not a
-checksum-verified continuous stream.
+## Ownership, bounds and unavailable behavior
 
-### Coinbase: public Advanced Trade WS; separate Exchange REST fallback
+Each Streamlit document stores its own HTTP client, backend session ID,
+generation and latest frame in document-local session state; no global cached
+client or shared session is used. Operator forms/actions run outside the timed
+observation fragment. Replay/cost callbacks consume submitted intent before
+polling can request another run. Replay parameters are keyed by session,
+generation and instrument, so seek/reset/reconnect replace prior form state.
+Generation-bound cost output is replaced before slower historical plotting.
+Recenter is consumed once by the matching session/generation, not on every poll.
+Polling defaults to every two seconds, with five/ten-second options or manual
+refresh. Requests are sequential, use one connection, disable environment
+proxies and redirects, and have two-second
+connect/pool and ten-second read/write timeouts. Streaming responses check a
+30-second elapsed budget between chunks (a blocked read can add at most its
+ten-second timeout), cap decoded output at 12 MiB, and cap requests at 64 KiB.
+No automatic retries, remote fallback or fabricated market evidence is used.
 
-The WebSocket endpoint is `wss://advanced-trade-ws.coinbase.com`, with public
-`level2` and `heartbeats` subscriptions and `l2_data` book events. No JWT is
-required. `new_quantity` is absolute; zero deletes. Matching-product events in a
-message are applied transactionally and validated as a completed book. Full
-reconstruction is retained while publication is capped at 200 levels per side,
-so display truncation does not discard levels needed after later deletions.
+**Close this document's API session** explicitly deletes only that session.
+Source replacement deletes the previous session before creating another;
+reconnect also closes the previous HTTP pool. Browser disappearance cannot
+reliably run Python cleanup: the backend reaps unattached HTTP sessions after
+60 idle seconds. Turning off polling and leaving the page idle can therefore
+expire its session. Reconnect and open the source again; the UI never adopts
+another tab's session. Failed cleanup is disclosed, and the backend's reaper
+remains the fallback. Server session-capacity limits still apply.
 
-The legacy adapter tracks `sequence_num`, including heartbeat progression;
-sequence gaps/duplicates or invalid messages reset reconstruction. This describes
-the implemented checks, **not a claim of newly verified live sequence guarantees**.
-Heartbeats do not publish a book or establish healthy book data.
+Backend startup, unavailable sources, expired sessions, rejected economic
+inputs and failed history/ladder/cost requests are shown as actionable errors.
+The previous presentation is not used as a hidden fallback for a failed frame
+request. Start/check the backend and use reconnect. Source loading and partial
+market coverage are not transport success or financial health.
 
-Fallback deliberately uses **Coinbase Exchange REST**:
-`https://api.exchange.coinbase.com/products/{symbol}/book?level=2`.
-That is a different API family and parser from Advanced Trade. It is labeled
-REST snapshot/degraded mode, with a nominal three-second polling interval plus
-request/retry time; it does not restore event continuity. Exchange level 2 is
-not made a bounded server response by the legacy adapter's display limit.
+## Operator smoke checklist
 
-### Binance.US: independent partial snapshots
+1. Start Streamlit without the backend. Confirm the startup command and
+   reconnect controls are visible, with no collector/network fallback.
+2. Start the default backend; reconnect, refresh the source catalog as needed,
+   and open an exact demo native instrument. Confirm synthetic/not-recorded
+   labeling, native metadata, quality and exact metric/tape evidence.
+3. Step multiple deliveries, play, pause, change exact speed, seek backward and
+   reset. Confirm cursor changes and generation fencing. Step far enough to
+   populate history. Change price step using a listed exact server option,
+   pan/recenter, and switch bid/ask; inspect null cells, fixed color ceiling,
+   hashes and retention/quality reasons without local rebinning.
+4. Submit a base-size comparison, then a quote-budget comparison. Check partial
+   fills and exclusions. Leave fees unknown; then explicitly supply a rate,
+   provenance and ISO date. Confirm unknown net results are not financial zero.
+5. Open another independent browser tab/document, select a different native
+   instrument and cursor, and verify that one document's seek/close does not
+   change the other. Switch instruments and verify metadata, quality and
+   comparison inputs do not leak from the prior selection.
+6. Close a session explicitly and reopen it. Disable polling for over 60
+   seconds, refresh, and verify actionable expiration/reconnect behavior.
+   Stop the backend and verify unavailable state rather than retained healthy
+   charts. Restart and reconnect successfully.
+7. With an operator-authorized capture or explicit public-live backend, select
+   that catalog source and verify source-specific metadata/classification;
+   live must omit replay controls. Inspect the layout at laptop width and use
+   expandable evidence/controls and horizontally scrollable exact tables.
 
-`depth20@1000ms` supplies independent top-20 snapshots at the configured
-one-second cadence. Every accepted frame replaces the prior book; no stale
-levels accumulate. `lastUpdateId` may be retained as snapshot metadata, but the
-adapter does not infer a contiguous diff stream. Binance.US REST depth is also
-snapshot mode. Binance.US is not Binance global and must not be relabeled or
-used as evidence that the planned global snapshot/diff bridge is integrated.
-
-### Bybit: ordered, not contiguous
-
-The v5 public spot adapter requires the exact `orderbook.50.{symbol}` topic and
-matching embedded symbol, retaining 50 levels per side. Normal deltas require
-strictly increasing positive `u` values; **IDs need not be contiguous**. Optional
-`seq` must increase when available on both observations. A fresh snapshot or
-`u=1` replaces depth and resets IDs. Delta-before-snapshot, duplicate/backward
-IDs or malformed data invalidates reconstruction. Regional restrictions may
-prevent access; no present regional availability is certified here.
-
-### KuCoin: REST only
-
-The legacy adapter polls public `level2_100`, validates the API success code and
-optional sequence, and rejects malformed sequence values instead of inventing
-zero. It does not implement WebSocket token bootstrap. Its nominal polling
-interval is two seconds plus request/retry time. Successful REST data remains
-**degraded/snapshot**, not a continuous feed.
-
-## Bounded retries, recovery and diagnostic display
-
-The defaults in [clients.py](../src/data/clients.py) and
-[orderbook_service.py](../src/domain/orderbook_service.py) are:
-
-- HTTP: three total attempts, ten-second request timeout, exponential backoff
-  starting at 0.5 seconds and capped at eight seconds, plus up to 25% jitter.
-  Request failures, 429, 5xx and malformed JSON retry; other 4xx fail fast.
-  `Retry-After` seconds/HTTP dates establish venue cooldown, including after a
-  final failed attempt. Retry/poll waits are interruptible.
-- WebSocket: ten-second connection timeout, one-second receive timeout,
-  fifteen-second validated-book deadline and thirty-second transport-silence
-  deadline. Ping/pong handling is separate from book validity. Acks/heartbeats
-  do not renew the validated-book deadline. Parser failure closes the connection;
-  reconnect resets adapter state.
-- Three unsuccessful/short WebSocket sessions trigger REST fallback. A session
-  resets the failure counter only after valid book data and at least fifteen
-  seconds of operation. Reconnect backoff is capped at ten seconds before jitter.
-- REST failure backoff is capped at thirty seconds before any larger venue
-  cooldown. WebSocket-capable workers periodically retry WebSocket recovery with
-  a **sixty-second target**, fresh reconstruction and valid-data acceptance.
-  This is not permanent fallback and **not a hard recovery SLA**: in-flight
-  requests, polling waits, retries and `Retry-After` may delay the probe. Request
-  timeouts are not an end-to-end recovery guarantee.
-
-All accepted REST books are explicitly degraded with no event continuity.
-Errors retain a last-known book for diagnostic display when one exists; without
-a book the feed is disconnected. More than fifteen seconds since a monotonic
-accepted observation makes data stale/degraded. Future or old receive timestamps
-cannot establish health. The UI warns when a primary book is last-known/REST
-rather than comparison-eligible.
-
-Spread history is bounded to 1,200 points; depth history to 300 snapshots sampled
-at a two-second interval. Errors clear histories, and source-mode changes or
-stale observation gaps reset history before subsequent samples. This bounds
-those history buffers, **not total application memory**: Coinbase intentionally
-retains its full reconstruction. The legacy heatmap is not the future stable
-historical time/price grid or a durable recording.
-
-**REST polling and partial snapshot streams are not continuous OFI inputs.**
-Bounded spread/depth samples do not recover missing events, and the UI's
-“Bid share (top 10)” is static depth imbalance, not order-flow imbalance. This
-legacy path does not implement the planned continuous-event analytics pipeline.
-There is no no-crash or universal availability guarantee.
-
-## Conservative comparison exclusions
-
-Comparison reports **best observed comparable bid/ask**, not NBBO or guaranteed
-executable prices. Known native-symbol mappings define separate base/quote
-cohorts: Coinbase/Kraken USD and Binance.US/KuCoin/Bybit USDT. There is no implicit
-USD/USDT/USDC parity, conversion or combined mixed-quote result.
-
-Eligibility requires matching venue identity and known product mapping,
-`CONNECTED` status, and finite, nonfuture status/snapshot receive times within
-the default fifteen-second age bound. Within each cohort, observations more than
-the default two seconds behind its newest snapshot are excluded. Bounds are
-configurable. Unknown identity, absent/unhealthy status, stale/future data and
-excessive skew produce visible exclusion reasons. Service-produced REST books
-are degraded and excluded even when useful for an individual diagnostic ladder.
-
-Skew is based on **local receive timestamps**, not synchronized exchange event
-times. Crossed observations are labeled; these observations do not establish a
-simultaneously executable arbitrage, fee-adjusted edge or size-aware fill.
-
-## Source and acceptance references
-
-Implemented behavior is described in:
-
-- [Adapter base](../src/data/adapters/base.py),
-  [Kraken](../src/data/adapters/kraken.py),
-  [Coinbase](../src/data/adapters/coinbase.py),
-  [Binance.US](../src/data/adapters/binance.py),
-  [Bybit](../src/data/adapters/bybit.py) and
-  [KuCoin](../src/data/adapters/kucoin.py).
-- [Snapshot validation](../src/domain/models.py),
-  [session/recovery/comparison service](../src/domain/orderbook_service.py),
-  [UI components](../src/ui/components.py) and
-  [Streamlit ownership](../crypto_lob.py).
-- [Adapter fixtures](../tests/test_adapters.py),
-  [model fixtures](../tests/test_models.py),
-  [resilience fixtures](../tests/test_resilience.py) and
-  [upgrade regressions](../tests/test_upgrade_regressions.py).
-
-Fixtures document expected behavior; their presence is not an execution result.
-The manual REST smoke script is not WebSocket synchronization validation. Read
-[DEVELOPMENT.md](DEVELOPMENT.md) for check commands and the
-[handoff](OMP_UPGRADE_HANDOFF.md) for actually exercised evidence. All remaining
-milestone obligations, including full feed integration, shared subscriptions,
-recording/replay, analytics, terminal parity and operational acceptance, remain
-in the [complete backlog](UPGRADE_BACKLOG.md).
+Regression entrypoint for the integration owner:
+`python -m pytest tests/test_legacy_api_client.py`. Run it with the shared-core
+API/visualization tests and the actual two-document Streamlit smoke above.

@@ -8,9 +8,11 @@ import time
 import pytest
 
 from src.workstation.adapter_catalog import AdapterCatalog
+from src.workstation.adapters.base import wrap_decoded
 from src.workstation.adapters.hyperliquid import HyperliquidAdapter
 from src.workstation.demo import create_demo, demo_source
 from src.workstation.demo_memory import MemoryReplaySource
+from src.workstation.events import RawFrame, SegmentId
 from src.workstation.ingestion import FeedSupervisor
 from src.workstation.instruments import MetadataSnapshot
 from src.workstation.runtime import ClientSession, RuntimeFailure, TerminalRuntime
@@ -174,6 +176,215 @@ def test_live_initial_deliveries_and_quiet_join_preserve_truthful_history(tmp_pa
                 metric["value"] is not None for metric in joined["analytics"]["metrics"]
             )
             assert all(status.reference_count == 2 for status in registry.snapshot())
+        finally:
+            await runtime.close()
+            await registry.close()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("boundary", ("count", "bytes"))
+def test_live_history_retention_evicts_oldest_and_presents_latest_without_future_events(
+    tmp_path, boundary
+):
+    import httpx
+
+    from src.workstation.api import create_app
+
+    count_limit, byte_limit = 4096, 8 * 1024 * 1024
+    events_per_delivery = 1 if boundary == "count" else 512
+
+    async def scenario():
+        runtime, registry, instrument = live_runtime(tmp_path)
+        try:
+            first = await runtime.create("live", "live", str(instrument.instrument_id))
+            async with asyncio.timeout(5):
+                while first.delivery < 4:
+                    await asyncio.sleep(0.001)
+            # A quiet join starts with real book state but no invented history.
+            session = await runtime.create(
+                "live", "live", str(instrument.instrument_id)
+            )
+            assert session.delivery == 0
+            spec = next(
+                spec for spec in session.streams if spec.key.channel == "trades"
+            )
+            adapter = HyperliquidAdapter()
+            clock = session.live_clock.reading
+            assert clock is not None
+
+            def batch(delivery):
+                # Fake only received wire data; retain the native decoder,
+                # envelopes, live observer, analytics and API serialization.
+                raw = RawFrame(
+                    "history-retention",
+                    spec.stream_id,
+                    "history-trades",
+                    1,
+                    clock.clock_id,
+                    delivery,
+                    1700000000000000000 + delivery,
+                    clock.mono_ns + delivery,
+                    "ws",
+                    adapter.ws_endpoint(instrument, spec.key),
+                    json.dumps(
+                        {
+                            "channel": "trades",
+                            "data": [
+                                {
+                                    "coin": instrument.native_symbol,
+                                    "side": "B",
+                                    "px": "60001",
+                                    "sz": "0.1",
+                                    "time": 1700000000000 + delivery,
+                                    "tid": delivery * 1000 + index,
+                                    "hash": f"history-{delivery}-{index}",
+                                }
+                                for index in range(events_per_delivery)
+                            ],
+                        }
+                    ).encode(),
+                )
+                decoded = adapter.decode(raw, instrument, spec.key)
+                assert decoded.error is None, decoded.error
+                events = wrap_decoded(
+                    raw,
+                    instrument,
+                    spec.key,
+                    decoded,
+                    SegmentId("history-retention"),
+                    "ws_snapshot",
+                )
+                assert len(events) == events_per_delivery
+                return events
+
+            def fill_history():
+                sizes = []
+
+                def apply(events):
+                    sizes.append(len(repr(events)))
+                    session._apply_live(events, session.live_books)
+                    assert len(session.history) <= count_limit
+                    assert session.history_bytes <= byte_limit
+                    assert session.history[-1].delivery_index == session.delivery
+                    assert session.history[-1].events == events
+
+                while True:
+                    events = batch(session.delivery + 1)
+                    size = len(repr(events))
+                    assert size < byte_limit
+                    if boundary == "count":
+                        # Ensure this really exercises the delivery-count bound,
+                        # not an earlier byte eviction.
+                        assert session.history_bytes + size < byte_limit
+                        at_boundary = session.delivery == count_limit
+                    else:
+                        assert session.delivery < count_limit
+                        at_boundary = session.history_bytes + size > byte_limit
+                    if at_boundary:
+                        break
+                    apply(events)
+
+                assert session.history_floor == 1
+                assert session.history[0].delivery_index == 1
+                assert len(session.history) == session.delivery
+                assert session.history_bytes == sum(sizes)
+                if boundary == "count":
+                    assert len(session.history) == count_limit
+                else:
+                    assert session.history_bytes <= byte_limit
+                    assert session.history_bytes + size > byte_limit
+
+                apply(events)
+                assert session.history_floor > 1
+                # Continue after overflow: retaining latest is an ongoing
+                # guarantee, not just a one-time eviction.
+                apply(batch(session.delivery + 1))
+                apply(batch(session.delivery + 1))
+                retained_bytes = sum(sizes)
+                evicted = 0
+                while len(sizes) - evicted > count_limit or retained_bytes > byte_limit:
+                    retained_bytes -= sizes[evicted]
+                    evicted += 1
+                assert session.history_floor == evicted + 1
+                assert [entry.delivery_index for entry in session.history] == list(
+                    range(evicted + 1, session.delivery + 1)
+                )
+                assert list(session.history_sizes) == sizes[evicted:]
+                assert session.history_bytes == retained_bytes
+                if boundary == "count":
+                    assert evicted == 3
+                    assert len(session.history) == count_limit
+                else:
+                    assert len(session.history) < count_limit
+                for entry in session.history:
+                    assert all(
+                        event.ingest_ordinal == entry.delivery_index
+                        for event in entry.events
+                    )
+
+            async with session.lock:
+                await session.work(fill_history)
+
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=create_app(runtime)),
+                base_url="http://127.0.0.1",
+            ) as client:
+
+                async def history(start, end):
+                    response = await client.get(
+                        "/api/v1/history",
+                        params={
+                            "session_id": session.id,
+                            "generation": str(session.generation),
+                            "start_delivery": start,
+                            "end_delivery": end,
+                            "limit": 1000,
+                        },
+                    )
+                    assert response.status_code == 200
+                    result = response.json()
+                    assert result["generation"] == str(session.generation)
+                    assert result["cursor"] == str(session.delivery)
+                    return result
+
+                def assert_delivery(result, delivery):
+                    events = result["events"]
+                    assert len(events) == events_per_delivery
+                    assert [event["payload"]["trade_id"] for event in events] == [
+                        str(delivery * 1000 + index)
+                        for index in range(events_per_delivery)
+                    ]
+                    assert all(
+                        event["ingest_ordinal"] == str(delivery)
+                        and event["key"]["instrument_id"]
+                        == str(instrument.instrument_id)
+                        and event["payload"]["price"] == "60001"
+                        and event["payload"]["quantity"] == "0.1"
+                        for event in events
+                    )
+
+                floor = session.history_floor
+                assert 1 < floor < session.delivery
+                lost_prefix = await history(1, floor)
+                assert_delivery(lost_prefix, floor)
+                assert lost_prefix["truncated"] is True
+                evicted_only = await history(1, floor - 1)
+                assert evicted_only["events"] == []
+                assert evicted_only["truncated"] is True
+
+                # Later retained batches must not leak into a bounded query.
+                bounded = await history(floor, floor)
+                assert_delivery(bounded, floor)
+                assert bounded["truncated"] is False
+                assert bounded["events"] == lost_prefix["events"]
+
+                latest = await history(session.delivery, 10**18)
+                assert_delivery(latest, session.delivery)
+                assert latest["truncated"] is False
+                future = await history(session.delivery + 1, 10**18)
+                assert future["events"] == []
+                assert future["truncated"] is False
         finally:
             await runtime.close()
             await registry.close()

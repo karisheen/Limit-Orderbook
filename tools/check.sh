@@ -16,9 +16,9 @@ fi
 "${PYTHON[@]}" -c 'import sys; sys.exit(0 if sys.version_info[:2] == (3, 13) else "Python 3.13 is required")'
 "${PYTHON[@]}" -m pytest "$@" -m 'not network'
 
-# The baseline legacy sources remain test-covered without a wholesale reformat.
-# Include new workstation tests and native CLI tools as they are introduced.
-RUFF_PATHS=(src/workstation)
+# Both observation clients use the workstation core; keep the thin legacy
+# presentation and its protocol-boundary regressions inside the quality gate.
+RUFF_PATHS=(src/workstation src/ui crypto_lob.py tests/test_legacy_api_client.py)
 shopt -s nullglob
 for path in tests/test_workstation*.py tests/test_recording*.py tests/test_replay*.py tools/*.py; do
     if [[ "$path" != tools/connector_spike.py ]]; then
@@ -33,6 +33,9 @@ if [[ -f frontend/package.json ]]; then
     if [[ -x "$ROOT/.tools/node/bin/node" ]]; then
         export PATH="$ROOT/.tools/node/bin:$PATH"
     fi
+    for script in tools/*.mjs; do
+        node --check "$script"
+    done
     npm --prefix frontend run lint
     npm --prefix frontend test
     npm --prefix frontend run build

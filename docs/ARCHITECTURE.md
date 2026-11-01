@@ -1,12 +1,12 @@
 # Workstation architecture and decisions
 
-Status: **M0 decisions; not a claim that M1–M6 are implemented.** The authoritative product brief is `LIMIT_ORDERBOOK_OMP_UPGRADE_PROMPT.md`. This increment preserves the runnable legacy application, records regressions and establishes a shared implementation contract. Acceptance work is tracked in [UPGRADE_BACKLOG.md](UPGRADE_BACKLOG.md); exact planned Python interfaces are in [CONTRACTS.md](CONTRACTS.md). Commands, actual checks and Git delivery belong in [OMP_UPGRADE_HANDOFF.md](OMP_UPGRADE_HANDOFF.md). Read-only architecture inspection found no applicable `AGENTS.md` in this checkout or its ancestors.
+Status: **living architecture through the M4 integration; not certification of M5–M6 or operational readiness.** The authoritative product brief is `LIMIT_ORDERBOOK_OMP_UPGRADE_PROMPT.md`. The baseline audit below is retained historical evidence; M4 replaces the duplicate legacy engine with a thin native-API client. Acceptance work is tracked in [UPGRADE_BACKLOG.md](UPGRADE_BACKLOG.md); shared interfaces are in [CONTRACTS.md](CONTRACTS.md). Commands, actual checks and Git delivery belong in [OMP_UPGRADE_HANDOFF.md](OMP_UPGRADE_HANDOFF.md). The baseline inspection found no applicable `AGENTS.md` in this checkout or its ancestors.
 
 ## Actual baseline audit
 
 The audited starting point is `e7dceaf9492e4b5413ea3a972b66db7474b0232f`. The integration owner reports 35 baseline offline tests passing in Python 3.9 with a LibreSSL warning. That is baseline evidence, not a feed-integrity or trading-readiness certification. M0 provisioning and access/spike results are recorded separately by the integration owner; no timing result below is asserted without evidence.
 
-Current data flow:
+Audited baseline data flow (retired by the M4 cutover):
 
 ```text
 crypto_lob.py (cached Streamlit service)
@@ -56,7 +56,7 @@ Bounded required-event queues never silently discard book deltas or analytical t
 
 **Alternatives:** keep threaded shared mutable service (rejected: browser ownership/races and weak replay boundary); browser-owned collection (rejected: recording/analytics would depend on rendering); distributed collectors (unnecessary local complexity).
 
-**Migration:** keep Streamlit runnable during cutover. Port its data access to the exact core when available, then use the same analytics results in both views; do not create a second indicator engine. Legacy source remains until replaced end-to-end; feature-parity terminal changes its status to explicitly supported legacy. Existing float contracts are not promoted into the new domain. No matching engine, credentials, wallet/signing, exchange execution or deployment is introduced.
+**Migration:** M4 ports Streamlit to the same versioned loopback API, exact core, server analytics, historical grids and cost results used by React. The duplicate legacy collectors/reducers/analytics and their obsolete dependencies are removed; useful corruption/recovery coverage is migrated to native tests. Streamlit remains an explicitly supported observation client with document-local API ownership, not a second ingestion engine. Existing float contracts are not promoted into the domain. No matching engine, credentials, wallet/signing, exchange execution or deployment is introduced. Actual browser verification and milestone status belong in the handoff.
 
 ## ADR-002 — Direct adapters selected; library reuse evaluated against exact contracts
 

@@ -1,0 +1,1691 @@
+{
+  "source": "/tmp/limit-orderbook-m3-soak-dbf20bd/data/m3-live-soak/run-imq8x6y9/store/5373d88a-27e1-447e-8fd4-2005f5511252",
+  "manifest_sha256": "95c254077b622c29efc86c9d159482aef7b8141434db50bc77ec1fd584d829dd",
+  "python": "3.13.5 (main, Jul 23 2025, 00:30:58) [Clang 20.1.4 ]",
+  "platform": "macOS-13.7.8-x86_64-i386-64bit-Mach-O",
+  "baseline_wire_sha256": "addafd6a9e6d677751cba2fc0d4613bcb571b4b03dd81dc1d28e25faad012737",
+  "candidate_source_sha256": {
+    "src/workstation/wire.py": "45f09374e4ef4afdf9c3278992b17e5ebc433eaf11ac9835de4dfc2fee7f05e0",
+    "src/workstation/projection.py": "f36753759de852eea545932a1723b749257e74b013f01c057be447de6bb101b8",
+    "src/workstation/recording.py": "d8eb36135b80e64008641881e9138f332222006ceaa10a8c8c60ccfc9cea73aa",
+    "src/workstation/book.py": "f908201f41719b1d7726af4a38df0a3a166660c7312d21c4e9428e63053e4a74"
+  },
+  "scope": "Same restored real checkpoints; alternate pinned baseline/current recursive wire converters through production entrypoints, including nested serialization. No market data changes, disk/fsync load, or live-capacity claim.",
+  "limitations": [
+    "Incomplete source retained honestly.",
+    "Three interleaved forced-cold samples per variant and checkpoint are diagnostic, not latency percentiles.",
+    "Tracemalloc is a separate perturbed pass measuring traced Python allocation peak, not process RSS.",
+    "Baseline and candidate share current unchanged domain classes and public wire envelopes; recursive converters retain their own module globals and memo policies."
+  ],
+  "cases": [
+    {
+      "delivery": 1000,
+      "books": [
+        {
+          "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+          "bids": 4999,
+          "asks": 5000
+        },
+        {
+          "instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+          "bids": 4831,
+          "asks": 5000
+        },
+        {
+          "instrument_id": "hyperliquid:info:perpetual:SOL",
+          "bids": 20,
+          "asks": 20
+        },
+        {
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+          "bids": 5003,
+          "asks": 4987
+        },
+        {
+          "instrument_id": "hyperliquid:info:perpetual:BTC",
+          "bids": 20,
+          "asks": 20
+        },
+        {
+          "instrument_id": "hyperliquid:info:perpetual:ETH",
+          "bids": 20,
+          "asks": 20
+        }
+      ],
+      "variants": {
+        "baseline": {
+          "rounds": [
+            {
+              "stages": {
+                "native_checkpoints_ms": 320.498208,
+                "auxiliary_state_ms": 0.955321,
+                "checkpoint_wire_ms": 225.506435,
+                "auxiliary_wire_ms": 0.758451,
+                "checkpoint_gzip_ms": 53.788085,
+                "auxiliary_gzip_ms": 0.304055
+              },
+              "total_ms": 601.810555,
+              "bytes": {
+                "checkpoint": 7342857,
+                "auxiliary": 71442,
+                "checkpoint_gzip": 780021,
+                "auxiliary_gzip": 7381
+              },
+              "sha256": {
+                "checkpoint": "9127accbee42ba8a5ae2bbc340a499a1dab11f85a04a535a4196d746e111be31",
+                "auxiliary": "7902eee2c8bc2f6d261bb9bc75cef7f5cd3eb2bf3a4adbc633b16d985a035938",
+                "checkpoint_gzip": "7885b3dfab066ff32364f1b6754f972462aad327e4d12e657195fd733237ef69",
+                "auxiliary_gzip": "ecf1dfb07e6b667ee7005d397f9ff76fc284ac27a708329298df592a0f2eb71b"
+              }
+            },
+            {
+              "stages": {
+                "native_checkpoints_ms": 321.218694,
+                "auxiliary_state_ms": 1.049574,
+                "checkpoint_wire_ms": 218.566293,
+                "auxiliary_wire_ms": 0.641236,
+                "checkpoint_gzip_ms": 39.580907,
+                "auxiliary_gzip_ms": 0.277309
+              },
+              "total_ms": 581.334013,
+              "bytes": {
+                "checkpoint": 7342857,
+                "auxiliary": 71442,
+                "checkpoint_gzip": 780021,
+                "auxiliary_gzip": 7381
+              },
+              "sha256": {
+                "checkpoint": "9127accbee42ba8a5ae2bbc340a499a1dab11f85a04a535a4196d746e111be31",
+                "auxiliary": "7902eee2c8bc2f6d261bb9bc75cef7f5cd3eb2bf3a4adbc633b16d985a035938",
+                "checkpoint_gzip": "7885b3dfab066ff32364f1b6754f972462aad327e4d12e657195fd733237ef69",
+                "auxiliary_gzip": "ecf1dfb07e6b667ee7005d397f9ff76fc284ac27a708329298df592a0f2eb71b"
+              }
+            },
+            {
+              "stages": {
+                "native_checkpoints_ms": 330.513489,
+                "auxiliary_state_ms": 0.955248,
+                "checkpoint_wire_ms": 245.333895,
+                "auxiliary_wire_ms": 0.458652,
+                "checkpoint_gzip_ms": 40.159214,
+                "auxiliary_gzip_ms": 0.282712
+              },
+              "total_ms": 617.70321,
+              "bytes": {
+                "checkpoint": 7342857,
+                "auxiliary": 71442,
+                "checkpoint_gzip": 780021,
+                "auxiliary_gzip": 7381
+              },
+              "sha256": {
+                "checkpoint": "9127accbee42ba8a5ae2bbc340a499a1dab11f85a04a535a4196d746e111be31",
+                "auxiliary": "7902eee2c8bc2f6d261bb9bc75cef7f5cd3eb2bf3a4adbc633b16d985a035938",
+                "checkpoint_gzip": "7885b3dfab066ff32364f1b6754f972462aad327e4d12e657195fd733237ef69",
+                "auxiliary_gzip": "ecf1dfb07e6b667ee7005d397f9ff76fc284ac27a708329298df592a0f2eb71b"
+              }
+            }
+          ],
+          "profiled_round": {
+            "stages": {
+              "native_checkpoints_ms": 1171.593907,
+              "auxiliary_state_ms": 3.459445,
+              "checkpoint_wire_ms": 708.148631,
+              "auxiliary_wire_ms": 0.475118,
+              "checkpoint_gzip_ms": 39.553899,
+              "auxiliary_gzip_ms": 0.287718
+            },
+            "total_ms": 1923.518718,
+            "bytes": {
+              "checkpoint": 7342857,
+              "auxiliary": 71442,
+              "checkpoint_gzip": 780021,
+              "auxiliary_gzip": 7381
+            },
+            "sha256": {
+              "checkpoint": "9127accbee42ba8a5ae2bbc340a499a1dab11f85a04a535a4196d746e111be31",
+              "auxiliary": "7902eee2c8bc2f6d261bb9bc75cef7f5cd3eb2bf3a4adbc633b16d985a035938",
+              "checkpoint_gzip": "7885b3dfab066ff32364f1b6754f972462aad327e4d12e657195fd733237ef69",
+              "auxiliary_gzip": "ecf1dfb07e6b667ee7005d397f9ff76fc284ac27a708329298df592a0f2eb71b"
+            }
+          },
+          "profile_top": [
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/compare_wire_capacity.py",
+              "line": 53,
+              "function": "exercise",
+              "calls": 1,
+              "self_seconds": 5.4453e-05,
+              "cumulative_seconds": 1.943175649
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/compare_wire_capacity.py",
+              "line": 56,
+              "function": "measure",
+              "calls": 6,
+              "self_seconds": 4.2800000000000004e-05,
+              "cumulative_seconds": 1.9235427610000002
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/wire.py",
+              "line": 202,
+              "function": "dumps",
+              "calls": 26,
+              "self_seconds": 0.00750266,
+              "cumulative_seconds": 1.834613343
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/wire.py",
+              "line": 55,
+              "function": "to_wire",
+              "calls": 26,
+              "self_seconds": 0.0014079040000000002,
+              "cumulative_seconds": 1.722915482
+            },
+            {
+              "file": "/private/tmp/limit-orderbook-m3-soak-dbf20bd/src/workstation/wire.py",
+              "line": 62,
+              "function": "_to_wire",
+              "calls": 274637,
+              "self_seconds": 0.784282424,
+              "cumulative_seconds": 1.7215075780000002
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/projection.py",
+              "line": 226,
+              "function": "checkpoints",
+              "calls": 1,
+              "self_seconds": 1.091e-05,
+              "cumulative_seconds": 1.1715896620000001
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/projection.py",
+              "line": 220,
+              "function": "_checkpoints",
+              "calls": 2,
+              "self_seconds": 6.8823e-05,
+              "cumulative_seconds": 1.171574198
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/book.py",
+              "line": 809,
+              "function": "checkpoint",
+              "calls": 12,
+              "self_seconds": 0.0012279740000000002,
+              "cumulative_seconds": 1.171504581
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/compare_wire_capacity.py",
+              "line": 63,
+              "function": "<lambda>",
+              "calls": 1,
+              "self_seconds": 5.53e-06,
+              "cumulative_seconds": 0.708143489
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<method 'join' of 'bytes' objects>",
+              "calls": 1,
+              "self_seconds": 0.0022117020000000003,
+              "cumulative_seconds": 0.7081379590000001
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/compare_wire_capacity.py",
+              "line": 63,
+              "function": "<genexpr>",
+              "calls": 13,
+              "self_seconds": 0.001482489,
+              "cumulative_seconds": 0.705926257
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/precision.py",
+              "line": 42,
+              "function": "decimal",
+              "calls": 98448,
+              "self_seconds": 0.30793363,
+              "cumulative_seconds": 0.5997637730000001
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<built-in method builtins.isinstance>",
+              "calls": 1244311,
+              "self_seconds": 0.206512772,
+              "cumulative_seconds": 0.206512772
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<method 'as_tuple' of 'decimal.Decimal' objects>",
+              "calls": 98448,
+              "self_seconds": 0.080357434,
+              "cumulative_seconds": 0.13871750600000002
+            },
+            {
+              "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/json/__init__.py",
+              "line": 183,
+              "function": "dumps",
+              "calls": 26,
+              "self_seconds": 0.00014955100000000002,
+              "cumulative_seconds": 0.102194871
+            },
+            {
+              "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/json/encoder.py",
+              "line": 183,
+              "function": "encode",
+              "calls": 26,
+              "self_seconds": 0.000122221,
+              "cumulative_seconds": 0.10199819600000001
+            },
+            {
+              "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/json/encoder.py",
+              "line": 205,
+              "function": "iterencode",
+              "calls": 26,
+              "self_seconds": 0.101827149,
+              "cumulative_seconds": 0.101827149
+            },
+            {
+              "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/dataclasses.py",
+              "line": 1331,
+              "function": "is_dataclass",
+              "calls": 90841,
+              "self_seconds": 0.059503322000000004,
+              "cumulative_seconds": 0.08908719100000001
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<method 'get' of 'dict' objects>",
+              "calls": 179940,
+              "self_seconds": 0.061211828,
+              "cumulative_seconds": 0.061211828
+            },
+            {
+              "file": "<string>",
+              "line": 1,
+              "function": "<lambda>",
+              "calls": 98448,
+              "self_seconds": 0.033865668,
+              "cumulative_seconds": 0.058360072000000006
+            }
+          ],
+          "traced_python_peak_bytes": 18785351
+        },
+        "candidate": {
+          "rounds": [
+            {
+              "stages": {
+                "native_checkpoints_ms": 363.759002,
+                "auxiliary_state_ms": 3.854201,
+                "checkpoint_wire_ms": 258.576429,
+                "auxiliary_wire_ms": 0.569233,
+                "checkpoint_gzip_ms": 40.342472,
+                "auxiliary_gzip_ms": 0.282141
+              },
+              "total_ms": 667.3834780000001,
+              "bytes": {
+                "checkpoint": 7342857,
+                "auxiliary": 71442,
+                "checkpoint_gzip": 780021,
+                "auxiliary_gzip": 7381
+              },
+              "sha256": {
+                "checkpoint": "9127accbee42ba8a5ae2bbc340a499a1dab11f85a04a535a4196d746e111be31",
+                "auxiliary": "7902eee2c8bc2f6d261bb9bc75cef7f5cd3eb2bf3a4adbc633b16d985a035938",
+                "checkpoint_gzip": "7885b3dfab066ff32364f1b6754f972462aad327e4d12e657195fd733237ef69",
+                "auxiliary_gzip": "ecf1dfb07e6b667ee7005d397f9ff76fc284ac27a708329298df592a0f2eb71b"
+              }
+            },
+            {
+              "stages": {
+                "native_checkpoints_ms": 311.149738,
+                "auxiliary_state_ms": 1.828578,
+                "checkpoint_wire_ms": 243.811312,
+                "auxiliary_wire_ms": 0.4591,
+                "checkpoint_gzip_ms": 43.728056,
+                "auxiliary_gzip_ms": 0.281893
+              },
+              "total_ms": 601.258677,
+              "bytes": {
+                "checkpoint": 7342857,
+                "auxiliary": 71442,
+                "checkpoint_gzip": 780021,
+                "auxiliary_gzip": 7381
+              },
+              "sha256": {
+                "checkpoint": "9127accbee42ba8a5ae2bbc340a499a1dab11f85a04a535a4196d746e111be31",
+                "auxiliary": "7902eee2c8bc2f6d261bb9bc75cef7f5cd3eb2bf3a4adbc633b16d985a035938",
+                "checkpoint_gzip": "7885b3dfab066ff32364f1b6754f972462aad327e4d12e657195fd733237ef69",
+                "auxiliary_gzip": "ecf1dfb07e6b667ee7005d397f9ff76fc284ac27a708329298df592a0f2eb71b"
+              }
+            },
+            {
+              "stages": {
+                "native_checkpoints_ms": 297.472611,
+                "auxiliary_state_ms": 1.029226,
+                "checkpoint_wire_ms": 213.505118,
+                "auxiliary_wire_ms": 0.439165,
+                "checkpoint_gzip_ms": 38.403479,
+                "auxiliary_gzip_ms": 0.27526
+              },
+              "total_ms": 551.124859,
+              "bytes": {
+                "checkpoint": 7342857,
+                "auxiliary": 71442,
+                "checkpoint_gzip": 780021,
+                "auxiliary_gzip": 7381
+              },
+              "sha256": {
+                "checkpoint": "9127accbee42ba8a5ae2bbc340a499a1dab11f85a04a535a4196d746e111be31",
+                "auxiliary": "7902eee2c8bc2f6d261bb9bc75cef7f5cd3eb2bf3a4adbc633b16d985a035938",
+                "checkpoint_gzip": "7885b3dfab066ff32364f1b6754f972462aad327e4d12e657195fd733237ef69",
+                "auxiliary_gzip": "ecf1dfb07e6b667ee7005d397f9ff76fc284ac27a708329298df592a0f2eb71b"
+              }
+            }
+          ],
+          "profiled_round": {
+            "stages": {
+              "native_checkpoints_ms": 1061.307875,
+              "auxiliary_state_ms": 3.781139,
+              "checkpoint_wire_ms": 785.654376,
+              "auxiliary_wire_ms": 0.431838,
+              "checkpoint_gzip_ms": 44.504698,
+              "auxiliary_gzip_ms": 0.293003
+            },
+            "total_ms": 1895.972929,
+            "bytes": {
+              "checkpoint": 7342857,
+              "auxiliary": 71442,
+              "checkpoint_gzip": 780021,
+              "auxiliary_gzip": 7381
+            },
+            "sha256": {
+              "checkpoint": "9127accbee42ba8a5ae2bbc340a499a1dab11f85a04a535a4196d746e111be31",
+              "auxiliary": "7902eee2c8bc2f6d261bb9bc75cef7f5cd3eb2bf3a4adbc633b16d985a035938",
+              "checkpoint_gzip": "7885b3dfab066ff32364f1b6754f972462aad327e4d12e657195fd733237ef69",
+              "auxiliary_gzip": "ecf1dfb07e6b667ee7005d397f9ff76fc284ac27a708329298df592a0f2eb71b"
+            }
+          },
+          "profile_top": [
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/compare_wire_capacity.py",
+              "line": 53,
+              "function": "exercise",
+              "calls": 1,
+              "self_seconds": 5.1909e-05,
+              "cumulative_seconds": 1.9167470930000001
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/compare_wire_capacity.py",
+              "line": 56,
+              "function": "measure",
+              "calls": 6,
+              "self_seconds": 4.2037000000000004e-05,
+              "cumulative_seconds": 1.895996194
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/wire.py",
+              "line": 202,
+              "function": "dumps",
+              "calls": 26,
+              "self_seconds": 0.007507747,
+              "cumulative_seconds": 1.804196055
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/wire.py",
+              "line": 55,
+              "function": "to_wire",
+              "calls": 26,
+              "self_seconds": 0.0008085120000000001,
+              "cumulative_seconds": 1.68884724
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/wire.py",
+              "line": 67,
+              "function": "_to_wire",
+              "calls": 274637,
+              "self_seconds": 0.8036726590000001,
+              "cumulative_seconds": 1.6880387280000002
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/projection.py",
+              "line": 226,
+              "function": "checkpoints",
+              "calls": 1,
+              "self_seconds": 1.0334000000000001e-05,
+              "cumulative_seconds": 1.061303821
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/projection.py",
+              "line": 220,
+              "function": "_checkpoints",
+              "calls": 2,
+              "self_seconds": 4.9066e-05,
+              "cumulative_seconds": 1.0612889170000002
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/book.py",
+              "line": 809,
+              "function": "checkpoint",
+              "calls": 12,
+              "self_seconds": 0.00016773300000000002,
+              "cumulative_seconds": 1.0612388320000001
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/compare_wire_capacity.py",
+              "line": 63,
+              "function": "<lambda>",
+              "calls": 1,
+              "self_seconds": 6.423e-06,
+              "cumulative_seconds": 0.7856489200000001
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<method 'join' of 'bytes' objects>",
+              "calls": 1,
+              "self_seconds": 0.004936566000000001,
+              "cumulative_seconds": 0.785642497
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/compare_wire_capacity.py",
+              "line": 63,
+              "function": "<genexpr>",
+              "calls": 13,
+              "self_seconds": 0.001098288,
+              "cumulative_seconds": 0.7807059310000001
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/precision.py",
+              "line": 42,
+              "function": "decimal",
+              "calls": 80949,
+              "self_seconds": 0.264791092,
+              "cumulative_seconds": 0.516581643
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<built-in method builtins.isinstance>",
+              "calls": 1174315,
+              "self_seconds": 0.196757181,
+              "cumulative_seconds": 0.196757181
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<method 'as_tuple' of 'decimal.Decimal' objects>",
+              "calls": 80949,
+              "self_seconds": 0.06987275200000001,
+              "cumulative_seconds": 0.12146187000000001
+            },
+            {
+              "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/json/__init__.py",
+              "line": 183,
+              "function": "dumps",
+              "calls": 26,
+              "self_seconds": 0.000146469,
+              "cumulative_seconds": 0.106014438
+            },
+            {
+              "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/json/encoder.py",
+              "line": 183,
+              "function": "encode",
+              "calls": 26,
+              "self_seconds": 0.000119519,
+              "cumulative_seconds": 0.10583026300000001
+            },
+            {
+              "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/json/encoder.py",
+              "line": 205,
+              "function": "iterencode",
+              "calls": 26,
+              "self_seconds": 0.10567063,
+              "cumulative_seconds": 0.10567063
+            },
+            {
+              "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/dataclasses.py",
+              "line": 1331,
+              "function": "is_dataclass",
+              "calls": 90841,
+              "self_seconds": 0.059897995,
+              "cumulative_seconds": 0.090659025
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<method 'get' of 'dict' objects>",
+              "calls": 179940,
+              "self_seconds": 0.06704208,
+              "cumulative_seconds": 0.06704208
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<built-in method builtins.len>",
+              "calls": 323904,
+              "self_seconds": 0.054639355,
+              "cumulative_seconds": 0.054639355
+            }
+          ],
+          "traced_python_peak_bytes": 18785098
+        }
+      },
+      "exact_wire_and_gzip_parity": true
+    },
+    {
+      "delivery": 65000,
+      "books": [
+        {
+          "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+          "bids": 4937,
+          "asks": 5077
+        },
+        {
+          "instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+          "bids": 4812,
+          "asks": 5019
+        },
+        {
+          "instrument_id": "hyperliquid:info:perpetual:SOL",
+          "bids": 20,
+          "asks": 20
+        },
+        {
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+          "bids": 4944,
+          "asks": 5027
+        },
+        {
+          "instrument_id": "hyperliquid:info:perpetual:BTC",
+          "bids": 20,
+          "asks": 20
+        },
+        {
+          "instrument_id": "hyperliquid:info:perpetual:ETH",
+          "bids": 20,
+          "asks": 20
+        }
+      ],
+      "variants": {
+        "baseline": {
+          "rounds": [
+            {
+              "stages": {
+                "native_checkpoints_ms": 333.476573,
+                "auxiliary_state_ms": 133.893786,
+                "checkpoint_wire_ms": 218.333755,
+                "auxiliary_wire_ms": 36.254226,
+                "checkpoint_gzip_ms": 39.150188,
+                "auxiliary_gzip_ms": 15.039589
+              },
+              "total_ms": 776.148117,
+              "bytes": {
+                "checkpoint": 7327852,
+                "auxiliary": 4818562,
+                "checkpoint_gzip": 776693,
+                "auxiliary_gzip": 239740
+              },
+              "sha256": {
+                "checkpoint": "b4116a8fdc250c5b67560556f474cf4b4e777ee49086ce852ad6768fef2c2c99",
+                "auxiliary": "0d45bc35c5b774c41d3aa4a395ac88fe8683285a99646c541dce3ab92881a165",
+                "checkpoint_gzip": "bb556146ab310986608573bacb7a44ba745494152e5249a0986590517c245520",
+                "auxiliary_gzip": "457d2b4de1d72cee27d305be00cef0fd9687f466aa96e72aff311b2147837809"
+              }
+            },
+            {
+              "stages": {
+                "native_checkpoints_ms": 321.607522,
+                "auxiliary_state_ms": 74.153512,
+                "checkpoint_wire_ms": 217.776342,
+                "auxiliary_wire_ms": 35.936302,
+                "checkpoint_gzip_ms": 38.937345,
+                "auxiliary_gzip_ms": 12.922231
+              },
+              "total_ms": 701.333254,
+              "bytes": {
+                "checkpoint": 7327852,
+                "auxiliary": 4818562,
+                "checkpoint_gzip": 776693,
+                "auxiliary_gzip": 239740
+              },
+              "sha256": {
+                "checkpoint": "b4116a8fdc250c5b67560556f474cf4b4e777ee49086ce852ad6768fef2c2c99",
+                "auxiliary": "0d45bc35c5b774c41d3aa4a395ac88fe8683285a99646c541dce3ab92881a165",
+                "checkpoint_gzip": "bb556146ab310986608573bacb7a44ba745494152e5249a0986590517c245520",
+                "auxiliary_gzip": "457d2b4de1d72cee27d305be00cef0fd9687f466aa96e72aff311b2147837809"
+              }
+            },
+            {
+              "stages": {
+                "native_checkpoints_ms": 331.518055,
+                "auxiliary_state_ms": 110.541662,
+                "checkpoint_wire_ms": 231.859151,
+                "auxiliary_wire_ms": 34.422848,
+                "checkpoint_gzip_ms": 39.056027,
+                "auxiliary_gzip_ms": 15.243321
+              },
+              "total_ms": 762.641064,
+              "bytes": {
+                "checkpoint": 7327852,
+                "auxiliary": 4818562,
+                "checkpoint_gzip": 776693,
+                "auxiliary_gzip": 239740
+              },
+              "sha256": {
+                "checkpoint": "b4116a8fdc250c5b67560556f474cf4b4e777ee49086ce852ad6768fef2c2c99",
+                "auxiliary": "0d45bc35c5b774c41d3aa4a395ac88fe8683285a99646c541dce3ab92881a165",
+                "checkpoint_gzip": "bb556146ab310986608573bacb7a44ba745494152e5249a0986590517c245520",
+                "auxiliary_gzip": "457d2b4de1d72cee27d305be00cef0fd9687f466aa96e72aff311b2147837809"
+              }
+            }
+          ],
+          "profiled_round": {
+            "stages": {
+              "native_checkpoints_ms": 1181.083526,
+              "auxiliary_state_ms": 240.761002,
+              "checkpoint_wire_ms": 708.607722,
+              "auxiliary_wire_ms": 32.805972,
+              "checkpoint_gzip_ms": 48.8866,
+              "auxiliary_gzip_ms": 14.672911
+            },
+            "total_ms": 2226.817733,
+            "bytes": {
+              "checkpoint": 7327852,
+              "auxiliary": 4818562,
+              "checkpoint_gzip": 776693,
+              "auxiliary_gzip": 239740
+            },
+            "sha256": {
+              "checkpoint": "b4116a8fdc250c5b67560556f474cf4b4e777ee49086ce852ad6768fef2c2c99",
+              "auxiliary": "0d45bc35c5b774c41d3aa4a395ac88fe8683285a99646c541dce3ab92881a165",
+              "checkpoint_gzip": "bb556146ab310986608573bacb7a44ba745494152e5249a0986590517c245520",
+              "auxiliary_gzip": "457d2b4de1d72cee27d305be00cef0fd9687f466aa96e72aff311b2147837809"
+            }
+          },
+          "profile_top": [
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/compare_wire_capacity.py",
+              "line": 53,
+              "function": "exercise",
+              "calls": 1,
+              "self_seconds": 8.0851e-05,
+              "cumulative_seconds": 2.258850706
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/compare_wire_capacity.py",
+              "line": 56,
+              "function": "measure",
+              "calls": 6,
+              "self_seconds": 6.2611e-05,
+              "cumulative_seconds": 2.226854195
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/wire.py",
+              "line": 202,
+              "function": "dumps",
+              "calls": 26,
+              "self_seconds": 0.013206757000000001,
+              "cumulative_seconds": 2.111012924
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/wire.py",
+              "line": 55,
+              "function": "to_wire",
+              "calls": 26,
+              "self_seconds": 0.0021844990000000003,
+              "cumulative_seconds": 1.9401791220000002
+            },
+            {
+              "file": "/private/tmp/limit-orderbook-m3-soak-dbf20bd/src/workstation/wire.py",
+              "line": 62,
+              "function": "_to_wire",
+              "calls": 423428,
+              "self_seconds": 0.9226284680000001,
+              "cumulative_seconds": 1.937994623
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/projection.py",
+              "line": 226,
+              "function": "checkpoints",
+              "calls": 1,
+              "self_seconds": 1.0198000000000001e-05,
+              "cumulative_seconds": 1.1810795490000001
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/projection.py",
+              "line": 220,
+              "function": "_checkpoints",
+              "calls": 2,
+              "self_seconds": 4.4126000000000004e-05,
+              "cumulative_seconds": 1.181064831
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/book.py",
+              "line": 809,
+              "function": "checkpoint",
+              "calls": 12,
+              "self_seconds": 0.00016668500000000002,
+              "cumulative_seconds": 1.181019601
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/compare_wire_capacity.py",
+              "line": 63,
+              "function": "<lambda>",
+              "calls": 1,
+              "self_seconds": 1.0161000000000001e-05,
+              "cumulative_seconds": 0.7086011280000001
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<method 'join' of 'bytes' objects>",
+              "calls": 1,
+              "self_seconds": 0.005422647,
+              "cumulative_seconds": 0.708590967
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/compare_wire_capacity.py",
+              "line": 63,
+              "function": "<genexpr>",
+              "calls": 13,
+              "self_seconds": 0.001970659,
+              "cumulative_seconds": 0.7031683200000001
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/precision.py",
+              "line": 42,
+              "function": "decimal",
+              "calls": 98199,
+              "self_seconds": 0.30384882700000004,
+              "cumulative_seconds": 0.594212277
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<built-in method builtins.isinstance>",
+              "calls": 1570769,
+              "self_seconds": 0.256170891,
+              "cumulative_seconds": 0.256170891
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/projection.py",
+              "line": 233,
+              "function": "checkpoint_state",
+              "calls": 1,
+              "self_seconds": 0.0028015690000000003,
+              "cumulative_seconds": 0.24075362600000003
+            },
+            {
+              "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/json/__init__.py",
+              "line": 183,
+              "function": "dumps",
+              "calls": 26,
+              "self_seconds": 0.000149657,
+              "cumulative_seconds": 0.15350395
+            },
+            {
+              "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/json/encoder.py",
+              "line": 183,
+              "function": "encode",
+              "calls": 26,
+              "self_seconds": 0.000137992,
+              "cumulative_seconds": 0.153313166
+            },
+            {
+              "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/json/encoder.py",
+              "line": 205,
+              "function": "iterencode",
+              "calls": 26,
+              "self_seconds": 0.153130234,
+              "cumulative_seconds": 0.153130234
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<method 'as_tuple' of 'decimal.Decimal' objects>",
+              "calls": 98199,
+              "self_seconds": 0.079756835,
+              "cumulative_seconds": 0.138223158
+            },
+            {
+              "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/dataclasses.py",
+              "line": 1331,
+              "function": "is_dataclass",
+              "calls": 120608,
+              "self_seconds": 0.07574565300000001,
+              "cumulative_seconds": 0.114009015
+            },
+            {
+              "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/gzip.py",
+              "line": 600,
+              "function": "compress",
+              "calls": 2,
+              "self_seconds": 0.0013904520000000001,
+              "cumulative_seconds": 0.06298735300000001
+            }
+          ],
+          "traced_python_peak_bytes": 30635848
+        },
+        "candidate": {
+          "rounds": [
+            {
+              "stages": {
+                "native_checkpoints_ms": 298.133834,
+                "auxiliary_state_ms": 73.700764,
+                "checkpoint_wire_ms": 219.874318,
+                "auxiliary_wire_ms": 35.862721,
+                "checkpoint_gzip_ms": 38.825747,
+                "auxiliary_gzip_ms": 12.292919
+              },
+              "total_ms": 678.690303,
+              "bytes": {
+                "checkpoint": 7327852,
+                "auxiliary": 4818562,
+                "checkpoint_gzip": 776693,
+                "auxiliary_gzip": 239740
+              },
+              "sha256": {
+                "checkpoint": "b4116a8fdc250c5b67560556f474cf4b4e777ee49086ce852ad6768fef2c2c99",
+                "auxiliary": "0d45bc35c5b774c41d3aa4a395ac88fe8683285a99646c541dce3ab92881a165",
+                "checkpoint_gzip": "bb556146ab310986608573bacb7a44ba745494152e5249a0986590517c245520",
+                "auxiliary_gzip": "457d2b4de1d72cee27d305be00cef0fd9687f466aa96e72aff311b2147837809"
+              }
+            },
+            {
+              "stages": {
+                "native_checkpoints_ms": 294.43714,
+                "auxiliary_state_ms": 77.557966,
+                "checkpoint_wire_ms": 253.525091,
+                "auxiliary_wire_ms": 38.847025,
+                "checkpoint_gzip_ms": 40.792086,
+                "auxiliary_gzip_ms": 13.387683
+              },
+              "total_ms": 718.546991,
+              "bytes": {
+                "checkpoint": 7327852,
+                "auxiliary": 4818562,
+                "checkpoint_gzip": 776693,
+                "auxiliary_gzip": 239740
+              },
+              "sha256": {
+                "checkpoint": "b4116a8fdc250c5b67560556f474cf4b4e777ee49086ce852ad6768fef2c2c99",
+                "auxiliary": "0d45bc35c5b774c41d3aa4a395ac88fe8683285a99646c541dce3ab92881a165",
+                "checkpoint_gzip": "bb556146ab310986608573bacb7a44ba745494152e5249a0986590517c245520",
+                "auxiliary_gzip": "457d2b4de1d72cee27d305be00cef0fd9687f466aa96e72aff311b2147837809"
+              }
+            },
+            {
+              "stages": {
+                "native_checkpoints_ms": 294.808675,
+                "auxiliary_state_ms": 128.974163,
+                "checkpoint_wire_ms": 220.124326,
+                "auxiliary_wire_ms": 34.538131,
+                "checkpoint_gzip_ms": 39.776655,
+                "auxiliary_gzip_ms": 13.682995
+              },
+              "total_ms": 731.904945,
+              "bytes": {
+                "checkpoint": 7327852,
+                "auxiliary": 4818562,
+                "checkpoint_gzip": 776693,
+                "auxiliary_gzip": 239740
+              },
+              "sha256": {
+                "checkpoint": "b4116a8fdc250c5b67560556f474cf4b4e777ee49086ce852ad6768fef2c2c99",
+                "auxiliary": "0d45bc35c5b774c41d3aa4a395ac88fe8683285a99646c541dce3ab92881a165",
+                "checkpoint_gzip": "bb556146ab310986608573bacb7a44ba745494152e5249a0986590517c245520",
+                "auxiliary_gzip": "457d2b4de1d72cee27d305be00cef0fd9687f466aa96e72aff311b2147837809"
+              }
+            }
+          ],
+          "profiled_round": {
+            "stages": {
+              "native_checkpoints_ms": 1077.008897,
+              "auxiliary_state_ms": 250.920006,
+              "checkpoint_wire_ms": 741.471569,
+              "auxiliary_wire_ms": 34.495292,
+              "checkpoint_gzip_ms": 40.522403,
+              "auxiliary_gzip_ms": 14.517273
+            },
+            "total_ms": 2158.93544,
+            "bytes": {
+              "checkpoint": 7327852,
+              "auxiliary": 4818562,
+              "checkpoint_gzip": 776693,
+              "auxiliary_gzip": 239740
+            },
+            "sha256": {
+              "checkpoint": "b4116a8fdc250c5b67560556f474cf4b4e777ee49086ce852ad6768fef2c2c99",
+              "auxiliary": "0d45bc35c5b774c41d3aa4a395ac88fe8683285a99646c541dce3ab92881a165",
+              "checkpoint_gzip": "bb556146ab310986608573bacb7a44ba745494152e5249a0986590517c245520",
+              "auxiliary_gzip": "457d2b4de1d72cee27d305be00cef0fd9687f466aa96e72aff311b2147837809"
+            }
+          },
+          "profile_top": [
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/compare_wire_capacity.py",
+              "line": 53,
+              "function": "exercise",
+              "calls": 1,
+              "self_seconds": 6.639100000000001e-05,
+              "cumulative_seconds": 2.189209994
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/compare_wire_capacity.py",
+              "line": 56,
+              "function": "measure",
+              "calls": 6,
+              "self_seconds": 9.187e-05,
+              "cumulative_seconds": 2.1589996040000003
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/wire.py",
+              "line": 202,
+              "function": "dumps",
+              "calls": 26,
+              "self_seconds": 0.013284414000000001,
+              "cumulative_seconds": 2.0508289310000003
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/wire.py",
+              "line": 55,
+              "function": "to_wire",
+              "calls": 26,
+              "self_seconds": 0.00093621,
+              "cumulative_seconds": 1.8738723050000001
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/wire.py",
+              "line": 67,
+              "function": "_to_wire",
+              "calls": 423428,
+              "self_seconds": 0.9338814110000001,
+              "cumulative_seconds": 1.872936095
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/projection.py",
+              "line": 226,
+              "function": "checkpoints",
+              "calls": 1,
+              "self_seconds": 1.2899000000000001e-05,
+              "cumulative_seconds": 1.077004821
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/projection.py",
+              "line": 220,
+              "function": "_checkpoints",
+              "calls": 2,
+              "self_seconds": 4.6756000000000004e-05,
+              "cumulative_seconds": 1.076985021
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/book.py",
+              "line": 809,
+              "function": "checkpoint",
+              "calls": 12,
+              "self_seconds": 0.00016583300000000002,
+              "cumulative_seconds": 1.076937035
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/compare_wire_capacity.py",
+              "line": 63,
+              "function": "<lambda>",
+              "calls": 1,
+              "self_seconds": 1.0792000000000001e-05,
+              "cumulative_seconds": 0.741464694
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<method 'join' of 'bytes' objects>",
+              "calls": 1,
+              "self_seconds": 0.005259426,
+              "cumulative_seconds": 0.741453902
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/compare_wire_capacity.py",
+              "line": 63,
+              "function": "<genexpr>",
+              "calls": 13,
+              "self_seconds": 0.0016515540000000002,
+              "cumulative_seconds": 0.7361944760000001
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/precision.py",
+              "line": 42,
+              "function": "decimal",
+              "calls": 80772,
+              "self_seconds": 0.251456762,
+              "cumulative_seconds": 0.49417640100000004
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/projection.py",
+              "line": 233,
+              "function": "checkpoint_state",
+              "calls": 1,
+              "self_seconds": 0.004129567000000001,
+              "cumulative_seconds": 0.25091239200000004
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<built-in method builtins.isinstance>",
+              "calls": 1501061,
+              "self_seconds": 0.245777817,
+              "cumulative_seconds": 0.245777817
+            },
+            {
+              "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/json/__init__.py",
+              "line": 183,
+              "function": "dumps",
+              "calls": 26,
+              "self_seconds": 0.00017385300000000002,
+              "cumulative_seconds": 0.159260277
+            },
+            {
+              "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/json/encoder.py",
+              "line": 183,
+              "function": "encode",
+              "calls": 26,
+              "self_seconds": 0.00013149100000000002,
+              "cumulative_seconds": 0.159045934
+            },
+            {
+              "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/json/encoder.py",
+              "line": 205,
+              "function": "iterencode",
+              "calls": 26,
+              "self_seconds": 0.158870213,
+              "cumulative_seconds": 0.158870213
+            },
+            {
+              "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/dataclasses.py",
+              "line": 1331,
+              "function": "is_dataclass",
+              "calls": 120608,
+              "self_seconds": 0.076472618,
+              "cumulative_seconds": 0.116194766
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<method 'as_tuple' of 'decimal.Decimal' objects>",
+              "calls": 80772,
+              "self_seconds": 0.067323108,
+              "cumulative_seconds": 0.115817633
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<method 'get' of 'dict' objects>",
+              "calls": 179756,
+              "self_seconds": 0.06515309700000001,
+              "cumulative_seconds": 0.06515309700000001
+            }
+          ],
+          "traced_python_peak_bytes": 30635688
+        }
+      },
+      "exact_wire_and_gzip_parity": true
+    },
+    {
+      "delivery": 78000,
+      "books": [
+        {
+          "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+          "bids": 5026,
+          "asks": 5014
+        },
+        {
+          "instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+          "bids": 4816,
+          "asks": 5015
+        },
+        {
+          "instrument_id": "hyperliquid:info:perpetual:SOL",
+          "bids": 20,
+          "asks": 20
+        },
+        {
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+          "bids": 5005,
+          "asks": 4984
+        },
+        {
+          "instrument_id": "hyperliquid:info:perpetual:BTC",
+          "bids": 20,
+          "asks": 20
+        },
+        {
+          "instrument_id": "hyperliquid:info:perpetual:ETH",
+          "bids": 20,
+          "asks": 20
+        }
+      ],
+      "variants": {
+        "baseline": {
+          "rounds": [
+            {
+              "stages": {
+                "native_checkpoints_ms": 328.164959,
+                "auxiliary_state_ms": 95.393621,
+                "checkpoint_wire_ms": 222.23433,
+                "auxiliary_wire_ms": 45.222164,
+                "checkpoint_gzip_ms": 40.283352,
+                "auxiliary_gzip_ms": 15.043359
+              },
+              "total_ms": 746.341785,
+              "bytes": {
+                "checkpoint": 7372215,
+                "auxiliary": 5882826,
+                "checkpoint_gzip": 779681,
+                "auxiliary_gzip": 288248
+              },
+              "sha256": {
+                "checkpoint": "87e9cce4c9c84392ef4d6c461e263333c1c05c1be6ddba929978b00084ea6056",
+                "auxiliary": "7d880dbe79bdd9348dc5bdf6d43537a6e441b42aef3d45dfab73adaa3872ae58",
+                "checkpoint_gzip": "c83df2269b33d5d20faa6fc992a4151f7e5ea5b12aa7184adfcabc606e728acd",
+                "auxiliary_gzip": "009c7cee2f9b9ea39aaf2359622de21a828f7881aa0ecfe008e4085b19b476d6"
+              }
+            },
+            {
+              "stages": {
+                "native_checkpoints_ms": 365.068909,
+                "auxiliary_state_ms": 107.917548,
+                "checkpoint_wire_ms": 221.761277,
+                "auxiliary_wire_ms": 42.919017,
+                "checkpoint_gzip_ms": 39.672455,
+                "auxiliary_gzip_ms": 14.924346
+              },
+              "total_ms": 792.263552,
+              "bytes": {
+                "checkpoint": 7372215,
+                "auxiliary": 5882826,
+                "checkpoint_gzip": 779681,
+                "auxiliary_gzip": 288248
+              },
+              "sha256": {
+                "checkpoint": "87e9cce4c9c84392ef4d6c461e263333c1c05c1be6ddba929978b00084ea6056",
+                "auxiliary": "7d880dbe79bdd9348dc5bdf6d43537a6e441b42aef3d45dfab73adaa3872ae58",
+                "checkpoint_gzip": "c83df2269b33d5d20faa6fc992a4151f7e5ea5b12aa7184adfcabc606e728acd",
+                "auxiliary_gzip": "009c7cee2f9b9ea39aaf2359622de21a828f7881aa0ecfe008e4085b19b476d6"
+              }
+            },
+            {
+              "stages": {
+                "native_checkpoints_ms": 335.663302,
+                "auxiliary_state_ms": 92.197629,
+                "checkpoint_wire_ms": 237.465685,
+                "auxiliary_wire_ms": 42.016933,
+                "checkpoint_gzip_ms": 40.288095,
+                "auxiliary_gzip_ms": 15.927723
+              },
+              "total_ms": 763.559367,
+              "bytes": {
+                "checkpoint": 7372215,
+                "auxiliary": 5882826,
+                "checkpoint_gzip": 779681,
+                "auxiliary_gzip": 288248
+              },
+              "sha256": {
+                "checkpoint": "87e9cce4c9c84392ef4d6c461e263333c1c05c1be6ddba929978b00084ea6056",
+                "auxiliary": "7d880dbe79bdd9348dc5bdf6d43537a6e441b42aef3d45dfab73adaa3872ae58",
+                "checkpoint_gzip": "c83df2269b33d5d20faa6fc992a4151f7e5ea5b12aa7184adfcabc606e728acd",
+                "auxiliary_gzip": "009c7cee2f9b9ea39aaf2359622de21a828f7881aa0ecfe008e4085b19b476d6"
+              }
+            }
+          ],
+          "profiled_round": {
+            "stages": {
+              "native_checkpoints_ms": 1252.196374,
+              "auxiliary_state_ms": 344.571769,
+              "checkpoint_wire_ms": 717.363937,
+              "auxiliary_wire_ms": 44.005369,
+              "checkpoint_gzip_ms": 39.386421,
+              "auxiliary_gzip_ms": 17.354569
+            },
+            "total_ms": 2414.878439,
+            "bytes": {
+              "checkpoint": 7372215,
+              "auxiliary": 5882826,
+              "checkpoint_gzip": 779681,
+              "auxiliary_gzip": 288248
+            },
+            "sha256": {
+              "checkpoint": "87e9cce4c9c84392ef4d6c461e263333c1c05c1be6ddba929978b00084ea6056",
+              "auxiliary": "7d880dbe79bdd9348dc5bdf6d43537a6e441b42aef3d45dfab73adaa3872ae58",
+              "checkpoint_gzip": "c83df2269b33d5d20faa6fc992a4151f7e5ea5b12aa7184adfcabc606e728acd",
+              "auxiliary_gzip": "009c7cee2f9b9ea39aaf2359622de21a828f7881aa0ecfe008e4085b19b476d6"
+            }
+          },
+          "profile_top": [
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/compare_wire_capacity.py",
+              "line": 53,
+              "function": "exercise",
+              "calls": 1,
+              "self_seconds": 6.644000000000001e-05,
+              "cumulative_seconds": 2.4485712790000003
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/compare_wire_capacity.py",
+              "line": 56,
+              "function": "measure",
+              "calls": 6,
+              "self_seconds": 5.9665000000000006e-05,
+              "cumulative_seconds": 2.414912117
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/wire.py",
+              "line": 202,
+              "function": "dumps",
+              "calls": 26,
+              "self_seconds": 0.01435166,
+              "cumulative_seconds": 2.303446704
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/wire.py",
+              "line": 55,
+              "function": "to_wire",
+              "calls": 26,
+              "self_seconds": 0.002309377,
+              "cumulative_seconds": 2.120598991
+            },
+            {
+              "file": "/private/tmp/limit-orderbook-m3-soak-dbf20bd/src/workstation/wire.py",
+              "line": 62,
+              "function": "_to_wire",
+              "calls": 458195,
+              "self_seconds": 1.0456922910000002,
+              "cumulative_seconds": 2.118289614
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/projection.py",
+              "line": 226,
+              "function": "checkpoints",
+              "calls": 1,
+              "self_seconds": 1.1393000000000001e-05,
+              "cumulative_seconds": 1.2521929090000001
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/projection.py",
+              "line": 220,
+              "function": "_checkpoints",
+              "calls": 2,
+              "self_seconds": 4.8961e-05,
+              "cumulative_seconds": 1.2521762790000002
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/book.py",
+              "line": 809,
+              "function": "checkpoint",
+              "calls": 12,
+              "self_seconds": 0.00018806900000000002,
+              "cumulative_seconds": 1.252126587
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/compare_wire_capacity.py",
+              "line": 63,
+              "function": "<lambda>",
+              "calls": 1,
+              "self_seconds": 1.0798e-05,
+              "cumulative_seconds": 0.71735746
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<method 'join' of 'bytes' objects>",
+              "calls": 1,
+              "self_seconds": 0.005024429,
+              "cumulative_seconds": 0.7173466620000001
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/compare_wire_capacity.py",
+              "line": 63,
+              "function": "<genexpr>",
+              "calls": 13,
+              "self_seconds": 0.0019436910000000002,
+              "cumulative_seconds": 0.7123222330000001
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/precision.py",
+              "line": 42,
+              "function": "decimal",
+              "calls": 98408,
+              "self_seconds": 0.31244286400000004,
+              "cumulative_seconds": 0.617905747
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/projection.py",
+              "line": 233,
+              "function": "checkpoint_state",
+              "calls": 1,
+              "self_seconds": 0.003961326,
+              "cumulative_seconds": 0.344563877
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<built-in method builtins.isinstance>",
+              "calls": 1648091,
+              "self_seconds": 0.273470317,
+              "cumulative_seconds": 0.273470317
+            },
+            {
+              "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/json/__init__.py",
+              "line": 183,
+              "function": "dumps",
+              "calls": 26,
+              "self_seconds": 0.000163413,
+              "cumulative_seconds": 0.16375461400000002
+            },
+            {
+              "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/json/encoder.py",
+              "line": 183,
+              "function": "encode",
+              "calls": 26,
+              "self_seconds": 0.00013803100000000002,
+              "cumulative_seconds": 0.16354895500000002
+            },
+            {
+              "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/json/encoder.py",
+              "line": 205,
+              "function": "iterencode",
+              "calls": 26,
+              "self_seconds": 0.16336307600000002,
+              "cumulative_seconds": 0.16336307600000002
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<method 'as_tuple' of 'decimal.Decimal' objects>",
+              "calls": 98408,
+              "self_seconds": 0.084657152,
+              "cumulative_seconds": 0.145106809
+            },
+            {
+              "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/dataclasses.py",
+              "line": 1331,
+              "function": "is_dataclass",
+              "calls": 127580,
+              "self_seconds": 0.081113087,
+              "cumulative_seconds": 0.12268785
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<method 'get' of 'dict' objects>",
+              "calls": 180378,
+              "self_seconds": 0.06860326600000001,
+              "cumulative_seconds": 0.06860326600000001
+            }
+          ],
+          "traced_python_peak_bytes": 34968545
+        },
+        "candidate": {
+          "rounds": [
+            {
+              "stages": {
+                "native_checkpoints_ms": 300.221506,
+                "auxiliary_state_ms": 151.610587,
+                "checkpoint_wire_ms": 218.002921,
+                "auxiliary_wire_ms": 42.78898,
+                "checkpoint_gzip_ms": 40.961881,
+                "auxiliary_gzip_ms": 15.678472
+              },
+              "total_ms": 769.2643469999999,
+              "bytes": {
+                "checkpoint": 7372215,
+                "auxiliary": 5882826,
+                "checkpoint_gzip": 779681,
+                "auxiliary_gzip": 288248
+              },
+              "sha256": {
+                "checkpoint": "87e9cce4c9c84392ef4d6c461e263333c1c05c1be6ddba929978b00084ea6056",
+                "auxiliary": "7d880dbe79bdd9348dc5bdf6d43537a6e441b42aef3d45dfab73adaa3872ae58",
+                "checkpoint_gzip": "c83df2269b33d5d20faa6fc992a4151f7e5ea5b12aa7184adfcabc606e728acd",
+                "auxiliary_gzip": "009c7cee2f9b9ea39aaf2359622de21a828f7881aa0ecfe008e4085b19b476d6"
+              }
+            },
+            {
+              "stages": {
+                "native_checkpoints_ms": 304.735871,
+                "auxiliary_state_ms": 92.186469,
+                "checkpoint_wire_ms": 220.235618,
+                "auxiliary_wire_ms": 42.911486,
+                "checkpoint_gzip_ms": 40.261387,
+                "auxiliary_gzip_ms": 15.558381
+              },
+              "total_ms": 715.8892119999999,
+              "bytes": {
+                "checkpoint": 7372215,
+                "auxiliary": 5882826,
+                "checkpoint_gzip": 779681,
+                "auxiliary_gzip": 288248
+              },
+              "sha256": {
+                "checkpoint": "87e9cce4c9c84392ef4d6c461e263333c1c05c1be6ddba929978b00084ea6056",
+                "auxiliary": "7d880dbe79bdd9348dc5bdf6d43537a6e441b42aef3d45dfab73adaa3872ae58",
+                "checkpoint_gzip": "c83df2269b33d5d20faa6fc992a4151f7e5ea5b12aa7184adfcabc606e728acd",
+                "auxiliary_gzip": "009c7cee2f9b9ea39aaf2359622de21a828f7881aa0ecfe008e4085b19b476d6"
+              }
+            },
+            {
+              "stages": {
+                "native_checkpoints_ms": 295.724203,
+                "auxiliary_state_ms": 91.708435,
+                "checkpoint_wire_ms": 218.870746,
+                "auxiliary_wire_ms": 45.879716,
+                "checkpoint_gzip_ms": 40.735408,
+                "auxiliary_gzip_ms": 14.834918
+              },
+              "total_ms": 707.753426,
+              "bytes": {
+                "checkpoint": 7372215,
+                "auxiliary": 5882826,
+                "checkpoint_gzip": 779681,
+                "auxiliary_gzip": 288248
+              },
+              "sha256": {
+                "checkpoint": "87e9cce4c9c84392ef4d6c461e263333c1c05c1be6ddba929978b00084ea6056",
+                "auxiliary": "7d880dbe79bdd9348dc5bdf6d43537a6e441b42aef3d45dfab73adaa3872ae58",
+                "checkpoint_gzip": "c83df2269b33d5d20faa6fc992a4151f7e5ea5b12aa7184adfcabc606e728acd",
+                "auxiliary_gzip": "009c7cee2f9b9ea39aaf2359622de21a828f7881aa0ecfe008e4085b19b476d6"
+              }
+            }
+          ],
+          "profiled_round": {
+            "stages": {
+              "native_checkpoints_ms": 1063.202422,
+              "auxiliary_state_ms": 299.159669,
+              "checkpoint_wire_ms": 797.20632,
+              "auxiliary_wire_ms": 44.377282,
+              "checkpoint_gzip_ms": 40.511801,
+              "auxiliary_gzip_ms": 15.510119
+            },
+            "total_ms": 2259.9676130000003,
+            "bytes": {
+              "checkpoint": 7372215,
+              "auxiliary": 5882826,
+              "checkpoint_gzip": 779681,
+              "auxiliary_gzip": 288248
+            },
+            "sha256": {
+              "checkpoint": "87e9cce4c9c84392ef4d6c461e263333c1c05c1be6ddba929978b00084ea6056",
+              "auxiliary": "7d880dbe79bdd9348dc5bdf6d43537a6e441b42aef3d45dfab73adaa3872ae58",
+              "checkpoint_gzip": "c83df2269b33d5d20faa6fc992a4151f7e5ea5b12aa7184adfcabc606e728acd",
+              "auxiliary_gzip": "009c7cee2f9b9ea39aaf2359622de21a828f7881aa0ecfe008e4085b19b476d6"
+            }
+          },
+          "profile_top": [
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/compare_wire_capacity.py",
+              "line": 53,
+              "function": "exercise",
+              "calls": 1,
+              "self_seconds": 6.9657e-05,
+              "cumulative_seconds": 2.294571476
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/compare_wire_capacity.py",
+              "line": 56,
+              "function": "measure",
+              "calls": 6,
+              "self_seconds": 6.1475e-05,
+              "cumulative_seconds": 2.260003153
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/wire.py",
+              "line": 202,
+              "function": "dumps",
+              "calls": 26,
+              "self_seconds": 0.015046391000000001,
+              "cumulative_seconds": 2.149881605
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/wire.py",
+              "line": 55,
+              "function": "to_wire",
+              "calls": 26,
+              "self_seconds": 0.0009487990000000001,
+              "cumulative_seconds": 1.9654284940000002
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/wire.py",
+              "line": 67,
+              "function": "_to_wire",
+              "calls": 458195,
+              "self_seconds": 0.981047804,
+              "cumulative_seconds": 1.964479695
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/projection.py",
+              "line": 226,
+              "function": "checkpoints",
+              "calls": 1,
+              "self_seconds": 1.0649000000000001e-05,
+              "cumulative_seconds": 1.0631986880000002
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/projection.py",
+              "line": 220,
+              "function": "_checkpoints",
+              "calls": 2,
+              "self_seconds": 4.8119000000000005e-05,
+              "cumulative_seconds": 1.063183574
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/book.py",
+              "line": 809,
+              "function": "checkpoint",
+              "calls": 12,
+              "self_seconds": 0.00017490300000000002,
+              "cumulative_seconds": 1.06313448
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/compare_wire_capacity.py",
+              "line": 63,
+              "function": "<lambda>",
+              "calls": 1,
+              "self_seconds": 1.1604000000000001e-05,
+              "cumulative_seconds": 0.797198688
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<method 'join' of 'bytes' objects>",
+              "calls": 1,
+              "self_seconds": 0.0052364280000000004,
+              "cumulative_seconds": 0.797187084
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/compare_wire_capacity.py",
+              "line": 63,
+              "function": "<genexpr>",
+              "calls": 13,
+              "self_seconds": 0.0019362140000000001,
+              "cumulative_seconds": 0.791950656
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/precision.py",
+              "line": 42,
+              "function": "decimal",
+              "calls": 80921,
+              "self_seconds": 0.260055655,
+              "cumulative_seconds": 0.512373455
+            },
+            {
+              "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/projection.py",
+              "line": 233,
+              "function": "checkpoint_state",
+              "calls": 1,
+              "self_seconds": 0.005633665,
+              "cumulative_seconds": 0.29915193300000004
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<built-in method builtins.isinstance>",
+              "calls": 1578143,
+              "self_seconds": 0.26269652800000004,
+              "cumulative_seconds": 0.26269652800000004
+            },
+            {
+              "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/json/__init__.py",
+              "line": 183,
+              "function": "dumps",
+              "calls": 26,
+              "self_seconds": 0.000166274,
+              "cumulative_seconds": 0.164498261
+            },
+            {
+              "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/json/encoder.py",
+              "line": 183,
+              "function": "encode",
+              "calls": 26,
+              "self_seconds": 0.000141339,
+              "cumulative_seconds": 0.164264662
+            },
+            {
+              "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/json/encoder.py",
+              "line": 205,
+              "function": "iterencode",
+              "calls": 26,
+              "self_seconds": 0.16407829200000001,
+              "cumulative_seconds": 0.16407829200000001
+            },
+            {
+              "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/dataclasses.py",
+              "line": 1331,
+              "function": "is_dataclass",
+              "calls": 127580,
+              "self_seconds": 0.08086971600000001,
+              "cumulative_seconds": 0.121751094
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<method 'as_tuple' of 'decimal.Decimal' objects>",
+              "calls": 80921,
+              "self_seconds": 0.07013356200000001,
+              "cumulative_seconds": 0.119760109
+            },
+            {
+              "file": "~",
+              "line": 0,
+              "function": "<method 'get' of 'dict' objects>",
+              "calls": 180378,
+              "self_seconds": 0.06667640100000001,
+              "cumulative_seconds": 0.06667640100000001
+            }
+          ],
+          "traced_python_peak_bytes": 34972222
+        }
+      },
+      "exact_wire_and_gzip_parity": true
+    }
+  ],
+  "checks_passed": true
+}

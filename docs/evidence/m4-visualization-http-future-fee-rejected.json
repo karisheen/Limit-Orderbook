@@ -1,0 +1,208 @@
+{
+  "success": false,
+  "command": [
+    "data/m4-smoke/visualization_smoke.py"
+  ],
+  "requests": [
+    {
+      "path": "sessions",
+      "payload": {
+        "mode": "demo"
+      },
+      "status": 201,
+      "response_sha256": "985268f407387eef0bfd1bc62070e794185772823abae1b25fd279a53e1bd730"
+    },
+    {
+      "path": "replay",
+      "payload": {
+        "session_id": "470df23067644e6a95b3f1a5627bc1e7",
+        "generation": "1",
+        "action": "seek",
+        "delivery_index": "2000"
+      },
+      "status": 200,
+      "response_sha256": "9e429a45b3ee12719676de4138bb1bcaff19a5e607cf02d823a578e3cd83f6c5"
+    },
+    {
+      "path": "visualization",
+      "payload": {
+        "session_id": "470df23067644e6a95b3f1a5627bc1e7",
+        "generation": "2",
+        "rows": 64,
+        "max_columns": 180,
+        "bucket_ns": "1000000000"
+      },
+      "status": 200,
+      "response_sha256": "8311aa1b7fd8bfddd980055a223ac11a262bb332308f5f400c4fdb4a20d855c0"
+    },
+    {
+      "path": "replay",
+      "payload": {
+        "session_id": "470df23067644e6a95b3f1a5627bc1e7",
+        "generation": "2",
+        "action": "step",
+        "count": 200
+      },
+      "status": 200,
+      "response_sha256": "8b82a3d0867922c0430f666b437b28f83b7ef31a48980ae0d4bc01f3b2260505"
+    },
+    {
+      "path": "visualization",
+      "payload": {
+        "session_id": "470df23067644e6a95b3f1a5627bc1e7",
+        "generation": "2",
+        "rows": 64,
+        "max_columns": 180,
+        "bucket_ns": "1000000000",
+        "price_step": "0.01"
+      },
+      "status": 200,
+      "response_sha256": "422cdfd25227ef6bfa0fb67aa91ae8bc86ccfb711ed74bf3fd65787075be1602"
+    },
+    {
+      "path": "visualization",
+      "payload": {
+        "session_id": "470df23067644e6a95b3f1a5627bc1e7",
+        "generation": "2",
+        "rows": 64,
+        "max_columns": 180,
+        "bucket_ns": "1000000000",
+        "price_step": "0.05"
+      },
+      "status": 200,
+      "response_sha256": "150dcdd771880adfa28bc2db7d05d1af37e5d246b11096ee7d6ae0dcd2dc5462"
+    },
+    {
+      "path": "visualization",
+      "payload": {
+        "session_id": "470df23067644e6a95b3f1a5627bc1e7",
+        "generation": "2",
+        "rows": 64,
+        "max_columns": 180,
+        "bucket_ns": "1000000000",
+        "price_step": "0.01"
+      },
+      "status": 200,
+      "response_sha256": "e0ae6f056a5df237960d3f6c611eb0089c057e3b0d6af27a20ddabc77ee0077e"
+    },
+    {
+      "path": "replay",
+      "payload": {
+        "session_id": "470df23067644e6a95b3f1a5627bc1e7",
+        "generation": "2",
+        "action": "seek",
+        "delivery_index": "2000"
+      },
+      "status": 200,
+      "response_sha256": "29f6cf95474f7b86f8329fa57eee97fd556c0bced509e60020a6a31e0f89b892"
+    },
+    {
+      "path": "visualization",
+      "payload": {
+        "session_id": "470df23067644e6a95b3f1a5627bc1e7",
+        "generation": "3",
+        "rows": 64,
+        "max_columns": 180,
+        "bucket_ns": "1000000000",
+        "price_step": "0.01"
+      },
+      "status": 200,
+      "response_sha256": "4c0f5b289f2c8888a878a4222aea5c36c54672245fe38d18a34504053ea1d5e3"
+    },
+    {
+      "path": "visualization",
+      "payload": {
+        "session_id": "470df23067644e6a95b3f1a5627bc1e7",
+        "generation": "2",
+        "rows": 64,
+        "max_columns": 180,
+        "bucket_ns": "1000000000"
+      },
+      "status": 409,
+      "response_sha256": "23874a61641dc7c6d005c7ad00c5bfea9df4a9bc0c59cd63d53f84452edb0e3b"
+    },
+    {
+      "path": "ladder",
+      "payload": {
+        "session_id": "470df23067644e6a95b3f1a5627bc1e7",
+        "generation": "3",
+        "price_step": "0.05",
+        "rows": 20
+      },
+      "status": 200,
+      "response_sha256": "8b4cbf06d458920f17f54f92ec5475be2aa15b4f03d2fb919a34f403999ceff3"
+    },
+    {
+      "path": "proposal-risk",
+      "payload": {
+        "session_id": "470df23067644e6a95b3f1a5627bc1e7",
+        "generation": "3",
+        "side": "buy",
+        "entry_price": "60001",
+        "stop_price": "60000",
+        "base_quantity": "0.01"
+      },
+      "status": 200,
+      "response_sha256": "ddecfca8b8125fa6c29468a8f582d5eec2dbfe50202e0cbbd66969ceebce82a1"
+    },
+    {
+      "path": "proposal-risk",
+      "payload": {
+        "session_id": "470df23067644e6a95b3f1a5627bc1e7",
+        "generation": "3",
+        "side": "buy",
+        "entry_price": "60001",
+        "stop_price": "60000",
+        "base_quantity": "0.01",
+        "fee_bps": "10",
+        "fee_provenance": "explicit smoke scenario, not exchange schedule",
+        "fee_date": "2026-11-01"
+      },
+      "status": 200,
+      "response_sha256": "0545ef9846cd0bc2dfed678e67fb8b9275752a2378b68e3aa5cfb3487ed07aea"
+    }
+  ],
+  "assertions": [
+    "Streaming preserves closed liquidity/metric coordinates and exact column content",
+    "Explicit aggregation reprojects retained evidence; restoring original quantum restores exact historical cells",
+    "Backward seek reconstructs exact historical state without future columns and rejects obsolete generation",
+    "Backend grouped ladder preserves conservative sides and exact cumulative base quantities"
+  ],
+  "limitations": [
+    "Synthetic full-scope offline HTTP source; actual browser paints and recorded-source rendering are separate checks."
+  ],
+  "source": {
+    "id": "synthetic-demo-v2-180s",
+    "mode": "demo",
+    "label": "Synthetic 180s / 24 streams (memory, not recording)",
+    "status": "ready",
+    "synthetic": true,
+    "recording": false,
+    "duration_ns": "180000000000",
+    "streams": 24,
+    "reasons": []
+  },
+  "initial": {
+    "grid_id": "b0c39a46bf056ddbfad4a07226ee3fc6",
+    "price_min": "59999.68",
+    "price_step": "0.01",
+    "closed_columns": 79,
+    "closed_sha256": "e4e140bf4734f264787dede6c7ab194f1c8dee209bf9a145fce8faf76369c389",
+    "reasons": [
+      "initial_partial_history",
+      "requested_history_unavailable",
+      "history_retention_truncated",
+      "trade_history_truncated",
+      "trailing_partial_history"
+    ]
+  },
+  "error": "Traceback (most recent call last):\n  File \"/Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/visualization_smoke.py\", line 94, in main\n    assert known['eligible'], known['reasons']\n           ~~~~~^^^^^^^^^^^^\nAssertionError: ['fee_date_in_future']\n",
+  "cleanup_status": 200,
+  "elapsed_seconds": 5.853807291001431,
+  "code_sha256": {
+    "src/workstation/visuals.py": "b97f8b5868bb4feb026ffe6af00e6f83b00e8960cae011e5d1342086a1921467",
+    "src/workstation/runtime.py": "44a4054476b810a23d9ab8c3fedac759936bb3dabfc6602b4e823ed6bcf4bb14",
+    "src/workstation/analytics.py": "73d49aa6bbace28b96dee5890e599d5fb71a9dec262051293b301875b4d82432",
+    "src/workstation/api.py": "ed801ee1a9f07411440d4545fb7f133a5ca60cd8ac0be44d0dbdb7c4f320ac70"
+  }
+}

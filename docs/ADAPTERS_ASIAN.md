@@ -1,6 +1,6 @@
 # Binance, Bybit and KuCoin public adapters
 
-These are workstation adapters in `src/workstation/adapters`, not replacements for the temporary legacy UI's adapter contracts. They perform public market-data operations only. No credentials, signing, testnet, order submission or execution eligibility is inferred.
+These are the shared workstation adapters in `src/workstation/adapters`; both observation clients consume their output through the native API. The separate legacy UI adapters are retired. They perform public market-data operations only. No credentials, signing, testnet, order submission or execution eligibility is inferred.
 
 ## Implemented modes
 

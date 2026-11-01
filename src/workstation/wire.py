@@ -18,7 +18,11 @@ from .precision import (
 )
 
 WIRE_SCHEMA_VERSION = 1
-_DECIMAL_MEMO_LIMIT = 8192
+# Three native 5,000-level/side books can exceed 8,192 distinct prices alone.
+# Keep a fill-only, per-call memo large enough for their prices and quantities;
+# cap retained text as well, including when a caller supplies a wider policy.
+_DECIMAL_MEMO_LIMIT = 65536
+_DECIMAL_MEMO_ENTRY_CHARS = 512
 
 
 @lru_cache(maxsize=1)
@@ -54,8 +58,9 @@ def to_wire(
     canonical: bool = True,
     decimal_policy: DecimalPolicy = DEFAULT_DECIMAL_POLICY,
 ):
-    # Only lexical scalar strings are memoized, for this one call. Numeric Decimal
-    # equality would merge distinct scales and can even bypass exponent bounds.
+    # Only lexical scalar strings are memoized, for this one call/policy/mode.
+    # Numeric Decimal equality would merge scales and bypass exponent bounds.
+    # No shared state or mutable wire containers are retained across callers.
     return _to_wire(value, canonical, {}, decimal_policy)
 
 
@@ -66,12 +71,15 @@ def _to_wire(value, canonical, decimal_memo, decimal_policy):
         lexical = str(Decimal(value))
         encoded = decimal_memo.get(lexical)
         if encoded is None:
-            encoded = (
-                canonical_decimal(value, policy=decimal_policy)
-                if canonical
-                else str(decimal(value, policy=decimal_policy))
-            )
-            if len(decimal_memo) < _DECIMAL_MEMO_LIMIT:
+            if canonical:
+                encoded = canonical_decimal(value, policy=decimal_policy)
+            else:
+                decimal(value, policy=decimal_policy)
+                encoded = lexical
+            if (
+                len(decimal_memo) < _DECIMAL_MEMO_LIMIT
+                and len(lexical) + len(encoded) <= _DECIMAL_MEMO_ENTRY_CHARS
+            ):
                 decimal_memo[lexical] = encoded
         return encoded
     if isinstance(value, int):

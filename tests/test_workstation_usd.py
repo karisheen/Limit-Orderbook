@@ -398,6 +398,60 @@ def test_kraken_truncates_25_after_ordered_whole_message():
     assert not result.book.quality.coverage.full_depth
 
 
+def test_kraken_evicted_depth_tails_do_not_reappear_after_better_level_deletion():
+    adapter = KrakenAdapter()
+    item, key, reducer = setup(adapter)
+    bids = [(f"{100 - i}.0", "1.00000000") for i in range(25)]
+    asks = [(f"{104 + i}.0", "2.00000000") for i in range(25)]
+    initial = apply(adapter, item, key, reducer, kraken_message(bids, asks))
+    assert initial.recovery is None
+    assert initial.events[0].checksum.result == "match"
+    better_bids = [("101.0", "3.00000000")]
+    better_asks = [("103.0", "4.00000000")]
+    retained_bids = better_bids + bids[:-1]
+    retained_asks = better_asks + asks[:-1]
+    inserted = apply(
+        adapter,
+        item,
+        key,
+        reducer,
+        kraken_message(
+            better_bids, better_asks, "update", crc(retained_bids, retained_asks)
+        ),
+        1,
+    )
+    assert inserted.recovery is None
+    assert inserted.events[0].checksum.result == "match"
+    assert len(inserted.book.bids) == len(inserted.book.asks) == 25
+    assert inserted.book.bids[-1].price == Decimal("77")
+    assert inserted.book.asks[-1].price == Decimal("127")
+    deleted = apply(
+        adapter,
+        item,
+        key,
+        reducer,
+        kraken_message(
+            [("101.0", "0")],
+            [("103.0", "0")],
+            "update",
+            crc(bids[:-1], asks[:-1]),
+        ),
+        2,
+    )
+    assert deleted.recovery is None
+    assert deleted.events[0].checksum.result == "match"
+    assert deleted.book.quality.integrity == "valid"
+    # A display-only slice would incorrectly resurrect the evicted 76/128 tails.
+    assert deleted.book.bids == tuple(
+        Level(Decimal(price), Decimal(quantity)) for price, quantity in bids[:-1]
+    )
+    assert deleted.book.asks == tuple(
+        Level(Decimal(price), Decimal(quantity)) for price, quantity in asks[:-1]
+    )
+    assert deleted.book.quality.coverage.retained_bid_levels == 24
+    assert deleted.book.quality.coverage.retained_ask_levels == 24
+
+
 def test_kraken_validates_only_final_message_not_transient_cross():
     adapter = KrakenAdapter()
     item, key, reducer = setup(adapter)
@@ -805,6 +859,82 @@ def test_coinbase_rejects_invalid_payloads(fault):
         }
     result = adapter.decode(frame(payload), item, key)
     assert result.error is not None and not result.events
+
+
+@pytest.mark.parametrize("fault", ["wrong_symbol", "side", "nonfinite"])
+def test_coinbase_malformed_late_event_emits_no_partial_events(fault):
+    adapter = CoinbaseAdapter()
+    item, key, _ = setup(adapter)
+    payload = coinbase_message(1, "update")
+    late_event = coinbase_message(1, "update")["events"][0]
+    if fault == "wrong_symbol":
+        late_event["product_id"] = "ETH-USD"
+    elif fault == "side":
+        late_event["updates"][0]["side"] = "buy"
+    else:
+        late_event["updates"][0]["new_quantity"] = "Infinity"
+    payload["events"].append(late_event)
+    raw = frame(payload, 1)
+    decoded = adapter.decode(raw, item, key)
+    assert decoded.error is not None
+    assert not decoded.events and not decoded.controls
+    assert decoded.error.raw_hash == raw.payload_sha256
+
+
+def test_coinbase_multi_event_transient_cross_validates_only_final_transaction():
+    adapter = CoinbaseAdapter()
+    item, key, reducer = setup(adapter)
+    initial = apply(adapter, item, key, reducer, coinbase_message(0))
+    assert initial.recovery is None
+    # The first event crosses the existing ask; the second repairs the same frame.
+    payload = coinbase_message(
+        1,
+        "update",
+        [{"side": "bid", "price_level": "103.0", "new_quantity": "3"}],
+    )
+    payload["events"].extend(
+        coinbase_message(
+            1,
+            "update",
+            [
+                {"side": "offer", "price_level": "102.0", "new_quantity": "0"},
+                {"side": "offer", "price_level": "104.0", "new_quantity": "4"},
+            ],
+        )["events"]
+    )
+    raw = frame(payload, 1)
+    decoded = adapter.decode(raw, item, key)
+    assert decoded.error is None and not decoded.controls
+    assert len(decoded.events) == 2
+    assert decoded.events[0].sequence == decoded.events[1].sequence
+    assert decoded.events[0].sequence.scope == "connection"
+    assert decoded.events[0].sequence.last == "1"
+    envelopes = wrap_decoded(raw, item, key, decoded, SegmentId("initial"), "ws_delta")
+    assert [event.event_index for event in envelopes] == [0, 1]
+    result = reducer.apply(envelopes)
+    assert result.recovery is None and result.changed
+    assert len(result.events) == 2
+    assert result.book.quality.integrity == "valid"
+    assert result.book.revision == initial.book.revision + 1
+    assert result.book.bids == (
+        Level(Decimal("103.0"), Decimal("3")),
+        Level(Decimal("100.0"), Decimal("1.00000000")),
+    )
+    assert result.book.asks == (Level(Decimal("104.0"), Decimal("4")),)
+    assert reducer.sequence.last == "1"
+    following = apply(
+        adapter,
+        item,
+        key,
+        reducer,
+        {"channel": "heartbeats", "sequence_num": 2, "events": [{}]},
+        2,
+    )
+    assert following.recovery is None and not following.changed
+    assert following.book.bids == result.book.bids
+    assert following.book.asks == result.book.asks
+    assert following.book.revision == result.book.revision
+    assert reducer.sequence.last == "2"
 
 
 def test_coinbase_native_rest_snapshot_is_not_ws_bootstrap():

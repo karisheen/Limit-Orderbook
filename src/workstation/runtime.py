@@ -35,7 +35,7 @@ from .instruments import Instrument
 from .precision import DERIVED_DECIMAL_POLICY, canonical_decimal, decimal
 from .quality import ClockReading, EligibilityPolicy, evaluate
 from .recording import RecordedBatch, RecordingReader, SessionManifest, StreamSpec
-from .replay import ReplayClock, ReplaySession, ReplaySource
+from .replay import ReplayClock, ReplayPacer, ReplaySession, ReplaySource
 from .subscriptions import SubscriptionRegistry
 from .visuals import VisualHistory, grouped_ladder, proposal_risk
 
@@ -517,18 +517,19 @@ class ClientSession:
         replay = self.replay
         if replay is None:
             raise RuntimeError("replay playback requires a replay session")
+        loop = asyncio.get_running_loop()
+        pacer = ReplayPacer(loop.time(), replay.clock.speed)
         try:
             while not self.closed and self.status == "playing":
                 async with self.lock:
                     delay = await self.work(replay.next_delay_ns)
-                    speed = replay.clock.speed
                 if delay is None:
                     self.status = "ended"
                     break
-                if delay:
-                    await asyncio.sleep(
-                        float(Decimal(delay) / Decimal(1_000_000_000) / speed)
-                    )
+                pacer.advance(delay)
+                remaining = pacer.remaining(loop.time())
+                if remaining:
+                    await asyncio.sleep(remaining)
                 async with self.lock:
                     started = time.monotonic_ns()
                     await self.work(replay.step)

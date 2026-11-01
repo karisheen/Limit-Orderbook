@@ -673,6 +673,271 @@ def test_retry_after_parsing():
     assert retry_after_seconds("Thu, 01 Jan 1970 00:00:03 GMT", now=1) == 2
     assert retry_after_seconds("invalid") == 0
     assert retry_after_seconds("NaN") == 0
+    assert retry_after_seconds("-1") == 0
+
+
+@pytest.fixture
+def public_transport_clock(monkeypatch):
+    from types import SimpleNamespace
+
+    import src.workstation.transport as transport
+
+    clock = SimpleNamespace(now=1000.0, waits=[], before_sleep=None)
+
+    async def sleep(delay):
+        clock.waits.append(delay)
+        if clock.before_sleep is not None:
+            await clock.before_sleep(delay)
+        clock.now += delay
+        await asyncio.sleep(0)
+
+    # Replace only this transport's external clock/wait boundaries, not the
+    # event loop's clock or scheduling primitives used by the test itself.
+    monkeypatch.setattr(transport, "time", SimpleNamespace(monotonic=lambda: clock.now))
+    monkeypatch.setattr(
+        transport,
+        "asyncio",
+        SimpleNamespace(sleep=sleep, get_running_loop=asyncio.get_running_loop),
+    )
+    return clock
+
+
+@pytest.mark.parametrize("attempts", [1, 3])
+def test_public_transport_read_timeout_exhausts_configured_attempts(
+    public_transport_clock, attempts
+):
+    async def scenario():
+        failures = []
+
+        def handler(request):
+            error = httpx.ReadTimeout("read stalled", request=request)
+            failures.append(error)
+            raise error
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            with pytest.raises(PublicTransportError) as caught:
+                await fetch_public(
+                    TransportRequest("GET", "https://timeout.example/public"),
+                    client=client,
+                    attempts=attempts,
+                )
+            assert not client.is_closed
+        assert len(failures) == attempts
+        assert caught.value.reason == "network_error"
+        assert caught.value.status is None
+        assert caught.value.retry_after == 0
+        assert caught.value.__cause__ is failures[-1]
+
+    asyncio.run(scenario())
+
+
+def test_public_transport_proxy_error_recovers_exact_bytes(public_transport_clock):
+    async def scenario():
+        calls = []
+        raw = b' { "price":1.2300,"id":999999999999999999 }\n'
+
+        def handler(request):
+            calls.append(request)
+            if len(calls) == 1:
+                raise httpx.ProxyError("proxy unavailable", request=request)
+            return httpx.Response(200, content=raw)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            result = await fetch_public(
+                TransportRequest("GET", "https://proxy.example/public"),
+                client=client,
+                attempts=2,
+            )
+            assert not client.is_closed
+        assert result == raw
+        assert len(calls) == 2
+
+    asyncio.run(scenario())
+
+
+def test_public_transport_repeated_429_preserves_final_cooldown(
+    public_transport_clock,
+):
+    async def scenario():
+        calls = []
+        cooldowns = (2, 5, 7)
+
+        def handler(request):
+            calls.append(public_transport_clock.now)
+            return httpx.Response(
+                429, headers={"Retry-After": str(cooldowns[len(calls) - 1])}
+            )
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            with pytest.raises(PublicTransportError) as caught:
+                await fetch_public(
+                    TransportRequest("GET", "https://exhausted-rate.example/public"),
+                    client=client,
+                    attempts=3,
+                )
+        assert calls == [1000, 1002, 1007]
+        assert caught.value.reason == "rate_limited"
+        assert caught.value.status == 429
+        assert caught.value.retry_after == 7
+        assert [delay for delay in public_transport_clock.waits if delay > 0] == [2, 5]
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("status", [429, 503])
+@pytest.mark.parametrize("retry_after", [2, 120])
+def test_public_transport_positive_retry_after_waits_without_clamping(
+    public_transport_clock, status, retry_after
+):
+    async def scenario():
+        waiting, release = asyncio.Event(), asyncio.Event()
+        calls = []
+
+        async def hold_wait(delay):
+            if delay > 0:
+                waiting.set()
+                await release.wait()
+
+        public_transport_clock.before_sleep = hold_wait
+
+        def handler(request):
+            calls.append(public_transport_clock.now)
+            if len(calls) == 1:
+                return httpx.Response(status, headers={"Retry-After": str(retry_after)})
+            return httpx.Response(200, content=b"recovered")
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            task = asyncio.create_task(
+                fetch_public(
+                    TransportRequest("GET", "https://cooldown.example/public"),
+                    client=client,
+                    attempts=2,
+                )
+            )
+            try:
+                await asyncio.wait_for(waiting.wait(), 1)
+                assert calls == [1000]
+                assert public_transport_clock.waits[-1] == retry_after
+                assert not task.done()
+                release.set()
+                assert await asyncio.wait_for(task, 1) == b"recovered"
+            finally:
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+        assert calls == [1000, 1000 + retry_after]
+
+    asyncio.run(scenario())
+
+
+def test_public_transport_cancellation_during_retry_wait_stops_requests(
+    public_transport_clock,
+):
+    async def scenario():
+        waiting, release = asyncio.Event(), asyncio.Event()
+        calls = []
+
+        async def hold_wait(delay):
+            if delay > 0:
+                waiting.set()
+                await release.wait()
+
+        public_transport_clock.before_sleep = hold_wait
+
+        def handler(request):
+            calls.append(request)
+            return httpx.Response(429, headers={"Retry-After": "30"})
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            task = asyncio.create_task(
+                fetch_public(
+                    TransportRequest("GET", "https://cancel-retry.example/public"),
+                    client=client,
+                    attempts=3,
+                )
+            )
+            try:
+                await asyncio.wait_for(waiting.wait(), 1)
+                assert len(calls) == 1
+                assert public_transport_clock.waits[-1] == 30
+                task.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await task
+                release.set()
+                await asyncio.sleep(0)
+                assert len(calls) == 1
+                assert not client.is_closed
+            finally:
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("outcome", ["success", "error", "cancellation"])
+def test_public_transport_owned_client_closes_on_every_exit(
+    monkeypatch, public_transport_clock, outcome
+):
+    async def scenario():
+        entered, cancelled = asyncio.Event(), asyncio.Event()
+        clients, calls, closes = [], [], []
+        raw = b'{"price":"1.2300"}'
+        real_client = httpx.AsyncClient
+
+        async def handler(request):
+            calls.append(request)
+            entered.set()
+            if outcome == "error":
+                raise httpx.ReadTimeout("read stalled", request=request)
+            if outcome == "cancellation":
+                try:
+                    await asyncio.Future()
+                finally:
+                    cancelled.set()
+            return httpx.Response(200, content=raw)
+
+        class ClosingTransport(httpx.MockTransport):
+            async def aclose(self):
+                closes.append(self)
+                await super().aclose()
+
+        mock_transport = ClosingTransport(handler)
+
+        def make_client(**kwargs):
+            client = real_client(transport=mock_transport, **kwargs)
+            clients.append(client)
+            return client
+
+        monkeypatch.setattr(httpx, "AsyncClient", make_client)
+        task = asyncio.create_task(
+            fetch_public(
+                TransportRequest("GET", "https://owned-client.example/public"),
+                attempts=1,
+            )
+        )
+        try:
+            if outcome == "cancellation":
+                await asyncio.wait_for(entered.wait(), 1)
+                assert not clients[0].is_closed
+                assert closes == []
+                task.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await task
+                assert cancelled.is_set()
+            elif outcome == "error":
+                with pytest.raises(PublicTransportError) as caught:
+                    await asyncio.wait_for(task, 1)
+                assert caught.value.reason == "network_error"
+            else:
+                assert await asyncio.wait_for(task, 1) == raw
+        finally:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+        assert len(calls) == 1
+        assert len(clients) == 1
+        assert clients[0].is_closed
+        assert closes == [mock_transport]
+
+    asyncio.run(scenario())
 
 
 @pytest.mark.parametrize(

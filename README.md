@@ -16,10 +16,15 @@ Streamlit dashboard remains runnable until the terminal's M4 visualization cutov
 - **M2:** durable raw/normalized capture, verified manifests/checkpoints, deterministic
   replay and an explicitly synthetic offline demo implemented. Integration and
   Git delivery evidence are tracked in the handoff.
-- **M3:** analytics, exact costs and the end-to-end terminal are implemented and
-  verified locally. Recorder load/soak integration and milestone merge remain open.
-- **M4–M6:** **not done**. Historical liquidity visualization, full workspace
-  interactions, alerts/paper/journal/research and final operational acceptance remain.
+- **M3:** analytics, exact costs and the end-to-end terminal are implemented,
+  verified locally/in CI and merged. Full-depth finite loads and a30-second
+  Binance-global/Hyperliquid capture passed. The replacement30-minute attempt
+  failed with recorder queue overflow at1610.440 seconds; sustained capture is
+  **not accepted**.
+- **M4:** historical liquidity visualization and persistent workspace are in
+  implementation, **not yet verified or merged**.
+- **M5–M6:** **not done**. Alerts/paper/journal/research, required Hyperliquid
+  context and final operational acceptance remain.
 
 This is an interim progress summary; later milestone documentation will replace
 it as implementation and acceptance evidence land. See the
@@ -109,80 +114,40 @@ workstation; the terminal's independent memory-backed startup is described above
 See [recording](docs/RECORDING.md), [replay](docs/REPLAY.md), [demo/CLI](docs/DEMO.md)
 and the handoff for exact evidence, budgets, recovery and source limitations.
 
-## Run the current Streamlit app
+## Run the supported Streamlit client
 
-Use **Python 3.13** (reproducible interpreter: **3.13.5**) and **uv 0.8.4**.
-Python 3.14+ is not currently supported. From the repository root:
+Use the same locked Python 3.13 environment as the native backend. In one
+terminal, start the offline synthetic demo API:
 
 ```sh
-uv python install 3.13.5
-uv sync --locked --python 3.13.5 --group dev
+uv run --locked --offline --no-sync python -m src.workstation.cli serve
+```
+
+In another terminal:
+
+```sh
 uv run --locked --offline --no-sync python -m streamlit run crypto_lob.py --server.address 127.0.0.1
 ```
 
-Dependency setup may download packages. The launch command starts a **live-data
-UI**, not an offline demo: it can contact public exchange endpoints even though
-uv uses `--offline` for dependency management. No exchange credentials or wallet
-are required. See [native development](docs/DEVELOPMENT.md) for environment
-selection, lock policy and checks.
+Streamlit connects only to a loopback API origin. Select a catalog source and
+exact native instrument, then open the selection. It shares the backend's
+metadata, books, quality, historical grids, analytics and cost engine with the
+React terminal; it has no separate exchange collectors or financial formulas.
+Each browser document owns an independent API session. Live feed leases remain
+shared by the native registry, not by Streamlit process-global resources.
 
-In the sidebar, choose an asset, venues, a primary venue, display depth and
-panels. The UI refresh setting controls rendering, not background ingestion.
-Each Streamlit session owns independent legacy subscriptions and histories;
-this temporary isolation is **not** the planned shared subscription registry.
-
-## Current legacy venue support
-
-These are the adapters used by `crypto_lob.py`, not the full new-workstation
-integration matrix. Listed BTC pairs illustrate the native quote identities;
-availability varies by product, region and venue.
-
-| Venue | Example pair | Public live source | REST source / limits |
-| --- | --- | --- | --- |
-| Binance.US | `BTCUSDT` | Partial depth20 WebSocket snapshots, not a diff stream | Binance.US depth snapshots; separate from Binance global |
-| Kraken | `BTC/USD` | WebSocket v2 book, depth 25, exact-decimal top-10 CRC32 validation | Kraken depth snapshots |
-| Coinbase | `BTC-USD` | Advanced Trade public WebSocket `level2` / `l2_data` plus heartbeats; no JWT required | **Coinbase Exchange** REST level 2 fallback, explicitly a different API family |
-| KuCoin | `BTC-USDT` | REST polling only in the legacy adapter | Public level2_100 snapshots; no claim of event continuity |
-| Bybit | `BTCUSDT` | v5 spot `orderbook.50`, snapshot/delta with reset and ordering checks | Bybit depth snapshots; access restrictions remain visible |
-
-REST modes are labeled **degraded/snapshot**, and Binance.US partial books are
-independent snapshots. **Snapshot modes are not continuous event streams and
-cannot establish continuous OFI.** A successful transport connection or heartbeat
-alone does not establish a valid book.
-
-## Legacy safeguards and limitations
-
-- Prices and quantities are validated as `Decimal`; malformed, nonfinite,
-  negative, duplicate or crossed snapshot data is rejected rather than silently
-  repaired. Exact JSON decimal decoding preserves Kraken checksum precision.
-- Kraken applies an entire book message, retains the subscribed depth and checks
-  CRC32. Bybit validates identity, reset and monotonic ordering semantics without
-  inventing contiguous update IDs. Coinbase validates its Advanced Trade stream
-  separately from its Exchange REST fallback.
-- Feed workers use bounded transport attempts, deadlines and reconnect backoff.
-  REST fallback periodically retries WebSocket recovery; only valid book data
-  establishes recovery. Source transitions segment legacy history.
-- Comparison uses **best observed comparable bid/ask**, not a market-wide NBBO.
-  Conservative quality, freshness, quote identity and observation-skew exclusions
-  are shown. USD and USDT are never silently combined; degraded REST and stale
-  last-known books are diagnostic displays, not comparison inputs.
-- Session-owned workers are stopped/joined and obsolete generations cannot
-  publish into replacement subscriptions. This does not provide the future
-  backend registry's cross-client leases or headless collection lifecycle.
-- The legacy heatmap and float-based presentation are not the planned stable
-  historical terminal or an exact analytics engine. No crash-free, complete
-  liquidity, live venue validation or performance guarantee is made here.
-
-[Legacy behavior and operational limits](docs/LEGACY.md) describes these
-safeguards in detail. The source docstrings and regression fixtures define the
-implemented behavior; the acceptance backlog defines remaining work.
+The default is synthetic and offline. Recordings require `serve --capture`;
+public live data requires explicit `serve --network`. Unknown fees, incompatible
+quotes, invalid books and incomplete flow remain visible, not zero or profit.
+See [legacy client operation and bounds](docs/LEGACY.md), [API](docs/API.md) and
+[native development](docs/DEVELOPMENT.md). No credentials or wallet are required.
 
 ## Repository layout
 
-- `crypto_lob.py`: current Streamlit entrypoint.
-- `src/data/`, `src/domain/`, `src/ui/`: legacy adapters, service and presentation.
-- `src/workstation/`: exact core, public adapters and supervised shared feed registry;
-  not yet connected to the legacy Streamlit UI.
+- `crypto_lob.py`, `src/ui/`: thin Streamlit observation client of the native API.
+- `frontend/`: React/TypeScript terminal and historical Canvas workspace.
+- `src/workstation/`: exact core, public adapters, shared feed registry,
+  recording/replay, analytics, visualization and versioned terminal API.
 - `tests/`: offline contracts/regressions and explicitly separate live checks.
 - `docs/`: development instructions, contracts, acceptance and evidence.
 
@@ -196,9 +161,9 @@ After synchronizing the environment, use the documented offline gate:
 
 The gate and its environment-selection rules are explained in
 [DEVELOPMENT.md](docs/DEVELOPMENT.md#offline-checks-and-quality-scope).
-`tests/smoke_live.py` is a separate manual REST probe that contacts real services;
-it is not synchronized WebSocket validation. Actual executed checks, access
-observations and remaining blockers belong in the
+Public live probes and recordings use the explicit native CLI `--network`
+commands above; the duplicate legacy smoke script and collectors are retired.
+Executed checks, access observations and remaining blockers belong in the
 [handoff](docs/OMP_UPGRADE_HANDOFF.md), not inferred pass counts in this README.
 
 Public endpoints may rate-limit, block regional access, suspend products or

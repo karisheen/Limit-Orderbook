@@ -7,7 +7,7 @@ from decimal import Decimal as D, localcontext
 import pytest
 
 from src.workstation.analytics import AnalyticsConfig, AnalyticsEngine
-from src.workstation.book import Book, Level
+from src.workstation.book import Book, BookReducer, Level
 from src.workstation.demo import create_demo
 from src.workstation.events import (
     BookUpdate,
@@ -187,6 +187,68 @@ def test_exact_quotes_weighted_mid_and_signed_imbalance():
     )
     with pytest.raises(ValueError):
         dumps(metric)
+
+
+def test_reducer_to_analytics_preserves_sub_float_price_and_quantity_resolution():
+    increment = "0.000000000000000001"
+    feed = Feed(
+        instrument=synthetic_instrument(tick_size=increment, lot_size=increment)
+    )
+    reducer = BookReducer(
+        feed.instrument,
+        feed.keys["book"],
+        segment_id="synthetic-segment",
+        capabilities=Capabilities(deltas=True, exact_event_flow=True),
+    )
+    bid = D("100.000000000000000001")
+    ask = D("100.000000000000000002")
+    quantity = D(increment)
+    event = feed.event(
+        BookUpdate(
+            "snapshot",
+            (
+                LevelChange("bid", bid, quantity),
+                LevelChange("bid", D("99"), quantity),
+                LevelChange("ask", ask, quantity),
+                LevelChange("ask", D("101"), quantity),
+            ),
+        ),
+        1,
+        "book",
+    )
+    with localcontext() as context:
+        context.prec = 6
+        reduced = reducer.apply((event,))
+        assert reduced.recovery is None and reduced.book is not None
+        feed.book = reduced.book
+        feed.deliver(event)
+        metrics = feed.metrics(1)
+    assert feed.book.bids == (Level(bid, quantity), Level(D("99"), quantity))
+    assert feed.book.asks == (Level(ask, quantity), Level(D("101"), quantity))
+    expected = {
+        "best_bid": bid,
+        "best_ask": ask,
+        "spread_native": quantity,
+        "mid": D("100.0000000000000000015"),
+        "weighted_mid": D("100.0000000000000000015"),
+        "signed_imbalance": D("0"),
+        "bid_share": D("0.5"),
+        "depth_bid_5bps_base": quantity,
+        "depth_ask_5bps_base": quantity,
+    }
+    for name, value in expected.items():
+        metric = metrics[name]
+        assert isinstance(metric.value, D)
+        assert metric.value == value
+        assert metric.asof == feed.book.asof
+        assert (
+            loads(
+                dumps(metric, decimal_policy=DERIVED_DECIMAL_POLICY),
+                type(metric),
+                decimal_policy=DERIVED_DECIMAL_POLICY,
+            )
+            == metric
+        )
 
 
 def test_depth_includes_boundary_and_requires_genuine_band_coverage():

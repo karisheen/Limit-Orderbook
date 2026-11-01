@@ -1,0 +1,27 @@
+{
+  "scenario": "Actual mergeVisualGrid excludes columns starting at the half-open visible-window end",
+  "before": {
+    "exit_code": 1,
+    "observation": {
+      "window": "[0,20)",
+      "retained_columns": [
+        {
+          "id": "20",
+          "time_ns": "20",
+          "end_ns": "21"
+        }
+      ],
+      "passed": false
+    }
+  },
+  "after": {
+    "exit_code": 0,
+    "observation": {
+      "window": "[0,20)",
+      "retained_columns": [],
+      "passed": true
+    }
+  },
+  "runtime": "Node 22.22.0",
+  "scope": "Presentation history merge only; browser and backend integrations are separate gates"
+}

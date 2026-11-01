@@ -1060,6 +1060,13 @@ class FeedSupervisor:
                         is not None
                     ):
                         try:
+                            # Switching recovery paths must not bypass an HTTP
+                            # Retry-After deadline established by the last request.
+                            cooldown = self._http_retry_until - time.monotonic()
+                            if cooldown > 0:
+                                await asyncio.sleep(cooldown)
+                            if self._stop_requested:
+                                break
                             await self._rest_session()
                             failures = 0
                             continue
