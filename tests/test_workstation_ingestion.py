@@ -1,4 +1,4 @@
-"""Synthetic offline supervision/lease faults; no external sockets or credentials."""
+"""Offline supervision faults and retained public payloads; no external sockets."""
 
 import asyncio
 from dataclasses import replace
@@ -273,6 +273,248 @@ def test_buffered_reader_yields_between_required_frames():
         finally:
             reader.cancel()
             await asyncio.gather(reader, return_exceptions=True)
+
+    asyncio.run(scenario())
+
+
+def test_buffered_trade_burst_reaches_consumer_without_queue_loss():
+    """A runnable consumer must keep up with a buffered native trade burst."""
+    import json
+    from pathlib import Path
+
+    from src.workstation.adapters.binance import BinanceGlobalAdapter
+    from src.workstation.instruments import Instrument
+    from src.workstation.wire import from_wire
+
+    async def scenario():
+        fixture_path = (
+            Path(__file__).parent / "fixtures/synthetic_binance_trade_burst.json"
+        )
+        fixture = json.loads(fixture_path.read_text())
+        payloads = [payload.encode() for payload in fixture["payloads"]]
+        instrument = from_wire(fixture["instrument"], Instrument)
+        key = SubscriptionKey.for_instrument(instrument, channel="trades")
+        raw, events = [], []
+        complete = asyncio.Event()
+        hold_open = asyncio.Event()
+        peer_turns = 0
+
+        class BufferedSocket:
+            def __init__(self):
+                self.messages = iter(payloads)
+
+            def __aiter__(self):
+                return self
+
+            async def __anext__(self):
+                payload = next(self.messages, None)
+                if payload is None:
+                    await hold_open.wait()
+                    raise StopAsyncIteration
+                return payload
+
+        def received(batch):
+            events.extend(batch)
+            if sum(isinstance(event.payload, Trade) for event in events) == len(
+                payloads
+            ):
+                complete.set()
+
+        feed = FeedSupervisor(
+            BinanceGlobalAdapter(),
+            instrument,
+            key,
+            callbacks=FeedCallbacks(raw=raw.append, events=received),
+            config=SupervisorConfig(queue_count=16),
+        )
+        feed._start_epoch(False)
+
+        async def peer():
+            nonlocal peer_turns
+            while not complete.is_set():
+                peer_turns += 1
+                await asyncio.sleep(0)
+
+        reader = asyncio.create_task(
+            feed._reader(
+                BufferedSocket(), feed.adapter.ws_endpoint(instrument, key), feed.epoch
+            )
+        )
+        consumer = asyncio.create_task(
+            feed._consume(time.monotonic(), require_ack=False)
+        )
+        observer = asyncio.create_task(peer())
+        finished = asyncio.create_task(complete.wait())
+        try:
+            done, _ = await asyncio.wait(
+                (consumer, finished), timeout=5, return_when=asyncio.FIRST_COMPLETED
+            )
+            if consumer in done:
+                await consumer
+            assert finished in done
+            trades = [event for event in events if isinstance(event.payload, Trade)]
+            expected = [
+                feed.adapter.decode(frame, instrument, key).events[0].payload
+                for frame in raw
+            ]
+            assert [frame.payload for frame in raw] == payloads
+            assert [event.payload for event in trades] == expected
+            assert [event.raw_ref for event in trades] == [frame.ref() for frame in raw]
+            assert feed.processed_frames == len(payloads)
+            assert feed.capture_complete and not feed._fault.is_set()
+            assert feed.queue.empty() and feed.queued_bytes == 0
+            assert peer_turns > 1
+        finally:
+            for task in (reader, consumer, observer, finished):
+                task.cancel()
+            await asyncio.gather(
+                reader, consumer, observer, finished, return_exceptions=True
+            )
+
+    asyncio.run(scenario())
+
+
+def test_trade_stop_drains_queued_input_before_boundary():
+    import json
+    from pathlib import Path
+
+    from src.workstation.adapters.binance import BinanceGlobalAdapter
+    from src.workstation.instruments import Instrument
+    from src.workstation.wire import from_wire
+
+    async def scenario():
+        fixture_path = (
+            Path(__file__).parent / "fixtures/synthetic_binance_trade_burst.json"
+        )
+        fixture = json.loads(fixture_path.read_text())
+        instrument = from_wire(fixture["instrument"], Instrument)
+        key = SubscriptionKey.for_instrument(instrument, channel="trades")
+        payloads = [payload.encode() for payload in fixture["payloads"]]
+        raw, events = [], []
+
+        def delivered(batch):
+            events.extend(batch)
+            if (
+                any(isinstance(event.payload, Trade) for event in batch)
+                and not feed._stop_requested
+            ):
+                feed.request_stop()
+                consumer.cancel()
+
+        feed = FeedSupervisor(
+            BinanceGlobalAdapter(),
+            instrument,
+            key,
+            callbacks=FeedCallbacks(raw=raw.append, events=delivered),
+            config=SupervisorConfig(queue_count=len(payloads)),
+        )
+        feed._start_epoch(False)
+        feed._running = True
+        for payload in payloads:
+            feed._receive(
+                payload, "ws", feed.adapter.ws_endpoint(instrument, key), feed.epoch
+            )
+        consumer = asyncio.create_task(
+            feed._consume(time.monotonic(), require_ack=False)
+        )
+        try:
+            with pytest.raises(asyncio.CancelledError):
+                await asyncio.wait_for(consumer, 5)
+            assert 0 < feed.processed_frames < len(payloads)
+        finally:
+            consumer.cancel()
+            await asyncio.gather(consumer, return_exceptions=True)
+            await feed._shutdown()
+        trades = [event for event in events if isinstance(event.payload, Trade)]
+        expected = [
+            feed.adapter.decode(frame, instrument, key).events[0].payload
+            for frame in raw
+        ]
+        assert [event.payload for event in trades] == expected
+        assert [event.raw_ref for event in trades] == [frame.ref() for frame in raw]
+        assert feed.processed_frames == len(payloads)
+        assert feed.queue.empty() and feed.queued_bytes == 0
+        assert feed.capture_complete
+        assert isinstance(events[-1].payload, Gap)
+        assert events[-1].payload.reason_code == "owner_stopped"
+        assert not events[-1].payload.capture_lost
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("stop_during_decode", [False, True])
+def test_large_trade_array_keeps_owner_responsive_and_exact(
+    stop_during_decode,
+):
+    import json
+    from pathlib import Path
+    import threading
+
+    from src.workstation.adapters.hyperliquid import HyperliquidAdapter
+    from src.workstation.instruments import Instrument
+    from src.workstation.wire import from_wire
+
+    async def scenario():
+        fixture_path = (
+            Path(__file__).parent / "fixtures/synthetic_hyperliquid_trade_array.json"
+        )
+        fixture = json.loads(fixture_path.read_text())
+        instrument = from_wire(fixture["instrument"], Instrument)
+        key = SubscriptionKey.for_instrument(instrument, channel="trades")
+        adapter = HyperliquidAdapter()
+        entered = asyncio.Event()
+        release = threading.Event()
+        loop = asyncio.get_running_loop()
+        events = []
+        decode = adapter.decode
+
+        def held_decode(frame, instrument, key):
+            loop.call_soon_threadsafe(entered.set)
+            if not release.wait(2):
+                raise RuntimeError("owner could not service decoder release")
+            return decode(frame, instrument, key)
+
+        adapter.decode = held_decode
+        feed = FeedSupervisor(
+            adapter, instrument, key, callbacks=FeedCallbacks(events=events.extend)
+        )
+        feed._start_epoch(False)
+        feed._running = True
+        feed._receive(
+            fixture["payload"].encode(),
+            "ws",
+            adapter.ws_endpoint(instrument, key),
+            feed.epoch,
+        )
+        frame = feed.queue.get_nowait()
+        feed.queued_bytes -= len(frame.payload)
+        expected = [event.payload for event in decode(frame, instrument, key).events]
+        task = asyncio.create_task(feed._process(frame))
+        try:
+            await asyncio.wait_for(entered.wait(), 1)
+            assert not task.done()
+            if stop_during_decode:
+                feed.request_stop()
+                task.cancel()
+                await asyncio.sleep(0)
+                assert not task.done()
+            release.set()
+            if stop_during_decode:
+                with pytest.raises(asyncio.CancelledError):
+                    await task
+            else:
+                await task
+            trades = [event for event in events if isinstance(event.payload, Trade)]
+            assert [event.payload for event in trades] == expected
+            assert all(event.raw_ref == frame.ref() for event in trades)
+            assert feed.processed_frames == 1
+            assert feed._pending_ordinal is None
+            assert feed.capture_complete
+        finally:
+            release.set()
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+            await feed._shutdown()
 
     asyncio.run(scenario())
 

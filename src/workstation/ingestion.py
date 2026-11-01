@@ -44,6 +44,12 @@ from .quality import SourceMode
 from .transport import PublicTransportError, fetch_public, retry_after_seconds
 
 
+# Small trade transactions have no depth-dependent reducer work. Bound their
+# inline decode input across venues; large trade arrays and every book frame
+# retain worker isolation. This is a service bound, not an input acceptance cap.
+_INLINE_TRADE_BYTES = 4096
+
+
 class SinkOverflow(RuntimeError):
     """A required consumer could not retain its input; never an allowed drop."""
 
@@ -772,27 +778,33 @@ class FeedSupervisor:
             return
         self._pending_ordinal = frame.ingest_ordinal
         queue_exit_ns = time.monotonic_ns()
-        work = asyncio.create_task(asyncio.to_thread(self._decode_reduce, frame))
+        inline = (
+            self.key.channel == "trades" and len(frame.payload) <= _INLINE_TRADE_BYTES
+        )
         interrupted = False
-        try:
-            events, reduction, stages = await asyncio.shield(work)
-        except asyncio.CancelledError:
-            # Thread work cannot be forcibly stopped. Even repeated cancellation
-            # must join it before releasing reducer ownership to another epoch.
-            while not work.done():
-                try:
-                    await asyncio.shield(work)
-                except asyncio.CancelledError:
-                    continue
-                except Exception:
-                    break
-            if not self._stop_requested or self._fault.is_set():
-                # Retrieve any decoder exception even when the output is lost.
-                if not work.cancelled():
-                    work.exception()
-                raise
-            events, reduction, stages = work.result()
-            interrupted = True
+        if inline:
+            events, reduction, stages = self._decode_reduce(frame)
+        else:
+            work = asyncio.create_task(asyncio.to_thread(self._decode_reduce, frame))
+            try:
+                events, reduction, stages = await asyncio.shield(work)
+            except asyncio.CancelledError:
+                # Thread work cannot be forcibly stopped. Even repeated cancellation
+                # must join it before releasing reducer ownership to another epoch.
+                while not work.done():
+                    try:
+                        await asyncio.shield(work)
+                    except asyncio.CancelledError:
+                        continue
+                    except Exception:
+                        break
+                if not self._stop_requested or self._fault.is_set():
+                    # Retrieve any decoder exception even when the output is lost.
+                    if not work.cancelled():
+                        work.exception()
+                    raise
+                events, reduction, stages = work.result()
+                interrupted = True
         if self._fault.is_set():
             raise FeedFault(self._fault_reason)
         normalized = normalize_events(
@@ -870,6 +882,10 @@ class FeedSupervisor:
             )
         if interrupted:
             raise asyncio.CancelledError
+        if inline:
+            # A prefilled queue must not monopolize the loop or defer stop/fault
+            # observation. Yield only after this atomic transaction is delivered.
+            await asyncio.sleep(0)
 
     async def _consume(self, started: float, *, require_ack: bool) -> None:
         while True:
@@ -891,17 +907,20 @@ class FeedSupervisor:
             if now - started >= self.config.session_lifetime:
                 raise FeedFault("planned_session_rotation")
             try:
-                frame = await asyncio.wait_for(
-                    self.queue.get(),
-                    timeout=min(
-                        0.1,
-                        self.config.ack_timeout,
-                        self.config.snapshot_timeout,
-                        self.config.silence_timeout,
-                    ),
-                )
-            except TimeoutError:
-                continue
+                frame = self.queue.get_nowait()
+            except asyncio.QueueEmpty:
+                try:
+                    async with asyncio.timeout(
+                        min(
+                            0.1,
+                            self.config.ack_timeout,
+                            self.config.snapshot_timeout,
+                            self.config.silence_timeout,
+                        )
+                    ):
+                        frame = await self.queue.get()
+                except TimeoutError:
+                    continue
             self.queued_bytes -= len(frame.payload)
             await self._process(frame)
 
