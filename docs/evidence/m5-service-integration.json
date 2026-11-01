@@ -3,8 +3,8 @@
   "final_gate": {
     "command": "bash tools/check.sh -q --tb=short",
     "python_passed": 1166,
-    "python_seconds": 398.70,
-    "wall_seconds": 435.10,
+    "python_seconds": 398.7,
+    "wall_seconds": 435.1,
     "warning": "Existing Starlette/httpx deprecation",
     "ruff_and_format": "passed;70 files",
     "mypy": "passed;35 modules",
@@ -369,51 +369,65 @@
     {
       "path": "docs/evidence/m5-integrated-cohort-20261101T172219Z.json",
       "original_bytes": 1760617,
-      "published_bytes": 1487531,
+      "published_bytes": 1219949,
       "original_sha256": "7a55579573ea2efa60a16b13ee6d3a18ba9d18b48dce1aec47c8318e44828843",
-      "published_sha256": "db025d33921d0dec19e1aa993ff809e7b0d827c35773e094e0c774a199ecc53f"
+      "published_sha256": "c0f6b82ed077dd1b2625c6b118c9f7a1b8d52c27fc7dac3219e2351948f87d8f",
+      "initial_published_bytes": 1487531,
+      "initial_published_sha256": "db025d33921d0dec19e1aa993ff809e7b0d827c35773e094e0c774a199ecc53f"
     },
     {
       "path": "docs/evidence/m5-integrated-cohort-20261101T172847Z.json",
       "original_bytes": 12341231,
-      "published_bytes": 5093400,
+      "published_bytes": 4011508,
       "original_sha256": "a80499d8c1cfbad546099f187d382a67969d7c02d1b225a2221dc38707860802",
-      "published_sha256": "c31eca53d171a3c5b2b882d1911886b4a6a0a315a0723e006f98321665c2f891"
+      "published_sha256": "c9dd8b9a3af99cb00f2e21de6a8544f2cd76bcf643b98a693aee12443915ef8a",
+      "initial_published_bytes": 5093400,
+      "initial_published_sha256": "c31eca53d171a3c5b2b882d1911886b4a6a0a315a0723e006f98321665c2f891"
     },
     {
       "path": "docs/evidence/m5-integrated-cohort-20261101T173829Z.json",
       "original_bytes": 23732398,
-      "published_bytes": 8768563,
+      "published_bytes": 6243184,
       "original_sha256": "753d69176f4bcd08e3b8b67dd5f114ce7bcdebf0457031a5afa90ee1327ccdb2",
-      "published_sha256": "b71ec99f37143aaac1e7f6cf312c92a4925bc021fac5a96dee3c78aedf5c52fc"
+      "published_sha256": "a1abd227c2c70be21a7bffc608c3dfce62c81c3e3a7c0c3f94963a8dd2e3d82c",
+      "initial_published_bytes": 8768563,
+      "initial_published_sha256": "b71ec99f37143aaac1e7f6cf312c92a4925bc021fac5a96dee3c78aedf5c52fc"
     },
     {
       "path": "docs/evidence/m5-integrated-cohort-20261101T174454Z.json",
       "original_bytes": 22042674,
-      "published_bytes": 8936771,
+      "published_bytes": 6378985,
       "original_sha256": "55187486dbcc64bfc1aca3aac8a20e67e9ccdf10094105baa02ddb454441437f",
-      "published_sha256": "929347f93958f8e083e76993afa43e7a5573a4a96749f41d65ce39418aba684e"
+      "published_sha256": "4b0ec067ac0e6cc06b0613febeb770e2c8943e8c0c4fa40729149c9df47b131a",
+      "initial_published_bytes": 8936771,
+      "initial_published_sha256": "929347f93958f8e083e76993afa43e7a5573a4a96749f41d65ce39418aba684e"
     },
     {
       "path": "docs/evidence/m5-integrated-cohort-20261101T174750Z.json",
       "original_bytes": 10523343,
-      "published_bytes": 6211085,
+      "published_bytes": 4311832,
       "original_sha256": "db3ac72b929f98019496531499ea746004165b2608ccfc6b3186ff915f022c50",
-      "published_sha256": "a6c17ebbc2c0420f89ed228ef05349f50b76af69a8abe4d0515a75bd17943d39"
+      "published_sha256": "170d5129f8497896251fc6aa5cfb0f68570c368a6075fff785edf92d94ca6428",
+      "initial_published_bytes": 6211085,
+      "initial_published_sha256": "a6c17ebbc2c0420f89ed228ef05349f50b76af69a8abe4d0515a75bd17943d39"
     },
     {
       "path": "docs/evidence/m5-integrated-cohort-20261101T175259Z.json",
       "original_bytes": 32941991,
-      "published_bytes": 11414875,
+      "published_bytes": 8467238,
       "original_sha256": "c0f79ba6422a5d87c127491ec839e16d4efb1d00f9db3e7933d2310c3bc09e28",
-      "published_sha256": "67f0dc49d080d4923a812bbb13eff3033061c42a91dd433f83c4385a19a16a51"
+      "published_sha256": "403ca11d4b67c8b4e6e1eabdfdb6eb082e66cff35145578f8eda0cbf7d8494f1",
+      "initial_published_bytes": 11414875,
+      "initial_published_sha256": "67f0dc49d080d4923a812bbb13eff3033061c42a91dd433f83c4385a19a16a51"
     },
     {
       "path": "docs/evidence/m5-integrated-cohort-20261101T175620Z.json",
       "original_bytes": 32925889,
-      "published_bytes": 11233647,
+      "published_bytes": 8590916,
       "original_sha256": "5767ead84c0f77bf50255886089b43ea01b1c2e7ce23f346d899c1df9d225d74",
-      "published_sha256": "8ad52db5edb9dcdc307e44ed74f8c9e9b8807dd7bd6202b392dd31b3fb451657"
+      "published_sha256": "ba1217f95039f132a3b3e6d9b293fde285dc9d0f44d29222c92de6bd62396c69",
+      "initial_published_bytes": 11233647,
+      "initial_published_sha256": "8ad52db5edb9dcdc307e44ed74f8c9e9b8807dd7bd6202b392dd31b3fb451657"
     }
   ],
   "source_sha256": {
