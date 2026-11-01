@@ -496,6 +496,26 @@ def preload_source(args, manifest):
     }
 
 
+def benchmark_config(manifest):
+    """Retain source reasons outside the new writer's bounded fault list."""
+    if manifest.complete:
+        return manifest.config
+    prefix = "benchmark_source_incomplete_"
+    if any(key.startswith(prefix) for key, _ in manifest.config):
+        raise ValueError("source already uses reserved benchmark provenance metadata")
+    provenance = (
+        (prefix + "reason_count", str(len(manifest.incomplete_reasons))),
+    ) + tuple(
+        (prefix + f"reason_{index:02d}", reason)
+        for index, reason in enumerate(manifest.incomplete_reasons)
+    )
+    if len(manifest.config) + len(provenance) > 256:
+        raise ValueError(
+            "source configuration and complete failure provenance exceed metadata capacity"
+        )
+    return manifest.config + provenance
+
+
 def writer_load(args, manifest, name, speed, preloaded):
     metrics = Metrics(args.samples)
     start, cpu = time.perf_counter(), time.process_time()
@@ -510,7 +530,7 @@ def writer_load(args, manifest, name, speed, preloaded):
         session_id=manifest.session_id,
         clock_id=manifest.clock_id,
         streams=manifest.streams,
-        config=manifest.config,
+        config=benchmark_config(manifest),
         code_revision="benchmark-source-sha256:" + file_hash(Path(__file__)),
         provenance=manifest.provenance,
         license=manifest.license,
@@ -519,9 +539,6 @@ def writer_load(args, manifest, name, speed, preloaded):
     )
     if not manifest.complete:
         recorder.mark_incomplete("benchmark_source_incomplete")
-        for reason in manifest.incomplete_reasons:
-            # Preserve source evidence without treating the new writer as failed.
-            recorder.mark_incomplete("source:" + reason)
     first = highwater = None
     offered_raw = offered_batches = offered_events = rejected = 0
     failure = None

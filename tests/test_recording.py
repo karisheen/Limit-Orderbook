@@ -966,6 +966,30 @@ def test_terminal_failure_survives_full_incomplete_reason_capacity(tmp_path, rea
     assert not manifest.complete
 
 
+def test_failed_manifest_seal_is_terminal_even_at_reason_capacity(
+    tmp_path, monkeypatch
+):
+    atomic = recording._atomic
+
+    def fail_manifest(path, payload):
+        if path.name == "manifest.json":
+            raise OSError("injected manifest sealing failure")
+        return atomic(path, payload)
+
+    monkeypatch.setattr(recording, "_atomic", fail_manifest)
+    recorder = recorder_at(tmp_path)
+    raw, event = fixture_message(fixture_stream())
+    recorder.append_raw(raw)
+    recorder.append_events((event,))
+    for index in range(64):
+        recorder.mark_incomplete(f"source_gap:{index}")
+    manifest = asyncio.run(recorder.finalize())
+    assert not (recorder.path / "manifest.json").exists()
+    assert not manifest.complete
+    assert recorder.health.terminal_failure
+    assert "finalization_failed:OSError" in manifest.incomplete_reasons
+
+
 def test_queue_byte_boundary_counts_shared_immutable_fields_per_occurrence(
     tmp_path, monkeypatch
 ):

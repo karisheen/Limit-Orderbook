@@ -42,7 +42,12 @@ from .instruments import Instrument
 STORAGE_SCHEMA_VERSION = 2
 _MANIFEST_LIMIT = 16 * 1024 * 1024
 _CONFIG_KEYS = frozenset({"poll_interval", "dedup_capacity", "max_levels", "dex"})
-_TERMINAL_FAILURE_PREFIXES = ("writer_failed", "queue_overflow", "finalize_timeout")
+_TERMINAL_FAILURE_PREFIXES = (
+    "writer_failed",
+    "queue_overflow",
+    "finalize_timeout",
+    "finalization_failed",
+)
 
 
 class RecordingError(RuntimeError):

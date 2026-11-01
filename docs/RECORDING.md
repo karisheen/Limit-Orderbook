@@ -170,13 +170,14 @@ coalesced. `health` exposes state, queue counts/bytes, count/byte high-water mar
 written sealed-file bytes and incomplete reasons.
 
 The read-only `health.terminal_failure` distinguishes a dead required sink
-(`queue_overflow`, `writer_failed:*`, or `finalize_timeout`) from truthful but
-nonterminal source gaps. Supervisors must stop a terminal capture rather than
+(`queue_overflow`, `writer_failed:*`, `finalize_timeout`, or `finalization_failed:*`)
+from truthful but nonterminal source gaps. Supervisors must stop a terminal capture rather than
 reconnect sources against the failed sink. A source capture-loss gap alone keeps
 `terminal_failure=False`: subsequent raw and normalized evidence remains writable,
 but cannot make the manifest complete again. If the bounded 64-reason diagnostic
 list is already full, its last entry is replaced by the first terminal reason so
 a dead sink cannot be concealed by earlier source diagnostics.
+Manifest/catalog/final sealing failures are also terminal: no readable finalized capture exists. This classification is retained even when earlier source diagnostics already occupy all64 reason slots.
 
 One daemon worker owns compression, SQLite, file writes and the shared deterministic
 projection. It applies delivered normalized transactions rather than reading the
