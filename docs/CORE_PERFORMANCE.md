@@ -390,3 +390,47 @@ slots overflowed while2,048 retained all8,258 offered items, peaked at591 items 
 cap, native depth, required-event fidelity and checkpoint cadence are unchanged.
 This measured finite-burst correction does not establish a30-minute or24-hour
 soak pass. Historical512-item measurements above remain unchanged.
+
+## Later M5 service correction and M6 acceptance
+
+The preceding512/2048-slot results remain historical. A later live run exhausted
+2048 recorder slots while the first Arrow table conversion initialized lazily.
+Production now prepares an empty table under the real schema before admission
+and uses4096 items with the unchanged128MiB byte cap. No raw input, required
+normalized transaction, native depth or checkpoint cadence was discarded to
+make this pass. The retained failed run, measured correction and fresh complete
+18-channel30-minute capture are linked from [current readiness](READINESS.md).
+
+The terminal's separate required analytical sink uses256 items/128MiB, counting
+detached in-flight ownership until completion. It submits up to32 already-
+admitted deliveries per worker call in original atomic order; it does not
+coalesce analytical evidence. Per-immutable-book depth totals and frozen
+standing-liquidity tuples are reused only while their native book identity is
+unchanged. Freshness, clocks, trade windows, eligibility and checkpoints remain
+independently evaluated.
+
+The isolated5,000-bid/5,000-ask,100-clock-query diagnostic measured:
+
+| Implementation | Wall seconds | Process CPU seconds |
+| --- | ---: | ---: |
+| Before immutable-book cache |3.415724936 |2.935197 |
+| After immutable-book cache |0.094367886 |0.091319 |
+
+Both the analytical snapshot hash
+`d500b09b8b93c6ff8ebac290dbfc79644bb760bc554fafbf03dc248270af5957`
+and checkpoint/state hash
+`45f1baad1bf2dd28ac1e48a79545fb6d06abbd500a4fb6d0d59bb94656322c42`
+were unchanged. The before profile exposed four million repeated valuations;
+the fixed input/clock/script and original failure evidence are retained in
+`evidence/m5-depth-service-before.json`, `m5-depth-service-after.json` and
+`m5-service-integration.json`. The earlier asynchronous live profile also
+included unrelated event-loop work and is not exclusive owner CPU attribution.
+
+Current M6 native receive-to-validation and four real1x/2x render cohorts,
+including startup failures, causal measurement windows, limited burst margin,
+all commands/hashes and screenshots, are reported in [readiness](READINESS.md).
+Do not substitute reducer-only timing, a synthetic scheduling queue, original
+recording timestamp age or browser draw submission for those boundaries.
+Measured normal-load budgets currently justify retaining Python rather than
+introducing an unmeasured cross-language component.
+

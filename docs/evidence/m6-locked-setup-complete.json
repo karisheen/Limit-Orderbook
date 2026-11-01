@@ -1,0 +1,1263 @@
+{
+  "scope": "Fresh isolated Python environment and native synthetic recording/replay, followed by locked frontend install/build. Retried only the failed dependency acquisition in the same environment; no lock refresh.",
+  "initial_attempt": "m6-locked-setup-20261101T182042Z.json",
+  "initial_failure": "Offline cache lacked the pinned pyarrow26.0.0 wheel; this is an installation prerequisite, not an offline-test failure.",
+  "retry_command": "env UV_PROJECT_ENVIRONMENT=data/m6-smoke/setup-20261101T182042Z/python uv sync --locked --python 3.13.5 --group dev && env PYTHONPATH=. data/m6-smoke/setup-20261101T182042Z/python/bin/python -m src.workstation.cli demo --duration 2 --root data/m6-smoke/setup-20261101T182042Z/demo && env PATH=\"<repo>/.tools/node/bin:$PATH\" npm --prefix frontend ci && env PATH=\"<repo>/.tools/node/bin:$PATH\" npm --prefix frontend run build",
+  "completed": true,
+  "exit_code": 0,
+  "wall_seconds": 85.53,
+  "locks_before": {
+    "uv.lock": "5963c7bf860f122c0b549ecfe102f7500a7c384e4f1d043c57bd4d097eadf58d",
+    "pyproject.toml": "c220e8917e0b1a81f389b96d9499fcb2a3eee4a96891cb306a937ef1d444bc87",
+    "frontend/package-lock.json": "b6683113c863734bf1e3c56c3b73623e89437c2a40b18270bc7ab740bad81fdd",
+    "frontend/package.json": "37ce036eaeb273bf786152872add623dcba0cdfc6a3b0f235f6ebaf2a219d2d9"
+  },
+  "locks_after": {
+    "uv.lock": "5963c7bf860f122c0b549ecfe102f7500a7c384e4f1d043c57bd4d097eadf58d",
+    "pyproject.toml": "c220e8917e0b1a81f389b96d9499fcb2a3eee4a96891cb306a937ef1d444bc87",
+    "frontend/package-lock.json": "b6683113c863734bf1e3c56c3b73623e89437c2a40b18270bc7ab740bad81fdd",
+    "frontend/package.json": "37ce036eaeb273bf786152872add623dcba0cdfc6a3b0f235f6ebaf2a219d2d9"
+  },
+  "locks_unchanged": true,
+  "native_demo": {
+    "book_hash": "70021b3c049040e6eba699113dfccca015c8e42b42540518932cc3e03f6ab8ea",
+    "books": [
+      {
+        "$type": "Book",
+        "asks": [
+          {
+            "$type": "Level",
+            "price": "60001",
+            "quantity": "2.000"
+          },
+          {
+            "$type": "Level",
+            "price": "60002",
+            "quantity": "3.000"
+          }
+        ],
+        "asof": {
+          "$type": "EventEnvelopeRef",
+          "clock_id": "synthetic-clock-v3",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793545281085000000",
+          "ingest_ordinal": "169",
+          "receive_mono_ns": "3000000000",
+          "receive_wall_ns": "1793545281085000000",
+          "session_id": "synthetic-demo-v3-2s"
+        },
+        "bids": [
+          {
+            "$type": "Level",
+            "price": "59999.00",
+            "quantity": "4.000"
+          },
+          {
+            "$type": "Level",
+            "price": "59998",
+            "quantity": "3.000"
+          }
+        ],
+        "connection_epoch": "3",
+        "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+        "key": {
+          "$type": "SubscriptionKey",
+          "aggregation": [],
+          "api_family": "spot-v3",
+          "channel": "book",
+          "depth": "5000",
+          "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+          "venue": "binance-global"
+        },
+        "metadata_version": "04ab32d44ea51bec5d654074e982bc08d2dced5a9b0710ee9755c6d717f95839:1793545279085000000",
+        "quality": {
+          "$type": "Quality",
+          "capabilities": {
+            "$type": "Capabilities",
+            "asset_context": [],
+            "checksum_scope": null,
+            "deltas": true,
+            "exact_event_flow": true,
+            "reference_prices": [],
+            "sequence_scope": "binance-global:spot-v3:spot:BTCUSDT:depth",
+            "snapshot": true,
+            "trades": false
+          },
+          "capture_complete": true,
+          "clock_id": "synthetic-clock-v3",
+          "continuous_since_ordinal": "9",
+          "coverage": {
+            "$type": "Coverage",
+            "expected_cadence_ns": null,
+            "full_depth": true,
+            "retained_ask_levels": "2",
+            "retained_bid_levels": "2",
+            "source_aggregation": [],
+            "subscribed_depth": "5000",
+            "worst_ask": "60002",
+            "worst_bid": "59998"
+          },
+          "integrity": "valid",
+          "last_book_change_mono_ns": "3000000000",
+          "last_book_observation_mono_ns": "3000000000",
+          "last_healthy_observation_mono_ns": "3000000000",
+          "last_transport_mono_ns": "3000000000",
+          "lifecycle": "live",
+          "reason_codes": [],
+          "recorded_source_mode": null,
+          "source_mode": "ws_delta",
+          "transport_alive": true
+        },
+        "revision": "4",
+        "segment_id": "demo-binance-global:spot-v3:spot:BTCUSDT-book-ws-3"
+      },
+      {
+        "$type": "Book",
+        "asks": [
+          {
+            "$type": "Level",
+            "price": "3001",
+            "quantity": "2.000"
+          },
+          {
+            "$type": "Level",
+            "price": "3002",
+            "quantity": "3.000"
+          }
+        ],
+        "asof": {
+          "$type": "EventEnvelopeRef",
+          "clock_id": "synthetic-clock-v3",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793545281085000000",
+          "ingest_ordinal": "171",
+          "receive_mono_ns": "3000002000",
+          "receive_wall_ns": "1793545281085002000",
+          "session_id": "synthetic-demo-v3-2s"
+        },
+        "bids": [
+          {
+            "$type": "Level",
+            "price": "2999.00",
+            "quantity": "4.000"
+          },
+          {
+            "$type": "Level",
+            "price": "2998",
+            "quantity": "3.000"
+          }
+        ],
+        "connection_epoch": "3",
+        "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+        "key": {
+          "$type": "SubscriptionKey",
+          "aggregation": [],
+          "api_family": "spot-v3",
+          "channel": "book",
+          "depth": "5000",
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+          "venue": "binance-global"
+        },
+        "metadata_version": "04ab32d44ea51bec5d654074e982bc08d2dced5a9b0710ee9755c6d717f95839:1793545279085000000",
+        "quality": {
+          "$type": "Quality",
+          "capabilities": {
+            "$type": "Capabilities",
+            "asset_context": [],
+            "checksum_scope": null,
+            "deltas": true,
+            "exact_event_flow": true,
+            "reference_prices": [],
+            "sequence_scope": "binance-global:spot-v3:spot:ETHUSDT:depth",
+            "snapshot": true,
+            "trades": false
+          },
+          "capture_complete": true,
+          "clock_id": "synthetic-clock-v3",
+          "continuous_since_ordinal": "21",
+          "coverage": {
+            "$type": "Coverage",
+            "expected_cadence_ns": null,
+            "full_depth": true,
+            "retained_ask_levels": "2",
+            "retained_bid_levels": "2",
+            "source_aggregation": [],
+            "subscribed_depth": "5000",
+            "worst_ask": "3002",
+            "worst_bid": "2998"
+          },
+          "integrity": "valid",
+          "last_book_change_mono_ns": "3000002000",
+          "last_book_observation_mono_ns": "3000002000",
+          "last_healthy_observation_mono_ns": "3000002000",
+          "last_transport_mono_ns": "3000002000",
+          "lifecycle": "live",
+          "reason_codes": [],
+          "recorded_source_mode": null,
+          "source_mode": "ws_delta",
+          "transport_alive": true
+        },
+        "revision": "4",
+        "segment_id": "demo-binance-global:spot-v3:spot:ETHUSDT-book-ws-3"
+      },
+      {
+        "$type": "Book",
+        "asks": [
+          {
+            "$type": "Level",
+            "price": "151",
+            "quantity": "2.000"
+          },
+          {
+            "$type": "Level",
+            "price": "152",
+            "quantity": "3.000"
+          }
+        ],
+        "asof": {
+          "$type": "EventEnvelopeRef",
+          "clock_id": "synthetic-clock-v3",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793545281085000000",
+          "ingest_ordinal": "173",
+          "receive_mono_ns": "3000004000",
+          "receive_wall_ns": "1793545281085004000",
+          "session_id": "synthetic-demo-v3-2s"
+        },
+        "bids": [
+          {
+            "$type": "Level",
+            "price": "149.00",
+            "quantity": "4.000"
+          },
+          {
+            "$type": "Level",
+            "price": "148",
+            "quantity": "3.000"
+          }
+        ],
+        "connection_epoch": "3",
+        "instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+        "key": {
+          "$type": "SubscriptionKey",
+          "aggregation": [],
+          "api_family": "spot-v3",
+          "channel": "book",
+          "depth": "5000",
+          "instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+          "venue": "binance-global"
+        },
+        "metadata_version": "04ab32d44ea51bec5d654074e982bc08d2dced5a9b0710ee9755c6d717f95839:1793545279085000000",
+        "quality": {
+          "$type": "Quality",
+          "capabilities": {
+            "$type": "Capabilities",
+            "asset_context": [],
+            "checksum_scope": null,
+            "deltas": true,
+            "exact_event_flow": true,
+            "reference_prices": [],
+            "sequence_scope": "binance-global:spot-v3:spot:SOLUSDT:depth",
+            "snapshot": true,
+            "trades": false
+          },
+          "capture_complete": true,
+          "clock_id": "synthetic-clock-v3",
+          "continuous_since_ordinal": "33",
+          "coverage": {
+            "$type": "Coverage",
+            "expected_cadence_ns": null,
+            "full_depth": true,
+            "retained_ask_levels": "2",
+            "retained_bid_levels": "2",
+            "source_aggregation": [],
+            "subscribed_depth": "5000",
+            "worst_ask": "152",
+            "worst_bid": "148"
+          },
+          "integrity": "valid",
+          "last_book_change_mono_ns": "3000004000",
+          "last_book_observation_mono_ns": "3000004000",
+          "last_healthy_observation_mono_ns": "3000004000",
+          "last_transport_mono_ns": "3000004000",
+          "lifecycle": "live",
+          "reason_codes": [],
+          "recorded_source_mode": null,
+          "source_mode": "ws_delta",
+          "transport_alive": true
+        },
+        "revision": "4",
+        "segment_id": "demo-binance-global:spot-v3:spot:SOLUSDT-book-ws-3"
+      },
+      {
+        "$type": "Book",
+        "asks": [
+          {
+            "$type": "Level",
+            "price": "60001.00",
+            "quantity": "3.000"
+          }
+        ],
+        "asof": {
+          "$type": "EventEnvelopeRef",
+          "clock_id": "synthetic-clock-v3",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793545281000000000",
+          "ingest_ordinal": "195",
+          "receive_mono_ns": "3000026000",
+          "receive_wall_ns": "1793545281085026000",
+          "session_id": "synthetic-demo-v3-2s"
+        },
+        "bids": [
+          {
+            "$type": "Level",
+            "price": "59999.00",
+            "quantity": "4.000"
+          }
+        ],
+        "connection_epoch": "1",
+        "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+        "key": {
+          "$type": "SubscriptionKey",
+          "aggregation": [],
+          "api_family": "advanced-trade",
+          "channel": "book",
+          "depth": null,
+          "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+          "venue": "coinbase"
+        },
+        "metadata_version": "synthetic-v3:097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2",
+        "quality": {
+          "$type": "Quality",
+          "capabilities": {
+            "$type": "Capabilities",
+            "asset_context": [],
+            "checksum_scope": null,
+            "deltas": true,
+            "exact_event_flow": true,
+            "reference_prices": [],
+            "sequence_scope": "connection",
+            "snapshot": true,
+            "trades": false
+          },
+          "capture_complete": true,
+          "clock_id": "synthetic-clock-v3",
+          "continuous_since_ordinal": "108",
+          "coverage": {
+            "$type": "Coverage",
+            "expected_cadence_ns": null,
+            "full_depth": true,
+            "retained_ask_levels": "1",
+            "retained_bid_levels": "1",
+            "source_aggregation": [],
+            "subscribed_depth": null,
+            "worst_ask": "60001.00",
+            "worst_bid": "59999.00"
+          },
+          "integrity": "valid",
+          "last_book_change_mono_ns": "3000026000",
+          "last_book_observation_mono_ns": "3000026000",
+          "last_healthy_observation_mono_ns": "3000026000",
+          "last_transport_mono_ns": "3000026000",
+          "lifecycle": "live",
+          "reason_codes": [],
+          "recorded_source_mode": null,
+          "source_mode": "ws_delta",
+          "transport_alive": true
+        },
+        "revision": "3",
+        "segment_id": "demo-coinbase:advanced-trade:spot:BTC-USD-book-ws-1"
+      },
+      {
+        "$type": "Book",
+        "asks": [
+          {
+            "$type": "Level",
+            "price": "3001.00",
+            "quantity": "3.000"
+          }
+        ],
+        "asof": {
+          "$type": "EventEnvelopeRef",
+          "clock_id": "synthetic-clock-v3",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793545281000000000",
+          "ingest_ordinal": "197",
+          "receive_mono_ns": "3000028000",
+          "receive_wall_ns": "1793545281085028000",
+          "session_id": "synthetic-demo-v3-2s"
+        },
+        "bids": [
+          {
+            "$type": "Level",
+            "price": "2999.00",
+            "quantity": "4.000"
+          }
+        ],
+        "connection_epoch": "1",
+        "instrument_id": "coinbase:advanced-trade:spot:ETH-USD",
+        "key": {
+          "$type": "SubscriptionKey",
+          "aggregation": [],
+          "api_family": "advanced-trade",
+          "channel": "book",
+          "depth": null,
+          "instrument_id": "coinbase:advanced-trade:spot:ETH-USD",
+          "venue": "coinbase"
+        },
+        "metadata_version": "synthetic-v3:097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2",
+        "quality": {
+          "$type": "Quality",
+          "capabilities": {
+            "$type": "Capabilities",
+            "asset_context": [],
+            "checksum_scope": null,
+            "deltas": true,
+            "exact_event_flow": true,
+            "reference_prices": [],
+            "sequence_scope": "connection",
+            "snapshot": true,
+            "trades": false
+          },
+          "capture_complete": true,
+          "clock_id": "synthetic-clock-v3",
+          "continuous_since_ordinal": "112",
+          "coverage": {
+            "$type": "Coverage",
+            "expected_cadence_ns": null,
+            "full_depth": true,
+            "retained_ask_levels": "1",
+            "retained_bid_levels": "1",
+            "source_aggregation": [],
+            "subscribed_depth": null,
+            "worst_ask": "3001.00",
+            "worst_bid": "2999.00"
+          },
+          "integrity": "valid",
+          "last_book_change_mono_ns": "3000028000",
+          "last_book_observation_mono_ns": "3000028000",
+          "last_healthy_observation_mono_ns": "3000028000",
+          "last_transport_mono_ns": "3000028000",
+          "lifecycle": "live",
+          "reason_codes": [],
+          "recorded_source_mode": null,
+          "source_mode": "ws_delta",
+          "transport_alive": true
+        },
+        "revision": "3",
+        "segment_id": "demo-coinbase:advanced-trade:spot:ETH-USD-book-ws-1"
+      },
+      {
+        "$type": "Book",
+        "asks": [
+          {
+            "$type": "Level",
+            "price": "151.00",
+            "quantity": "3.000"
+          }
+        ],
+        "asof": {
+          "$type": "EventEnvelopeRef",
+          "clock_id": "synthetic-clock-v3",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793545281000000000",
+          "ingest_ordinal": "199",
+          "receive_mono_ns": "3000030000",
+          "receive_wall_ns": "1793545281085030000",
+          "session_id": "synthetic-demo-v3-2s"
+        },
+        "bids": [
+          {
+            "$type": "Level",
+            "price": "149.00",
+            "quantity": "4.000"
+          }
+        ],
+        "connection_epoch": "1",
+        "instrument_id": "coinbase:advanced-trade:spot:SOL-USD",
+        "key": {
+          "$type": "SubscriptionKey",
+          "aggregation": [],
+          "api_family": "advanced-trade",
+          "channel": "book",
+          "depth": null,
+          "instrument_id": "coinbase:advanced-trade:spot:SOL-USD",
+          "venue": "coinbase"
+        },
+        "metadata_version": "synthetic-v3:097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2",
+        "quality": {
+          "$type": "Quality",
+          "capabilities": {
+            "$type": "Capabilities",
+            "asset_context": [],
+            "checksum_scope": null,
+            "deltas": true,
+            "exact_event_flow": true,
+            "reference_prices": [],
+            "sequence_scope": "connection",
+            "snapshot": true,
+            "trades": false
+          },
+          "capture_complete": true,
+          "clock_id": "synthetic-clock-v3",
+          "continuous_since_ordinal": "116",
+          "coverage": {
+            "$type": "Coverage",
+            "expected_cadence_ns": null,
+            "full_depth": true,
+            "retained_ask_levels": "1",
+            "retained_bid_levels": "1",
+            "source_aggregation": [],
+            "subscribed_depth": null,
+            "worst_ask": "151.00",
+            "worst_bid": "149.00"
+          },
+          "integrity": "valid",
+          "last_book_change_mono_ns": "3000030000",
+          "last_book_observation_mono_ns": "3000030000",
+          "last_healthy_observation_mono_ns": "3000030000",
+          "last_transport_mono_ns": "3000030000",
+          "lifecycle": "live",
+          "reason_codes": [],
+          "recorded_source_mode": null,
+          "source_mode": "ws_delta",
+          "transport_alive": true
+        },
+        "revision": "3",
+        "segment_id": "demo-coinbase:advanced-trade:spot:SOL-USD-book-ws-1"
+      },
+      {
+        "$type": "Book",
+        "asks": [
+          {
+            "$type": "Level",
+            "price": "60001.00",
+            "quantity": "2.000"
+          },
+          {
+            "$type": "Level",
+            "price": "60002.00",
+            "quantity": "3.000"
+          }
+        ],
+        "asof": {
+          "$type": "EventEnvelopeRef",
+          "clock_id": "synthetic-clock-v3",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793545281085000000",
+          "ingest_ordinal": "175",
+          "receive_mono_ns": "3000006000",
+          "receive_wall_ns": "1793545281085006000",
+          "session_id": "synthetic-demo-v3-2s"
+        },
+        "bids": [
+          {
+            "$type": "Level",
+            "price": "59999.00",
+            "quantity": "4.000"
+          },
+          {
+            "$type": "Level",
+            "price": "59998.00",
+            "quantity": "3.000"
+          }
+        ],
+        "connection_epoch": "3",
+        "instrument_id": "hyperliquid:info:perpetual:BTC",
+        "key": {
+          "$type": "SubscriptionKey",
+          "aggregation": [],
+          "api_family": "info",
+          "channel": "book",
+          "depth": "20",
+          "instrument_id": "hyperliquid:info:perpetual:BTC",
+          "venue": "hyperliquid"
+        },
+        "metadata_version": "097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2:1793545279085000000:hyperliquid-denomination-v2",
+        "quality": {
+          "$type": "Quality",
+          "capabilities": {
+            "$type": "Capabilities",
+            "asset_context": [],
+            "checksum_scope": null,
+            "deltas": false,
+            "exact_event_flow": false,
+            "reference_prices": [],
+            "sequence_scope": null,
+            "snapshot": true,
+            "trades": false
+          },
+          "capture_complete": true,
+          "clock_id": "synthetic-clock-v3",
+          "continuous_since_ordinal": "175",
+          "coverage": {
+            "$type": "Coverage",
+            "expected_cadence_ns": "500000000",
+            "full_depth": false,
+            "retained_ask_levels": "2",
+            "retained_bid_levels": "2",
+            "source_aggregation": [
+              [
+                "fast",
+                "false"
+              ]
+            ],
+            "subscribed_depth": "20",
+            "worst_ask": "60002.00",
+            "worst_bid": "59998.00"
+          },
+          "integrity": "valid",
+          "last_book_change_mono_ns": "3000006000",
+          "last_book_observation_mono_ns": "3000006000",
+          "last_healthy_observation_mono_ns": "3000006000",
+          "last_transport_mono_ns": "3000006000",
+          "lifecycle": "live",
+          "reason_codes": [],
+          "recorded_source_mode": null,
+          "source_mode": "ws_snapshot",
+          "transport_alive": true
+        },
+        "revision": "3",
+        "segment_id": "demo-hyperliquid:info:perpetual:BTC-book-ws-3"
+      },
+      {
+        "$type": "Book",
+        "asks": [
+          {
+            "$type": "Level",
+            "price": "3001.00",
+            "quantity": "2.000"
+          },
+          {
+            "$type": "Level",
+            "price": "3002.00",
+            "quantity": "3.000"
+          }
+        ],
+        "asof": {
+          "$type": "EventEnvelopeRef",
+          "clock_id": "synthetic-clock-v3",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793545281085000000",
+          "ingest_ordinal": "179",
+          "receive_mono_ns": "3000010000",
+          "receive_wall_ns": "1793545281085010000",
+          "session_id": "synthetic-demo-v3-2s"
+        },
+        "bids": [
+          {
+            "$type": "Level",
+            "price": "2999.00",
+            "quantity": "4.000"
+          },
+          {
+            "$type": "Level",
+            "price": "2998.00",
+            "quantity": "3.000"
+          }
+        ],
+        "connection_epoch": "3",
+        "instrument_id": "hyperliquid:info:perpetual:ETH",
+        "key": {
+          "$type": "SubscriptionKey",
+          "aggregation": [],
+          "api_family": "info",
+          "channel": "book",
+          "depth": "20",
+          "instrument_id": "hyperliquid:info:perpetual:ETH",
+          "venue": "hyperliquid"
+        },
+        "metadata_version": "097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2:1793545279085000000:hyperliquid-denomination-v2",
+        "quality": {
+          "$type": "Quality",
+          "capabilities": {
+            "$type": "Capabilities",
+            "asset_context": [],
+            "checksum_scope": null,
+            "deltas": false,
+            "exact_event_flow": false,
+            "reference_prices": [],
+            "sequence_scope": null,
+            "snapshot": true,
+            "trades": false
+          },
+          "capture_complete": true,
+          "clock_id": "synthetic-clock-v3",
+          "continuous_since_ordinal": "179",
+          "coverage": {
+            "$type": "Coverage",
+            "expected_cadence_ns": "500000000",
+            "full_depth": false,
+            "retained_ask_levels": "2",
+            "retained_bid_levels": "2",
+            "source_aggregation": [
+              [
+                "fast",
+                "false"
+              ]
+            ],
+            "subscribed_depth": "20",
+            "worst_ask": "3002.00",
+            "worst_bid": "2998.00"
+          },
+          "integrity": "valid",
+          "last_book_change_mono_ns": "3000010000",
+          "last_book_observation_mono_ns": "3000010000",
+          "last_healthy_observation_mono_ns": "3000010000",
+          "last_transport_mono_ns": "3000010000",
+          "lifecycle": "live",
+          "reason_codes": [],
+          "recorded_source_mode": null,
+          "source_mode": "ws_snapshot",
+          "transport_alive": true
+        },
+        "revision": "3",
+        "segment_id": "demo-hyperliquid:info:perpetual:ETH-book-ws-3"
+      },
+      {
+        "$type": "Book",
+        "asks": [
+          {
+            "$type": "Level",
+            "price": "26.00",
+            "quantity": "2.000"
+          },
+          {
+            "$type": "Level",
+            "price": "27.00",
+            "quantity": "3.000"
+          }
+        ],
+        "asof": {
+          "$type": "EventEnvelopeRef",
+          "clock_id": "synthetic-clock-v3",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793545281085000000",
+          "ingest_ordinal": "187",
+          "receive_mono_ns": "3000018000",
+          "receive_wall_ns": "1793545281085018000",
+          "session_id": "synthetic-demo-v3-2s"
+        },
+        "bids": [
+          {
+            "$type": "Level",
+            "price": "24.00",
+            "quantity": "4.000"
+          },
+          {
+            "$type": "Level",
+            "price": "23.00",
+            "quantity": "3.000"
+          }
+        ],
+        "connection_epoch": "3",
+        "instrument_id": "hyperliquid:info:perpetual:HYPE",
+        "key": {
+          "$type": "SubscriptionKey",
+          "aggregation": [],
+          "api_family": "info",
+          "channel": "book",
+          "depth": "20",
+          "instrument_id": "hyperliquid:info:perpetual:HYPE",
+          "venue": "hyperliquid"
+        },
+        "metadata_version": "097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2:1793545279085000000:hyperliquid-denomination-v2",
+        "quality": {
+          "$type": "Quality",
+          "capabilities": {
+            "$type": "Capabilities",
+            "asset_context": [],
+            "checksum_scope": null,
+            "deltas": false,
+            "exact_event_flow": false,
+            "reference_prices": [],
+            "sequence_scope": null,
+            "snapshot": true,
+            "trades": false
+          },
+          "capture_complete": true,
+          "clock_id": "synthetic-clock-v3",
+          "continuous_since_ordinal": "187",
+          "coverage": {
+            "$type": "Coverage",
+            "expected_cadence_ns": "500000000",
+            "full_depth": false,
+            "retained_ask_levels": "2",
+            "retained_bid_levels": "2",
+            "source_aggregation": [
+              [
+                "fast",
+                "false"
+              ]
+            ],
+            "subscribed_depth": "20",
+            "worst_ask": "27.00",
+            "worst_bid": "23.00"
+          },
+          "integrity": "valid",
+          "last_book_change_mono_ns": "3000018000",
+          "last_book_observation_mono_ns": "3000018000",
+          "last_healthy_observation_mono_ns": "3000018000",
+          "last_transport_mono_ns": "3000018000",
+          "lifecycle": "live",
+          "reason_codes": [],
+          "recorded_source_mode": null,
+          "source_mode": "ws_snapshot",
+          "transport_alive": true
+        },
+        "revision": "3",
+        "segment_id": "demo-hyperliquid:info:perpetual:HYPE-book-ws-3"
+      },
+      {
+        "$type": "Book",
+        "asks": [
+          {
+            "$type": "Level",
+            "price": "151.00",
+            "quantity": "2.000"
+          },
+          {
+            "$type": "Level",
+            "price": "152.00",
+            "quantity": "3.000"
+          }
+        ],
+        "asof": {
+          "$type": "EventEnvelopeRef",
+          "clock_id": "synthetic-clock-v3",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793545281085000000",
+          "ingest_ordinal": "183",
+          "receive_mono_ns": "3000014000",
+          "receive_wall_ns": "1793545281085014000",
+          "session_id": "synthetic-demo-v3-2s"
+        },
+        "bids": [
+          {
+            "$type": "Level",
+            "price": "149.00",
+            "quantity": "4.000"
+          },
+          {
+            "$type": "Level",
+            "price": "148.00",
+            "quantity": "3.000"
+          }
+        ],
+        "connection_epoch": "3",
+        "instrument_id": "hyperliquid:info:perpetual:SOL",
+        "key": {
+          "$type": "SubscriptionKey",
+          "aggregation": [],
+          "api_family": "info",
+          "channel": "book",
+          "depth": "20",
+          "instrument_id": "hyperliquid:info:perpetual:SOL",
+          "venue": "hyperliquid"
+        },
+        "metadata_version": "097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2:1793545279085000000:hyperliquid-denomination-v2",
+        "quality": {
+          "$type": "Quality",
+          "capabilities": {
+            "$type": "Capabilities",
+            "asset_context": [],
+            "checksum_scope": null,
+            "deltas": false,
+            "exact_event_flow": false,
+            "reference_prices": [],
+            "sequence_scope": null,
+            "snapshot": true,
+            "trades": false
+          },
+          "capture_complete": true,
+          "clock_id": "synthetic-clock-v3",
+          "continuous_since_ordinal": "183",
+          "coverage": {
+            "$type": "Coverage",
+            "expected_cadence_ns": "500000000",
+            "full_depth": false,
+            "retained_ask_levels": "2",
+            "retained_bid_levels": "2",
+            "source_aggregation": [
+              [
+                "fast",
+                "false"
+              ]
+            ],
+            "subscribed_depth": "20",
+            "worst_ask": "152.00",
+            "worst_bid": "148.00"
+          },
+          "integrity": "valid",
+          "last_book_change_mono_ns": "3000014000",
+          "last_book_observation_mono_ns": "3000014000",
+          "last_healthy_observation_mono_ns": "3000014000",
+          "last_transport_mono_ns": "3000014000",
+          "lifecycle": "live",
+          "reason_codes": [],
+          "recorded_source_mode": null,
+          "source_mode": "ws_snapshot",
+          "transport_alive": true
+        },
+        "revision": "3",
+        "segment_id": "demo-hyperliquid:info:perpetual:SOL-book-ws-3"
+      },
+      {
+        "$type": "Book",
+        "asks": [
+          {
+            "$type": "Level",
+            "price": "26.00",
+            "quantity": "2.000"
+          },
+          {
+            "$type": "Level",
+            "price": "27.00",
+            "quantity": "3.000"
+          }
+        ],
+        "asof": {
+          "$type": "EventEnvelopeRef",
+          "clock_id": "synthetic-clock-v3",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793545281085000000",
+          "ingest_ordinal": "191",
+          "receive_mono_ns": "3000022000",
+          "receive_wall_ns": "1793545281085022000",
+          "session_id": "synthetic-demo-v3-2s"
+        },
+        "bids": [
+          {
+            "$type": "Level",
+            "price": "24.00",
+            "quantity": "4.000"
+          },
+          {
+            "$type": "Level",
+            "price": "23.00",
+            "quantity": "3.000"
+          }
+        ],
+        "connection_epoch": "3",
+        "instrument_id": "hyperliquid:info:spot:@107",
+        "key": {
+          "$type": "SubscriptionKey",
+          "aggregation": [],
+          "api_family": "info",
+          "channel": "book",
+          "depth": "20",
+          "instrument_id": "hyperliquid:info:spot:@107",
+          "venue": "hyperliquid"
+        },
+        "metadata_version": "097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2:1793545279085000000:hyperliquid-denomination-v2",
+        "quality": {
+          "$type": "Quality",
+          "capabilities": {
+            "$type": "Capabilities",
+            "asset_context": [],
+            "checksum_scope": null,
+            "deltas": false,
+            "exact_event_flow": false,
+            "reference_prices": [],
+            "sequence_scope": null,
+            "snapshot": true,
+            "trades": false
+          },
+          "capture_complete": true,
+          "clock_id": "synthetic-clock-v3",
+          "continuous_since_ordinal": "191",
+          "coverage": {
+            "$type": "Coverage",
+            "expected_cadence_ns": "500000000",
+            "full_depth": false,
+            "retained_ask_levels": "2",
+            "retained_bid_levels": "2",
+            "source_aggregation": [
+              [
+                "fast",
+                "false"
+              ]
+            ],
+            "subscribed_depth": "20",
+            "worst_ask": "27.00",
+            "worst_bid": "23.00"
+          },
+          "integrity": "valid",
+          "last_book_change_mono_ns": "3000022000",
+          "last_book_observation_mono_ns": "3000022000",
+          "last_healthy_observation_mono_ns": "3000022000",
+          "last_transport_mono_ns": "3000022000",
+          "lifecycle": "live",
+          "reason_codes": [],
+          "recorded_source_mode": null,
+          "source_mode": "ws_snapshot",
+          "transport_alive": true
+        },
+        "revision": "3",
+        "segment_id": "demo-hyperliquid:info:spot:@107-book-ws-3"
+      },
+      {
+        "$type": "Book",
+        "asks": [
+          {
+            "$type": "Level",
+            "price": "60002.00",
+            "quantity": "3.000"
+          }
+        ],
+        "asof": {
+          "$type": "EventEnvelopeRef",
+          "clock_id": "synthetic-clock-v3",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793545281000000000",
+          "ingest_ordinal": "201",
+          "receive_mono_ns": "3000032000",
+          "receive_wall_ns": "1793545281085032000",
+          "session_id": "synthetic-demo-v3-2s"
+        },
+        "bids": [
+          {
+            "$type": "Level",
+            "price": "60000.00",
+            "quantity": "4.000"
+          }
+        ],
+        "connection_epoch": "1",
+        "instrument_id": "kraken:spot-v2:spot:BTC/USD",
+        "key": {
+          "$type": "SubscriptionKey",
+          "aggregation": [],
+          "api_family": "spot-v2",
+          "channel": "book",
+          "depth": "25",
+          "instrument_id": "kraken:spot-v2:spot:BTC/USD",
+          "venue": "kraken"
+        },
+        "metadata_version": "synthetic-v3:097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2",
+        "quality": {
+          "$type": "Quality",
+          "capabilities": {
+            "$type": "Capabilities",
+            "asset_context": [],
+            "checksum_scope": "top10",
+            "deltas": true,
+            "exact_event_flow": true,
+            "reference_prices": [],
+            "sequence_scope": null,
+            "snapshot": true,
+            "trades": false
+          },
+          "capture_complete": true,
+          "clock_id": "synthetic-clock-v3",
+          "continuous_since_ordinal": "120",
+          "coverage": {
+            "$type": "Coverage",
+            "expected_cadence_ns": null,
+            "full_depth": false,
+            "retained_ask_levels": "1",
+            "retained_bid_levels": "1",
+            "source_aggregation": [],
+            "subscribed_depth": "25",
+            "worst_ask": "60002.00",
+            "worst_bid": "60000.00"
+          },
+          "integrity": "valid",
+          "last_book_change_mono_ns": "3000032000",
+          "last_book_observation_mono_ns": "3000032000",
+          "last_healthy_observation_mono_ns": "3000032000",
+          "last_transport_mono_ns": "3000032000",
+          "lifecycle": "live",
+          "reason_codes": [],
+          "recorded_source_mode": null,
+          "source_mode": "ws_delta",
+          "transport_alive": true
+        },
+        "revision": "3",
+        "segment_id": "demo-kraken:spot-v2:spot:BTC/USD-book-ws-1"
+      },
+      {
+        "$type": "Book",
+        "asks": [
+          {
+            "$type": "Level",
+            "price": "3002.00",
+            "quantity": "3.000"
+          }
+        ],
+        "asof": {
+          "$type": "EventEnvelopeRef",
+          "clock_id": "synthetic-clock-v3",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793545281000000000",
+          "ingest_ordinal": "203",
+          "receive_mono_ns": "3000034000",
+          "receive_wall_ns": "1793545281085034000",
+          "session_id": "synthetic-demo-v3-2s"
+        },
+        "bids": [
+          {
+            "$type": "Level",
+            "price": "3000.00",
+            "quantity": "4.000"
+          }
+        ],
+        "connection_epoch": "1",
+        "instrument_id": "kraken:spot-v2:spot:ETH/USD",
+        "key": {
+          "$type": "SubscriptionKey",
+          "aggregation": [],
+          "api_family": "spot-v2",
+          "channel": "book",
+          "depth": "25",
+          "instrument_id": "kraken:spot-v2:spot:ETH/USD",
+          "venue": "kraken"
+        },
+        "metadata_version": "synthetic-v3:097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2",
+        "quality": {
+          "$type": "Quality",
+          "capabilities": {
+            "$type": "Capabilities",
+            "asset_context": [],
+            "checksum_scope": "top10",
+            "deltas": true,
+            "exact_event_flow": true,
+            "reference_prices": [],
+            "sequence_scope": null,
+            "snapshot": true,
+            "trades": false
+          },
+          "capture_complete": true,
+          "clock_id": "synthetic-clock-v3",
+          "continuous_since_ordinal": "124",
+          "coverage": {
+            "$type": "Coverage",
+            "expected_cadence_ns": null,
+            "full_depth": false,
+            "retained_ask_levels": "1",
+            "retained_bid_levels": "1",
+            "source_aggregation": [],
+            "subscribed_depth": "25",
+            "worst_ask": "3002.00",
+            "worst_bid": "3000.00"
+          },
+          "integrity": "valid",
+          "last_book_change_mono_ns": "3000034000",
+          "last_book_observation_mono_ns": "3000034000",
+          "last_healthy_observation_mono_ns": "3000034000",
+          "last_transport_mono_ns": "3000034000",
+          "lifecycle": "live",
+          "reason_codes": [],
+          "recorded_source_mode": null,
+          "source_mode": "ws_delta",
+          "transport_alive": true
+        },
+        "revision": "3",
+        "segment_id": "demo-kraken:spot-v2:spot:ETH/USD-book-ws-1"
+      },
+      {
+        "$type": "Book",
+        "asks": [
+          {
+            "$type": "Level",
+            "price": "152.00",
+            "quantity": "3.000"
+          }
+        ],
+        "asof": {
+          "$type": "EventEnvelopeRef",
+          "clock_id": "synthetic-clock-v3",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793545281000000000",
+          "ingest_ordinal": "205",
+          "receive_mono_ns": "3000036000",
+          "receive_wall_ns": "1793545281085036000",
+          "session_id": "synthetic-demo-v3-2s"
+        },
+        "bids": [
+          {
+            "$type": "Level",
+            "price": "150.00",
+            "quantity": "4.000"
+          }
+        ],
+        "connection_epoch": "1",
+        "instrument_id": "kraken:spot-v2:spot:SOL/USD",
+        "key": {
+          "$type": "SubscriptionKey",
+          "aggregation": [],
+          "api_family": "spot-v2",
+          "channel": "book",
+          "depth": "25",
+          "instrument_id": "kraken:spot-v2:spot:SOL/USD",
+          "venue": "kraken"
+        },
+        "metadata_version": "synthetic-v3:097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2",
+        "quality": {
+          "$type": "Quality",
+          "capabilities": {
+            "$type": "Capabilities",
+            "asset_context": [],
+            "checksum_scope": "top10",
+            "deltas": true,
+            "exact_event_flow": true,
+            "reference_prices": [],
+            "sequence_scope": null,
+            "snapshot": true,
+            "trades": false
+          },
+          "capture_complete": true,
+          "clock_id": "synthetic-clock-v3",
+          "continuous_since_ordinal": "128",
+          "coverage": {
+            "$type": "Coverage",
+            "expected_cadence_ns": null,
+            "full_depth": false,
+            "retained_ask_levels": "1",
+            "retained_bid_levels": "1",
+            "source_aggregation": [],
+            "subscribed_depth": "25",
+            "worst_ask": "152.00",
+            "worst_bid": "150.00"
+          },
+          "integrity": "valid",
+          "last_book_change_mono_ns": "3000036000",
+          "last_book_observation_mono_ns": "3000036000",
+          "last_healthy_observation_mono_ns": "3000036000",
+          "last_transport_mono_ns": "3000036000",
+          "lifecycle": "live",
+          "reason_codes": [],
+          "recorded_source_mode": null,
+          "source_mode": "ws_delta",
+          "transport_alive": true
+        },
+        "revision": "3",
+        "segment_id": "demo-kraken:spot-v2:spot:SOL/USD-book-ws-1"
+      }
+    ],
+    "capture": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/setup-20261101T182042Z/demo/synthetic-demo-v3-2s",
+    "capture_complete": true,
+    "command": "demo",
+    "cursor": {
+      "delivery_index": "206",
+      "event_index": "0",
+      "ordinal": "206"
+    },
+    "fixture_license": "CC0-1.0",
+    "incomplete_reasons": [],
+    "live_projection_equivalent": true,
+    "mode": "normalized",
+    "source_quality": "Recorded modes and source limitations are retained; playback is not live market access.",
+    "state_hash": "7aae541a6e41f17a6935dbffbe471573b279cc8ac85201d8740b7832b02f4d46",
+    "status": "finished",
+    "synthetic": true
+  },
+  "frontend_assets": [
+    "index-DjcEpben.js",
+    "index-DNEp5Wv-.css"
+  ],
+  "warnings": [
+    "Pinned eslint9.39.2 is deprecated/no longer supported; warning retained. Dependency versions were not silently refreshed."
+  ],
+  "command_output": "Resolved 61 packages in 29ms\nDownloading plotly (9.2MiB)\nDownloading mypy (2.7MiB)\nDownloading pillow (5.3MiB)\nDownloading pydeck (10.9MiB)\nDownloading streamlit (9.9MiB)\nDownloading pyarrow (36.9MiB)\nDownloading ruff (9.7MiB)\nDownloading pandas (11.1MiB)\nDownloading duckdb (18.8MiB)\n Downloading pillow\n Downloading ruff\n Downloading mypy\n Downloading pydeck\n Downloading streamlit\n Downloading duckdb\n Downloading pyarrow\n Downloading pandas\n Downloading plotly\nPrepared 10 packages in 7.28s\nInstalled 58 packages in 1.23s\n + altair==6.3.0\n + annotated-doc==0.0.5\n + annotated-types==0.8.0\n + anyio==4.15.1\n + ast-serialize==0.13.1\n + attrs==26.1.0\n + certifi==2026.10.23\n + charset-normalizer==3.5.2\n + click==8.5.0\n + duckdb==2.0.0\n + fastapi==0.162.0\n + h11==0.16.0\n + httpcore==1.0.9\n + httpx==0.28.1\n + hypothesis==6.170.14\n + idna==3.20\n + iniconfig==2.3.1\n + itsdangerous==2.2.0\n + jinja2==3.1.6\n + jsonschema==4.26.0\n + jsonschema-specifications==2025.9.1\n + librt==0.16.0\n + markupsafe==3.0.4\n + mypy==2.4.1\n + mypy-extensions==1.1.0\n + narwhals==2.28.0\n + numpy==2.5.4\n + opentelemetry-api==1.45.2\n + packaging==26.3\n + pandas==3.1.0\n + pathspec==1.1.1\n + pillow==13.0.0\n + plotly==7.1.0\n + pluggy==1.7.0\n + protobuf==7.36.2\n + pyarrow==26.0.0\n + pydantic==2.14.2\n + pydantic-core==2.50.2\n + pydeck==0.9.3\n + pygments==2.21.0\n + pytest==9.2.0\n + pytest-asyncio==1.4.1\n + python-dateutil==3.0.0\n + python-multipart==0.0.33\n + referencing==0.37.0\n + requests==2.34.2\n + rpds-py==2026.9.1\n + ruff==0.17.3\n + six==1.17.0\n + sortedcontainers==2.4.0\n + starlette==1.10.0\n + streamlit==1.66.1\n + typing-extensions==4.16.0\n + typing-inspection==0.4.4\n + tzdata==2026.6\n + urllib3==2.8.0\n + uvicorn==0.54.0\n + websockets==17.4\n{\"book_hash\": \"70021b3c049040e6eba699113dfccca015c8e42b42540518932cc3e03f6ab8ea\", \"books\": [{\"$type\": \"Book\", \"asks\": [{\"$type\": \"Level\", \"price\": \"60001\", \"quantity\": \"2.000\"}, {\"$type\": \"Level\", \"price\": \"60002\", \"quantity\": \"3.000\"}], \"asof\": {\"$type\": \"EventEnvelopeRef\", \"clock_id\": \"synthetic-clock-v3\", \"event_index\": \"0\", \"exchange_event_wall_ns\": \"1793545281085000000\", \"ingest_ordinal\": \"169\", \"receive_mono_ns\": \"3000000000\", \"receive_wall_ns\": \"1793545281085000000\", \"session_id\": \"synthetic-demo-v3-2s\"}, \"bids\": [{\"$type\": \"Level\", \"price\": \"59999.00\", \"quantity\": \"4.000\"}, {\"$type\": \"Level\", \"price\": \"59998\", \"quantity\": \"3.000\"}], \"connection_epoch\": \"3\", \"instrument_id\": \"binance-global:spot-v3:spot:BTCUSDT\", \"key\": {\"$type\": \"SubscriptionKey\", \"aggregation\": [], \"api_family\": \"spot-v3\", \"channel\": \"book\", \"depth\": \"5000\", \"instrument_id\": \"binance-global:spot-v3:spot:BTCUSDT\", \"venue\": \"binance-global\"}, \"metadata_version\": \"04ab32d44ea51bec5d654074e982bc08d2dced5a9b0710ee9755c6d717f95839:1793545279085000000\", \"quality\": {\"$type\": \"Quality\", \"capabilities\": {\"$type\": \"Capabilities\", \"asset_context\": [], \"checksum_scope\": null, \"deltas\": true, \"exact_event_flow\": true, \"reference_prices\": [], \"sequence_scope\": \"binance-global:spot-v3:spot:BTCUSDT:depth\", \"snapshot\": true, \"trades\": false}, \"capture_complete\": true, \"clock_id\": \"synthetic-clock-v3\", \"continuous_since_ordinal\": \"9\", \"coverage\": {\"$type\": \"Coverage\", \"expected_cadence_ns\": null, \"full_depth\": true, \"retained_ask_levels\": \"2\", \"retained_bid_levels\": \"2\", \"source_aggregation\": [], \"subscribed_depth\": \"5000\", \"worst_ask\": \"60002\", \"worst_bid\": \"59998\"}, \"integrity\": \"valid\", \"last_book_change_mono_ns\": \"3000000000\", \"last_book_observation_mono_ns\": \"3000000000\", \"last_healthy_observation_mono_ns\": \"3000000000\", \"last_transport_mono_ns\": \"3000000000\", \"lifecycle\": \"live\", \"reason_codes\": [], \"recorded_source_mode\": null, \"source_mode\": \"ws_delta\", \"transport_alive\": true}, \"revision\": \"4\", \"segment_id\": \"demo-binance-global:spot-v3:spot:BTCUSDT-book-ws-3\"}, {\"$type\": \"Book\", \"asks\": [{\"$type\": \"Level\", \"price\": \"3001\", \"quantity\": \"2.000\"}, {\"$type\": \"Level\", \"price\": \"3002\", \"quantity\": \"3.000\"}], \"asof\": {\"$type\": \"EventEnvelopeRef\", \"clock_id\": \"synthetic-clock-v3\", \"event_index\": \"0\", \"exchange_event_wall_ns\": \"1793545281085000000\", \"ingest_ordinal\": \"171\", \"receive_mono_ns\": \"3000002000\", \"receive_wall_ns\": \"1793545281085002000\", \"session_id\": \"synthetic-demo-v3-2s\"}, \"bids\": [{\"$type\": \"Level\", \"price\": \"2999.00\", \"quantity\": \"4.000\"}, {\"$type\": \"Level\", \"price\": \"2998\", \"quantity\": \"3.000\"}], \"connection_epoch\": \"3\", \"instrument_id\": \"binance-global:spot-v3:spot:ETHUSDT\", \"key\": {\"$type\": \"SubscriptionKey\", \"aggregation\": [], \"api_family\": \"spot-v3\", \"channel\": \"book\", \"depth\": \"5000\", \"instrument_id\": \"binance-global:spot-v3:spot:ETHUSDT\", \"venue\": \"binance-global\"}, \"metadata_version\": \"04ab32d44ea51bec5d654074e982bc08d2dced5a9b0710ee9755c6d717f95839:1793545279085000000\", \"quality\": {\"$type\": \"Quality\", \"capabilities\": {\"$type\": \"Capabilities\", \"asset_context\": [], \"checksum_scope\": null, \"deltas\": true, \"exact_event_flow\": true, \"reference_prices\": [], \"sequence_scope\": \"binance-global:spot-v3:spot:ETHUSDT:depth\", \"snapshot\": true, \"trades\": false}, \"capture_complete\": true, \"clock_id\": \"synthetic-clock-v3\", \"continuous_since_ordinal\": \"21\", \"coverage\": {\"$type\": \"Coverage\", \"expected_cadence_ns\": null, \"full_depth\": true, \"retained_ask_levels\": \"2\", \"retained_bid_levels\": \"2\", \"source_aggregation\": [], \"subscribed_depth\": \"5000\", \"worst_ask\": \"3002\", \"worst_bid\": \"2998\"}, \"integrity\": \"valid\", \"last_book_change_mono_ns\": \"3000002000\", \"last_book_observation_mono_ns\": \"3000002000\", \"last_healthy_observation_mono_ns\": \"3000002000\", \"last_transport_mono_ns\": \"3000002000\", \"lifecycle\": \"live\", \"reason_codes\": [], \"recorded_source_mode\": null, \"source_mode\": \"ws_delta\", \"transport_alive\": true}, \"revision\": \"4\", \"segment_id\": \"demo-binance-global:spot-v3:spot:ETHUSDT-book-ws-3\"}, {\"$type\": \"Book\", \"asks\": [{\"$type\": \"Level\", \"price\": \"151\", \"quantity\": \"2.000\"}, {\"$type\": \"Level\", \"price\": \"152\", \"quantity\": \"3.000\"}], \"asof\": {\"$type\": \"EventEnvelopeRef\", \"clock_id\": \"synthetic-clock-v3\", \"event_index\": \"0\", \"exchange_event_wall_ns\": \"1793545281085000000\", \"ingest_ordinal\": \"173\", \"receive_mono_ns\": \"3000004000\", \"receive_wall_ns\": \"1793545281085004000\", \"session_id\": \"synthetic-demo-v3-2s\"}, \"bids\": [{\"$type\": \"Level\", \"price\": \"149.00\", \"quantity\": \"4.000\"}, {\"$type\": \"Level\", \"price\": \"148\", \"quantity\": \"3.000\"}], \"connection_epoch\": \"3\", \"instrument_id\": \"binance-global:spot-v3:spot:SOLUSDT\", \"key\": {\"$type\": \"SubscriptionKey\", \"aggregation\": [], \"api_family\": \"spot-v3\", \"channel\": \"book\", \"depth\": \"5000\", \"instrument_id\": \"binance-global:spot-v3:spot:SOLUSDT\", \"venue\": \"binance-global\"}, \"metadata_version\": \"04ab32d44ea51bec5d654074e982bc08d2dced5a9b0710ee9755c6d717f95839:1793545279085000000\", \"quality\": {\"$type\": \"Quality\", \"capabilities\": {\"$type\": \"Capabilities\", \"asset_context\": [], \"checksum_scope\": null, \"deltas\": true, \"exact_event_flow\": true, \"reference_prices\": [], \"sequence_scope\": \"binance-global:spot-v3:spot:SOLUSDT:depth\", \"snapshot\": true, \"trades\": false}, \"capture_complete\": true, \"clock_id\": \"synthetic-clock-v3\", \"continuous_since_ordinal\": \"33\", \"coverage\": {\"$type\": \"Coverage\", \"expected_cadence_ns\": null, \"full_depth\": true, \"retained_ask_levels\": \"2\", \"retained_bid_levels\": \"2\", \"source_aggregation\": [], \"subscribed_depth\": \"5000\", \"worst_ask\": \"152\", \"worst_bid\": \"148\"}, \"integrity\": \"valid\", \"last_book_change_mono_ns\": \"3000004000\", \"last_book_observation_mono_ns\": \"3000004000\", \"last_healthy_observation_mono_ns\": \"3000004000\", \"last_transport_mono_ns\": \"3000004000\", \"lifecycle\": \"live\", \"reason_codes\": [], \"recorded_source_mode\": null, \"source_mode\": \"ws_delta\", \"transport_alive\": true}, \"revision\": \"4\", \"segment_id\": \"demo-binance-global:spot-v3:spot:SOLUSDT-book-ws-3\"}, {\"$type\": \"Book\", \"asks\": [{\"$type\": \"Level\", \"price\": \"60001.00\", \"quantity\": \"3.000\"}], \"asof\": {\"$type\": \"EventEnvelopeRef\", \"clock_id\": \"synthetic-clock-v3\", \"event_index\": \"0\", \"exchange_event_wall_ns\": \"1793545281000000000\", \"ingest_ordinal\": \"195\", \"receive_mono_ns\": \"3000026000\", \"receive_wall_ns\": \"1793545281085026000\", \"session_id\": \"synthetic-demo-v3-2s\"}, \"bids\": [{\"$type\": \"Level\", \"price\": \"59999.00\", \"quantity\": \"4.000\"}], \"connection_epoch\": \"1\", \"instrument_id\": \"coinbase:advanced-trade:spot:BTC-USD\", \"key\": {\"$type\": \"SubscriptionKey\", \"aggregation\": [], \"api_family\": \"advanced-trade\", \"channel\": \"book\", \"depth\": null, \"instrument_id\": \"coinbase:advanced-trade:spot:BTC-USD\", \"venue\": \"coinbase\"}, \"metadata_version\": \"synthetic-v3:097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2\", \"quality\": {\"$type\": \"Quality\", \"capabilities\": {\"$type\": \"Capabilities\", \"asset_context\": [], \"checksum_scope\": null, \"deltas\": true, \"exact_event_flow\": true, \"reference_prices\": [], \"sequence_scope\": \"connection\", \"snapshot\": true, \"trades\": false}, \"capture_complete\": true, \"clock_id\": \"synthetic-clock-v3\", \"continuous_since_ordinal\": \"108\", \"coverage\": {\"$type\": \"Coverage\", \"expected_cadence_ns\": null, \"full_depth\": true, \"retained_ask_levels\": \"1\", \"retained_bid_levels\": \"1\", \"source_aggregation\": [], \"subscribed_depth\": null, \"worst_ask\": \"60001.00\", \"worst_bid\": \"59999.00\"}, \"integrity\": \"valid\", \"last_book_change_mono_ns\": \"3000026000\", \"last_book_observation_mono_ns\": \"3000026000\", \"last_healthy_observation_mono_ns\": \"3000026000\", \"last_transport_mono_ns\": \"3000026000\", \"lifecycle\": \"live\", \"reason_codes\": [], \"recorded_source_mode\": null, \"source_mode\": \"ws_delta\", \"transport_alive\": true}, \"revision\": \"3\", \"segment_id\": \"demo-coinbase:advanced-trade:spot:BTC-USD-book-ws-1\"}, {\"$type\": \"Book\", \"asks\": [{\"$type\": \"Level\", \"price\": \"3001.00\", \"quantity\": \"3.000\"}], \"asof\": {\"$type\": \"EventEnvelopeRef\", \"clock_id\": \"synthetic-clock-v3\", \"event_index\": \"0\", \"exchange_event_wall_ns\": \"1793545281000000000\", \"ingest_ordinal\": \"197\", \"receive_mono_ns\": \"3000028000\", \"receive_wall_ns\": \"1793545281085028000\", \"session_id\": \"synthetic-demo-v3-2s\"}, \"bids\": [{\"$type\": \"Level\", \"price\": \"2999.00\", \"quantity\": \"4.000\"}], \"connection_epoch\": \"1\", \"instrument_id\": \"coinbase:advanced-trade:spot:ETH-USD\", \"key\": {\"$type\": \"SubscriptionKey\", \"aggregation\": [], \"api_family\": \"advanced-trade\", \"channel\": \"book\", \"depth\": null, \"instrument_id\": \"coinbase:advanced-trade:spot:ETH-USD\", \"venue\": \"coinbase\"}, \"metadata_version\": \"synthetic-v3:097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2\", \"quality\": {\"$type\": \"Quality\", \"capabilities\": {\"$type\": \"Capabilities\", \"asset_context\": [], \"checksum_scope\": null, \"deltas\": true, \"exact_event_flow\": true, \"reference_prices\": [], \"sequence_scope\": \"connection\", \"snapshot\": true, \"trades\": false}, \"capture_complete\": true, \"clock_id\": \"synthetic-clock-v3\", \"continuous_since_ordinal\": \"112\", \"coverage\": {\"$type\": \"Coverage\", \"expected_cadence_ns\": null, \"full_depth\": true, \"retained_ask_levels\": \"1\", \"retained_bid_levels\": \"1\", \"source_aggregation\": [], \"subscribed_depth\": null, \"worst_ask\": \"3001.00\", \"worst_bid\": \"2999.00\"}, \"integrity\": \"valid\", \"last_book_change_mono_ns\": \"3000028000\", \"last_book_observation_mono_ns\": \"3000028000\", \"last_healthy_observation_mono_ns\": \"3000028000\", \"last_transport_mono_ns\": \"3000028000\", \"lifecycle\": \"live\", \"reason_codes\": [], \"recorded_source_mode\": null, \"source_mode\": \"ws_delta\", \"transport_alive\": true}, \"revision\": \"3\", \"segment_id\": \"demo-coinbase:advanced-trade:spot:ETH-USD-book-ws-1\"}, {\"$type\": \"Book\", \"asks\": [{\"$type\": \"Level\", \"price\": \"151.00\", \"quantity\": \"3.000\"}], \"asof\": {\"$type\": \"EventEnvelopeRef\", \"clock_id\": \"synthetic-clock-v3\", \"event_index\": \"0\", \"exchange_event_wall_ns\": \"1793545281000000000\", \"ingest_ordinal\": \"199\", \"receive_mono_ns\": \"3000030000\", \"receive_wall_ns\": \"1793545281085030000\", \"session_id\": \"synthetic-demo-v3-2s\"}, \"bids\": [{\"$type\": \"Level\", \"price\": \"149.00\", \"quantity\": \"4.000\"}], \"connection_epoch\": \"1\", \"instrument_id\": \"coinbase:advanced-trade:spot:SOL-USD\", \"key\": {\"$type\": \"SubscriptionKey\", \"aggregation\": [], \"api_family\": \"advanced-trade\", \"channel\": \"book\", \"depth\": null, \"instrument_id\": \"coinbase:advanced-trade:spot:SOL-USD\", \"venue\": \"coinbase\"}, \"metadata_version\": \"synthetic-v3:097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2\", \"quality\": {\"$type\": \"Quality\", \"capabilities\": {\"$type\": \"Capabilities\", \"asset_context\": [], \"checksum_scope\": null, \"deltas\": true, \"exact_event_flow\": true, \"reference_prices\": [], \"sequence_scope\": \"connection\", \"snapshot\": true, \"trades\": false}, \"capture_complete\": true, \"clock_id\": \"synthetic-clock-v3\", \"continuous_since_ordinal\": \"116\", \"coverage\": {\"$type\": \"Coverage\", \"expected_cadence_ns\": null, \"full_depth\": true, \"retained_ask_levels\": \"1\", \"retained_bid_levels\": \"1\", \"source_aggregation\": [], \"subscribed_depth\": null, \"worst_ask\": \"151.00\", \"worst_bid\": \"149.00\"}, \"integrity\": \"valid\", \"last_book_change_mono_ns\": \"3000030000\", \"last_book_observation_mono_ns\": \"3000030000\", \"last_healthy_observation_mono_ns\": \"3000030000\", \"last_transport_mono_ns\": \"3000030000\", \"lifecycle\": \"live\", \"reason_codes\": [], \"recorded_source_mode\": null, \"source_mode\": \"ws_delta\", \"transport_alive\": true}, \"revision\": \"3\", \"segment_id\": \"demo-coinbase:advanced-trade:spot:SOL-USD-book-ws-1\"}, {\"$type\": \"Book\", \"asks\": [{\"$type\": \"Level\", \"price\": \"60001.00\", \"quantity\": \"2.000\"}, {\"$type\": \"Level\", \"price\": \"60002.00\", \"quantity\": \"3.000\"}], \"asof\": {\"$type\": \"EventEnvelopeRef\", \"clock_id\": \"synthetic-clock-v3\", \"event_index\": \"0\", \"exchange_event_wall_ns\": \"1793545281085000000\", \"ingest_ordinal\": \"175\", \"receive_mono_ns\": \"3000006000\", \"receive_wall_ns\": \"1793545281085006000\", \"session_id\": \"synthetic-demo-v3-2s\"}, \"bids\": [{\"$type\": \"Level\", \"price\": \"59999.00\", \"quantity\": \"4.000\"}, {\"$type\": \"Level\", \"price\": \"59998.00\", \"quantity\": \"3.000\"}], \"connection_epoch\": \"3\", \"instrument_id\": \"hyperliquid:info:perpetual:BTC\", \"key\": {\"$type\": \"SubscriptionKey\", \"aggregation\": [], \"api_family\": \"info\", \"channel\": \"book\", \"depth\": \"20\", \"instrument_id\": \"hyperliquid:info:perpetual:BTC\", \"venue\": \"hyperliquid\"}, \"metadata_version\": \"097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2:1793545279085000000:hyperliquid-denomination-v2\", \"quality\": {\"$type\": \"Quality\", \"capabilities\": {\"$type\": \"Capabilities\", \"asset_context\": [], \"checksum_scope\": null, \"deltas\": false, \"exact_event_flow\": false, \"reference_prices\": [], \"sequence_scope\": null, \"snapshot\": true, \"trades\": false}, \"capture_complete\": true, \"clock_id\": \"synthetic-clock-v3\", \"continuous_since_ordinal\": \"175\", \"coverage\": {\"$type\": \"Coverage\", \"expected_cadence_ns\": \"500000000\", \"full_depth\": false, \"retained_ask_levels\": \"2\", \"retained_bid_levels\": \"2\", \"source_aggregation\": [[\"fast\", \"false\"]], \"subscribed_depth\": \"20\", \"worst_ask\": \"60002.00\", \"worst_bid\": \"59998.00\"}, \"integrity\": \"valid\", \"last_book_change_mono_ns\": \"3000006000\", \"last_book_observation_mono_ns\": \"3000006000\", \"last_healthy_observation_mono_ns\": \"3000006000\", \"last_transport_mono_ns\": \"3000006000\", \"lifecycle\": \"live\", \"reason_codes\": [], \"recorded_source_mode\": null, \"source_mode\": \"ws_snapshot\", \"transport_alive\": true}, \"revision\": \"3\", \"segment_id\": \"demo-hyperliquid:info:perpetual:BTC-book-ws-3\"}, {\"$type\": \"Book\", \"asks\": [{\"$type\": \"Level\", \"price\": \"3001.00\", \"quantity\": \"2.000\"}, {\"$type\": \"Level\", \"price\": \"3002.00\", \"quantity\": \"3.000\"}], \"asof\": {\"$type\": \"EventEnvelopeRef\", \"clock_id\": \"synthetic-clock-v3\", \"event_index\": \"0\", \"exchange_event_wall_ns\": \"1793545281085000000\", \"ingest_ordinal\": \"179\", \"receive_mono_ns\": \"3000010000\", \"receive_wall_ns\": \"1793545281085010000\", \"session_id\": \"synthetic-demo-v3-2s\"}, \"bids\": [{\"$type\": \"Level\", \"price\": \"2999.00\", \"quantity\": \"4.000\"}, {\"$type\": \"Level\", \"price\": \"2998.00\", \"quantity\": \"3.000\"}], \"connection_epoch\": \"3\", \"instrument_id\": \"hyperliquid:info:perpetual:ETH\", \"key\": {\"$type\": \"SubscriptionKey\", \"aggregation\": [], \"api_family\": \"info\", \"channel\": \"book\", \"depth\": \"20\", \"instrument_id\": \"hyperliquid:info:perpetual:ETH\", \"venue\": \"hyperliquid\"}, \"metadata_version\": \"097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2:1793545279085000000:hyperliquid-denomination-v2\", \"quality\": {\"$type\": \"Quality\", \"capabilities\": {\"$type\": \"Capabilities\", \"asset_context\": [], \"checksum_scope\": null, \"deltas\": false, \"exact_event_flow\": false, \"reference_prices\": [], \"sequence_scope\": null, \"snapshot\": true, \"trades\": false}, \"capture_complete\": true, \"clock_id\": \"synthetic-clock-v3\", \"continuous_since_ordinal\": \"179\", \"coverage\": {\"$type\": \"Coverage\", \"expected_cadence_ns\": \"500000000\", \"full_depth\": false, \"retained_ask_levels\": \"2\", \"retained_bid_levels\": \"2\", \"source_aggregation\": [[\"fast\", \"false\"]], \"subscribed_depth\": \"20\", \"worst_ask\": \"3002.00\", \"worst_bid\": \"2998.00\"}, \"integrity\": \"valid\", \"last_book_change_mono_ns\": \"3000010000\", \"last_book_observation_mono_ns\": \"3000010000\", \"last_healthy_observation_mono_ns\": \"3000010000\", \"last_transport_mono_ns\": \"3000010000\", \"lifecycle\": \"live\", \"reason_codes\": [], \"recorded_source_mode\": null, \"source_mode\": \"ws_snapshot\", \"transport_alive\": true}, \"revision\": \"3\", \"segment_id\": \"demo-hyperliquid:info:perpetual:ETH-book-ws-3\"}, {\"$type\": \"Book\", \"asks\": [{\"$type\": \"Level\", \"price\": \"26.00\", \"quantity\": \"2.000\"}, {\"$type\": \"Level\", \"price\": \"27.00\", \"quantity\": \"3.000\"}], \"asof\": {\"$type\": \"EventEnvelopeRef\", \"clock_id\": \"synthetic-clock-v3\", \"event_index\": \"0\", \"exchange_event_wall_ns\": \"1793545281085000000\", \"ingest_ordinal\": \"187\", \"receive_mono_ns\": \"3000018000\", \"receive_wall_ns\": \"1793545281085018000\", \"session_id\": \"synthetic-demo-v3-2s\"}, \"bids\": [{\"$type\": \"Level\", \"price\": \"24.00\", \"quantity\": \"4.000\"}, {\"$type\": \"Level\", \"price\": \"23.00\", \"quantity\": \"3.000\"}], \"connection_epoch\": \"3\", \"instrument_id\": \"hyperliquid:info:perpetual:HYPE\", \"key\": {\"$type\": \"SubscriptionKey\", \"aggregation\": [], \"api_family\": \"info\", \"channel\": \"book\", \"depth\": \"20\", \"instrument_id\": \"hyperliquid:info:perpetual:HYPE\", \"venue\": \"hyperliquid\"}, \"metadata_version\": \"097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2:1793545279085000000:hyperliquid-denomination-v2\", \"quality\": {\"$type\": \"Quality\", \"capabilities\": {\"$type\": \"Capabilities\", \"asset_context\": [], \"checksum_scope\": null, \"deltas\": false, \"exact_event_flow\": false, \"reference_prices\": [], \"sequence_scope\": null, \"snapshot\": true, \"trades\": false}, \"capture_complete\": true, \"clock_id\": \"synthetic-clock-v3\", \"continuous_since_ordinal\": \"187\", \"coverage\": {\"$type\": \"Coverage\", \"expected_cadence_ns\": \"500000000\", \"full_depth\": false, \"retained_ask_levels\": \"2\", \"retained_bid_levels\": \"2\", \"source_aggregation\": [[\"fast\", \"false\"]], \"subscribed_depth\": \"20\", \"worst_ask\": \"27.00\", \"worst_bid\": \"23.00\"}, \"integrity\": \"valid\", \"last_book_change_mono_ns\": \"3000018000\", \"last_book_observation_mono_ns\": \"3000018000\", \"last_healthy_observation_mono_ns\": \"3000018000\", \"last_transport_mono_ns\": \"3000018000\", \"lifecycle\": \"live\", \"reason_codes\": [], \"recorded_source_mode\": null, \"source_mode\": \"ws_snapshot\", \"transport_alive\": true}, \"revision\": \"3\", \"segment_id\": \"demo-hyperliquid:info:perpetual:HYPE-book-ws-3\"}, {\"$type\": \"Book\", \"asks\": [{\"$type\": \"Level\", \"price\": \"151.00\", \"quantity\": \"2.000\"}, {\"$type\": \"Level\", \"price\": \"152.00\", \"quantity\": \"3.000\"}], \"asof\": {\"$type\": \"EventEnvelopeRef\", \"clock_id\": \"synthetic-clock-v3\", \"event_index\": \"0\", \"exchange_event_wall_ns\": \"1793545281085000000\", \"ingest_ordinal\": \"183\", \"receive_mono_ns\": \"3000014000\", \"receive_wall_ns\": \"1793545281085014000\", \"session_id\": \"synthetic-demo-v3-2s\"}, \"bids\": [{\"$type\": \"Level\", \"price\": \"149.00\", \"quantity\": \"4.000\"}, {\"$type\": \"Level\", \"price\": \"148.00\", \"quantity\": \"3.000\"}], \"connection_epoch\": \"3\", \"instrument_id\": \"hyperliquid:info:perpetual:SOL\", \"key\": {\"$type\": \"SubscriptionKey\", \"aggregation\": [], \"api_family\": \"info\", \"channel\": \"book\", \"depth\": \"20\", \"instrument_id\": \"hyperliquid:info:perpetual:SOL\", \"venue\": \"hyperliquid\"}, \"metadata_version\": \"097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2:1793545279085000000:hyperliquid-denomination-v2\", \"quality\": {\"$type\": \"Quality\", \"capabilities\": {\"$type\": \"Capabilities\", \"asset_context\": [], \"checksum_scope\": null, \"deltas\": false, \"exact_event_flow\": false, \"reference_prices\": [], \"sequence_scope\": null, \"snapshot\": true, \"trades\": false}, \"capture_complete\": true, \"clock_id\": \"synthetic-clock-v3\", \"continuous_since_ordinal\": \"183\", \"coverage\": {\"$type\": \"Coverage\", \"expected_cadence_ns\": \"500000000\", \"full_depth\": false, \"retained_ask_levels\": \"2\", \"retained_bid_levels\": \"2\", \"source_aggregation\": [[\"fast\", \"false\"]], \"subscribed_depth\": \"20\", \"worst_ask\": \"152.00\", \"worst_bid\": \"148.00\"}, \"integrity\": \"valid\", \"last_book_change_mono_ns\": \"3000014000\", \"last_book_observation_mono_ns\": \"3000014000\", \"last_healthy_observation_mono_ns\": \"3000014000\", \"last_transport_mono_ns\": \"3000014000\", \"lifecycle\": \"live\", \"reason_codes\": [], \"recorded_source_mode\": null, \"source_mode\": \"ws_snapshot\", \"transport_alive\": true}, \"revision\": \"3\", \"segment_id\": \"demo-hyperliquid:info:perpetual:SOL-book-ws-3\"}, {\"$type\": \"Book\", \"asks\": [{\"$type\": \"Level\", \"price\": \"26.00\", \"quantity\": \"2.000\"}, {\"$type\": \"Level\", \"price\": \"27.00\", \"quantity\": \"3.000\"}], \"asof\": {\"$type\": \"EventEnvelopeRef\", \"clock_id\": \"synthetic-clock-v3\", \"event_index\": \"0\", \"exchange_event_wall_ns\": \"1793545281085000000\", \"ingest_ordinal\": \"191\", \"receive_mono_ns\": \"3000022000\", \"receive_wall_ns\": \"1793545281085022000\", \"session_id\": \"synthetic-demo-v3-2s\"}, \"bids\": [{\"$type\": \"Level\", \"price\": \"24.00\", \"quantity\": \"4.000\"}, {\"$type\": \"Level\", \"price\": \"23.00\", \"quantity\": \"3.000\"}], \"connection_epoch\": \"3\", \"instrument_id\": \"hyperliquid:info:spot:@107\", \"key\": {\"$type\": \"SubscriptionKey\", \"aggregation\": [], \"api_family\": \"info\", \"channel\": \"book\", \"depth\": \"20\", \"instrument_id\": \"hyperliquid:info:spot:@107\", \"venue\": \"hyperliquid\"}, \"metadata_version\": \"097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2:1793545279085000000:hyperliquid-denomination-v2\", \"quality\": {\"$type\": \"Quality\", \"capabilities\": {\"$type\": \"Capabilities\", \"asset_context\": [], \"checksum_scope\": null, \"deltas\": false, \"exact_event_flow\": false, \"reference_prices\": [], \"sequence_scope\": null, \"snapshot\": true, \"trades\": false}, \"capture_complete\": true, \"clock_id\": \"synthetic-clock-v3\", \"continuous_since_ordinal\": \"191\", \"coverage\": {\"$type\": \"Coverage\", \"expected_cadence_ns\": \"500000000\", \"full_depth\": false, \"retained_ask_levels\": \"2\", \"retained_bid_levels\": \"2\", \"source_aggregation\": [[\"fast\", \"false\"]], \"subscribed_depth\": \"20\", \"worst_ask\": \"27.00\", \"worst_bid\": \"23.00\"}, \"integrity\": \"valid\", \"last_book_change_mono_ns\": \"3000022000\", \"last_book_observation_mono_ns\": \"3000022000\", \"last_healthy_observation_mono_ns\": \"3000022000\", \"last_transport_mono_ns\": \"3000022000\", \"lifecycle\": \"live\", \"reason_codes\": [], \"recorded_source_mode\": null, \"source_mode\": \"ws_snapshot\", \"transport_alive\": true}, \"revision\": \"3\", \"segment_id\": \"demo-hyperliquid:info:spot:@107-book-ws-3\"}, {\"$type\": \"Book\", \"asks\": [{\"$type\": \"Level\", \"price\": \"60002.00\", \"quantity\": \"3.000\"}], \"asof\": {\"$type\": \"EventEnvelopeRef\", \"clock_id\": \"synthetic-clock-v3\", \"event_index\": \"0\", \"exchange_event_wall_ns\": \"1793545281000000000\", \"ingest_ordinal\": \"201\", \"receive_mono_ns\": \"3000032000\", \"receive_wall_ns\": \"1793545281085032000\", \"session_id\": \"synthetic-demo-v3-2s\"}, \"bids\": [{\"$type\": \"Level\", \"price\": \"60000.00\", \"quantity\": \"4.000\"}], \"connection_epoch\": \"1\", \"instrument_id\": \"kraken:spot-v2:spot:BTC/USD\", \"key\": {\"$type\": \"SubscriptionKey\", \"aggregation\": [], \"api_family\": \"spot-v2\", \"channel\": \"book\", \"depth\": \"25\", \"instrument_id\": \"kraken:spot-v2:spot:BTC/USD\", \"venue\": \"kraken\"}, \"metadata_version\": \"synthetic-v3:097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2\", \"quality\": {\"$type\": \"Quality\", \"capabilities\": {\"$type\": \"Capabilities\", \"asset_context\": [], \"checksum_scope\": \"top10\", \"deltas\": true, \"exact_event_flow\": true, \"reference_prices\": [], \"sequence_scope\": null, \"snapshot\": true, \"trades\": false}, \"capture_complete\": true, \"clock_id\": \"synthetic-clock-v3\", \"continuous_since_ordinal\": \"120\", \"coverage\": {\"$type\": \"Coverage\", \"expected_cadence_ns\": null, \"full_depth\": false, \"retained_ask_levels\": \"1\", \"retained_bid_levels\": \"1\", \"source_aggregation\": [], \"subscribed_depth\": \"25\", \"worst_ask\": \"60002.00\", \"worst_bid\": \"60000.00\"}, \"integrity\": \"valid\", \"last_book_change_mono_ns\": \"3000032000\", \"last_book_observation_mono_ns\": \"3000032000\", \"last_healthy_observation_mono_ns\": \"3000032000\", \"last_transport_mono_ns\": \"3000032000\", \"lifecycle\": \"live\", \"reason_codes\": [], \"recorded_source_mode\": null, \"source_mode\": \"ws_delta\", \"transport_alive\": true}, \"revision\": \"3\", \"segment_id\": \"demo-kraken:spot-v2:spot:BTC/USD-book-ws-1\"}, {\"$type\": \"Book\", \"asks\": [{\"$type\": \"Level\", \"price\": \"3002.00\", \"quantity\": \"3.000\"}], \"asof\": {\"$type\": \"EventEnvelopeRef\", \"clock_id\": \"synthetic-clock-v3\", \"event_index\": \"0\", \"exchange_event_wall_ns\": \"1793545281000000000\", \"ingest_ordinal\": \"203\", \"receive_mono_ns\": \"3000034000\", \"receive_wall_ns\": \"1793545281085034000\", \"session_id\": \"synthetic-demo-v3-2s\"}, \"bids\": [{\"$type\": \"Level\", \"price\": \"3000.00\", \"quantity\": \"4.000\"}], \"connection_epoch\": \"1\", \"instrument_id\": \"kraken:spot-v2:spot:ETH/USD\", \"key\": {\"$type\": \"SubscriptionKey\", \"aggregation\": [], \"api_family\": \"spot-v2\", \"channel\": \"book\", \"depth\": \"25\", \"instrument_id\": \"kraken:spot-v2:spot:ETH/USD\", \"venue\": \"kraken\"}, \"metadata_version\": \"synthetic-v3:097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2\", \"quality\": {\"$type\": \"Quality\", \"capabilities\": {\"$type\": \"Capabilities\", \"asset_context\": [], \"checksum_scope\": \"top10\", \"deltas\": true, \"exact_event_flow\": true, \"reference_prices\": [], \"sequence_scope\": null, \"snapshot\": true, \"trades\": false}, \"capture_complete\": true, \"clock_id\": \"synthetic-clock-v3\", \"continuous_since_ordinal\": \"124\", \"coverage\": {\"$type\": \"Coverage\", \"expected_cadence_ns\": null, \"full_depth\": false, \"retained_ask_levels\": \"1\", \"retained_bid_levels\": \"1\", \"source_aggregation\": [], \"subscribed_depth\": \"25\", \"worst_ask\": \"3002.00\", \"worst_bid\": \"3000.00\"}, \"integrity\": \"valid\", \"last_book_change_mono_ns\": \"3000034000\", \"last_book_observation_mono_ns\": \"3000034000\", \"last_healthy_observation_mono_ns\": \"3000034000\", \"last_transport_mono_ns\": \"3000034000\", \"lifecycle\": \"live\", \"reason_codes\": [], \"recorded_source_mode\": null, \"source_mode\": \"ws_delta\", \"transport_alive\": true}, \"revision\": \"3\", \"segment_id\": \"demo-kraken:spot-v2:spot:ETH/USD-book-ws-1\"}, {\"$type\": \"Book\", \"asks\": [{\"$type\": \"Level\", \"price\": \"152.00\", \"quantity\": \"3.000\"}], \"asof\": {\"$type\": \"EventEnvelopeRef\", \"clock_id\": \"synthetic-clock-v3\", \"event_index\": \"0\", \"exchange_event_wall_ns\": \"1793545281000000000\", \"ingest_ordinal\": \"205\", \"receive_mono_ns\": \"3000036000\", \"receive_wall_ns\": \"1793545281085036000\", \"session_id\": \"synthetic-demo-v3-2s\"}, \"bids\": [{\"$type\": \"Level\", \"price\": \"150.00\", \"quantity\": \"4.000\"}], \"connection_epoch\": \"1\", \"instrument_id\": \"kraken:spot-v2:spot:SOL/USD\", \"key\": {\"$type\": \"SubscriptionKey\", \"aggregation\": [], \"api_family\": \"spot-v2\", \"channel\": \"book\", \"depth\": \"25\", \"instrument_id\": \"kraken:spot-v2:spot:SOL/USD\", \"venue\": \"kraken\"}, \"metadata_version\": \"synthetic-v3:097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2\", \"quality\": {\"$type\": \"Quality\", \"capabilities\": {\"$type\": \"Capabilities\", \"asset_context\": [], \"checksum_scope\": \"top10\", \"deltas\": true, \"exact_event_flow\": true, \"reference_prices\": [], \"sequence_scope\": null, \"snapshot\": true, \"trades\": false}, \"capture_complete\": true, \"clock_id\": \"synthetic-clock-v3\", \"continuous_since_ordinal\": \"128\", \"coverage\": {\"$type\": \"Coverage\", \"expected_cadence_ns\": null, \"full_depth\": false, \"retained_ask_levels\": \"1\", \"retained_bid_levels\": \"1\", \"source_aggregation\": [], \"subscribed_depth\": \"25\", \"worst_ask\": \"152.00\", \"worst_bid\": \"150.00\"}, \"integrity\": \"valid\", \"last_book_change_mono_ns\": \"3000036000\", \"last_book_observation_mono_ns\": \"3000036000\", \"last_healthy_observation_mono_ns\": \"3000036000\", \"last_transport_mono_ns\": \"3000036000\", \"lifecycle\": \"live\", \"reason_codes\": [], \"recorded_source_mode\": null, \"source_mode\": \"ws_delta\", \"transport_alive\": true}, \"revision\": \"3\", \"segment_id\": \"demo-kraken:spot-v2:spot:SOL/USD-book-ws-1\"}], \"capture\": \"/Users/dakariantoine/Developer/personal/limit-orderbook/data/m6-smoke/setup-20261101T182042Z/demo/synthetic-demo-v3-2s\", \"capture_complete\": true, \"command\": \"demo\", \"cursor\": {\"delivery_index\": \"206\", \"event_index\": \"0\", \"ordinal\": \"206\"}, \"fixture_license\": \"CC0-1.0\", \"incomplete_reasons\": [], \"live_projection_equivalent\": true, \"mode\": \"normalized\", \"source_quality\": \"Recorded modes and source limitations are retained; playback is not live market access.\", \"state_hash\": \"7aae541a6e41f17a6935dbffbe471573b279cc8ac85201d8740b7832b02f4d46\", \"status\": \"finished\", \"synthetic\": true}\nnpm warn deprecated eslint@9.39.2: This version is no longer supported. Please see https://eslint.org/version-support for other options.\n\nadded 167 packages in 7s\n\n> limit-orderbook-terminal@0.3.0 build\n> npm run typecheck && vite build\n\n\n> limit-orderbook-terminal@0.3.0 typecheck\n> tsc --noEmit\n\nvite v7.3.1 building client environment for production...\ntransforming...\n\u2713 45 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                   0.59 kB \u2502 gzip:   0.36 kB\ndist/assets/index-DNEp5Wv-.css   23.17 kB \u2502 gzip:   5.41 kB\ndist/assets/index-DjcEpben.js   343.80 kB \u2502 gzip: 103.11 kB\n\u2713 built in 2.67s\n",
+  "concurrent_workload": "Independent1800-second public recording on the unchanged .venv-upgrade environment."
+}

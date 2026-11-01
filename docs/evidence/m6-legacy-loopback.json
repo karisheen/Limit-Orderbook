@@ -1,0 +1,22 @@
+{
+  "scope": "Actual legacy Streamlit bind defaults, not a visual feature test",
+  "before": {
+    "configured_address": null,
+    "framework_effective_address": "0.0.0.0",
+    "framework_bind_address": "::",
+    "method": "Native streamlit1.66.1 config loading and _get_server_address/_get_bind_address; no wildcard listener was opened."
+  },
+  "change": ".streamlit/config.toml [server] address=\"127.0.0.1\"",
+  "command": ".venv-upgrade/bin/streamlit run crypto_lob.py --server.port 8510 --server.fileWatcherType none",
+  "pid": 83182,
+  "after": {
+    "startup_log": "Uvicorn server started on 127.0.0.1:8510",
+    "lsof_listener": "TCP127.0.0.1:8510(LISTEN), IPv4",
+    "root_http_status": 200,
+    "health_response": "ok"
+  },
+  "scope_limits": [
+    "Native backend and visual workflows unchanged; actual browser workflows already covered by M5 gates.",
+    "Explicit operator override can change framework settings; this fixes the repository default, not a network sandbox."
+  ]
+}
