@@ -706,6 +706,11 @@ class FeedSupervisor:
                 )
                 if self._fault.is_set():
                     return
+                # A buffered websocket receive may complete without suspending.
+                # Give the consumer and completed decode workers a turn before
+                # taking another frame; otherwise a finite socket burst can fill
+                # the required queue while its consumer is runnable but starved.
+                await asyncio.sleep(0)
             self._set_fault("ws_closed")
         except Exception as exc:
             self.diagnostic_detail = _failure_detail(exc)

@@ -222,6 +222,96 @@ def test_required_queue_overflow_is_out_of_band_and_raw_preserved(bound):
     asyncio.run(scenario())
 
 
+def test_buffered_reader_yields_between_required_frames():
+    async def scenario():
+        raw, events = [], []
+        exhausted = asyncio.Event()
+        hold_open = asyncio.Event()
+
+        class BufferedSocket:
+            def __init__(self):
+                self.remaining = 64
+
+            def __aiter__(self):
+                return self
+
+            async def __anext__(self):
+                if not self.remaining:
+                    exhausted.set()
+                    await hold_open.wait()
+                    raise StopAsyncIteration
+                self.remaining -= 1
+                # Buffered websocket receives need not suspend.
+                return b"ok"
+
+        feed = supervisor(callbacks=FeedCallbacks(raw=raw.append, events=events.extend))
+        feed._start_epoch(False)
+        reader = asyncio.create_task(
+            feed._reader(BufferedSocket(), "endpoint", feed.epoch)
+        )
+        try:
+            await asyncio.sleep(0)
+            # One reader turn must not consume an entire buffered burst.
+            assert len(raw) == feed.queue.qsize() == 1
+            await asyncio.wait_for(exhausted.wait(), 2)
+            assert len(raw) == feed.queue.qsize() == 64
+            assert not feed._fault.is_set()
+            await feed._drain_queued()
+            assert feed.processed_frames == 64
+            assert feed.queue.empty() and feed.queued_bytes == 0
+            delivered = [
+                event for event in events if isinstance(event.payload, BookUpdate)
+            ]
+            assert [event.ingest_ordinal for event in delivered] == [
+                frame.ingest_ordinal for frame in raw
+            ]
+            assert all(
+                event.raw_ref == frame.ref()
+                for event, frame in zip(delivered, raw, strict=True)
+            )
+            assert feed.capture_complete
+        finally:
+            reader.cancel()
+            await asyncio.gather(reader, return_exceptions=True)
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("bound", ["count", "bytes"])
+def test_buffered_reader_still_reports_required_queue_overflow(bound):
+    async def scenario():
+        raw, events = [], []
+
+        class BufferedSocket:
+            def __aiter__(self):
+                return self
+
+            async def __anext__(self):
+                return b"ok"
+
+        feed = supervisor(
+            callbacks=FeedCallbacks(raw=raw.append, events=events.extend),
+            config=SupervisorConfig(
+                queue_count=1 if bound == "count" else 10,
+                queue_bytes=3 if bound == "bytes" else 100,
+            ),
+        )
+        feed._start_epoch(False)
+        await asyncio.wait_for(
+            feed._reader(BufferedSocket(), "endpoint", feed.epoch), 2
+        )
+        assert len(raw) == 2 and feed.queue.qsize() == 1
+        assert feed._fault_reason == "required_queue_overflow"
+        feed._gap(feed._fault_reason)
+        gap = events[-1].payload
+        assert isinstance(gap, Gap) and gap.capture_lost
+        assert gap.first_missing_ordinal == raw[0].ingest_ordinal
+        assert gap.last_missing_ordinal == raw[1].ingest_ordinal
+        assert not feed.capture_complete
+
+    asyncio.run(scenario())
+
+
 def test_capture_overflow_marks_capture_incomplete():
     async def scenario():
         def full(frame):

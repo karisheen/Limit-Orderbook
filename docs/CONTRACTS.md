@@ -211,6 +211,26 @@ The adapter's WS endpoint is validated before `_start_epoch` and before invoking
 
 Required-event queues have count/byte bounds. Overflow sets an out-of-band fault, invalidates affected continuity and initiates Gap/recovery; a full queue cannot hide its own invalidation. Raw sink failure marks capture incomplete, invalidates and recovers; failure to retain a gap also leaves capture incomplete in out-of-band status. Raw/event sinks are loss-intolerant and never silently coalesced. A normalized sink exception fails the session and triggers the same gap/recovery boundary. Downstream analytics must mark trade windows incomplete across loss until a fresh declared anchor; recovery never retroactively certifies missing events or raw capture.
 
+The WS reader explicitly yields to the owner loop after each admitted frame:
+an already-buffered websocket iterator can return without suspending. Without
+that scheduling point, a finite burst can fill the required queue before its
+runnable consumer or completed decode worker gets a turn. This is cooperative
+scheduling, not dropping/coalescing frames, adding a timer delay, retrying a failed
+offer or increasing a buffer. The per-feed defaults remain 512 queued frames and
+64 MiB queued payload bytes, plus the existing single in-flight processing frame;
+transport/message and downstream recorder bounds are independent and unchanged.
+
+`evidence/m5-recorder-upstream-capacity.json` retains the observed five upstream
+loss ranges from the otherwise recorder-capacity-safe 1,800-second run, the
+buffered-reader starvation reproduction and finite corrected profiles. All five
+retained 514-frame bursts drained under both receive-offset and already-buffered
+delivery after the scheduling correction, preserving original raw payloads and
+native trade values. Each output matched raw/normalized replay hashes and its
+persisted checkpoint/auxiliary bytes against linear reconstruction. The original
+source remains incomplete. Receive-offset profiles can run late, and these
+single-feed offline experiments do not establish full-scope live capacity;
+a corrected public soak remains required.
+
 Recovery reasons are bounded machine-readable codes from typed feed/public-transport faults, not arbitrary exception `.reason` or message text. Malformed typed reasons become `invalid_failure_reason`; untyped failures use stable categories such as `unexpected_failure` or `network_error`. Raw/event/book sink failures produce `capture_overflow`, `event_sink_failed`, or `book_sink_failed`. `FeedSupervisor.diagnostic_detail` separately retains at most 4096 printable characters of diagnostic text, safely handling exceptions whose `__str__` fails. Failing gap, invalid-book, or diagnostic callbacks cannot interrupt recovery or owner cancellation/cleanup; retained out-of-band status remains available when a sink itself is unavailable.
 
 When a raw sink, required queue, or normalized sink loses a known receive frame, `Gap.first_missing_ordinal` and `last_missing_ordinal` record the minimum/maximum known lost ordinals for `affected_streams`. Session teardown drains queued frames and includes those discarded normalization inputs, plus any in-flight frame not emitted downstream. These are stream-scoped endpoints, not a claim that every session-global ordinal between them is lost: other shared streams can occupy intervening ordinals. Unknown transport/exchange history is not inferred from the local counter; both fields remain absent when no specific local loss is known. Capture loss remains sticky across recovered valid snapshots.

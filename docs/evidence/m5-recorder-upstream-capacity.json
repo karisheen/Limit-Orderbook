@@ -1,0 +1,1610 @@
+{
+  "title": "M5 upstream required-queue reader fairness correction",
+  "observed_source": {
+    "capture": "/private/tmp/limit-orderbook-m5-NBWAK4/soak-capacity/data/m5-live-soak/run-vzo8i8e9/store/1ae3146e-73b0-4145-b7b3-1d09b5894ff4",
+    "manifest_sha256": "a8acd9a1a1316351d19d0bf21d9d7de7a65ddf4681a72f63ef1121d99939cfb4",
+    "evidence": "/tmp/limit-orderbook-m5-NBWAK4/soak-capacity/docs/evidence/m5-capacity-live-soak.json",
+    "published_revision": "54cabdfa727d505d7733310713ac80098dab4e99",
+    "code_revision": "workstation-source-sha256:8c03d117ef5bfcb0206a17d0d92ceb049a5ff5700387451d6781dbbac4e6fc72",
+    "complete": false,
+    "storage_verified_by_parent": true,
+    "requested_seconds": 1800,
+    "counts": {
+      "batch_count": "108641",
+      "checkpoint_count": "1675",
+      "event_count": "112426",
+      "raw_count": "111172"
+    },
+    "incomplete_reasons": [
+      "source_capture_lost:required_queue_overflow",
+      "source_capture_incomplete:57259340-4e24-4843-ae22-e3d8b2973b8b",
+      "source_capture_incomplete:7317e8cc-e688-43b4-8874-2daa1dc6674c",
+      "source_capture_lost:owner_stopped",
+      "feed_capture_incomplete"
+    ],
+    "recorder_health": {
+      "high_water_bytes": "9135110",
+      "high_water_count": "1425",
+      "incomplete_reasons": [
+        "source_capture_lost:required_queue_overflow",
+        "source_capture_incomplete:57259340-4e24-4843-ae22-e3d8b2973b8b",
+        "source_capture_incomplete:7317e8cc-e688-43b4-8874-2daa1dc6674c",
+        "source_capture_lost:owner_stopped",
+        "feed_capture_incomplete"
+      ],
+      "queue_bytes": "0",
+      "queue_count": "0",
+      "state": "incomplete",
+      "written_bytes": "239559231"
+    },
+    "source_statuses": [
+      {
+        "capture_complete": true,
+        "connection_epoch": "1",
+        "key": {
+          "aggregation": [],
+          "api_family": "spot-v3",
+          "channel": "book",
+          "depth": "5000",
+          "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+          "venue": "binance-global"
+        },
+        "last_processing": {
+          "clock_id": "73133c72-c164-44c2-a363-45a1b65f445a",
+          "decode_end_mono_ns": "121363600229592",
+          "decode_start_mono_ns": "121363599353684",
+          "ingest_ordinal": "111195",
+          "normalized_mono_ns": "121363611611369",
+          "publish_mono_ns": "121363611613114",
+          "queue_exit_mono_ns": "121363598576565",
+          "receive_mono_ns": "121363598248622",
+          "validation_end_mono_ns": "121363605202746"
+        },
+        "lifecycle": "live",
+        "processed_frames": "17999",
+        "queue_bytes": "0",
+        "queue_depth": "0",
+        "queue_highwater_bytes": "321600",
+        "queue_highwater_count": "17",
+        "reason": "starting",
+        "reference_count": "1",
+        "stream_id": "5c8ae76c-7a62-4485-a131-fe0c7651b34f"
+      },
+      {
+        "capture_complete": false,
+        "connection_epoch": "5",
+        "key": {
+          "aggregation": [],
+          "api_family": "spot-v3",
+          "channel": "trades",
+          "depth": null,
+          "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+          "venue": "binance-global"
+        },
+        "last_processing": {
+          "clock_id": "73133c72-c164-44c2-a363-45a1b65f445a",
+          "decode_end_mono_ns": "121363447221570",
+          "decode_start_mono_ns": "121363447095362",
+          "ingest_ordinal": "111191",
+          "normalized_mono_ns": "121363447480902",
+          "publish_mono_ns": "121363447482215",
+          "queue_exit_mono_ns": "121363446878761",
+          "receive_mono_ns": "121363446609902",
+          "validation_end_mono_ns": "121363447278037"
+        },
+        "lifecycle": "live",
+        "processed_frames": "30326",
+        "queue_bytes": "0",
+        "queue_depth": "0",
+        "queue_highwater_bytes": "86524",
+        "queue_highwater_count": "512",
+        "reason": "required_queue_overflow",
+        "reference_count": "1",
+        "stream_id": "57259340-4e24-4843-ae22-e3d8b2973b8b"
+      },
+      {
+        "capture_complete": true,
+        "connection_epoch": "1",
+        "key": {
+          "aggregation": [],
+          "api_family": "spot-v3",
+          "channel": "book",
+          "depth": "5000",
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+          "venue": "binance-global"
+        },
+        "last_processing": {
+          "clock_id": "73133c72-c164-44c2-a363-45a1b65f445a",
+          "decode_end_mono_ns": "121363606868305",
+          "decode_start_mono_ns": "121363606167155",
+          "ingest_ordinal": "111196",
+          "normalized_mono_ns": "121363616670558",
+          "publish_mono_ns": "121363616672256",
+          "queue_exit_mono_ns": "121363605829231",
+          "receive_mono_ns": "121363599166468",
+          "validation_end_mono_ns": "121363611472608"
+        },
+        "lifecycle": "live",
+        "processed_frames": "17079",
+        "queue_bytes": "0",
+        "queue_depth": "0",
+        "queue_highwater_bytes": "310336",
+        "queue_highwater_count": "14",
+        "reason": "starting",
+        "reference_count": "1",
+        "stream_id": "b361e339-cee0-4880-8b6e-cd1324e38b23"
+      },
+      {
+        "capture_complete": false,
+        "connection_epoch": "2",
+        "key": {
+          "aggregation": [],
+          "api_family": "spot-v3",
+          "channel": "trades",
+          "depth": null,
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+          "venue": "binance-global"
+        },
+        "last_processing": {
+          "clock_id": "73133c72-c164-44c2-a363-45a1b65f445a",
+          "decode_end_mono_ns": "121363314155975",
+          "decode_start_mono_ns": "121363313802159",
+          "ingest_ordinal": "111186",
+          "normalized_mono_ns": "121363314550985",
+          "publish_mono_ns": "121363314552495",
+          "queue_exit_mono_ns": "121363313178229",
+          "receive_mono_ns": "121363312228163",
+          "validation_end_mono_ns": "121363314216321"
+        },
+        "lifecycle": "live",
+        "processed_frames": "20098",
+        "queue_bytes": "0",
+        "queue_depth": "0",
+        "queue_highwater_bytes": "86011",
+        "queue_highwater_count": "512",
+        "reason": "required_queue_overflow",
+        "reference_count": "1",
+        "stream_id": "7317e8cc-e688-43b4-8874-2daa1dc6674c"
+      },
+      {
+        "capture_complete": true,
+        "connection_epoch": "1",
+        "key": {
+          "aggregation": [],
+          "api_family": "spot-v3",
+          "channel": "book",
+          "depth": "5000",
+          "instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+          "venue": "binance-global"
+        },
+        "last_processing": {
+          "clock_id": "73133c72-c164-44c2-a363-45a1b65f445a",
+          "decode_end_mono_ns": "121363479811410",
+          "decode_start_mono_ns": "121363479378691",
+          "ingest_ordinal": "111192",
+          "normalized_mono_ns": "121363481741490",
+          "publish_mono_ns": "121363481742910",
+          "queue_exit_mono_ns": "121363479202824",
+          "receive_mono_ns": "121363478980239",
+          "validation_end_mono_ns": "121363481464961"
+        },
+        "lifecycle": "live",
+        "processed_frames": "12334",
+        "queue_bytes": "0",
+        "queue_depth": "0",
+        "queue_highwater_bytes": "291854",
+        "queue_highwater_count": "13",
+        "reason": "starting",
+        "reference_count": "1",
+        "stream_id": "2baad563-d75c-4cdc-9dec-fca332546c0b"
+      },
+      {
+        "capture_complete": true,
+        "connection_epoch": "1",
+        "key": {
+          "aggregation": [],
+          "api_family": "spot-v3",
+          "channel": "trades",
+          "depth": null,
+          "instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+          "venue": "binance-global"
+        },
+        "last_processing": {
+          "clock_id": "73133c72-c164-44c2-a363-45a1b65f445a",
+          "decode_end_mono_ns": "121360956356452",
+          "decode_start_mono_ns": "121360955663772",
+          "ingest_ordinal": "111107",
+          "normalized_mono_ns": "121360956689734",
+          "publish_mono_ns": "121360956691462",
+          "queue_exit_mono_ns": "121360955231795",
+          "receive_mono_ns": "121360954851314",
+          "validation_end_mono_ns": "121360956420696"
+        },
+        "lifecycle": "live",
+        "processed_frames": "6172",
+        "queue_bytes": "0",
+        "queue_depth": "0",
+        "queue_highwater_bytes": "16439",
+        "queue_highwater_count": "99",
+        "reason": "starting",
+        "reference_count": "1",
+        "stream_id": "af47db3f-0f66-4f73-840f-4b4d0485c2fa"
+      },
+      {
+        "capture_complete": true,
+        "connection_epoch": "1",
+        "key": {
+          "aggregation": [],
+          "api_family": "info",
+          "channel": "book",
+          "depth": "20",
+          "instrument_id": "hyperliquid:info:perpetual:BTC",
+          "venue": "hyperliquid"
+        },
+        "last_processing": {
+          "clock_id": "73133c72-c164-44c2-a363-45a1b65f445a",
+          "decode_end_mono_ns": "121362267450193",
+          "decode_start_mono_ns": "121362264737154",
+          "ingest_ordinal": "111154",
+          "normalized_mono_ns": "121362270762619",
+          "publish_mono_ns": "121362270764956",
+          "queue_exit_mono_ns": "121362261007857",
+          "receive_mono_ns": "121362260650409",
+          "validation_end_mono_ns": "121362268686188"
+        },
+        "lifecycle": "live",
+        "processed_frames": "426",
+        "queue_bytes": "0",
+        "queue_depth": "0",
+        "queue_highwater_bytes": "1753",
+        "queue_highwater_count": "2",
+        "reason": "starting",
+        "reference_count": "1",
+        "stream_id": "49733a94-cc8a-4f99-ac9c-de4cf0fb93ee"
+      },
+      {
+        "capture_complete": true,
+        "connection_epoch": "1",
+        "key": {
+          "aggregation": [],
+          "api_family": "info",
+          "channel": "trades",
+          "depth": null,
+          "instrument_id": "hyperliquid:info:perpetual:BTC",
+          "venue": "hyperliquid"
+        },
+        "last_processing": {
+          "clock_id": "73133c72-c164-44c2-a363-45a1b65f445a",
+          "decode_end_mono_ns": "121363640325594",
+          "decode_start_mono_ns": "121363639996965",
+          "ingest_ordinal": "111197",
+          "normalized_mono_ns": "121363640578111",
+          "publish_mono_ns": "121363640579485",
+          "queue_exit_mono_ns": "121363639807964",
+          "receive_mono_ns": "121363639510427",
+          "validation_end_mono_ns": "121363640367655"
+        },
+        "lifecycle": "live",
+        "processed_frames": "1821",
+        "queue_bytes": "0",
+        "queue_depth": "0",
+        "queue_highwater_bytes": "42292",
+        "queue_highwater_count": "3",
+        "reason": "starting",
+        "reference_count": "1",
+        "stream_id": "b66e8d2b-6233-4762-b934-6b0339779659"
+      },
+      {
+        "capture_complete": true,
+        "connection_epoch": "1",
+        "key": {
+          "aggregation": [],
+          "api_family": "info",
+          "channel": "book",
+          "depth": "20",
+          "instrument_id": "hyperliquid:info:perpetual:ETH",
+          "venue": "hyperliquid"
+        },
+        "last_processing": {
+          "clock_id": "73133c72-c164-44c2-a363-45a1b65f445a",
+          "decode_end_mono_ns": "121362254126906",
+          "decode_start_mono_ns": "121362250166220",
+          "ingest_ordinal": "111152",
+          "normalized_mono_ns": "121362255991445",
+          "publish_mono_ns": "121362255994417",
+          "queue_exit_mono_ns": "121362249795190",
+          "receive_mono_ns": "121362249144238",
+          "validation_end_mono_ns": "121362255454369"
+        },
+        "lifecycle": "live",
+        "processed_frames": "426",
+        "queue_bytes": "0",
+        "queue_depth": "0",
+        "queue_highwater_bytes": "1768",
+        "queue_highwater_count": "2",
+        "reason": "starting",
+        "reference_count": "1",
+        "stream_id": "ebebcb5e-2e05-4046-9d24-6790940a6b2e"
+      },
+      {
+        "capture_complete": true,
+        "connection_epoch": "1",
+        "key": {
+          "aggregation": [],
+          "api_family": "info",
+          "channel": "trades",
+          "depth": null,
+          "instrument_id": "hyperliquid:info:perpetual:ETH",
+          "venue": "hyperliquid"
+        },
+        "last_processing": {
+          "clock_id": "73133c72-c164-44c2-a363-45a1b65f445a",
+          "decode_end_mono_ns": "121362960001824",
+          "decode_start_mono_ns": "121362959687668",
+          "ingest_ordinal": "111173",
+          "normalized_mono_ns": "121362960423221",
+          "publish_mono_ns": "121362960425105",
+          "queue_exit_mono_ns": "121362959420525",
+          "receive_mono_ns": "121362959025232",
+          "validation_end_mono_ns": "121362960105516"
+        },
+        "lifecycle": "live",
+        "processed_frames": "908",
+        "queue_bytes": "0",
+        "queue_depth": "0",
+        "queue_highwater_bytes": "15592",
+        "queue_highwater_count": "3",
+        "reason": "starting",
+        "reference_count": "1",
+        "stream_id": "faee70c1-c406-4237-9e49-20dcb11ccc54"
+      },
+      {
+        "capture_complete": true,
+        "connection_epoch": "1",
+        "key": {
+          "aggregation": [],
+          "api_family": "info",
+          "channel": "book",
+          "depth": "20",
+          "instrument_id": "hyperliquid:info:perpetual:SOL",
+          "venue": "hyperliquid"
+        },
+        "last_processing": {
+          "clock_id": "73133c72-c164-44c2-a363-45a1b65f445a",
+          "decode_end_mono_ns": "121362262490310",
+          "decode_start_mono_ns": "121362261053152",
+          "ingest_ordinal": "111153",
+          "normalized_mono_ns": "121362268816311",
+          "publish_mono_ns": "121362268818440",
+          "queue_exit_mono_ns": "121362260598129",
+          "receive_mono_ns": "121362260030717",
+          "validation_end_mono_ns": "121362263880003"
+        },
+        "lifecycle": "live",
+        "processed_frames": "426",
+        "queue_bytes": "0",
+        "queue_depth": "0",
+        "queue_highwater_bytes": "1642",
+        "queue_highwater_count": "2",
+        "reason": "starting",
+        "reference_count": "1",
+        "stream_id": "29e7bff2-5ee5-4890-92c5-87c2823dee53"
+      },
+      {
+        "capture_complete": true,
+        "connection_epoch": "1",
+        "key": {
+          "aggregation": [],
+          "api_family": "info",
+          "channel": "trades",
+          "depth": null,
+          "instrument_id": "hyperliquid:info:perpetual:SOL",
+          "venue": "hyperliquid"
+        },
+        "last_processing": {
+          "clock_id": "73133c72-c164-44c2-a363-45a1b65f445a",
+          "decode_end_mono_ns": "121358987604986",
+          "decode_start_mono_ns": "121358987405848",
+          "ingest_ordinal": "111039",
+          "normalized_mono_ns": "121358988257310",
+          "publish_mono_ns": "121358988259035",
+          "queue_exit_mono_ns": "121358986878837",
+          "receive_mono_ns": "121358986469841",
+          "validation_end_mono_ns": "121358987646682"
+        },
+        "lifecycle": "live",
+        "processed_frames": "585",
+        "queue_bytes": "0",
+        "queue_depth": "0",
+        "queue_highwater_bytes": "12504",
+        "queue_highwater_count": "2",
+        "reason": "starting",
+        "reference_count": "1",
+        "stream_id": "39f8ed39-4c6a-4b54-af29-4e66a4784a56"
+      }
+    ],
+    "first_incomplete_health": {
+      "elapsed_seconds": "182.117",
+      "event": "recording_health",
+      "recorder": {
+        "high_water_bytes": "9135110",
+        "high_water_count": "494",
+        "incomplete_reasons": [
+          "source_capture_lost:required_queue_overflow"
+        ],
+        "queue_bytes": "0",
+        "queue_count": "0",
+        "state": "incomplete",
+        "written_bytes": "12240354"
+      },
+      "terminal_failure": false
+    }
+  },
+  "retained_loss_ranges": [
+    {
+      "stream_id": "57259340-4e24-4843-ae22-e3d8b2973b8b",
+      "first_ordinal": 10857,
+      "last_ordinal": 11467,
+      "count": 514,
+      "span_seconds": 0.061410561,
+      "payload_bytes": 86352
+    },
+    {
+      "stream_id": "57259340-4e24-4843-ae22-e3d8b2973b8b",
+      "first_ordinal": 59614,
+      "last_ordinal": 60386,
+      "count": 514,
+      "span_seconds": 0.146582229,
+      "payload_bytes": 86352
+    },
+    {
+      "stream_id": "57259340-4e24-4843-ae22-e3d8b2973b8b",
+      "first_ordinal": 71080,
+      "last_ordinal": 71661,
+      "count": 514,
+      "span_seconds": 0.131462609,
+      "payload_bytes": 86862
+    },
+    {
+      "stream_id": "57259340-4e24-4843-ae22-e3d8b2973b8b",
+      "first_ordinal": 74385,
+      "last_ordinal": 75290,
+      "count": 514,
+      "span_seconds": 0.175257343,
+      "payload_bytes": 86860
+    },
+    {
+      "stream_id": "7317e8cc-e688-43b4-8874-2daa1dc6674c",
+      "first_ordinal": 76560,
+      "last_ordinal": 77244,
+      "count": 514,
+      "span_seconds": 0.122884469,
+      "payload_bytes": 86347
+    }
+  ],
+  "original_service_evidence": {
+    "scope": "384 accepted BTC trade envelopes in ordinal10000..11700 around first failure, excluding local Gap records",
+    "samples": 384,
+    "receive_to_process_start_ms": {
+      "median": 66.6849355,
+      "max": 219.39318
+    },
+    "process_start_to_end_ms": {
+      "median": 0.690824,
+      "max": 27.387155
+    },
+    "last_accepted_before_first_burst": {
+      "ingest_ordinal": "10822",
+      "receive_mono_ns": "119740473237810",
+      "process_start_mono_ns": "119740474108923",
+      "process_end_mono_ns": "119740475277059",
+      "publish_mono_ns": "119740475279504",
+      "payload": {
+        "$type": "Trade",
+        "dedup_key": "binance-global:spot-v3:spot:BTCUSDT:trade:6809926360",
+        "is_subscription_history": false,
+        "price": "77968.55000000",
+        "quantity": "0.00011000",
+        "quantity_unit": "base",
+        "side_provenance": "buyer_is_maker",
+        "taker_side": "buy",
+        "trade_id": "6809926360"
+      }
+    },
+    "first_gap": {
+      "$type": "EventEnvelope",
+      "checksum": null,
+      "clock_id": "73133c72-c164-44c2-a363-45a1b65f445a",
+      "connection_epoch": "1",
+      "connection_id": "d41e7441-75bd-40fb-b2b4-41228945b1e3",
+      "event_index": "0",
+      "exchange_event_wall_ns": null,
+      "exchange_time_kind": null,
+      "ingest_ordinal": "11468",
+      "instrument_metadata_version": "4c2c802662c2ef71e03ef8278febd384b7731d6a927781ad9dd9ba34ccd909ab:1793541499001432000",
+      "key": {
+        "$type": "SubscriptionKey",
+        "aggregation": [],
+        "api_family": "spot-v3",
+        "channel": "trades",
+        "depth": null,
+        "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+        "venue": "binance-global"
+      },
+      "payload": {
+        "$type": "Gap",
+        "affected_streams": [
+          "57259340-4e24-4843-ae22-e3d8b2973b8b"
+        ],
+        "capture_lost": true,
+        "continuity_lost": true,
+        "first_missing_ordinal": null,
+        "last_missing_ordinal": null,
+        "reason_code": "required_queue_overflow"
+      },
+      "process_end_mono_ns": "119741516952104",
+      "process_start_mono_ns": "119741516841741",
+      "publish_mono_ns": "119741516952337",
+      "raw_ref": {
+        "$type": "RawRef",
+        "file_id": "local:e7368f04b6c071d6b3ba12c3b5428e8bb4faf6947b865202cda751a86c8e4a7e",
+        "frame_ordinal": "11468",
+        "payload_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "receive_mono_ns": "119741516822232",
+      "receive_wall_ns": "1793541693678088000",
+      "schema_version": "1",
+      "segment_id": "933f15a3-cfaa-40a3-b342-2078d2ca3e30",
+      "sequence": null,
+      "session_id": "1ae3146e-73b0-4145-b7b3-1d09b5894ff4",
+      "source_mode": "ws_snapshot",
+      "stream_id": "57259340-4e24-4843-ae22-e3d8b2973b8b"
+    },
+    "meaning": "The first lost514 frames span61.410561ms and none was normalized. Earlier backlog had cleared: last accepted trade began0.871113ms after receive. Full source processing timestamps are retained; no per-iteration live scheduler trace was recorded."
+  },
+  "diagnosis": {
+    "observed": "Each of five stream-scoped loss ranges contains514 retained raw frames; affected BTC/ETH trade queues peaked512 at only86524/86011 payload bytes. Other source queues peaked<=99 and final affected queues wereempty. Unmodified production reader over the first already-buffered514-frame burst reached512 and faulted before any decoder call. Explicit cooperative yielding lets the same decoder/consumer process the entire burst at unchanged limits.",
+    "causal_inference": "Buffered async websocket iteration is not a guaranteed suspension point. A runnable consumer/completed worker can be starved by the reader loop. The retained actual burst and no-normalization pattern agree with this mechanism; exact live loop scheduling is not reconstructed. Finite queued bursts, not demonstrated sustained average decoding overload.",
+    "sustained_limit": "The failed source is censored at overflow; messages never received after disconnect are unknown. Finite profiles and average rates cannot establish future maximum burst size or sustained12-stream capacity."
+  },
+  "change": {
+    "file": "src/workstation/ingestion.py",
+    "method": "FeedSupervisor._reader",
+    "implementation": "await asyncio.sleep(0) after successful _receive and fault check",
+    "unchanged": {
+      "supervisor_queue_count": 512,
+      "supervisor_queued_payload_bytes": 67108864,
+      "single_inflight_frame": true,
+      "websocket_max_queue": 1,
+      "maximum_message_bytes": 33554432,
+      "recorder_queue_count": 2048,
+      "recorder_accounted_queue_bytes": 134217728,
+      "native_depth": true,
+      "decoder_reducer_wire": true,
+      "terminal_or_gap_loss_reporting": true
+    },
+    "no_new_buffer_or_retry": true,
+    "rejected_alternative": "1024-slot configuration also drains the isolated burst, but keeps reader starvation and needlessly widens memory/count allowance; not implemented."
+  },
+  "before_and_exploratory_profiles": [
+    {
+      "case": "upstream-before-paced",
+      "input_frames": 514,
+      "processed": 514,
+      "fault": "",
+      "queue_highwater_count": 485,
+      "queue_highwater_bytes": 81480,
+      "processing_wall_seconds": 1.1460337799944682,
+      "owner_thread_cpu_seconds": 0.254607433,
+      "decode_reduce_cpu_seconds": 0.1721226539999999,
+      "raw_normalized_parity": true,
+      "raw_payload_prefix_exact": true,
+      "capture": "data/m5-profile/upstream-before-paced/eaae6a2e-6c02-43c8-a0f8-54a792332f7c",
+      "ingestion_sha256": "ff78eed5adccb8f888fbf1bbcd2dcea81d7e232d5a4d4579793db61965fdce3a",
+      "note": "Completed successfully before diagnostic harness encountered max(empty decode samples) in subsequent no-service overflow case. Retained from actual stdout; failed diagnostic calculation fixed before remaining scenarios."
+    },
+    {
+      "case": "upstream-before-buffered",
+      "fair_reader": false,
+      "paced": false,
+      "queue_limit": 512,
+      "input_frames": 514,
+      "processed": 0,
+      "fault": "required_queue_overflow",
+      "raw_written": 513,
+      "normalized_batches_written": 3,
+      "processing_wall_seconds": 0.024217062004026957,
+      "owner_thread_cpu_seconds": 0.022286741000000054,
+      "decode_reduce_cpu_seconds": 0,
+      "decode_reduce_wall_seconds": 0,
+      "max_decode_reduce_wall_seconds": 0,
+      "queue_highwater_count": 512,
+      "queue_highwater_bytes": 86016,
+      "queue_at_end": 0,
+      "recorder_health": {
+        "state": "incomplete",
+        "queue_count": 0,
+        "queue_bytes": 0,
+        "high_water_count": 514,
+        "high_water_bytes": 529274,
+        "incomplete_reasons": [
+          "profile_of_incomplete_source_burst",
+          "source_capture_lost:required_queue_overflow"
+        ],
+        "written_bytes": 306192
+      },
+      "final_complete": false,
+      "final_reasons": [
+        "profile_of_incomplete_source_burst",
+        "source_capture_lost:required_queue_overflow"
+      ],
+      "capture": "/private/tmp/limit-orderbook-m5-NBWAK4/recorder/data/m5-profile/upstream-before-buffered/9beefbaa-a011-4135-8022-d5a4fa6910aa",
+      "ingestion_sha256": "ff78eed5adccb8f888fbf1bbcd2dcea81d7e232d5a4d4579793db61965fdce3a",
+      "raw_payload_prefix_exact": true,
+      "sampled_queue": {
+        "samples": 1,
+        "empty_samples": 1,
+        "last": [
+          6.50610018055886e-05,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "case": "upstream-fair-paced",
+      "fair_reader": true,
+      "paced": true,
+      "queue_limit": 512,
+      "input_frames": 514,
+      "processed": 514,
+      "fault": "",
+      "raw_written": 514,
+      "normalized_batches_written": 515,
+      "processing_wall_seconds": 0.6927523729973473,
+      "owner_thread_cpu_seconds": 0.269066432,
+      "decode_reduce_cpu_seconds": 0.17174428799999977,
+      "decode_reduce_wall_seconds": 0.18006172498280648,
+      "max_decode_reduce_wall_seconds": 0.002871731005143374,
+      "queue_highwater_count": 418,
+      "queue_highwater_bytes": 70224,
+      "queue_at_end": 0,
+      "recorder_health": {
+        "state": "incomplete",
+        "queue_count": 0,
+        "queue_bytes": 0,
+        "high_water_count": 396,
+        "high_water_bytes": 497164,
+        "incomplete_reasons": [
+          "profile_of_incomplete_source_burst"
+        ],
+        "written_bytes": 395017
+      },
+      "final_complete": false,
+      "final_reasons": [
+        "profile_of_incomplete_source_burst"
+      ],
+      "capture": "/private/tmp/limit-orderbook-m5-NBWAK4/recorder/data/m5-profile/upstream-fair-paced/59aec725-ed85-4d19-9d73-04b9a4e40bd2",
+      "ingestion_sha256": "ff78eed5adccb8f888fbf1bbcd2dcea81d7e232d5a4d4579793db61965fdce3a",
+      "raw_payload_prefix_exact": true,
+      "replay_hashes": {
+        "raw": {
+          "book": "38c743d09e99c56e98702d7489e8f1a4a42bc40e343651bed7e6a769522304cd",
+          "state": "514ff9bf347dce501d7b0717befa6ee41b148fdb54ca111cdb6d19dbeced224c"
+        },
+        "normalized": {
+          "book": "38c743d09e99c56e98702d7489e8f1a4a42bc40e343651bed7e6a769522304cd",
+          "state": "514ff9bf347dce501d7b0717befa6ee41b148fdb54ca111cdb6d19dbeced224c"
+        }
+      },
+      "raw_normalized_parity": true,
+      "sampled_queue": {
+        "samples": 431,
+        "empty_samples": 1,
+        "last": [
+          0.6916852449940052,
+          1,
+          168,
+          512
+        ]
+      }
+    },
+    {
+      "case": "upstream-fair-buffered",
+      "fair_reader": true,
+      "paced": false,
+      "queue_limit": 512,
+      "input_frames": 514,
+      "processed": 514,
+      "fault": "",
+      "raw_written": 514,
+      "normalized_batches_written": 515,
+      "processing_wall_seconds": 0.5582718689984176,
+      "owner_thread_cpu_seconds": 0.221877852,
+      "decode_reduce_cpu_seconds": 0.14401928800000055,
+      "decode_reduce_wall_seconds": 0.14831450318160933,
+      "max_decode_reduce_wall_seconds": 0.0019712060020538047,
+      "queue_highwater_count": 416,
+      "queue_highwater_bytes": 69888,
+      "queue_at_end": 0,
+      "recorder_health": {
+        "state": "incomplete",
+        "queue_count": 0,
+        "queue_bytes": 0,
+        "high_water_count": 290,
+        "high_water_bytes": 366434,
+        "incomplete_reasons": [
+          "profile_of_incomplete_source_burst"
+        ],
+        "written_bytes": 395491
+      },
+      "final_complete": false,
+      "final_reasons": [
+        "profile_of_incomplete_source_burst"
+      ],
+      "capture": "/private/tmp/limit-orderbook-m5-NBWAK4/recorder/data/m5-profile/upstream-fair-buffered/a1a71700-9e12-45ab-aebf-01604b5b15ea",
+      "ingestion_sha256": "ff78eed5adccb8f888fbf1bbcd2dcea81d7e232d5a4d4579793db61965fdce3a",
+      "raw_payload_prefix_exact": true,
+      "replay_hashes": {
+        "raw": {
+          "book": "38c743d09e99c56e98702d7489e8f1a4a42bc40e343651bed7e6a769522304cd",
+          "state": "844a9dee00b6f996140bc37f36266d46079003dd30355dbafad3c284c85574c9"
+        },
+        "normalized": {
+          "book": "38c743d09e99c56e98702d7489e8f1a4a42bc40e343651bed7e6a769522304cd",
+          "state": "844a9dee00b6f996140bc37f36266d46079003dd30355dbafad3c284c85574c9"
+        }
+      },
+      "raw_normalized_parity": true,
+      "sampled_queue": {
+        "samples": 382,
+        "empty_samples": 1,
+        "last": [
+          0.5572111200017389,
+          1,
+          168,
+          512
+        ]
+      }
+    },
+    {
+      "case": "upstream-1024-buffered",
+      "fair_reader": false,
+      "paced": false,
+      "queue_limit": 1024,
+      "input_frames": 514,
+      "processed": 514,
+      "fault": "",
+      "raw_written": 514,
+      "normalized_batches_written": 515,
+      "processing_wall_seconds": 0.522095107997302,
+      "owner_thread_cpu_seconds": 0.2021587510000007,
+      "decode_reduce_cpu_seconds": 0.14114810999999877,
+      "decode_reduce_wall_seconds": 0.1431737872044323,
+      "max_decode_reduce_wall_seconds": 0.0011217029968975112,
+      "queue_highwater_count": 514,
+      "queue_highwater_bytes": 86352,
+      "queue_at_end": 0,
+      "recorder_health": {
+        "state": "incomplete",
+        "queue_count": 0,
+        "queue_bytes": 0,
+        "high_water_count": 515,
+        "high_water_bytes": 529409,
+        "incomplete_reasons": [
+          "profile_of_incomplete_source_burst"
+        ],
+        "written_bytes": 394414
+      },
+      "final_complete": false,
+      "final_reasons": [
+        "profile_of_incomplete_source_burst"
+      ],
+      "capture": "/private/tmp/limit-orderbook-m5-NBWAK4/recorder/data/m5-profile/upstream-1024-buffered/c8b85973-d27d-4017-ac94-9a4a0cd787f6",
+      "ingestion_sha256": "ff78eed5adccb8f888fbf1bbcd2dcea81d7e232d5a4d4579793db61965fdce3a",
+      "raw_payload_prefix_exact": true,
+      "replay_hashes": {
+        "raw": {
+          "book": "38c743d09e99c56e98702d7489e8f1a4a42bc40e343651bed7e6a769522304cd",
+          "state": "00d59f6ea9cc4932e6925b515314c0e038896651f8b7abb119075a37168156fd"
+        },
+        "normalized": {
+          "book": "38c743d09e99c56e98702d7489e8f1a4a42bc40e343651bed7e6a769522304cd",
+          "state": "00d59f6ea9cc4932e6925b515314c0e038896651f8b7abb119075a37168156fd"
+        }
+      },
+      "raw_normalized_parity": true,
+      "sampled_queue": {
+        "samples": 342,
+        "empty_samples": 2,
+        "last": [
+          0.5209495570015861,
+          0,
+          0,
+          513
+        ]
+      }
+    }
+  ],
+  "corrected_production_profiles": [
+    {
+      "case": "upstream_burst_0-corrected-paced",
+      "fair_reader": false,
+      "paced": true,
+      "queue_limit": 512,
+      "input_frames": 514,
+      "processed": 514,
+      "fault": "",
+      "raw_written": 514,
+      "normalized_batches_written": 515,
+      "processing_wall_seconds": 1.0789315689908108,
+      "owner_thread_cpu_seconds": 0.2886671289999999,
+      "decode_reduce_cpu_seconds": 0.17284624699999984,
+      "decode_reduce_wall_seconds": 0.17956816108198836,
+      "max_decode_reduce_wall_seconds": 0.0008920469990698621,
+      "queue_highwater_count": 416,
+      "queue_highwater_bytes": 69888,
+      "queue_at_end": 0,
+      "recorder_health": {
+        "state": "incomplete",
+        "queue_count": 0,
+        "queue_bytes": 0,
+        "high_water_count": 388,
+        "high_water_bytes": 968836,
+        "incomplete_reasons": [
+          "profile_of_incomplete_source_burst"
+        ],
+        "written_bytes": 395972
+      },
+      "final_complete": false,
+      "final_reasons": [
+        "profile_of_incomplete_source_burst"
+      ],
+      "capture": "/private/tmp/limit-orderbook-m5-NBWAK4/recorder/data/m5-profile/upstream_burst_0-corrected-paced/c919ce75-08da-4753-badf-4060c0a37c04",
+      "ingestion_sha256": "60b5d412e3b5b2e08cfb8b264d7c74ee513351e45f961abbecb9c201209402bb",
+      "raw_payload_prefix_exact": true,
+      "replay_hashes": {
+        "raw": {
+          "book": "38c743d09e99c56e98702d7489e8f1a4a42bc40e343651bed7e6a769522304cd",
+          "state": "b7922465b18dcb2390342645c7148ea47b20bda695b86bc22dbe24b9447f914b"
+        },
+        "normalized": {
+          "book": "38c743d09e99c56e98702d7489e8f1a4a42bc40e343651bed7e6a769522304cd",
+          "state": "b7922465b18dcb2390342645c7148ea47b20bda695b86bc22dbe24b9447f914b"
+        }
+      },
+      "raw_normalized_parity": true,
+      "input_sha256": "fcd008b9c85a8690b149e17adfd242705e1f88fb05dc3b7e7f11c07aa80112ea",
+      "uses_unmodified_production_reader": true,
+      "sampled_queue": {
+        "samples": 481,
+        "empty_samples": 2,
+        "last": [
+          1.0776875269948505,
+          0,
+          0,
+          513
+        ]
+      }
+    },
+    {
+      "case": "upstream_burst_0-corrected-buffered",
+      "fair_reader": false,
+      "paced": false,
+      "queue_limit": 512,
+      "input_frames": 514,
+      "processed": 514,
+      "fault": "",
+      "raw_written": 514,
+      "normalized_batches_written": 515,
+      "processing_wall_seconds": 0.6220319069980178,
+      "owner_thread_cpu_seconds": 0.250504007,
+      "decode_reduce_cpu_seconds": 0.15468207499999986,
+      "decode_reduce_wall_seconds": 0.15865284016763326,
+      "max_decode_reduce_wall_seconds": 0.0019162620010320097,
+      "queue_highwater_count": 417,
+      "queue_highwater_bytes": 70056,
+      "queue_at_end": 0,
+      "recorder_health": {
+        "state": "incomplete",
+        "queue_count": 0,
+        "queue_bytes": 0,
+        "high_water_count": 309,
+        "high_water_bytes": 388853,
+        "incomplete_reasons": [
+          "profile_of_incomplete_source_burst"
+        ],
+        "written_bytes": 395116
+      },
+      "final_complete": false,
+      "final_reasons": [
+        "profile_of_incomplete_source_burst"
+      ],
+      "capture": "/private/tmp/limit-orderbook-m5-NBWAK4/recorder/data/m5-profile/upstream_burst_0-corrected-buffered/65ca3a29-a007-4da6-b1a2-d291f66cbddb",
+      "ingestion_sha256": "60b5d412e3b5b2e08cfb8b264d7c74ee513351e45f961abbecb9c201209402bb",
+      "raw_payload_prefix_exact": true,
+      "replay_hashes": {
+        "raw": {
+          "book": "38c743d09e99c56e98702d7489e8f1a4a42bc40e343651bed7e6a769522304cd",
+          "state": "02af89d29228971f47642b811549b80e04d2ba4d13c3e953199c0fa8f575474a"
+        },
+        "normalized": {
+          "book": "38c743d09e99c56e98702d7489e8f1a4a42bc40e343651bed7e6a769522304cd",
+          "state": "02af89d29228971f47642b811549b80e04d2ba4d13c3e953199c0fa8f575474a"
+        }
+      },
+      "raw_normalized_parity": true,
+      "input_sha256": "fcd008b9c85a8690b149e17adfd242705e1f88fb05dc3b7e7f11c07aa80112ea",
+      "uses_unmodified_production_reader": true,
+      "sampled_queue": {
+        "samples": 429,
+        "empty_samples": 2,
+        "last": [
+          0.6208327030035434,
+          0,
+          0,
+          513
+        ]
+      }
+    },
+    {
+      "case": "upstream_burst_1-corrected-paced",
+      "fair_reader": false,
+      "paced": true,
+      "queue_limit": 512,
+      "input_frames": 514,
+      "processed": 514,
+      "fault": "",
+      "raw_written": 514,
+      "normalized_batches_written": 515,
+      "processing_wall_seconds": 0.9437012749986025,
+      "owner_thread_cpu_seconds": 0.27605697800000006,
+      "decode_reduce_cpu_seconds": 0.15917406800000009,
+      "decode_reduce_wall_seconds": 0.1623749970603967,
+      "max_decode_reduce_wall_seconds": 0.0012502470053732395,
+      "queue_highwater_count": 397,
+      "queue_highwater_bytes": 66696,
+      "queue_at_end": 0,
+      "recorder_health": {
+        "state": "incomplete",
+        "queue_count": 0,
+        "queue_bytes": 0,
+        "high_water_count": 388,
+        "high_water_bytes": 968836,
+        "incomplete_reasons": [
+          "profile_of_incomplete_source_burst"
+        ],
+        "written_bytes": 397467
+      },
+      "final_complete": false,
+      "final_reasons": [
+        "profile_of_incomplete_source_burst"
+      ],
+      "capture": "/private/tmp/limit-orderbook-m5-NBWAK4/recorder/data/m5-profile/upstream_burst_1-corrected-paced/efb739e6-ff9d-4ba4-9562-ca207ad0dd1b",
+      "ingestion_sha256": "60b5d412e3b5b2e08cfb8b264d7c74ee513351e45f961abbecb9c201209402bb",
+      "raw_payload_prefix_exact": true,
+      "replay_hashes": {
+        "raw": {
+          "book": "38c743d09e99c56e98702d7489e8f1a4a42bc40e343651bed7e6a769522304cd",
+          "state": "ddbeb314e9519d02033b729c3f5546464d5dfbd23c2351de498e61c660ad3b8a"
+        },
+        "normalized": {
+          "book": "38c743d09e99c56e98702d7489e8f1a4a42bc40e343651bed7e6a769522304cd",
+          "state": "ddbeb314e9519d02033b729c3f5546464d5dfbd23c2351de498e61c660ad3b8a"
+        }
+      },
+      "raw_normalized_parity": true,
+      "input_sha256": "acecbc7aef163cfcaaac13f5492d3a29e7e92380a7c87b0c0a929fe4d1894bca",
+      "uses_unmodified_production_reader": true,
+      "sampled_queue": {
+        "samples": 490,
+        "empty_samples": 7,
+        "last": [
+          0.9424475800042273,
+          0,
+          0,
+          513
+        ]
+      }
+    },
+    {
+      "case": "upstream_burst_1-corrected-buffered",
+      "fair_reader": false,
+      "paced": false,
+      "queue_limit": 512,
+      "input_frames": 514,
+      "processed": 514,
+      "fault": "",
+      "raw_written": 514,
+      "normalized_batches_written": 515,
+      "processing_wall_seconds": 0.5942779289907776,
+      "owner_thread_cpu_seconds": 0.23688815499999993,
+      "decode_reduce_cpu_seconds": 0.1507843930000003,
+      "decode_reduce_wall_seconds": 0.15448075522726867,
+      "max_decode_reduce_wall_seconds": 0.0023375579912681133,
+      "queue_highwater_count": 418,
+      "queue_highwater_bytes": 70224,
+      "queue_at_end": 0,
+      "recorder_health": {
+        "state": "incomplete",
+        "queue_count": 0,
+        "queue_bytes": 0,
+        "high_water_count": 320,
+        "high_water_bytes": 403072,
+        "incomplete_reasons": [
+          "profile_of_incomplete_source_burst"
+        ],
+        "written_bytes": 397006
+      },
+      "final_complete": false,
+      "final_reasons": [
+        "profile_of_incomplete_source_burst"
+      ],
+      "capture": "/private/tmp/limit-orderbook-m5-NBWAK4/recorder/data/m5-profile/upstream_burst_1-corrected-buffered/c7830ecb-34d4-4d45-a1d7-ee3eefa6aced",
+      "ingestion_sha256": "60b5d412e3b5b2e08cfb8b264d7c74ee513351e45f961abbecb9c201209402bb",
+      "raw_payload_prefix_exact": true,
+      "replay_hashes": {
+        "raw": {
+          "book": "38c743d09e99c56e98702d7489e8f1a4a42bc40e343651bed7e6a769522304cd",
+          "state": "311270fcd0e16cfe57076e62532b34e5c0fc22afd884a0f0b08c75f0e72b78fe"
+        },
+        "normalized": {
+          "book": "38c743d09e99c56e98702d7489e8f1a4a42bc40e343651bed7e6a769522304cd",
+          "state": "311270fcd0e16cfe57076e62532b34e5c0fc22afd884a0f0b08c75f0e72b78fe"
+        }
+      },
+      "raw_normalized_parity": true,
+      "input_sha256": "acecbc7aef163cfcaaac13f5492d3a29e7e92380a7c87b0c0a929fe4d1894bca",
+      "uses_unmodified_production_reader": true,
+      "sampled_queue": {
+        "samples": 410,
+        "empty_samples": 2,
+        "last": [
+          0.5930254499980947,
+          0,
+          0,
+          513
+        ]
+      }
+    },
+    {
+      "case": "upstream_burst_2-corrected-paced",
+      "fair_reader": false,
+      "paced": true,
+      "queue_limit": 512,
+      "input_frames": 514,
+      "processed": 514,
+      "fault": "",
+      "raw_written": 514,
+      "normalized_batches_written": 515,
+      "processing_wall_seconds": 0.9418670209997799,
+      "owner_thread_cpu_seconds": 0.268260422,
+      "decode_reduce_cpu_seconds": 0.159194086,
+      "decode_reduce_wall_seconds": 0.16314478324784432,
+      "max_decode_reduce_wall_seconds": 0.0007778019935358316,
+      "queue_highwater_count": 394,
+      "queue_highwater_bytes": 66582,
+      "queue_at_end": 0,
+      "recorder_health": {
+        "state": "incomplete",
+        "queue_count": 0,
+        "queue_bytes": 0,
+        "high_water_count": 358,
+        "high_water_bytes": 893572,
+        "incomplete_reasons": [
+          "profile_of_incomplete_source_burst"
+        ],
+        "written_bytes": 401311
+      },
+      "final_complete": false,
+      "final_reasons": [
+        "profile_of_incomplete_source_burst"
+      ],
+      "capture": "/private/tmp/limit-orderbook-m5-NBWAK4/recorder/data/m5-profile/upstream_burst_2-corrected-paced/7ee8a04c-b292-46b1-8a0b-97694ae74263",
+      "ingestion_sha256": "60b5d412e3b5b2e08cfb8b264d7c74ee513351e45f961abbecb9c201209402bb",
+      "raw_payload_prefix_exact": true,
+      "replay_hashes": {
+        "raw": {
+          "book": "38c743d09e99c56e98702d7489e8f1a4a42bc40e343651bed7e6a769522304cd",
+          "state": "7ec1711d2726a01d9a36813ce10d448e602a6904bc233cafe4ff42d1cba76e98"
+        },
+        "normalized": {
+          "book": "38c743d09e99c56e98702d7489e8f1a4a42bc40e343651bed7e6a769522304cd",
+          "state": "7ec1711d2726a01d9a36813ce10d448e602a6904bc233cafe4ff42d1cba76e98"
+        }
+      },
+      "raw_normalized_parity": true,
+      "input_sha256": "df96400f340c190189a18c4c5a20da207ee3bddd753f2430ee13ed5aa13e6fe4",
+      "uses_unmodified_production_reader": true,
+      "sampled_queue": {
+        "samples": 490,
+        "empty_samples": 2,
+        "last": [
+          0.9405222600034904,
+          0,
+          0,
+          513
+        ]
+      }
+    },
+    {
+      "case": "upstream_burst_2-corrected-buffered",
+      "fair_reader": false,
+      "paced": false,
+      "queue_limit": 512,
+      "input_frames": 514,
+      "processed": 514,
+      "fault": "",
+      "raw_written": 514,
+      "normalized_batches_written": 515,
+      "processing_wall_seconds": 0.6141948869917542,
+      "owner_thread_cpu_seconds": 0.24327579900000007,
+      "decode_reduce_cpu_seconds": 0.15717118999999985,
+      "decode_reduce_wall_seconds": 0.16289939894340932,
+      "max_decode_reduce_wall_seconds": 0.0012293710024096072,
+      "queue_highwater_count": 414,
+      "queue_highwater_bytes": 69962,
+      "queue_at_end": 0,
+      "recorder_health": {
+        "state": "incomplete",
+        "queue_count": 0,
+        "queue_bytes": 0,
+        "high_water_count": 293,
+        "high_water_bytes": 371174,
+        "incomplete_reasons": [
+          "profile_of_incomplete_source_burst"
+        ],
+        "written_bytes": 401348
+      },
+      "final_complete": false,
+      "final_reasons": [
+        "profile_of_incomplete_source_burst"
+      ],
+      "capture": "/private/tmp/limit-orderbook-m5-NBWAK4/recorder/data/m5-profile/upstream_burst_2-corrected-buffered/b4ca7141-11d3-4c8d-8e8c-8a1157583d2c",
+      "ingestion_sha256": "60b5d412e3b5b2e08cfb8b264d7c74ee513351e45f961abbecb9c201209402bb",
+      "raw_payload_prefix_exact": true,
+      "replay_hashes": {
+        "raw": {
+          "book": "38c743d09e99c56e98702d7489e8f1a4a42bc40e343651bed7e6a769522304cd",
+          "state": "6b03ce6a90b347b572e8bcf22f1198b7ab823fac021a650a3bc0bc7b80ca695a"
+        },
+        "normalized": {
+          "book": "38c743d09e99c56e98702d7489e8f1a4a42bc40e343651bed7e6a769522304cd",
+          "state": "6b03ce6a90b347b572e8bcf22f1198b7ab823fac021a650a3bc0bc7b80ca695a"
+        }
+      },
+      "raw_normalized_parity": true,
+      "input_sha256": "df96400f340c190189a18c4c5a20da207ee3bddd753f2430ee13ed5aa13e6fe4",
+      "uses_unmodified_production_reader": true,
+      "sampled_queue": {
+        "samples": 411,
+        "empty_samples": 2,
+        "last": [
+          0.6127561969915405,
+          0,
+          0,
+          513
+        ]
+      }
+    },
+    {
+      "case": "upstream_burst_3-corrected-paced",
+      "fair_reader": false,
+      "paced": true,
+      "queue_limit": 512,
+      "input_frames": 514,
+      "processed": 514,
+      "fault": "",
+      "raw_written": 514,
+      "normalized_batches_written": 515,
+      "processing_wall_seconds": 0.9001179290062282,
+      "owner_thread_cpu_seconds": 0.259763541,
+      "decode_reduce_cpu_seconds": 0.15808042200000014,
+      "decode_reduce_wall_seconds": 0.16124429300543852,
+      "max_decode_reduce_wall_seconds": 0.0042026700102724135,
+      "queue_highwater_count": 339,
+      "queue_highwater_bytes": 57286,
+      "queue_at_end": 0,
+      "recorder_health": {
+        "state": "incomplete",
+        "queue_count": 0,
+        "queue_bytes": 0,
+        "high_water_count": 544,
+        "high_water_bytes": 1010905,
+        "incomplete_reasons": [
+          "profile_of_incomplete_source_burst"
+        ],
+        "written_bytes": 402788
+      },
+      "final_complete": false,
+      "final_reasons": [
+        "profile_of_incomplete_source_burst"
+      ],
+      "capture": "/private/tmp/limit-orderbook-m5-NBWAK4/recorder/data/m5-profile/upstream_burst_3-corrected-paced/303c5ba1-1ebc-4149-8bf7-be13626ea0ab",
+      "ingestion_sha256": "60b5d412e3b5b2e08cfb8b264d7c74ee513351e45f961abbecb9c201209402bb",
+      "raw_payload_prefix_exact": true,
+      "replay_hashes": {
+        "raw": {
+          "book": "38c743d09e99c56e98702d7489e8f1a4a42bc40e343651bed7e6a769522304cd",
+          "state": "1049bf2da768a9cbbf6ed3f5e0511fbfb55979f3ce98802f249bca5164ffcae2"
+        },
+        "normalized": {
+          "book": "38c743d09e99c56e98702d7489e8f1a4a42bc40e343651bed7e6a769522304cd",
+          "state": "1049bf2da768a9cbbf6ed3f5e0511fbfb55979f3ce98802f249bca5164ffcae2"
+        }
+      },
+      "raw_normalized_parity": true,
+      "input_sha256": "7d4c7a4502ed8968d37b9cefcb053445c1796134850cbc1128abf3f5e24c200b",
+      "uses_unmodified_production_reader": true,
+      "sampled_queue": {
+        "samples": 480,
+        "empty_samples": 2,
+        "last": [
+          0.8971991150028771,
+          0,
+          0,
+          513
+        ]
+      }
+    },
+    {
+      "case": "upstream_burst_3-corrected-buffered",
+      "fair_reader": false,
+      "paced": false,
+      "queue_limit": 512,
+      "input_frames": 514,
+      "processed": 514,
+      "fault": "",
+      "raw_written": 514,
+      "normalized_batches_written": 515,
+      "processing_wall_seconds": 0.6150849919940811,
+      "owner_thread_cpu_seconds": 0.242057902,
+      "decode_reduce_cpu_seconds": 0.15299580899999993,
+      "decode_reduce_wall_seconds": 0.15723417876870371,
+      "max_decode_reduce_wall_seconds": 0.001846496990765445,
+      "queue_highwater_count": 415,
+      "queue_highwater_bytes": 70129,
+      "queue_at_end": 0,
+      "recorder_health": {
+        "state": "incomplete",
+        "queue_count": 0,
+        "queue_bytes": 0,
+        "high_water_count": 286,
+        "high_water_bytes": 361052,
+        "incomplete_reasons": [
+          "profile_of_incomplete_source_burst"
+        ],
+        "written_bytes": 403506
+      },
+      "final_complete": false,
+      "final_reasons": [
+        "profile_of_incomplete_source_burst"
+      ],
+      "capture": "/private/tmp/limit-orderbook-m5-NBWAK4/recorder/data/m5-profile/upstream_burst_3-corrected-buffered/a0290d2b-c340-45a7-bfb6-8cef340dace6",
+      "ingestion_sha256": "60b5d412e3b5b2e08cfb8b264d7c74ee513351e45f961abbecb9c201209402bb",
+      "raw_payload_prefix_exact": true,
+      "replay_hashes": {
+        "raw": {
+          "book": "38c743d09e99c56e98702d7489e8f1a4a42bc40e343651bed7e6a769522304cd",
+          "state": "94df5a8b099e3877c8ff422e67346dceec4551c514d5a30a47ca5d710e275b8f"
+        },
+        "normalized": {
+          "book": "38c743d09e99c56e98702d7489e8f1a4a42bc40e343651bed7e6a769522304cd",
+          "state": "94df5a8b099e3877c8ff422e67346dceec4551c514d5a30a47ca5d710e275b8f"
+        }
+      },
+      "raw_normalized_parity": true,
+      "input_sha256": "7d4c7a4502ed8968d37b9cefcb053445c1796134850cbc1128abf3f5e24c200b",
+      "uses_unmodified_production_reader": true,
+      "sampled_queue": {
+        "samples": 415,
+        "empty_samples": 1,
+        "last": [
+          0.6139276339963544,
+          1,
+          169,
+          512
+        ]
+      }
+    },
+    {
+      "case": "upstream_burst_4-corrected-paced",
+      "fair_reader": false,
+      "paced": true,
+      "queue_limit": 512,
+      "input_frames": 514,
+      "processed": 514,
+      "fault": "",
+      "raw_written": 514,
+      "normalized_batches_written": 515,
+      "processing_wall_seconds": 0.9264052849903237,
+      "owner_thread_cpu_seconds": 0.26642363999999996,
+      "decode_reduce_cpu_seconds": 0.156286859,
+      "decode_reduce_wall_seconds": 0.16116696198878344,
+      "max_decode_reduce_wall_seconds": 0.0016235410002991557,
+      "queue_highwater_count": 414,
+      "queue_highwater_bytes": 69547,
+      "queue_at_end": 0,
+      "recorder_health": {
+        "state": "incomplete",
+        "queue_count": 0,
+        "queue_bytes": 0,
+        "high_water_count": 357,
+        "high_water_bytes": 891078,
+        "incomplete_reasons": [
+          "profile_of_incomplete_source_burst"
+        ],
+        "written_bytes": 395362
+      },
+      "final_complete": false,
+      "final_reasons": [
+        "profile_of_incomplete_source_burst"
+      ],
+      "capture": "/private/tmp/limit-orderbook-m5-NBWAK4/recorder/data/m5-profile/upstream_burst_4-corrected-paced/b4988e14-7b51-4968-a586-35aba2f7c0e3",
+      "ingestion_sha256": "60b5d412e3b5b2e08cfb8b264d7c74ee513351e45f961abbecb9c201209402bb",
+      "raw_payload_prefix_exact": true,
+      "replay_hashes": {
+        "raw": {
+          "book": "38c743d09e99c56e98702d7489e8f1a4a42bc40e343651bed7e6a769522304cd",
+          "state": "dbf7b4e1613ba332e2283abd9f0b1afb3faa3d81f476379f398bfcea42009bdf"
+        },
+        "normalized": {
+          "book": "38c743d09e99c56e98702d7489e8f1a4a42bc40e343651bed7e6a769522304cd",
+          "state": "dbf7b4e1613ba332e2283abd9f0b1afb3faa3d81f476379f398bfcea42009bdf"
+        }
+      },
+      "raw_normalized_parity": true,
+      "input_sha256": "cfbbd5c3a26761bda5bed534a1441b04dfac6fa8b721db3bb5f908cac21dc0a4",
+      "uses_unmodified_production_reader": true,
+      "sampled_queue": {
+        "samples": 482,
+        "empty_samples": 2,
+        "last": [
+          0.9252768179867417,
+          0,
+          0,
+          513
+        ]
+      }
+    },
+    {
+      "case": "upstream_burst_4-corrected-buffered",
+      "fair_reader": false,
+      "paced": false,
+      "queue_limit": 512,
+      "input_frames": 514,
+      "processed": 514,
+      "fault": "",
+      "raw_written": 514,
+      "normalized_batches_written": 515,
+      "processing_wall_seconds": 0.5949780619994272,
+      "owner_thread_cpu_seconds": 0.23679838400000008,
+      "decode_reduce_cpu_seconds": 0.1487318959999995,
+      "decode_reduce_wall_seconds": 0.15119978999427985,
+      "max_decode_reduce_wall_seconds": 0.0008524610020685941,
+      "queue_highwater_count": 416,
+      "queue_highwater_bytes": 69883,
+      "queue_at_end": 0,
+      "recorder_health": {
+        "state": "incomplete",
+        "queue_count": 0,
+        "queue_bytes": 0,
+        "high_water_count": 303,
+        "high_water_bytes": 381177,
+        "incomplete_reasons": [
+          "profile_of_incomplete_source_burst"
+        ],
+        "written_bytes": 395206
+      },
+      "final_complete": false,
+      "final_reasons": [
+        "profile_of_incomplete_source_burst"
+      ],
+      "capture": "/private/tmp/limit-orderbook-m5-NBWAK4/recorder/data/m5-profile/upstream_burst_4-corrected-buffered/5db608cc-51b1-4c42-aee7-c6361d7d168f",
+      "ingestion_sha256": "60b5d412e3b5b2e08cfb8b264d7c74ee513351e45f961abbecb9c201209402bb",
+      "raw_payload_prefix_exact": true,
+      "replay_hashes": {
+        "raw": {
+          "book": "38c743d09e99c56e98702d7489e8f1a4a42bc40e343651bed7e6a769522304cd",
+          "state": "5de667d478bd32e7296f9a8ccd46eefc41cb4a648d1dc842607c89886b01f479"
+        },
+        "normalized": {
+          "book": "38c743d09e99c56e98702d7489e8f1a4a42bc40e343651bed7e6a769522304cd",
+          "state": "5de667d478bd32e7296f9a8ccd46eefc41cb4a648d1dc842607c89886b01f479"
+        }
+      },
+      "raw_normalized_parity": true,
+      "input_sha256": "cfbbd5c3a26761bda5bed534a1441b04dfac6fa8b721db3bb5f908cac21dc0a4",
+      "uses_unmodified_production_reader": true,
+      "sampled_queue": {
+        "samples": 400,
+        "empty_samples": 2,
+        "last": [
+          0.5936954860080732,
+          0,
+          0,
+          513
+        ]
+      }
+    }
+  ],
+  "exact_payload_checkpoint_parity": [
+    {
+      "case": "upstream_burst_0-corrected-paced",
+      "raw_payloads_exact": true,
+      "native_trade_payloads_exact": true,
+      "expected_payload_wire_sha256": "71804bc3031a3f8107048405d315bdfb5537b3247b2aabdfb95e2d1ec660c157",
+      "actual_payload_wire_sha256": "71804bc3031a3f8107048405d315bdfb5537b3247b2aabdfb95e2d1ec660c157",
+      "actual_receive_span_seconds": 0.182703758,
+      "persisted_checkpoint_native_exact": true,
+      "persisted_checkpoint_wire_exact": true,
+      "persisted_auxiliary_exact": true,
+      "final_checkpoint_state_hash": "d0a622fc284f652fe869e35e5d9557424398d2acab2bd438df3d342dd37ff161"
+    },
+    {
+      "case": "upstream_burst_0-corrected-buffered",
+      "raw_payloads_exact": true,
+      "native_trade_payloads_exact": true,
+      "expected_payload_wire_sha256": "71804bc3031a3f8107048405d315bdfb5537b3247b2aabdfb95e2d1ec660c157",
+      "actual_payload_wire_sha256": "71804bc3031a3f8107048405d315bdfb5537b3247b2aabdfb95e2d1ec660c157",
+      "actual_receive_span_seconds": 0.151709357,
+      "persisted_checkpoint_native_exact": true,
+      "persisted_checkpoint_wire_exact": true,
+      "persisted_auxiliary_exact": true,
+      "final_checkpoint_state_hash": "ad072ed6a86538a43fdedf936e0a6dd96820f4943ac9ac9bf7fe1451193994e2"
+    },
+    {
+      "case": "upstream_burst_1-corrected-paced",
+      "raw_payloads_exact": true,
+      "native_trade_payloads_exact": true,
+      "expected_payload_wire_sha256": "97f21f0a317b99037938b2813ef21814d8ef6afcdf43c5ff5229814f362c3768",
+      "actual_payload_wire_sha256": "97f21f0a317b99037938b2813ef21814d8ef6afcdf43c5ff5229814f362c3768",
+      "actual_receive_span_seconds": 0.193273255,
+      "persisted_checkpoint_native_exact": true,
+      "persisted_checkpoint_wire_exact": true,
+      "persisted_auxiliary_exact": true,
+      "final_checkpoint_state_hash": "964888c2df7715ee0556d53de2bb4d246433b8ed2785408dbbc5f1081f927625"
+    },
+    {
+      "case": "upstream_burst_1-corrected-buffered",
+      "raw_payloads_exact": true,
+      "native_trade_payloads_exact": true,
+      "expected_payload_wire_sha256": "97f21f0a317b99037938b2813ef21814d8ef6afcdf43c5ff5229814f362c3768",
+      "actual_payload_wire_sha256": "97f21f0a317b99037938b2813ef21814d8ef6afcdf43c5ff5229814f362c3768",
+      "actual_receive_span_seconds": 0.137820667,
+      "persisted_checkpoint_native_exact": true,
+      "persisted_checkpoint_wire_exact": true,
+      "persisted_auxiliary_exact": true,
+      "final_checkpoint_state_hash": "e1b203025bff4f9cb840269a30bd323b6cd4c7786c5d181198c0a43fc2022c21"
+    },
+    {
+      "case": "upstream_burst_2-corrected-paced",
+      "raw_payloads_exact": true,
+      "native_trade_payloads_exact": true,
+      "expected_payload_wire_sha256": "0966dfef61379af59a9b7142b6b29f40b74b6332d390976de79ed82f9921b46d",
+      "actual_payload_wire_sha256": "0966dfef61379af59a9b7142b6b29f40b74b6332d390976de79ed82f9921b46d",
+      "actual_receive_span_seconds": 0.199086258,
+      "persisted_checkpoint_native_exact": true,
+      "persisted_checkpoint_wire_exact": true,
+      "persisted_auxiliary_exact": true,
+      "final_checkpoint_state_hash": "56d50a6389392e66650f754254bdaa6f0d9170ab3982311091d73571074e2ac0"
+    },
+    {
+      "case": "upstream_burst_2-corrected-buffered",
+      "raw_payloads_exact": true,
+      "native_trade_payloads_exact": true,
+      "expected_payload_wire_sha256": "0966dfef61379af59a9b7142b6b29f40b74b6332d390976de79ed82f9921b46d",
+      "actual_payload_wire_sha256": "0966dfef61379af59a9b7142b6b29f40b74b6332d390976de79ed82f9921b46d",
+      "actual_receive_span_seconds": 0.153785231,
+      "persisted_checkpoint_native_exact": true,
+      "persisted_checkpoint_wire_exact": true,
+      "persisted_auxiliary_exact": true,
+      "final_checkpoint_state_hash": "646e69ba2a1c397adb22b7f56367895e5fbf053e8302099de9acdd59d46d30e3"
+    },
+    {
+      "case": "upstream_burst_3-corrected-paced",
+      "raw_payloads_exact": true,
+      "native_trade_payloads_exact": true,
+      "expected_payload_wire_sha256": "7942e656451d486bfd670d6736d1e6b6aa403ff7ba9bcfcafc7cf53bb63daeb0",
+      "actual_payload_wire_sha256": "7942e656451d486bfd670d6736d1e6b6aa403ff7ba9bcfcafc7cf53bb63daeb0",
+      "actual_receive_span_seconds": 0.267398978,
+      "persisted_checkpoint_native_exact": true,
+      "persisted_checkpoint_wire_exact": true,
+      "persisted_auxiliary_exact": true,
+      "final_checkpoint_state_hash": "a87a617313939b014f96fbb0184b4116af75e0a52ca6f649192924c529b38184"
+    },
+    {
+      "case": "upstream_burst_3-corrected-buffered",
+      "raw_payloads_exact": true,
+      "native_trade_payloads_exact": true,
+      "expected_payload_wire_sha256": "7942e656451d486bfd670d6736d1e6b6aa403ff7ba9bcfcafc7cf53bb63daeb0",
+      "actual_payload_wire_sha256": "7942e656451d486bfd670d6736d1e6b6aa403ff7ba9bcfcafc7cf53bb63daeb0",
+      "actual_receive_span_seconds": 0.156961056,
+      "persisted_checkpoint_native_exact": true,
+      "persisted_checkpoint_wire_exact": true,
+      "persisted_auxiliary_exact": true,
+      "final_checkpoint_state_hash": "a95cb6f7a475db3ce4fc5c5cdafd90573eae51243fc50036252fc704a940af0a"
+    },
+    {
+      "case": "upstream_burst_4-corrected-paced",
+      "raw_payloads_exact": true,
+      "native_trade_payloads_exact": true,
+      "expected_payload_wire_sha256": "fecf2f388474214afa34cac9f108dda80793a2b9f10fab3c63923b366161d77a",
+      "actual_payload_wire_sha256": "fecf2f388474214afa34cac9f108dda80793a2b9f10fab3c63923b366161d77a",
+      "actual_receive_span_seconds": 0.159713356,
+      "persisted_checkpoint_native_exact": true,
+      "persisted_checkpoint_wire_exact": true,
+      "persisted_auxiliary_exact": true,
+      "final_checkpoint_state_hash": "d57aa8131ca4a91fec9108bab8fefc7c0faf0d6898c948e9d3e735b40fb8a859"
+    },
+    {
+      "case": "upstream_burst_4-corrected-buffered",
+      "raw_payloads_exact": true,
+      "native_trade_payloads_exact": true,
+      "expected_payload_wire_sha256": "fecf2f388474214afa34cac9f108dda80793a2b9f10fab3c63923b366161d77a",
+      "actual_payload_wire_sha256": "fecf2f388474214afa34cac9f108dda80793a2b9f10fab3c63923b366161d77a",
+      "actual_receive_span_seconds": 0.154255503,
+      "persisted_checkpoint_native_exact": true,
+      "persisted_checkpoint_wire_exact": true,
+      "persisted_auxiliary_exact": true,
+      "final_checkpoint_state_hash": "a99d7743c06e6aaa2012951b4dac02c0a9f5bb4a24d4017c58190491be2e3d53"
+    }
+  ],
+  "pins": {
+    "baseline_ingestion_sha256": "ff78eed5adccb8f888fbf1bbcd2dcea81d7e232d5a4d4579793db61965fdce3a",
+    "corrected_sources": {
+      "src/workstation/ingestion.py": "60b5d412e3b5b2e08cfb8b264d7c74ee513351e45f961abbecb9c201209402bb",
+      "src/workstation/recording.py": "7111e9529b259ba4154058fa066e2b83ad9ffb6570c6c1c8c276726df6eb577d",
+      "src/workstation/projection.py": "f36753759de852eea545932a1723b749257e74b013f01c057be447de6bb101b8",
+      "src/workstation/book.py": "f908201f41719b1d7726af4a38df0a3a166660c7312d21c4e9428e63053e4a74",
+      "src/workstation/wire.py": "45f09374e4ef4afdf9c3278992b17e5ebc433eaf11ac9835de4dfc2fee7f05e0"
+    },
+    "upstream_source_matches_failed_published_source": true
+  },
+  "workloads": {
+    "baseline_and_exploratory_source": "import asyncio,base64,json,time,sys\nfrom dataclasses import replace,asdict\nfrom hashlib import sha256\nfrom pathlib import Path\nsys.path.insert(0,str(Path.cwd()))\nfrom src.workstation.ingestion import FeedSupervisor,FeedCallbacks,ReceiveBoundary,SupervisorConfig\nfrom src.workstation.recording import Recorder,RecordingReader\nfrom src.workstation.projection import adapter_for_stream\nfrom src.workstation.replay import ReplaySession\nfrom src.workstation import wire\n\ninputs=json.loads(Path('data/m5-profile/upstream_bursts.json').read_text())\nsource=Path(inputs['manifest_path']).parent\nwith RecordingReader(source,verify=False,allow_incomplete=True) as reader:\n spec=next(s for s in reader.manifest.streams if s.stream_id==inputs['burst']['stream_id'])\nframes=inputs['frames']; payloads=[base64.b64decode(f['payload']['$bytes']) for f in frames]\noriginal_reader=FeedSupervisor._reader\nasync def fair_reader(self,ws,endpoint,epoch):\n try:\n  async for payload in ws:\n   self._receive(payload,'ws',endpoint,epoch)\n   if self._fault.is_set():return\n   await asyncio.sleep(0)\n  self._set_fault('ws_closed')\n except Exception as exc:\n  raise exc\n\nasync def run(name,fair,paced,count):\n FeedSupervisor._reader=fair_reader if fair else original_reader\n boundary=ReceiveBoundary()\n recorder=Recorder(Path('data/m5-profile')/name,session_id=boundary.session_id,clock_id=boundary.clock_id,streams=(spec,),provenance='incomplete retained upstream burst diagnostic',code_revision='profile-current-ingestion')\n recorder.mark_incomplete('profile_of_incomplete_source_burst')\n observations=[];decoded=[]\n supervisor=FeedSupervisor(adapter_for_stream(spec),spec.instrument,spec.key,stream_id=spec.stream_id,boundary=boundary,\n  callbacks=FeedCallbacks(raw=recorder.append_raw,events=recorder.append_events),config=SupervisorConfig(queue_count=count))\n original_decode=supervisor._decode_reduce\n def decode(frame):\n  start=time.perf_counter();cpu=time.thread_time()\n  try:return original_decode(frame)\n  finally:decoded.append((time.perf_counter()-start,time.thread_time()-cpu))\n supervisor._decode_reduce=decode\n supervisor._start_epoch(False)\n offered=asyncio.Event();finish=asyncio.Event();begin=time.perf_counter();start_cpu=time.thread_time()\n class Input:\n  def __init__(self):self.index=0\n  def __aiter__(self):return self\n  async def __anext__(self):\n   if self.index==len(payloads):offered.set();await finish.wait();raise StopAsyncIteration\n   i=self.index;self.index+=1\n   if paced:\n    delay=(int(frames[i]['receive_mono_ns'])-int(frames[0]['receive_mono_ns']))/1e9-(time.perf_counter()-begin)\n    if delay>0:await asyncio.sleep(delay)\n   return payloads[i]\n reader_task=asyncio.create_task(supervisor._reader(Input(),frames[0]['endpoint_id'],supervisor.epoch))\n consumer=asyncio.create_task(supervisor._consume(time.monotonic(),require_ack=False))\n deadline=begin+10\n while supervisor.processed_frames<len(frames) and not supervisor._fault.is_set() and time.perf_counter()<deadline:\n  observations.append((time.perf_counter()-begin,supervisor.queue.qsize(),supervisor.queued_bytes,supervisor.processed_frames))\n  await asyncio.sleep(.001)\n processing_end=time.perf_counter();main_cpu=time.thread_time()-start_cpu\n for task in (reader_task,consumer):task.cancel()\n outcomes=await asyncio.gather(reader_task,consumer,return_exceptions=True)\n if supervisor._fault.is_set():supervisor._gap(supervisor._fault_reason)\n manifest=await recorder.finalize()\n result={'case':name,'fair_reader':fair,'paced':paced,'queue_limit':count,'input_frames':len(frames),'processed':supervisor.processed_frames,\n  'fault':supervisor._fault_reason,'raw_written':manifest.raw_count,'normalized_batches_written':manifest.batch_count,\n  'processing_wall_seconds':processing_end-begin,'owner_thread_cpu_seconds':main_cpu,'decode_reduce_cpu_seconds':sum(c for _,c in decoded),\n  'decode_reduce_wall_seconds':sum(t for t,_ in decoded),'max_decode_reduce_wall_seconds':max((t for t,_ in decoded),default=0),\n  'queue_highwater_count':supervisor.queue_highwater_count,'queue_highwater_bytes':supervisor.queue_highwater_bytes,\n  'queue_at_end':supervisor.queue.qsize(),'recorder_health':asdict(recorder.health),'final_complete':manifest.complete,\n  'final_reasons':manifest.incomplete_reasons,'capture':str(recorder.path),'observations':observations,\n  'ingestion_sha256':sha256(Path('src/workstation/ingestion.py').read_bytes()).hexdigest()}\n with RecordingReader(recorder.path,allow_incomplete=True) as captured:\n  actual=[f.payload for f in captured.iter_raw()]\n  result['raw_payload_prefix_exact']=actual==payloads[:len(actual)]\n  if supervisor.processed_frames==len(frames):\n   hashes={}\n   for mode in ('raw','normalized'):\n    session=ReplaySession(captured,mode=mode,checkpoint_policy='reject')\n    while session.step():pass\n    hashes[mode]={'book':session.projection.book_hash,'state':session.projection.state_hash};session.close()\n   result['replay_hashes']=hashes;result['raw_normalized_parity']=hashes['raw']==hashes['normalized']\n Path('data/m5-profile/'+name+'.json').write_text(json.dumps(result,indent=2)+'\\n')\n print(json.dumps({k:v for k,v in result.items() if k!='observations'}),flush=True)\n return result\nasync def main():\n results=[]\n for name,fair,paced,count in [('upstream-before-buffered',False,False,512),('upstream-fair-paced',True,True,512),('upstream-fair-buffered',True,False,512),('upstream-1024-buffered',False,False,1024)]:\n  results.append(await run(name,fair,paced,count))\n Path('data/m5-profile/upstream-comparison.json').write_text(json.dumps(results,indent=2)+'\\n')\nasyncio.run(main())\n",
+    "corrected_source": "import asyncio,base64,json,time,sys\nfrom dataclasses import replace,asdict\nfrom hashlib import sha256\nfrom pathlib import Path\nsys.path.insert(0,str(Path.cwd()))\nfrom src.workstation.ingestion import FeedSupervisor,FeedCallbacks,ReceiveBoundary,SupervisorConfig\nfrom src.workstation.recording import Recorder,RecordingReader\nfrom src.workstation.projection import adapter_for_stream\nfrom src.workstation.replay import ReplaySession\nfrom src.workstation import wire\n\ninput_path=Path(sys.argv[1])\ninputs=json.loads(input_path.read_text())\nsource=Path(inputs['manifest_path']).parent\nwith RecordingReader(source,verify=False,allow_incomplete=True) as reader:\n spec=next(s for s in reader.manifest.streams if s.stream_id==inputs['burst']['stream_id'])\nframes=inputs['frames']; payloads=[base64.b64decode(f['payload']['$bytes']) for f in frames]\noriginal_reader=FeedSupervisor._reader\nasync def fair_reader(self,ws,endpoint,epoch):\n try:\n  async for payload in ws:\n   self._receive(payload,'ws',endpoint,epoch)\n   if self._fault.is_set():return\n   await asyncio.sleep(0)\n  self._set_fault('ws_closed')\n except Exception as exc:\n  raise exc\n\nasync def run(name,fair,paced,count):\n FeedSupervisor._reader=fair_reader if fair else original_reader\n boundary=ReceiveBoundary()\n recorder=Recorder(Path('data/m5-profile')/name,session_id=boundary.session_id,clock_id=boundary.clock_id,streams=(spec,),provenance='incomplete retained upstream burst diagnostic',code_revision='profile-current-ingestion')\n recorder.mark_incomplete('profile_of_incomplete_source_burst')\n observations=[];decoded=[]\n supervisor=FeedSupervisor(adapter_for_stream(spec),spec.instrument,spec.key,stream_id=spec.stream_id,boundary=boundary,\n  callbacks=FeedCallbacks(raw=recorder.append_raw,events=recorder.append_events),config=SupervisorConfig(queue_count=count))\n original_decode=supervisor._decode_reduce\n def decode(frame):\n  start=time.perf_counter();cpu=time.thread_time()\n  try:return original_decode(frame)\n  finally:decoded.append((time.perf_counter()-start,time.thread_time()-cpu))\n supervisor._decode_reduce=decode\n supervisor._start_epoch(False)\n offered=asyncio.Event();finish=asyncio.Event();begin=time.perf_counter();start_cpu=time.thread_time()\n class Input:\n  def __init__(self):self.index=0\n  def __aiter__(self):return self\n  async def __anext__(self):\n   if self.index==len(payloads):offered.set();await finish.wait();raise StopAsyncIteration\n   i=self.index;self.index+=1\n   if paced:\n    delay=(int(frames[i]['receive_mono_ns'])-int(frames[0]['receive_mono_ns']))/1e9-(time.perf_counter()-begin)\n    if delay>0:await asyncio.sleep(delay)\n   return payloads[i]\n reader_task=asyncio.create_task(supervisor._reader(Input(),frames[0]['endpoint_id'],supervisor.epoch))\n consumer=asyncio.create_task(supervisor._consume(time.monotonic(),require_ack=False))\n deadline=begin+10\n while supervisor.processed_frames<len(frames) and not supervisor._fault.is_set() and time.perf_counter()<deadline:\n  observations.append((time.perf_counter()-begin,supervisor.queue.qsize(),supervisor.queued_bytes,supervisor.processed_frames))\n  await asyncio.sleep(.001)\n processing_end=time.perf_counter();main_cpu=time.thread_time()-start_cpu\n for task in (reader_task,consumer):task.cancel()\n outcomes=await asyncio.gather(reader_task,consumer,return_exceptions=True)\n if supervisor._fault.is_set():supervisor._gap(supervisor._fault_reason)\n manifest=await recorder.finalize()\n result={'case':name,'fair_reader':fair,'paced':paced,'queue_limit':count,'input_frames':len(frames),'processed':supervisor.processed_frames,\n  'fault':supervisor._fault_reason,'raw_written':manifest.raw_count,'normalized_batches_written':manifest.batch_count,\n  'processing_wall_seconds':processing_end-begin,'owner_thread_cpu_seconds':main_cpu,'decode_reduce_cpu_seconds':sum(c for _,c in decoded),\n  'decode_reduce_wall_seconds':sum(t for t,_ in decoded),'max_decode_reduce_wall_seconds':max((t for t,_ in decoded),default=0),\n  'queue_highwater_count':supervisor.queue_highwater_count,'queue_highwater_bytes':supervisor.queue_highwater_bytes,\n  'queue_at_end':supervisor.queue.qsize(),'recorder_health':asdict(recorder.health),'final_complete':manifest.complete,\n  'final_reasons':manifest.incomplete_reasons,'capture':str(recorder.path),'observations':observations,\n  'ingestion_sha256':sha256(Path('src/workstation/ingestion.py').read_bytes()).hexdigest()}\n with RecordingReader(recorder.path,allow_incomplete=True) as captured:\n  actual=[f.payload for f in captured.iter_raw()]\n  result['raw_payload_prefix_exact']=actual==payloads[:len(actual)]\n  if supervisor.processed_frames==len(frames):\n   hashes={}\n   for mode in ('raw','normalized'):\n    session=ReplaySession(captured,mode=mode,checkpoint_policy='reject')\n    while session.step():pass\n    hashes[mode]={'book':session.projection.book_hash,'state':session.projection.state_hash};session.close()\n   result['replay_hashes']=hashes;result['raw_normalized_parity']=hashes['raw']==hashes['normalized']\n Path('data/m5-profile/'+name+'.json').write_text(json.dumps(result,indent=2)+'\\n')\n print(json.dumps({k:v for k,v in result.items() if k!='observations'}),flush=True)\n return result\nasync def main():\n results=[]\n for paced in (True,False):\n  name=input_path.stem+('-corrected-paced' if paced else '-corrected-buffered')\n  result=await run(name,False,paced,SupervisorConfig().queue_count)\n  result['input_sha256']=sha256(input_path.read_bytes()).hexdigest()\n  result['uses_unmodified_production_reader']=True\n  results.append(result)\n Path('data/m5-profile/'+input_path.stem+'-corrected.json').write_text(json.dumps(results,indent=2)+'\\n')\nasyncio.run(main())\n",
+    "payload_parity_source": "import json,sys\nfrom pathlib import Path\nfrom hashlib import sha256\nsys.path.insert(0,str(Path.cwd()))\nfrom src.workstation import wire\nfrom src.workstation.events import RawFrame,Trade\nfrom src.workstation.recording import RecordingReader\nfrom src.workstation.replay import ReplaySession\nfrom src.workstation.projection import adapter_for_stream\nresults=[]\nfor index in range(5):\n inputs=json.loads(Path(f'data/m5-profile/upstream_burst_{index}.json').read_text())\n profiles=json.loads(Path(f'data/m5-profile/upstream_burst_{index}-corrected.json').read_text())\n for profile in profiles:\n  with RecordingReader(profile['capture'],verify=False,allow_incomplete=True) as reader:\n   spec=reader.manifest.streams[0];adapter=adapter_for_stream(spec)\n   original=[wire.from_wire(row,RawFrame) for row in inputs['frames']]\n   expected=tuple(event.payload for frame in original for event in adapter.decode(frame,spec.instrument,spec.key).events)\n   actual=tuple(event.payload for batch in reader.iter_batches() for event in batch.events if isinstance(event.payload,Trade))\n   raws=list(reader.iter_raw())\n   session=ReplaySession(reader,checkpoint_policy='reject')\n   while session.step():pass\n   records=list(reader.iter_checkpoints());final=records[0]\n   checkpoints=session.projection.checkpoints()\n   results.append({'case':profile['case'],'raw_payloads_exact':tuple(f.payload for f in raws)==tuple(f.payload for f in original),\n    'native_trade_payloads_exact':actual==expected,'expected_payload_wire_sha256':sha256(wire.dumps(expected,canonical=False)).hexdigest(),\n    'actual_payload_wire_sha256':sha256(wire.dumps(actual,canonical=False)).hexdigest(),\n    'actual_receive_span_seconds':(raws[-1].receive_mono_ns-raws[0].receive_mono_ns)/1e9,\n    'persisted_checkpoint_native_exact':tuple(r.checkpoint for r in records)==checkpoints,\n    'persisted_checkpoint_wire_exact':wire.dumps(tuple(r.checkpoint for r in records),canonical=False)==wire.dumps(checkpoints,canonical=False),\n    'persisted_auxiliary_exact':final.observer_state==session.projection.checkpoint_state(),\n    'final_checkpoint_state_hash':final.checkpoint.state_hash})\n   session.close()\nPath('data/m5-profile/upstream-payload-parity.json').write_text(json.dumps(results,indent=2)+'\\n')\nprint(json.dumps(results,indent=2))\n",
+    "retained_timing_extractor": "import json,sqlite3\nfrom pathlib import Path\nimport pyarrow.parquet as pq\nsource=Path('/tmp/limit-orderbook-m5-NBWAK4/soak-capacity/data/m5-live-soak/run-vzo8i8e9/store/1ae3146e-73b0-4145-b7b3-1d09b5894ff4')\ndb=sqlite3.connect(source/'index.sqlite3')\nstream='57259340-4e24-4843-ae22-e3d8b2973b8b'\nrows=db.execute('SELECT delivery,ordinal,path,row_offset FROM batches WHERE stream=? AND CAST(ordinal AS INTEGER) BETWEEN 10000 AND 11700 ORDER BY delivery',(stream,)).fetchall()\ncache={}; result=[]\nfor delivery,ordinal,path,offset in rows:\n if path not in cache:cache[path]=pq.read_table(source/path,columns=['payload']).column('payload').to_pylist()\n for event in json.loads(cache[path][offset])['value']:\n  result.append({k:event[k] for k in ('ingest_ordinal','receive_mono_ns','process_start_mono_ns','process_end_mono_ns','publish_mono_ns','payload')})\nPath('data/m5-profile/upstream-original-timings.json').write_text(json.dumps(result,indent=2)+'\\n')\nfor r in result[-20:]:print(json.dumps(r))\nprint('last accepted pre-fault', [r for r in result if int(r['ingest_ordinal'])<11468][-1])\nprint('rows',len(result))\n"
+  },
+  "commands": {
+    "python": "/Users/dakariantoine/Developer/personal/limit-orderbook/.venv-upgrade/bin/python",
+    "cwd": "/tmp/limit-orderbook-m5-NBWAK4/recorder",
+    "baseline": "data/m5-profile/profile_upstream.py (baseline/exploratory source retained above; initial paced case preceded diagnostic max(empty) fix)",
+    "corrected": [
+      "data/m5-profile/profile_upstream.py data/m5-profile/upstream_burst_0.json",
+      "data/m5-profile/profile_upstream.py data/m5-profile/upstream_burst_1.json",
+      "data/m5-profile/profile_upstream.py data/m5-profile/upstream_burst_2.json",
+      "data/m5-profile/profile_upstream.py data/m5-profile/upstream_burst_3.json",
+      "data/m5-profile/profile_upstream.py data/m5-profile/upstream_burst_4.json"
+    ],
+    "additional": [
+      "data/m5-profile/upstream_timing.py",
+      "data/m5-profile/upstream_payload_parity.py"
+    ]
+  },
+  "input_reproduction": "Read failed source raw gzip rows using wire schema. For each retained_loss_ranges item select matching stream_id and inclusive first_ordinal..last_ordinal; retain original RawFrame wire objects in frames and manifest_path in the input JSON. The ignored upstream_burst_N.json files retain these exact514 raw frames. Their payload_bytes metadata was an unused base64-length upper estimate; this evidence reports exact decoded payload-byte sums.",
+  "limitations": [
+    "Offline finite websocket iterator exercises real _reader/_consume/_process, native decoder/reducer and real downstream Recorder; no exchange connection. It is a single failed trade stream at a time, not simultaneous12-stream reconstruction.",
+    "Receive-offset scheduling is a requested lower-bound schedule. Corrected actual receive spans are explicitly reported and can exceed original offsets because callbacks and cooperative scheduling take time. No achieved source-rate guarantee is claimed.",
+    "Buffered scenarios make all514 payloads immediately available; they isolate reader fairness, not exact original socket arrivals. No required item is coalesced or retried.",
+    "All outputs are marked profile_of_incomplete_source_burst, including lossless finite cases. Original incomplete source remains unchanged and is not retroactively repaired.",
+    "New profile sessions have new IDs and actual receive/processing clocks. Exact comparisons across input/output cover raw bytes and decoded trade payloads; complete native/hash parity is within each output capture, not equal hashes across distinct sessions.",
+    "Writer/owner CPU and decode CPU belong to distinct threads; measured wall intervals are inclusive and must not be added. Single-run measurements are not latency percentiles.",
+    "No native book depth was changed; these failing-stream profiles are trade workloads, not a new full-depth checkpoint capacity measurement."
+  ],
+  "focused_regressions": [
+    "tests/test_workstation_ingestion.py::test_buffered_reader_yields_between_required_frames",
+    "tests/test_workstation_ingestion.py::test_buffered_reader_still_reports_required_queue_overflow[count]",
+    "tests/test_workstation_ingestion.py::test_buffered_reader_still_reports_required_queue_overflow[bytes]"
+  ],
+  "not_executed": [
+    "test suites",
+    "lint",
+    "format",
+    "build",
+    "fresh corrected full-scope soak"
+  ],
+  "remaining": "Parent reviews/integrates, runs gates, publishes verified source, then repeats actual public1800s full-depth12-stream capture and complete raw/normalized/checkpoint parity if capture complete."
+}
