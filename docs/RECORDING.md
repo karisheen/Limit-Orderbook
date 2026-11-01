@@ -297,9 +297,39 @@ The combined `data/m3-profile-writer/evidence.json` retains both streaming and
 predecoded observations, failed loads, exact commands, tool/source hashes and
 the source text of removed scratch profiling workloads.
 
+M5 retained-capture analysis distinguishes finite arrival bursts from sustained
+writer overload. The failed merged-M4 capture
+`8932ce7d-d783-4139-be9e-ea7aef6552f5` had an empty queue in 41 of 54 sampled
+health observations, including shortly before failure. Its retained receive-time
+trace contains 1,114 raw-plus-normalized items in 0.5 seconds. Receive times are
+not callback times, so this establishes burst size, not exact live queue timing.
+Full-depth checkpoint and first Parquet flush work can pause dispatch for roughly
+0.6–0.8 seconds on the measured workstation.
+
+An offline, predecoded first-45-second prefix retained all 4,123 raw frames and
+4,135 batches at original receive-frontier pacing with the old 512-item bound:
+writer thread CPU was 11.426 seconds and final drain/sealing took 0.714 seconds.
+At a finite 2x schedule, that bound rejected an offer at 512 items. With only the
+count bound raised to 2,048, the same 2x prefix retained every offered item,
+peaked at 591 items / 9,226,391 accounted bytes and drained/sealed in 0.711 seconds.
+Writer CPU was 10.574 seconds over 22.504 seconds of offers. Raw and normalized
+values and reconstructed native/checkpoint wire state matched exactly.
+These are single-run capacity observations, not throughput or latency guarantees.
+
+The default is therefore 2,048 items, retaining the independent 128 MiB resident
+accounting cap, in-flight admission accounting, sticky terminal overflow, native
+depth, checkpoint cadence and all raw/normalized evidence. This finite count also
+covers the observed 1,566 receive-time items in two seconds without assuming any
+dispatch during that interval; longer bursts can still fail explicitly. Queue
+container/slot overhead remains count-bounded; the byte cap is not a total process
+RSS promise. Writer buffers and reader limits are unchanged. Evidence, exact source
+pins, paired measurements, scheduling limitations and reproduction workload are
+in `docs/evidence/m5-recorder-capacity.json`. All profile captures intentionally
+remain incomplete. The actual corrected public30-minute soak remains required.
+
 | Limit | Default |
 | --- | --- |
-| Queue items / resident bytes (including in-flight) | 512 / 128 MiB |
+| Queue items / resident bytes (including in-flight) | 2,048 / 128 MiB |
 | Raw rotation target | 16 MiB compressed |
 | Parquet rows per stream group / global pending rows / serialized bytes | 128 / 4,096 / 16 MiB |
 | Checkpoint rows per block / block target | 64 / 16 MiB |

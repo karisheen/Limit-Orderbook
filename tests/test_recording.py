@@ -320,6 +320,54 @@ def test_blocked_writer_count_bound_and_finalize_deadline(tmp_path, monkeypatch)
     assert recovered[0].name.startswith("quarantine-")
 
 
+@pytest.mark.parametrize("overflow", [False, True])
+def test_raw_normalized_burst_drains_with_inflight_admission_bound(
+    tmp_path, monkeypatch, overflow
+):
+    entered, release = threading.Event(), threading.Event()
+    original = Recorder._write_raw
+
+    def blocked(self, frame):
+        entered.set()
+        if not release.wait(10):
+            raise RuntimeError("finite burst writer was not released")
+        original(self, frame)
+
+    monkeypatch.setattr(Recorder, "_write_raw", blocked)
+    recorder = recorder_at(tmp_path, limits=RecorderLimits(queue_count=16))
+    spec = fixture_stream()
+    messages = [fixture_message(spec, ordinal) for ordinal in range(1, 9)]
+    try:
+        recorder.append_raw(messages[0][0])
+        assert entered.wait(2)
+        recorder.append_events((messages[0][1],))
+        for raw, event in messages[1:]:
+            recorder.append_raw(raw)
+            recorder.append_events((event,))
+        # Includes the blocked in-flight raw plus every queued raw/batch.
+        assert recorder.health.queue_count == 16
+        assert recorder.health.high_water_count == 16
+        assert recorder.health.queue_bytes < recorder.limits.queue_bytes
+        if overflow:
+            with pytest.raises(RecordingError, match="capacity"):
+                recorder.append_raw(fixture_message(spec, 9)[0])
+            assert recorder.health.terminal_failure
+            with pytest.raises(RecordingError, match="sink failed"):
+                recorder.append_events((messages[-1][1],))
+    finally:
+        release.set()
+        manifest = asyncio.run(recorder.finalize())
+    assert manifest.complete is not overflow
+    assert ("queue_overflow" in manifest.incomplete_reasons) is overflow
+    assert manifest.raw_count == manifest.batch_count == 8
+    assert recorder.health.queue_count == recorder.health.queue_bytes == 0
+    with RecordingReader(recorder.path, allow_incomplete=overflow) as reader:
+        assert list(reader.iter_raw()) == [raw for raw, _ in messages]
+        assert [batch.events for batch in reader.iter_batches()] == [
+            (event,) for _, event in messages
+        ]
+
+
 def test_writer_exception_propagates_to_future_offers_and_final_status(
     tmp_path, monkeypatch
 ):

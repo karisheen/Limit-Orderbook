@@ -1,0 +1,691 @@
+{
+  "title": "M5 recorder finite burst capacity investigation",
+  "base_revision": "95b9f8875bc23b8c8c5ee776489266ecfe7fadbe",
+  "source_capture": "/private/tmp/limit-orderbook-m5-NBWAK4/soak/data/m5-live-soak/run-ojvv389q/store/8932ce7d-d783-4139-be9e-ea7aef6552f5",
+  "source_manifest_sha256": "9ab450b9f2c6aadde0ba66aed6e2339e9ef39e50691a1972c2a8eb0a2d56ddd4",
+  "source_complete": false,
+  "original_failure": {
+    "evidence": "docs/evidence/m5-merged-m4-soak.json",
+    "raw": 16392,
+    "batches": 16178,
+    "events": 16510,
+    "checkpoints": 204,
+    "queue_high_water_items": 512,
+    "queue_high_water_accounted_bytes": 12318571,
+    "terminal_reason": "queue_overflow",
+    "sampled_health": {
+      "samples": 54,
+      "empty": 41,
+      "last": {
+        "elapsed_seconds": "273.214",
+        "event": "recording_health",
+        "recorder": {
+          "high_water_bytes": "12318571",
+          "high_water_count": "456",
+          "incomplete_reasons": [],
+          "queue_bytes": "12300",
+          "queue_count": "12",
+          "state": "recording",
+          "written_bytes": "15644192"
+        },
+        "terminal_failure": false
+      }
+    },
+    "receive_span_seconds": 273.412855491,
+    "retained_receive_time_bursts": [
+      {
+        "window_seconds": 0.1,
+        "retained_items": 674,
+        "raw": 337,
+        "relative_start_seconds": 9.142673241
+      },
+      {
+        "window_seconds": 0.5,
+        "retained_items": 1114,
+        "raw": 557,
+        "relative_start_seconds": 8.906012002
+      },
+      {
+        "window_seconds": 1,
+        "retained_items": 1198,
+        "raw": 599,
+        "relative_start_seconds": 8.368962405
+      },
+      {
+        "window_seconds": 2,
+        "retained_items": 1566,
+        "raw": 783,
+        "relative_start_seconds": 7.32228571
+      },
+      {
+        "window_seconds": 5,
+        "retained_items": 2790,
+        "raw": 1395,
+        "relative_start_seconds": 31.515765763
+      }
+    ],
+    "last_retained_second": {
+      "raw": 488,
+      "batches": 262
+    },
+    "last_periodic_checkpoint_delivery": 16000,
+    "last_periodic_checkpoint_source_relative_seconds": 272.647666593,
+    "last_retained_raw_relative_seconds": 273.412855491
+  },
+  "diagnosis": {
+    "observed": "Repeatedly drained queues, sub-period writer CPU demand, large finite raw+normalized bursts, and 0.6-0.8s non-dispatching checkpoint/Parquet service. The 512 bound rejects a finite 2x workload that 2048 drains repeatedly with identical retained content.",
+    "inference": "The live failure is finite burst/service-pause count exhaustion, not demonstrated sustained average writer overload. Last checkpoint-source position and terminal burst are temporally compatible with a checkpoint pause; exact original callback/service overlap was not recorded and is not claimed proven.",
+    "hotspots": "Writer event path dominates CPU; native projection/checkpoint conversion and cold Parquet flush dominate pauses. No new serialization/native rewrite is justified by this capacity experiment.",
+    "cpu_scope": "Writer thread CPU measured directly. Producer offer CPU measured directly in predecoded run; shared raw decode/reduce/normalize reconstruction separately measured at 6.033858189s for the same4123 raw deliveries. Network scheduling/thread-dispatch CPU is not reconstructed."
+  },
+  "correction": {
+    "only_runtime_change": "RecorderLimits.queue_count default512 ->2048",
+    "queue_bytes_unchanged": 134217728,
+    "capacity_reason": "2048 exceeds measured doubled-schedule highwater591 and observed1566 retained raw+batch receive-time items in2s, while giving finite service-pause headroom under the unchanged byte cap. Not a sustained load or arbitrary burst guarantee.",
+    "other_limits_unchanged": true,
+    "native_depth_and_wire_unchanged": true,
+    "terminal_overflow_unchanged": true,
+    "memory_scope": "128MiB queue value resident accounting remains unchanged and includes in-flight values; at most2048 queue slots plus bounded container overhead. Writer pending/checkpoint/reader buffers unchanged. Observed candidate highwater9,226,391 accounted bytes. RSS includes predecoded input and parity projections, not an isolated queue allocation measurement.",
+    "candidate_measurement_note": "Before changing the source default, measured the candidate with explicit RecorderLimits(queue_count=2048) on the exact baseline source. Source edit promotes precisely that measured configuration; no CPU-speedup attribution is made."
+  },
+  "measurements": [
+    {
+      "variant": "baseline512",
+      "source": "/private/tmp/limit-orderbook-m5-NBWAK4/soak/data/m5-live-soak/run-ojvv389q/store/8932ce7d-d783-4139-be9e-ea7aef6552f5",
+      "source_complete": false,
+      "source_incomplete_reasons": [
+        "queue_overflow",
+        "no_valid_book:binance-global:spot-v3:spot:BTCUSDT",
+        "no_valid_book:binance-global:spot-v3:spot:SOLUSDT",
+        "no_valid_book:binance-global:spot-v3:spot:ETHUSDT",
+        "source_capture_incomplete:0b88636d-1729-4f44-96db-3517c981dac4",
+        "source_capture_incomplete:b2e48c26-d9a3-485c-8c23-9eb861e37e0e",
+        "source_capture_incomplete:5f068349-9c1c-4c3b-846a-db1eddb64a21",
+        "source_capture_incomplete:3ce00881-9535-4efb-a48d-759ca2f84272",
+        "source_capture_incomplete:1b90beb2-9cd8-4f78-b144-db2a6d727c05",
+        "feed_capture_incomplete"
+      ],
+      "manifest_sha256": "9ab450b9f2c6aadde0ba66aed6e2339e9ef39e50691a1972c2a8eb0a2d56ddd4",
+      "source_pins": {
+        "src/workstation/recording.py": "d8eb36135b80e64008641881e9138f332222006ceaa10a8c8c60ccfc9cea73aa",
+        "src/workstation/projection.py": "f36753759de852eea545932a1723b749257e74b013f01c057be447de6bb101b8",
+        "src/workstation/book.py": "f908201f41719b1d7726af4a38df0a3a166660c7312d21c4e9428e63053e4a74",
+        "src/workstation/wire.py": "45f09374e4ef4afdf9c3278992b17e5ebc433eaf11ac9835de4dfc2fee7f05e0"
+      },
+      "python": "3.13.5 (main, Jul 23 2025, 00:30:58) [Clang 20.1.4 ]",
+      "platform": "macOS-13.7.8-x86_64-i386-64bit-Mach-O",
+      "limits": {
+        "queue_count": 512,
+        "queue_bytes": 134217728,
+        "raw_rotation_bytes": 16777216,
+        "parquet_batch_count": 128,
+        "parquet_batch_bytes": 16777216,
+        "max_row_bytes": 268435456,
+        "max_files": 100000,
+        "max_streams": 1024,
+        "min_free_bytes": 67108864,
+        "managed_budget_bytes": 10737418240,
+        "retention_max_sessions": 100,
+        "finalize_timeout": 30.0,
+        "checkpoint_interval_batches": 1000,
+        "max_query_rows": 10000,
+        "parquet_buffer_count": 4096,
+        "reader_cache_bytes": 33554432,
+        "reader_cache_count": 8192,
+        "checkpoint_group_count": 64,
+        "checkpoint_group_bytes": 16777216
+      },
+      "trace_duration": 45.0,
+      "failure": null,
+      "offered_raw": 4123,
+      "offered_batches": 4135,
+      "offering_wall_seconds": 45.00460577299236,
+      "drain_finalize_wall_seconds": 0.7141775180061813,
+      "writer_cpu_seconds": [
+        11.426211368
+      ],
+      "producer_offer_cpu_seconds": 0.7724409449999996,
+      "peak_process_rss_bytes": 337661952,
+      "health": {
+        "state": "incomplete",
+        "queue_count": 0,
+        "queue_bytes": 0,
+        "high_water_count": 361,
+        "high_water_bytes": 8051941,
+        "incomplete_reasons": [
+          "profile_of_incomplete_source_prefix"
+        ],
+        "written_bytes": 7984635
+      },
+      "final_complete": false,
+      "final_reasons": [
+        "profile_of_incomplete_source_prefix"
+      ],
+      "verified_output": true,
+      "raw_exact_equal": true,
+      "normalized_exact_equal": true,
+      "native_checkpoint_equal": true,
+      "checkpoint_wire_exact_equal": true,
+      "hashes": {
+        "expected_book": "908866b65f8aa3fd88a9df0d7f91294c140c9d616e777654481dc4b55f98294f",
+        "actual_book": "908866b65f8aa3fd88a9df0d7f91294c140c9d616e777654481dc4b55f98294f",
+        "expected_state": "3e7de0edfeb43c61adff80efa6a91e80bebbc442ab19da14ac4dbc27d24a482c",
+        "actual_state": "3e7de0edfeb43c61adff80efa6a91e80bebbc442ab19da14ac4dbc27d24a482c"
+      },
+      "stages_inclusive": {
+        "_write_raw": {
+          "calls": 4123,
+          "wall_total": 1.3148273801780306,
+          "cpu_total": 0.80192400100001,
+          "max_wall": 0.19955157300864812,
+          "max_cpu": 0.012853995000000007
+        },
+        "_save_projection": {
+          "calls": 29,
+          "wall_total": 3.099801583986846,
+          "cpu_total": 2.96813417,
+          "max_wall": 0.690213865993428,
+          "max_cpu": 0.6496294840000001
+        },
+        "_write_events": {
+          "calls": 4135,
+          "wall_total": 10.970894224592485,
+          "cpu_total": 9.708006067000024,
+          "max_wall": 0.7916408110031625,
+          "max_cpu": 0.6497547449999992
+        },
+        "_flush_events": {
+          "calls": 30,
+          "wall_total": 1.2499823620019015,
+          "cpu_total": 0.8360339840000002,
+          "max_wall": 0.7914559960045153,
+          "max_cpu": 0.47003856099999997
+        },
+        "_flush_checkpoints": {
+          "calls": 5,
+          "wall_total": 0.2556657780223759,
+          "cpu_total": 0.2430473489999998,
+          "max_wall": 0.05351227200299036,
+          "max_cpu": 0.050590086000000145
+        },
+        "_write_checkpoint_group": {
+          "calls": 5,
+          "wall_total": 1.3705150129826507,
+          "cpu_total": 1.317165274000001,
+          "max_wall": 0.28298772798734717,
+          "max_cpu": 0.26614048499999976
+        }
+      },
+      "limitations": [
+        "Predecoded offline producer measures offer/size CPU, not network decoding or live reducer CPU.",
+        "Receive timestamps are not callback timestamps; normalized buffered delivery uses nonregressing receive frontier.",
+        "Stage times are inclusive and must not be added; monitor/GIL scheduling is approximate.",
+        "Peak RSS includes all predecoded source rows and parity projections, not isolated production queue memory.",
+        "Intentionally incomplete bounded prefix; no live 30-minute claim."
+      ],
+      "queue_sampling": {
+        "interval_target_seconds": 0.02,
+        "samples": 1639,
+        "empty_samples": 1246,
+        "longest_nonempty_interval": {
+          "start_seconds": 6.144294190002256,
+          "empty_again_seconds": 7.044456236995757,
+          "duration_seconds": 0.9001620469935006
+        },
+        "last_sample": [
+          45.69454397499794,
+          0,
+          0
+        ],
+        "full_report": "data/m5-profile/baseline512.json",
+        "full_report_sha256": "377f673bab76ae3247946b028570078b1712e4f13dfdb2ebce8ec81c0537d264"
+      }
+    },
+    {
+      "variant": "baseline512burst2",
+      "source": "/private/tmp/limit-orderbook-m5-NBWAK4/soak/data/m5-live-soak/run-ojvv389q/store/8932ce7d-d783-4139-be9e-ea7aef6552f5",
+      "source_complete": false,
+      "source_incomplete_reasons": [
+        "queue_overflow",
+        "no_valid_book:binance-global:spot-v3:spot:BTCUSDT",
+        "no_valid_book:binance-global:spot-v3:spot:SOLUSDT",
+        "no_valid_book:binance-global:spot-v3:spot:ETHUSDT",
+        "source_capture_incomplete:0b88636d-1729-4f44-96db-3517c981dac4",
+        "source_capture_incomplete:b2e48c26-d9a3-485c-8c23-9eb861e37e0e",
+        "source_capture_incomplete:5f068349-9c1c-4c3b-846a-db1eddb64a21",
+        "source_capture_incomplete:3ce00881-9535-4efb-a48d-759ca2f84272",
+        "source_capture_incomplete:1b90beb2-9cd8-4f78-b144-db2a6d727c05",
+        "feed_capture_incomplete"
+      ],
+      "manifest_sha256": "9ab450b9f2c6aadde0ba66aed6e2339e9ef39e50691a1972c2a8eb0a2d56ddd4",
+      "source_pins": {
+        "src/workstation/recording.py": "d8eb36135b80e64008641881e9138f332222006ceaa10a8c8c60ccfc9cea73aa",
+        "src/workstation/projection.py": "f36753759de852eea545932a1723b749257e74b013f01c057be447de6bb101b8",
+        "src/workstation/book.py": "f908201f41719b1d7726af4a38df0a3a166660c7312d21c4e9428e63053e4a74",
+        "src/workstation/wire.py": "45f09374e4ef4afdf9c3278992b17e5ebc433eaf11ac9835de4dfc2fee7f05e0"
+      },
+      "python": "3.13.5 (main, Jul 23 2025, 00:30:58) [Clang 20.1.4 ]",
+      "platform": "macOS-13.7.8-x86_64-i386-64bit-Mach-O",
+      "limits": {
+        "queue_count": 512,
+        "queue_bytes": 134217728,
+        "raw_rotation_bytes": 16777216,
+        "parquet_batch_count": 128,
+        "parquet_batch_bytes": 16777216,
+        "max_row_bytes": 268435456,
+        "max_files": 100000,
+        "max_streams": 1024,
+        "min_free_bytes": 67108864,
+        "managed_budget_bytes": 10737418240,
+        "retention_max_sessions": 100,
+        "finalize_timeout": 30.0,
+        "checkpoint_interval_batches": 1000,
+        "max_query_rows": 10000,
+        "parquet_buffer_count": 4096,
+        "reader_cache_bytes": 33554432,
+        "reader_cache_count": 8192,
+        "checkpoint_group_count": 64,
+        "checkpoint_group_bytes": 16777216
+      },
+      "trace_duration": 45.0,
+      "failure": "recorder queue count/byte capacity exceeded",
+      "offered_raw": 721,
+      "offered_batches": 732,
+      "offering_wall_seconds": 3.9148329260060564,
+      "drain_finalize_wall_seconds": 0.8699461039941525,
+      "writer_cpu_seconds": [
+        3.128250515
+      ],
+      "producer_offer_cpu_seconds": 0.18515380499999878,
+      "peak_process_rss_bytes": 329887744,
+      "health": {
+        "state": "incomplete",
+        "queue_count": 0,
+        "queue_bytes": 0,
+        "high_water_count": 512,
+        "high_water_bytes": 9183738,
+        "incomplete_reasons": [
+          "profile_of_incomplete_source_prefix",
+          "queue_overflow"
+        ],
+        "written_bytes": 1916260
+      },
+      "final_complete": false,
+      "final_reasons": [
+        "profile_of_incomplete_source_prefix",
+        "queue_overflow"
+      ],
+      "verified_output": true,
+      "raw_exact_equal": true,
+      "normalized_exact_equal": true,
+      "native_checkpoint_equal": true,
+      "checkpoint_wire_exact_equal": true,
+      "hashes": {
+        "expected_book": "0b3cb9bc01da83f57d49bc19311a23a591d819e6269fc55c69512ab4acbce585",
+        "actual_book": "0b3cb9bc01da83f57d49bc19311a23a591d819e6269fc55c69512ab4acbce585",
+        "expected_state": "4916cffc6979f5ab84c7ab6520e47155280ed5b605fbdbaae1483b3683b39d8c",
+        "actual_state": "4916cffc6979f5ab84c7ab6520e47155280ed5b605fbdbaae1483b3683b39d8c"
+      },
+      "stages_inclusive": {
+        "_write_raw": {
+          "calls": 721,
+          "wall_total": 0.17613506795896683,
+          "cpu_total": 0.1330222530000024,
+          "max_wall": 0.01686755899572745,
+          "max_cpu": 0.013430758000000001
+        },
+        "_save_projection": {
+          "calls": 25,
+          "wall_total": 0.5823732290155021,
+          "cpu_total": 0.5635774130000003,
+          "max_wall": 0.5805295219906839,
+          "max_cpu": 0.5617419320000003
+        },
+        "_write_events": {
+          "calls": 732,
+          "wall_total": 2.849345802809694,
+          "cpu_total": 2.344836005,
+          "max_wall": 0.8394824270071695,
+          "max_cpu": 0.482498278
+        },
+        "_flush_events": {
+          "calls": 3,
+          "wall_total": 0.9106397670111619,
+          "cpu_total": 0.5469886930000003,
+          "max_wall": 0.8393464230030077,
+          "max_cpu": 0.482363683
+        },
+        "_flush_checkpoints": {
+          "calls": 1,
+          "wall_total": 0.0525620520056691,
+          "cpu_total": 0.049013850000000136,
+          "max_wall": 0.0525620520056691,
+          "max_cpu": 0.049013850000000136
+        },
+        "_write_checkpoint_group": {
+          "calls": 1,
+          "wall_total": 0.27017615699151065,
+          "cpu_total": 0.26004343899999993,
+          "max_wall": 0.27017615699151065,
+          "max_cpu": 0.26004343899999993
+        }
+      },
+      "limitations": [
+        "Predecoded offline producer measures offer/size CPU, not network decoding or live reducer CPU.",
+        "Receive timestamps are not callback timestamps; normalized buffered delivery uses nonregressing receive frontier.",
+        "Stage times are inclusive and must not be added; monitor/GIL scheduling is approximate.",
+        "Peak RSS includes all predecoded source rows and parity projections, not isolated production queue memory.",
+        "Intentionally incomplete bounded prefix; no live 30-minute claim."
+      ],
+      "schedule_rate": 2.0,
+      "queue_sampling": {
+        "interval_target_seconds": 0.02,
+        "samples": 160,
+        "empty_samples": 59,
+        "longest_nonempty_interval": {
+          "start_seconds": 0.9970533860032447,
+          "empty_again_seconds": 2.802326814009575,
+          "duration_seconds": 1.8052734280063305
+        },
+        "last_sample": [
+          4.779245830999571,
+          0,
+          0
+        ],
+        "full_report": "data/m5-profile/baseline512burst2.json",
+        "full_report_sha256": "ea38b253008e8680946969d9aeb733520e68237128f59562b77792c2db2c4cb8"
+      }
+    },
+    {
+      "variant": "candidate2048burst2",
+      "source": "/private/tmp/limit-orderbook-m5-NBWAK4/soak/data/m5-live-soak/run-ojvv389q/store/8932ce7d-d783-4139-be9e-ea7aef6552f5",
+      "source_complete": false,
+      "source_incomplete_reasons": [
+        "queue_overflow",
+        "no_valid_book:binance-global:spot-v3:spot:BTCUSDT",
+        "no_valid_book:binance-global:spot-v3:spot:SOLUSDT",
+        "no_valid_book:binance-global:spot-v3:spot:ETHUSDT",
+        "source_capture_incomplete:0b88636d-1729-4f44-96db-3517c981dac4",
+        "source_capture_incomplete:b2e48c26-d9a3-485c-8c23-9eb861e37e0e",
+        "source_capture_incomplete:5f068349-9c1c-4c3b-846a-db1eddb64a21",
+        "source_capture_incomplete:3ce00881-9535-4efb-a48d-759ca2f84272",
+        "source_capture_incomplete:1b90beb2-9cd8-4f78-b144-db2a6d727c05",
+        "feed_capture_incomplete"
+      ],
+      "manifest_sha256": "9ab450b9f2c6aadde0ba66aed6e2339e9ef39e50691a1972c2a8eb0a2d56ddd4",
+      "source_pins": {
+        "src/workstation/recording.py": "d8eb36135b80e64008641881e9138f332222006ceaa10a8c8c60ccfc9cea73aa",
+        "src/workstation/projection.py": "f36753759de852eea545932a1723b749257e74b013f01c057be447de6bb101b8",
+        "src/workstation/book.py": "f908201f41719b1d7726af4a38df0a3a166660c7312d21c4e9428e63053e4a74",
+        "src/workstation/wire.py": "45f09374e4ef4afdf9c3278992b17e5ebc433eaf11ac9835de4dfc2fee7f05e0"
+      },
+      "python": "3.13.5 (main, Jul 23 2025, 00:30:58) [Clang 20.1.4 ]",
+      "platform": "macOS-13.7.8-x86_64-i386-64bit-Mach-O",
+      "limits": {
+        "queue_count": 2048,
+        "queue_bytes": 134217728,
+        "raw_rotation_bytes": 16777216,
+        "parquet_batch_count": 128,
+        "parquet_batch_bytes": 16777216,
+        "max_row_bytes": 268435456,
+        "max_files": 100000,
+        "max_streams": 1024,
+        "min_free_bytes": 67108864,
+        "managed_budget_bytes": 10737418240,
+        "retention_max_sessions": 100,
+        "finalize_timeout": 30.0,
+        "checkpoint_interval_batches": 1000,
+        "max_query_rows": 10000,
+        "parquet_buffer_count": 4096,
+        "reader_cache_bytes": 33554432,
+        "reader_cache_count": 8192,
+        "checkpoint_group_count": 64,
+        "checkpoint_group_bytes": 16777216
+      },
+      "trace_duration": 45.0,
+      "failure": null,
+      "offered_raw": 4123,
+      "offered_batches": 4135,
+      "offering_wall_seconds": 22.504042394008138,
+      "drain_finalize_wall_seconds": 0.7107103549933527,
+      "writer_cpu_seconds": [
+        10.574337762
+      ],
+      "producer_offer_cpu_seconds": 0.6585716539999993,
+      "peak_process_rss_bytes": 376184832,
+      "health": {
+        "state": "incomplete",
+        "queue_count": 0,
+        "queue_bytes": 0,
+        "high_water_count": 591,
+        "high_water_bytes": 9226391,
+        "incomplete_reasons": [
+          "profile_of_incomplete_source_prefix"
+        ],
+        "written_bytes": 7984635
+      },
+      "final_complete": false,
+      "final_reasons": [
+        "profile_of_incomplete_source_prefix"
+      ],
+      "verified_output": true,
+      "raw_exact_equal": true,
+      "normalized_exact_equal": true,
+      "native_checkpoint_equal": true,
+      "checkpoint_wire_exact_equal": true,
+      "hashes": {
+        "expected_book": "908866b65f8aa3fd88a9df0d7f91294c140c9d616e777654481dc4b55f98294f",
+        "actual_book": "908866b65f8aa3fd88a9df0d7f91294c140c9d616e777654481dc4b55f98294f",
+        "expected_state": "3e7de0edfeb43c61adff80efa6a91e80bebbc442ab19da14ac4dbc27d24a482c",
+        "actual_state": "3e7de0edfeb43c61adff80efa6a91e80bebbc442ab19da14ac4dbc27d24a482c"
+      },
+      "stages_inclusive": {
+        "_write_raw": {
+          "calls": 4123,
+          "wall_total": 0.9445104017795529,
+          "cpu_total": 0.6988268250000058,
+          "max_wall": 0.09324145701248199,
+          "max_cpu": 0.010251245999999992
+        },
+        "_save_projection": {
+          "calls": 29,
+          "wall_total": 3.0228722699539503,
+          "cpu_total": 2.8869755060000006,
+          "max_wall": 0.6108418200019514,
+          "max_cpu": 0.5838444470000006
+        },
+        "_write_events": {
+          "calls": 4135,
+          "wall_total": 9.862395698626642,
+          "cpu_total": 9.03315214800003,
+          "max_wall": 0.6407895910087973,
+          "max_cpu": 0.5865332839999997
+        },
+        "_flush_events": {
+          "calls": 30,
+          "wall_total": 1.0545106009667506,
+          "cpu_total": 0.7493938900000023,
+          "max_wall": 0.6406644959934056,
+          "max_cpu": 0.40795772100000005
+        },
+        "_flush_checkpoints": {
+          "calls": 5,
+          "wall_total": 0.24721828100155108,
+          "cpu_total": 0.23582989200000082,
+          "max_wall": 0.050121432010200806,
+          "max_cpu": 0.04774469999999997
+        },
+        "_write_checkpoint_group": {
+          "calls": 5,
+          "wall_total": 1.3693309630034491,
+          "cpu_total": 1.3091371199999995,
+          "max_wall": 0.2798360830056481,
+          "max_cpu": 0.26459087299999995
+        }
+      },
+      "limitations": [
+        "Predecoded offline producer measures offer/size CPU, not network decoding or live reducer CPU.",
+        "Receive timestamps are not callback timestamps; normalized buffered delivery uses nonregressing receive frontier.",
+        "Stage times are inclusive and must not be added; monitor/GIL scheduling is approximate.",
+        "Peak RSS includes all predecoded source rows and parity projections, not isolated production queue memory.",
+        "Intentionally incomplete bounded prefix; no live 30-minute claim."
+      ],
+      "schedule_rate": 2.0,
+      "queue_sampling": {
+        "interval_target_seconds": 0.02,
+        "samples": 817,
+        "empty_samples": 473,
+        "longest_nonempty_interval": {
+          "start_seconds": 0.9997629220015369,
+          "empty_again_seconds": 2.8851246960111894,
+          "duration_seconds": 1.8853617740096524
+        },
+        "last_sample": [
+          23.19618749000074,
+          0,
+          0
+        ],
+        "full_report": "data/m5-profile/candidate2048burst2.json",
+        "full_report_sha256": "cfb62173b4f08662ccf5461f8450cf9d7b5770f22caaf54a909202cc8ad802c9"
+      }
+    }
+  ],
+  "producer_and_persisted_parity": {
+    "source": "data/m5-profile/candidate2048burst2/8932ce7d-d783-4139-be9e-ea7aef6552f5",
+    "source_complete": false,
+    "modes": {
+      "raw": {
+        "replay_wall_seconds": 8.962003223001375,
+        "replay_cpu_seconds": 8.601843621,
+        "producer_decode_reduce_normalize_calls": 4123,
+        "producer_wall_seconds": 6.269216023792978,
+        "producer_thread_cpu_seconds": 6.033858189000043,
+        "book_hash": "908866b65f8aa3fd88a9df0d7f91294c140c9d616e777654481dc4b55f98294f",
+        "state_hash": "3e7de0edfeb43c61adff80efa6a91e80bebbc442ab19da14ac4dbc27d24a482c",
+        "deliveries": 4135
+      },
+      "normalized": {
+        "replay_wall_seconds": 4.355003693999606,
+        "replay_cpu_seconds": 4.205833560999999,
+        "producer_decode_reduce_normalize_calls": 0,
+        "producer_wall_seconds": 0,
+        "producer_thread_cpu_seconds": 0,
+        "book_hash": "908866b65f8aa3fd88a9df0d7f91294c140c9d616e777654481dc4b55f98294f",
+        "state_hash": "3e7de0edfeb43c61adff80efa6a91e80bebbc442ab19da14ac4dbc27d24a482c",
+        "deliveries": 4135
+      }
+    },
+    "manifest_sha256": "56604b5b9117363ef1dbe4b48f08a12f14bf0d687cfcb8955c719ea186dbe939",
+    "persisted_final_checkpoint_native_equal": true,
+    "persisted_final_checkpoint_wire_equal": true,
+    "persisted_auxiliary_exact_equal": true,
+    "restored_book_hash": "908866b65f8aa3fd88a9df0d7f91294c140c9d616e777654481dc4b55f98294f",
+    "restored_state_hash": "3e7de0edfeb43c61adff80efa6a91e80bebbc442ab19da14ac4dbc27d24a482c",
+    "native_depths": [
+      {
+        "instrument": "binance-global:spot-v3:spot:BTCUSDT",
+        "bids": 5067,
+        "asks": 4895
+      },
+      {
+        "instrument": "hyperliquid:info:perpetual:ETH",
+        "bids": 20,
+        "asks": 20
+      },
+      {
+        "instrument": "binance-global:spot-v3:spot:SOLUSDT",
+        "bids": 4775,
+        "asks": 4993
+      },
+      {
+        "instrument": "hyperliquid:info:perpetual:SOL",
+        "bids": 20,
+        "asks": 20
+      },
+      {
+        "instrument": "binance-global:spot-v3:spot:ETHUSDT",
+        "bids": 5052,
+        "asks": 4947
+      },
+      {
+        "instrument": "hyperliquid:info:perpetual:BTC",
+        "bids": 20,
+        "asks": 20
+      }
+    ],
+    "raw_normalized_book_equal": true,
+    "raw_normalized_state_equal": true,
+    "restored_state_equal": true,
+    "limitations": [
+      "Raw reconstruction exercises shared decoder, reducer and normalization; includes recorded timestamp restoration, not live thread dispatch or sockets.",
+      "Replay total includes reader access and strict per-delivery exact-wire parity; producer timing excludes those.",
+      "Incomplete retained source prefix, not a live capacity or 30-minute success claim."
+    ]
+  },
+  "corrected_source_pins": {
+    "src/workstation/recording.py": "7111e9529b259ba4154058fa066e2b83ad9ffb6570c6c1c8c276726df6eb577d",
+    "src/workstation/projection.py": "f36753759de852eea545932a1723b749257e74b013f01c057be447de6bb101b8",
+    "src/workstation/book.py": "f908201f41719b1d7726af4a38df0a3a166660c7312d21c4e9428e63053e4a74",
+    "src/workstation/wire.py": "45f09374e4ef4afdf9c3278992b17e5ebc433eaf11ac9835de4dfc2fee7f05e0"
+  },
+  "commands": [
+    {
+      "cwd": "/tmp/limit-orderbook-m5-NBWAK4/recorder",
+      "argv": [
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/.venv-upgrade/bin/python",
+        "data/m5-profile/profile_recorder.py",
+        "baseline512",
+        "512",
+        "45"
+      ]
+    },
+    {
+      "cwd": "/tmp/limit-orderbook-m5-NBWAK4/recorder",
+      "argv": [
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/.venv-upgrade/bin/python",
+        "data/m5-profile/profile_recorder.py",
+        "baseline512burst2",
+        "512",
+        "45",
+        "2"
+      ]
+    },
+    {
+      "cwd": "/tmp/limit-orderbook-m5-NBWAK4/recorder",
+      "argv": [
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/.venv-upgrade/bin/python",
+        "data/m5-profile/profile_recorder.py",
+        "candidate2048burst2",
+        "2048",
+        "45",
+        "2"
+      ]
+    },
+    {
+      "cwd": "/tmp/limit-orderbook-m5-NBWAK4/recorder",
+      "argv": [
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/.venv-upgrade/bin/python",
+        "data/m5-profile/profile_producer.py"
+      ]
+    }
+  ],
+  "workloads": {
+    "data/m5-profile/profile_recorder.py": {
+      "sha256": "47ea8135f093d51312bcdcb97bed750ebe49cae65c66276ff793980f6607d6b7",
+      "source": "\"\"\"Offline retained arrival trace, not a live soak or complete source capture.\"\"\"\nimport asyncio\nfrom collections import defaultdict\nfrom dataclasses import asdict, replace\nfrom hashlib import sha256\nimport json\nfrom pathlib import Path\nimport platform\nimport resource\nimport sys\nimport threading\nimport time\n\nsys.path.insert(0, str(Path.cwd()))\nfrom src.workstation import recording, wire\nfrom src.workstation.recording import Recorder, RecorderLimits, RecordingReader, RecordingError\nfrom src.workstation.projection import RecordingProjection\n\nSOURCE = Path('/private/tmp/limit-orderbook-m5-NBWAK4/soak/data/m5-live-soak/run-ojvv389q/store/8932ce7d-d783-4139-be9e-ea7aef6552f5')\nOUT = Path('data/m5-profile')\nvariant = sys.argv[1]\ncount = int(sys.argv[2])\nduration = float(sys.argv[3])\nrate = float(sys.argv[4]) if len(sys.argv) > 4 else 1.0\nreader = RecordingReader(SOURCE, allow_incomplete=True)\nmanifest = reader.manifest\nraws = list(reader.iter_raw())\nstart_ns = min(r.receive_mono_ns for r in raws)\ncutoff = start_ns + int(duration * 1e9)\nbatches = []\nfrontier = start_ns\nfor batch in reader.iter_batches():\n    frontier = max(frontier, batch.events[0].receive_mono_ns)\n    if frontier > cutoff:\n        break\n    batches.append((frontier, batch))\nraws = [r for r in raws if r.receive_mono_ns <= cutoff]\n# Preserve actual normalized delivery order. Buffered messages may be delivered\n# later than their receive timestamp: frontier is a lower bound, not callback time.\nitems = [(r.receive_mono_ns, 0, r.ingest_ordinal, r) for r in raws]\nitems += [(t, 1, b.delivery_index, b) for t, b in batches]\nitems.sort(key=lambda row: row[:3])\n# A buffered bootstrap can reference raw frames received later than the event's\n# original timestamp. Move events forward to their raw's receive frontier.\nraw_times = {r.ingest_ordinal:r.receive_mono_ns for r in raws}\nfrontier = start_ns\nitems = [(r.receive_mono_ns, 0, r.ingest_ordinal, r) for r in raws]\nfor t, b in batches:\n    frontier = max(frontier, t, raw_times.get(b.events[0].ingest_ordinal, t))\n    items.append((frontier, 1, b.delivery_index, b))\nitems.sort(key=lambda row: row[:3])\nreader.close()\nstages = defaultdict(list)\nwriter_cpu = []\noriginal_run = Recorder._run\ndef run(self):\n    begin = time.thread_time()\n    try:\n        original_run(self)\n    finally:\n        writer_cpu.append(time.thread_time()-begin)\nRecorder._run = run\nfor method in ('_write_raw','_write_events','_save_projection','_flush_events','_write_checkpoint_group','_flush_checkpoints'):\n    original = getattr(Recorder, method)\n    def wrap(self, *args, _original=original, _name=method, **kwargs):\n        start = time.perf_counter(); cpu = time.thread_time()\n        try:\n            return _original(self, *args, **kwargs)\n        finally:\n            stages[_name].append((time.perf_counter()-start,time.thread_time()-cpu))\n    setattr(Recorder, method, wrap)\nlimits = replace(RecorderLimits(), queue_count=count)\nrecorder = Recorder(OUT/variant,session_id=manifest.session_id,clock_id=manifest.clock_id,\n    streams=manifest.streams, config=manifest.config, limits=limits,\n    code_revision='offline-retained-trace-profile',provenance='incomplete retained source; bounded offline profile')\nrecorder.mark_incomplete('profile_of_incomplete_source_prefix')\ntrajectory=[]; stop=threading.Event()\ndef monitor():\n    while not stop.wait(.02):\n        h=recorder.health\n        trajectory.append((time.perf_counter()-begin,h.queue_count,h.queue_bytes))\nproducer_cpu_start=time.thread_time()\nbegin=time.perf_counter()\nthread=threading.Thread(target=monitor); thread.start()\noffered_raw=offered_batches=0\nfailure=None\nfor stamp, kind, _, value in items:\n    delay=(stamp-start_ns)/1e9/rate-(time.perf_counter()-begin)\n    if delay>0: time.sleep(delay)\n    try:\n        if kind==0:\n            recorder.append_raw(value); offered_raw+=1\n        else:\n            recorder.append_events(value.events); offered_batches+=1\n    except RecordingError as error:\n        failure=str(error); break\nproducer_cpu=time.thread_time()-producer_cpu_start\noffer_end=time.perf_counter()\nfinal=asyncio.run(recorder.finalize())\nend=time.perf_counter(); stop.set(); thread.join()\n# Verify retained output, but never present this intentionally incomplete prefix\n# as a complete source capture. Compare exact normalized/raw values and native state.\nwith RecordingReader(recorder.path,allow_incomplete=True) as result:\n    output_batches=list(result.iter_batches())\n    output_raw=list(result.iter_raw())\n    expected_batches=[b for _,b in batches][:offered_batches]\n    raw_equal=output_raw==raws[:offered_raw]\n    batch_equal=output_batches==expected_batches\n    expected=RecordingProjection(manifest.streams)\n    for b in expected_batches: expected.apply_batch(b)\n    actual=RecordingProjection(manifest.streams)\n    for b in output_batches: actual.apply_batch(b)\n    hashes={'expected_book':expected.book_hash,'actual_book':actual.book_hash,\n            'expected_state':expected.state_hash,'actual_state':actual.state_hash}\n    checkpoint_equal=expected.checkpoints()==actual.checkpoints()\n    checkpoint_wire_equal=[wire.dumps(c,canonical=False) for c in expected.checkpoints()]==[wire.dumps(c,canonical=False) for c in actual.checkpoints()]\n\ndef summary(rows):\n    return {'calls':len(rows),'wall_total':sum(r[0] for r in rows),'cpu_total':sum(r[1] for r in rows),\n            'max_wall':max(r[0] for r in rows),'max_cpu':max(r[1] for r in rows)}\nreport={'variant':variant,'source':str(SOURCE),'source_complete':manifest.complete,\n 'source_incomplete_reasons':manifest.incomplete_reasons,'manifest_sha256':sha256((SOURCE/'manifest.json').read_bytes()).hexdigest(),\n 'source_pins':{str(p):sha256(p.read_bytes()).hexdigest() for p in [Path('src/workstation')/f for f in ('recording.py','projection.py','book.py','wire.py')]},\n 'python':sys.version,'platform':platform.platform(),'limits':asdict(limits),'trace_duration':duration,\n 'failure':failure,'offered_raw':offered_raw,'offered_batches':offered_batches,\n 'offering_wall_seconds':offer_end-begin,'drain_finalize_wall_seconds':end-offer_end,'writer_cpu_seconds':writer_cpu,\n 'producer_offer_cpu_seconds':producer_cpu,'peak_process_rss_bytes':resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,\n 'health':asdict(recorder.health),'final_complete':final.complete,'final_reasons':final.incomplete_reasons,\n 'verified_output':True,'raw_exact_equal':raw_equal,'normalized_exact_equal':batch_equal,\n 'native_checkpoint_equal':checkpoint_equal,'checkpoint_wire_exact_equal':checkpoint_wire_equal,'hashes':hashes,\n 'stages_inclusive':{k:summary(v) for k,v in stages.items()},'queue_trajectory_20ms':trajectory,\n 'limitations':['Predecoded offline producer measures offer/size CPU, not network decoding or live reducer CPU.',\n 'Receive timestamps are not callback timestamps; normalized buffered delivery uses nonregressing receive frontier.',\n 'Stage times are inclusive and must not be added; monitor/GIL scheduling is approximate.',\n 'Peak RSS includes all predecoded source rows and parity projections, not isolated production queue memory.',\n 'Intentionally incomplete bounded prefix; no live 30-minute claim.']}\nreport['schedule_rate'] = rate\n(OUT/(variant+'.json')).write_text(json.dumps(report,indent=2)+'\\n')\nprint(json.dumps({k:v for k,v in report.items() if k!='queue_trajectory_20ms'},indent=2))\n"
+    },
+    "data/m5-profile/profile_producer.py": {
+      "sha256": "b85861846cbfade3c1739ad5cd927116d4550486a99215f3548ff692a33ed073",
+      "source": "\"\"\"Bounded raw producer reconstruction and persisted-checkpoint parity.\"\"\"\nfrom hashlib import sha256\nimport json\nfrom pathlib import Path\nimport sys\nimport time\nsys.path.insert(0, str(Path.cwd()))\nfrom src.workstation.recording import RecordingReader\nfrom src.workstation.replay import ReplaySession\nfrom src.workstation.projection import RecordingProjection\nfrom src.workstation import wire\n\npath=Path('data/m5-profile/candidate2048burst2/8932ce7d-d783-4139-be9e-ea7aef6552f5')\nreport={'source':str(path),'source_complete':False,'modes':{}}\nwith RecordingReader(path,allow_incomplete=True) as reader:\n    report['manifest_sha256']=sha256((path/'manifest.json').read_bytes()).hexdigest()\n    for mode in ('raw','normalized'):\n        session=ReplaySession(reader,mode=mode,checkpoint_policy='reject')\n        calls=[]\n        original=session.projection.process_raw\n        def process(*args,**kwargs):\n            start=time.perf_counter(); cpu=time.thread_time()\n            try: return original(*args,**kwargs)\n            finally: calls.append((time.perf_counter()-start,time.thread_time()-cpu))\n        session.projection.process_raw=process\n        start=time.perf_counter();cpu=time.thread_time()\n        while session.step(): pass\n        report['modes'][mode]={'replay_wall_seconds':time.perf_counter()-start,'replay_cpu_seconds':time.thread_time()-cpu,\n            'producer_decode_reduce_normalize_calls':len(calls),'producer_wall_seconds':sum(t for t,c in calls),\n            'producer_thread_cpu_seconds':sum(c for t,c in calls),'book_hash':session.projection.book_hash,\n            'state_hash':session.projection.state_hash,'deliveries':session.cursor.delivery_index}\n        if mode=='normalized':\n            final=session.projection\n            records=[]\n            for row in reader.iter_checkpoints():\n                if row.delivery_index != session.cursor.delivery_index: break\n                records.append(row)\n            persisted=tuple(row.checkpoint for row in records)\n            expected=final.checkpoints()\n            report['persisted_final_checkpoint_native_equal']=persisted==expected\n            report['persisted_final_checkpoint_wire_equal']=wire.dumps(persisted,canonical=False)==wire.dumps(expected,canonical=False)\n            report['persisted_auxiliary_exact_equal']=bool(records) and all(row.observer_state==final.checkpoint_state() for row in records)\n            restored=RecordingProjection(reader.manifest.streams)\n            restored.restore(persisted,records[0].observer_state)\n            report['restored_book_hash']=restored.book_hash\n            report['restored_state_hash']=restored.state_hash\n            report['native_depths']=[{'instrument':str(book.instrument_id),'bids':len(book.bids),'asks':len(book.asks)} for book in final.books()]\n        session.close()\nreport['raw_normalized_book_equal']=report['modes']['raw']['book_hash']==report['modes']['normalized']['book_hash']\nreport['raw_normalized_state_equal']=report['modes']['raw']['state_hash']==report['modes']['normalized']['state_hash']\nreport['restored_state_equal']=report['restored_state_hash']==report['modes']['normalized']['state_hash']\nreport['limitations']=['Raw reconstruction exercises shared decoder, reducer and normalization; includes recorded timestamp restoration, not live thread dispatch or sockets.',\n 'Replay total includes reader access and strict per-delivery exact-wire parity; producer timing excludes those.',\n 'Incomplete retained source prefix, not a live capacity or 30-minute success claim.']\nPath('data/m5-profile/producer-parity.json').write_text(json.dumps(report,indent=2)+'\\n')\nprint(json.dumps(report,indent=2))\n"
+    }
+  },
+  "regression_source": "tests/test_recording.py::test_default_queue_absorbs_finite_burst_and_keeps_terminal_bound (both overflow parameter values); blocks writer, admits exact2048 slots including inflight, drains unchanged1024raw+1024batches, tests2049th terminal rejection and sticky failure. Existing byte-bound tests unchanged.",
+  "not_executed": [
+    "test suites",
+    "linters",
+    "formatters",
+    "builds",
+    "actual corrected30-minute public soak"
+  ],
+  "remaining": "Parent integration gates plus actual30-minute full-depth Binance-global/Hyperliquid12-stream capture with raw/normalized/checkpoint replay verification. No30-minute pass claimed."
+}

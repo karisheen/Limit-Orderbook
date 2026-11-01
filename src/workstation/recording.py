@@ -176,7 +176,10 @@ class _FileStats:
 
 @dataclass(frozen=True)
 class RecorderLimits:
-    queue_count: int = 512
+    # Raw and normalized callbacks occupy separate slots. Retained public traces
+    # exceed 1,100 items in 0.5 s while full-depth checkpoint/flush service pauses
+    # the writer; keep finite burst headroom without relaxing the resident cap.
+    queue_count: int = 2048
     queue_bytes: int = 128 * 1024 * 1024
     raw_rotation_bytes: int = 16 * 1024 * 1024
     parquet_batch_count: int = 128
