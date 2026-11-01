@@ -1,4 +1,4 @@
-# Local terminal API (M3, version 1)
+# Local terminal API (M3–M4, version 1)
 
 ## Start
 
@@ -53,6 +53,10 @@ Requests reject unknown fields, numeric JSON economics, nonfinite decimals, exce
 | POST | `/replay` | `{session_id,generation,action,count?,speed?,delivery_index?}` → Frame. Actions `play`, `pause`, `step`, `speed`, `seek`, `reset`. Step 1–1000; speed exact string 0.01–100. Seek targets delivery index string. |
 | GET | `/history` | Query `session_id,generation,start_delivery?,end_delivery?,limit?` → `{generation,cursor,events,truncated}`. End is clamped to current cursor. Limit 1–1000 events, at most 10,000 inspected deliveries and 4 MiB estimated result per request. Live history retains at most 4096 batches and 8 MiB accounted event representation; missing retained prefixes are marked truncated. |
 | POST | `/costs` | Shared-core depth walk and directed comparison matrix; see below. |
+| POST | `/visualization` | Exact bounded historical liquidity, trades, candles, footprints, profile and shared flow metrics; session/generation and explicit price/time grid. Half-open visible window, quality/retention reasons, incremental column token and chart publication ID. See [VISUALIZATION](VISUALIZATION.md). |
+| POST | `/visualization/ack` | Chart-specific finite browser receive-to-paint timing for an issued view ID; returns server publication-to-ACK upper bound. Not an exchange latency or GPU-completion claim. |
+| POST | `/ladder` | Current eligible native book grouped with explicit price quantum; exact side and cumulative base quantities. Presentation freezing does not alter collection. |
+| POST | `/proposal-risk` | Hypothetical entry/stop, side and quantity or risk budget; explicit fee assumptions, native constraints and unavailable reasons. Neither an order nor guaranteed maximum loss. |
 | WS | `/stream?session_id=...` | One socket per session. Full Frames at up to 5 Hz. Disconnect destroys the session; reconnection creates an independent session, never steals another tab's state. |
 
 No alerts/paper/journal stub endpoints are exposed; those are M5 additions.
@@ -71,6 +75,8 @@ Every Frame has:
 - `replay`: null for live; otherwise `{cursor:{delivery_index,ordinal,event_index},speed,status,total_deliveries}` with exact string counters.
 - `health:{ready,reasons}` using centralized book eligibility, not transport activity.
 - `telemetry` described below; `error` string or null.
+
+Read-worker contention may retain one last completed book/analytics/replay presentation from the same session generation and instrument. It is explicitly diagnostic (`health.ready=false`, reasons `owner_busy` and `last_completed_presentation`), not newly validated market evidence. This keeps a slow historical query from erasing the tape/cursor or relabeling replay as live. Loading, seek, unavailable/error and generation changes never reuse that cache. Action ownership and fresh execution/analytics eligibility remain authoritative; the cache is not an execution input.
 
 Native `Book` includes exact key, segment/epoch/revision, bids/asks, as-of and Quality/Coverage. Analytics includes `metrics`, `tape`, `profile`, `display_evidence` and unavailable reasons as defined in [ANALYTICS](ANALYTICS.md). Trade subscription history remains labeled in the core tape. Selection never reconstructs a second browser financial model.
 

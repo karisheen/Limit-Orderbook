@@ -460,3 +460,38 @@ def test_level_cancelled_websocket_joins_workers_and_preserves_other_live_owner(
             await registry.close()
 
     asyncio.run(scenario())
+
+
+def test_busy_presentation_keeps_completed_evidence_but_fences_generation(
+    memory_source,
+):
+    async def scenario():
+        runtime = offline_runtime(memory_source)
+        try:
+            session = await runtime.create("demo")
+            first = await session.frame()
+            assert first["book"] is not None and first["replay"] is not None
+            async with session.lock:
+                busy = await session.frame()
+                assert busy["book"] == first["book"]
+                assert busy["analytics"] == first["analytics"]
+                assert busy["replay"] == first["replay"]
+                assert busy["status"] == "paused"
+                assert not busy["health"]["ready"]
+                assert "last_completed_presentation" in busy["health"]["reasons"]
+                for status in ("seeking", "unavailable", "error"):
+                    session.status = status
+                    invalid = await session.frame()
+                    assert invalid["book"] is None
+                    assert invalid["analytics"] is None
+                    assert invalid["replay"] is None
+                session.status = "paused"
+                session.generation += 1
+                changed = await session.frame()
+                assert changed["book"] is None
+                assert changed["analytics"] is None
+                assert changed["replay"] is None
+        finally:
+            await runtime.close()
+
+    asyncio.run(scenario())

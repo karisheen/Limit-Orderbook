@@ -407,6 +407,24 @@ class AnalyticsEngine:
             if s.key.channel in ("trade", "trades")
         }
         self.delivery_index = 0
+        self._admitted_batch: RecordedBatch | None = None
+        self._admitted: deque[TapePrint] = deque(maxlen=self.config.max_trades)
+        self._admitted_complete = True
+
+    def admitted_tape(self, batch: RecordedBatch) -> tuple[TapePrint, ...]:
+        """Already normalized/deduplicated prints admitted by this exact batch.
+
+        This ephemeral owner-only view never reruns normalization and cannot
+        return a previous delivery's prints after seek, restore, or replacement.
+        The bound is the existing per-stream tape bound; consumers must inspect
+        admitted_tape_complete before claiming full batch coverage.
+        """
+        if batch is not self._admitted_batch:
+            return ()
+        return tuple(self._admitted)
+
+    def admitted_tape_complete(self, batch: RecordedBatch) -> bool:
+        return batch is self._admitted_batch and self._admitted_complete
 
     def initialize_books(self, books: tuple[Book, ...]) -> None:
         """Install a live subscription baseline without inventing observed history.
@@ -482,6 +500,9 @@ class AnalyticsEngine:
     ) -> None:
         if batch.delivery_index <= self.delivery_index:
             raise ValueError("analytics delivery must advance; reset before seek")
+        self._admitted_batch = batch
+        self._admitted.clear()
+        self._admitted_complete = True
         with localcontext(DECIMAL_CONTEXT):
             present_book_keys = {book.key for book in books}
             for event in batch.events:
@@ -645,9 +666,13 @@ class AnalyticsEngine:
                 base, quote = _valuation(
                     spec.instrument, payload.price, payload.quantity
                 )
-                state.tape.append(
-                    TapePrint(payload, event.ref(), str(event.stream_id), base, quote)
+                item = TapePrint(
+                    payload, event.ref(), str(event.stream_id), base, quote
                 )
+                state.tape.append(item)
+                if len(self._admitted) == self.config.max_trades:
+                    self._admitted_complete = False
+                self._admitted.append(item)
                 state.seen.add(payload.dedup_key)
         elif (
             isinstance(payload, Control)
@@ -776,6 +801,46 @@ class AnalyticsEngine:
                 )
         state.book = book
         self._trim(state, now.mono_ns)
+
+    def _trade_source(
+        self, instrument_id: str, now: ClockReading
+    ) -> tuple[_TradeWindow | None, Eligibility]:
+        instrument = self._instruments[InstrumentId(instrument_id)]
+        candidates = [
+            state
+            for sid, state in self._trades.items()
+            if self._specs[StreamId(sid)].instrument.instrument_id == instrument_id
+        ]
+        state = candidates[0] if len(candidates) == 1 else None
+        eligibility = evaluate_trades(
+            state.evidence if state else None, instrument, now, self.config.policy
+        )
+        if len(candidates) > 1:
+            eligibility = replace(
+                eligibility,
+                eligible=False,
+                reasons=(*eligibility.reasons, "ambiguous_trade_stream"),
+            )
+        return state, eligibility
+
+    def trade_evidence(
+        self,
+        instrument_id: str,
+        now: ClockReading,
+        *,
+        key: SubscriptionKey | None = None,
+    ) -> tuple[TradeEvidence | None, Eligibility]:
+        """Current public-channel quality, independent of book and rolling windows.
+
+        A selected book key cannot disambiguate multiple matching trade streams.
+        This read-only gate does not establish evidence or compute metric totals.
+        """
+        if instrument_id not in self._instruments:
+            raise ValueError("unknown analytics instrument")
+        if key is not None and key.instrument_id != instrument_id:
+            raise ValueError("analytics key/instrument mismatch")
+        state, eligibility = self._trade_source(instrument_id, now)
+        return state.evidence if state else None, eligibility
 
     def snapshot(
         self,
@@ -1025,22 +1090,8 @@ class AnalyticsEngine:
                 if kind == "event_ofi"
                 else "snapshot-best-quote-difference-v1",
             )
-        trade_candidates = [
-            s
-            for sid, s in self._trades.items()
-            if self._specs[StreamId(sid)].instrument.instrument_id == instrument_id
-        ]
-        trade_state = trade_candidates[0] if len(trade_candidates) == 1 else None
-        trade_reasons = list(
-            evaluate_trades(
-                trade_state.evidence if trade_state else None,
-                instrument,
-                now,
-                self.config.policy,
-            ).reasons
-        )
-        if len(trade_candidates) > 1:
-            trade_reasons.append("ambiguous_trade_stream")
+        trade_state, trade_eligibility = self._trade_source(instrument_id, now)
+        trade_reasons = list(trade_eligibility.reasons)
         tape = (
             tuple(
                 t
