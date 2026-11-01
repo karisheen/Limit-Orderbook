@@ -190,12 +190,12 @@ class _BinanceDepthReducer(BookReducer):
             raise ValueError("known_depth_exhausted")
         return bid_levels, ask_levels
 
-    def restore(self, checkpoint):
+    def _restore_state(self, state):
         # Core restores new maps, never mutates the previous ones. Retain those
         # references so adapter-state rejection remains atomic without copying L2.
         previous = self.__dict__.copy()
         try:
-            super().restore(checkpoint)
+            super()._restore_state(state)
             floor, ceiling = self._bounds()
             if self.initialized and self.quality.source_mode == "ws_delta":
                 if not self.protocol_state:
@@ -367,7 +367,7 @@ class BinanceGlobalReducer(_BinanceDepthReducer):
             candidate.book = replace(
                 candidate.book, asof=event.ref(), quality=candidate.quality
             )
-        self.restore(candidate.checkpoint())
+        self._adopt_candidate(candidate)
         return Reduction(self.book if self.synchronized else None, events, changed=True)
 
 

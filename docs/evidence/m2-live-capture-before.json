@@ -1,0 +1,365 @@
+{
+  "kind": "actual-public-three-asset-capture",
+  "assets": [
+    "BTC",
+    "ETH",
+    "SOL"
+  ],
+  "venues": [
+    "binance-global",
+    "hyperliquid"
+  ],
+  "duration_seconds": 20,
+  "record_seconds": 40.676751806997345,
+  "record_exit": 2,
+  "capture": "data/m2-smoke/live-cli-3hjtn5tf/captures/9ec8ec8a-5cd8-4fe3-807c-33b5549f746a",
+  "complete": false,
+  "incomplete_reasons": [
+    "queue_overflow",
+    "no_valid_book:binance-global:spot-v3:spot:BTCUSDT",
+    "no_valid_book:hyperliquid:info:perpetual:BTC",
+    "no_valid_book:hyperliquid:info:perpetual:ETH",
+    "no_valid_book:binance-global:spot-v3:spot:SOLUSDT",
+    "no_valid_book:binance-global:spot-v3:spot:ETHUSDT",
+    "no_valid_book:hyperliquid:info:perpetual:SOL",
+    "source_capture_incomplete:8657f494-665e-4d5c-8f73-7fb6a28f04a2",
+    "source_capture_incomplete:c8dad252-bedf-491e-b4fd-d35c8bdb2703",
+    "source_capture_incomplete:996df515-e9b8-4b3f-99c4-745a5d8a0789",
+    "source_capture_incomplete:df9ea7f8-bf01-482c-8671-52601512aa2e",
+    "source_capture_incomplete:1b5d3053-2930-43a8-892e-9cdeccfc239e",
+    "source_capture_incomplete:5e04e20d-c6a5-4dc9-b57a-80a9f6f5a882",
+    "source_capture_incomplete:73c9086a-1e86-411a-ae71-f90bdc961c88",
+    "source_capture_incomplete:cc2cd7cd-d1a3-4177-8838-eac807f9e95f",
+    "source_capture_incomplete:c0afcd8b-cb69-4cbc-abbc-3acb42b3b0f0",
+    "source_capture_incomplete:bbb696ae-9876-4354-9b66-8a3cb6c99551",
+    "source_capture_incomplete:9f5ad784-4e67-479f-9455-129fa5a54233",
+    "source_capture_incomplete:8f8920f6-167e-4324-afdc-a2b1f6328779",
+    "feed_capture_incomplete"
+  ],
+  "counts": {
+    "raw_count": "440",
+    "event_count": "533",
+    "batch_count": "445",
+    "checkpoint_count": "60"
+  },
+  "code_revision": "workstation-source-sha256:c7a849a2542ba7b51422ac7d3316d57756093c63bfb0ccc856a429b7f8b53749",
+  "manifest_sha256": "92c5172cd1c22e9e2b6bb182457656a3a0f5b4578a2ee972ca759b46ccb7ab9d",
+  "source_statuses": [
+    {
+      "capture_complete": false,
+      "connection_epoch": "7",
+      "key": {
+        "aggregation": [],
+        "api_family": "spot-v3",
+        "channel": "book",
+        "depth": "5000",
+        "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+        "venue": "binance-global"
+      },
+      "lifecycle": "resynchronizing",
+      "queue_bytes": "0",
+      "queue_depth": "0",
+      "reason": "rest:event_sink_failed",
+      "reference_count": "1",
+      "stream_id": "8657f494-665e-4d5c-8f73-7fb6a28f04a2"
+    },
+    {
+      "capture_complete": false,
+      "connection_epoch": "7",
+      "key": {
+        "aggregation": [],
+        "api_family": "spot-v3",
+        "channel": "trades",
+        "depth": null,
+        "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+        "venue": "binance-global"
+      },
+      "lifecycle": "resynchronizing",
+      "queue_bytes": "0",
+      "queue_depth": "0",
+      "reason": "rest:event_sink_failed",
+      "reference_count": "1",
+      "stream_id": "c8dad252-bedf-491e-b4fd-d35c8bdb2703"
+    },
+    {
+      "capture_complete": false,
+      "connection_epoch": "5",
+      "key": {
+        "aggregation": [],
+        "api_family": "spot-v3",
+        "channel": "book",
+        "depth": "5000",
+        "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+        "venue": "binance-global"
+      },
+      "lifecycle": "resynchronizing",
+      "queue_bytes": "0",
+      "queue_depth": "0",
+      "reason": "rest:event_sink_failed",
+      "reference_count": "1",
+      "stream_id": "996df515-e9b8-4b3f-99c4-745a5d8a0789"
+    },
+    {
+      "capture_complete": false,
+      "connection_epoch": "1",
+      "key": {
+        "aggregation": [],
+        "api_family": "spot-v3",
+        "channel": "trades",
+        "depth": null,
+        "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+        "venue": "binance-global"
+      },
+      "lifecycle": "resynchronizing",
+      "queue_bytes": "0",
+      "queue_depth": "0",
+      "reason": "starting",
+      "reference_count": "1",
+      "stream_id": "df9ea7f8-bf01-482c-8671-52601512aa2e"
+    },
+    {
+      "capture_complete": false,
+      "connection_epoch": "5",
+      "key": {
+        "aggregation": [],
+        "api_family": "spot-v3",
+        "channel": "book",
+        "depth": "5000",
+        "instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+        "venue": "binance-global"
+      },
+      "lifecycle": "resynchronizing",
+      "queue_bytes": "0",
+      "queue_depth": "0",
+      "reason": "rest:event_sink_failed",
+      "reference_count": "1",
+      "stream_id": "1b5d3053-2930-43a8-892e-9cdeccfc239e"
+    },
+    {
+      "capture_complete": false,
+      "connection_epoch": "5",
+      "key": {
+        "aggregation": [],
+        "api_family": "spot-v3",
+        "channel": "trades",
+        "depth": null,
+        "instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+        "venue": "binance-global"
+      },
+      "lifecycle": "resynchronizing",
+      "queue_bytes": "0",
+      "queue_depth": "0",
+      "reason": "rest:event_sink_failed",
+      "reference_count": "1",
+      "stream_id": "5e04e20d-c6a5-4dc9-b57a-80a9f6f5a882"
+    },
+    {
+      "capture_complete": false,
+      "connection_epoch": "7",
+      "key": {
+        "aggregation": [],
+        "api_family": "info",
+        "channel": "book",
+        "depth": "20",
+        "instrument_id": "hyperliquid:info:perpetual:BTC",
+        "venue": "hyperliquid"
+      },
+      "lifecycle": "resynchronizing",
+      "queue_bytes": "0",
+      "queue_depth": "0",
+      "reason": "rest:event_sink_failed",
+      "reference_count": "1",
+      "stream_id": "73c9086a-1e86-411a-ae71-f90bdc961c88"
+    },
+    {
+      "capture_complete": false,
+      "connection_epoch": "4",
+      "key": {
+        "aggregation": [],
+        "api_family": "info",
+        "channel": "trades",
+        "depth": null,
+        "instrument_id": "hyperliquid:info:perpetual:BTC",
+        "venue": "hyperliquid"
+      },
+      "lifecycle": "resynchronizing",
+      "queue_bytes": "0",
+      "queue_depth": "0",
+      "reason": "event_sink_failed",
+      "reference_count": "1",
+      "stream_id": "cc2cd7cd-d1a3-4177-8838-eac807f9e95f"
+    },
+    {
+      "capture_complete": false,
+      "connection_epoch": "7",
+      "key": {
+        "aggregation": [],
+        "api_family": "info",
+        "channel": "book",
+        "depth": "20",
+        "instrument_id": "hyperliquid:info:perpetual:ETH",
+        "venue": "hyperliquid"
+      },
+      "lifecycle": "resynchronizing",
+      "queue_bytes": "0",
+      "queue_depth": "0",
+      "reason": "rest:event_sink_failed",
+      "reference_count": "1",
+      "stream_id": "c0afcd8b-cb69-4cbc-abbc-3acb42b3b0f0"
+    },
+    {
+      "capture_complete": false,
+      "connection_epoch": "1",
+      "key": {
+        "aggregation": [],
+        "api_family": "info",
+        "channel": "trades",
+        "depth": null,
+        "instrument_id": "hyperliquid:info:perpetual:ETH",
+        "venue": "hyperliquid"
+      },
+      "lifecycle": "resynchronizing",
+      "queue_bytes": "0",
+      "queue_depth": "0",
+      "reason": "starting",
+      "reference_count": "1",
+      "stream_id": "bbb696ae-9876-4354-9b66-8a3cb6c99551"
+    },
+    {
+      "capture_complete": false,
+      "connection_epoch": "9",
+      "key": {
+        "aggregation": [],
+        "api_family": "info",
+        "channel": "book",
+        "depth": "20",
+        "instrument_id": "hyperliquid:info:perpetual:SOL",
+        "venue": "hyperliquid"
+      },
+      "lifecycle": "resynchronizing",
+      "queue_bytes": "0",
+      "queue_depth": "0",
+      "reason": "rest:event_sink_failed",
+      "reference_count": "1",
+      "stream_id": "9f5ad784-4e67-479f-9455-129fa5a54233"
+    },
+    {
+      "capture_complete": false,
+      "connection_epoch": "3",
+      "key": {
+        "aggregation": [],
+        "api_family": "info",
+        "channel": "trades",
+        "depth": null,
+        "instrument_id": "hyperliquid:info:perpetual:SOL",
+        "venue": "hyperliquid"
+      },
+      "lifecycle": "resynchronizing",
+      "queue_bytes": "0",
+      "queue_depth": "0",
+      "reason": "event_sink_failed",
+      "reference_count": "1",
+      "stream_id": "8f8920f6-167e-4324-afdc-a2b1f6328779"
+    }
+  ],
+  "dependency_evidence": [
+    {
+      "checked_wall_ns": "1793510924749499000",
+      "dependencies": [
+        [
+          "metadata",
+          "available"
+        ],
+        [
+          "snapshot",
+          "available"
+        ],
+        [
+          "trades",
+          "available"
+        ],
+        [
+          "ws",
+          "available"
+        ]
+      ],
+      "detail": "product_dependency_probe",
+      "probed_instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+      "state": "available",
+      "venue": "binance-global"
+    },
+    {
+      "checked_wall_ns": "1793510924531408000",
+      "dependencies": [
+        [
+          "metadata",
+          "available"
+        ],
+        [
+          "snapshot",
+          "available"
+        ],
+        [
+          "trades",
+          "available"
+        ],
+        [
+          "ws",
+          "available"
+        ]
+      ],
+      "detail": "product_dependency_probe",
+      "probed_instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+      "state": "available",
+      "venue": "binance-global"
+    },
+    {
+      "checked_wall_ns": "1793510924811472000",
+      "dependencies": [
+        [
+          "metadata",
+          "available"
+        ],
+        [
+          "snapshot",
+          "available"
+        ],
+        [
+          "trades",
+          "available"
+        ],
+        [
+          "ws",
+          "available"
+        ]
+      ],
+      "detail": "product_dependency_probe",
+      "probed_instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+      "state": "available",
+      "venue": "binance-global"
+    }
+  ],
+  "limits": {
+    "$type": "RecorderLimits",
+    "checkpoint_group_bytes": "16777216",
+    "checkpoint_group_count": "64",
+    "checkpoint_interval_batches": "100",
+    "finalize_timeout": "30.0",
+    "managed_budget_bytes": "10737418240",
+    "max_files": "100000",
+    "max_query_rows": "10000",
+    "max_row_bytes": "268435456",
+    "max_streams": "1024",
+    "min_free_bytes": "67108864",
+    "parquet_batch_bytes": "16777216",
+    "parquet_batch_count": "128",
+    "parquet_buffer_count": "4096",
+    "queue_bytes": "134217728",
+    "queue_count": "512",
+    "raw_rotation_bytes": "16777216",
+    "reader_cache_bytes": "33554432",
+    "reader_cache_count": "8192",
+    "retention_max_sessions": "100"
+  },
+  "checks_passed": false
+}

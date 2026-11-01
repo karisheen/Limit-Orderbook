@@ -11,11 +11,13 @@ workstation; the planned terminal is **not** the current Streamlit application.
   recorded. Historical audit observations describe the starting code, not all
   current behavior.
 - **M1:** exact core, seven public venue adapters, supervised shared subscription
-  ownership and legacy safety fixes implemented. Live feed integrations have
-  measured evidence below; final review/merge is tracked in the handoff.
-- **M2–M6:** **not done**. Durable recording/replay, shared analytics and cost
-  models, the new React/TypeScript terminal, alerts/paper trading/research, and
-  final operational/performance acceptance remain milestone work.
+  ownership and legacy safety fixes implemented and merged. Live feed integrations
+  have measured evidence below.
+- **M2:** durable raw/normalized capture, verified manifests/checkpoints, deterministic
+  replay and an explicitly synthetic offline demo implemented. Integration and
+  Git delivery evidence are tracked in the handoff.
+- **M3–M6:** **not done**. Shared analytics/cost models, the React/TypeScript terminal,
+  alerts/paper trading/research and final operational/performance acceptance remain.
 
 This is an interim progress summary; later milestone documentation will replace
 it as implementation and acceptance evidence land. See the
@@ -51,6 +53,35 @@ The initial failed run and corrected run are retained in
 for exact commands and [contracts](docs/CONTRACTS.md) for loss, freshness,
 ownership and source-transition semantics. No fixture data fills gaps in live
 history. Streamlit still uses its temporary legacy service until terminal parity.
+
+## Record, replay and offline demo
+
+After the locked Python setup below:
+
+```sh
+# Offline: original CC0 synthetic BTC/ETH/SOL scenarios, 180 virtual seconds.
+uv run --locked python -m src.workstation.cli demo
+
+# Actual public data; both venues retain distinct market/quote identities.
+uv run --locked python -m src.workstation.cli record --network \
+  --venue binance-global --venue hyperliquid --assets BTC ETH SOL --duration 60
+
+# Replace SESSION_ID with the capture directory reported by either command.
+uv run --locked python -m src.workstation.cli inspect data/workstation/SESSION_ID
+uv run --locked python -m src.workstation.cli replay data/workstation/SESSION_ID --mode raw
+uv run --locked python -m src.workstation.cli replay data/workstation/SESSION_ID --interactive
+```
+
+Interactive replay supports `play SPEED`, `pause`, `step N`, `seek ORDINAL`,
+`run` and `quit`. Raw and normalized paths share reconstruction and quality rules.
+Incomplete/corrupt captures are not silently accepted. The recorder owns its
+subscription leases independently of browser clients; capture starts before
+synchronization, and CLI readiness labels that distinction.
+
+The complete cold synthetic build took **16.307 s** on the measured workstation;
+this is not yet an instant terminal startup. M3 owns first-usable-data UI startup.
+See [recording](docs/RECORDING.md), [replay](docs/REPLAY.md), [demo/CLI](docs/DEMO.md)
+and the handoff for exact evidence, budgets, recovery and source limitations.
 
 ## Run the current Streamlit app
 

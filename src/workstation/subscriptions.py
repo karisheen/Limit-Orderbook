@@ -7,13 +7,15 @@ callbacks. Headless clients hold ordinary leases without presentation queues.
 
 import asyncio
 from collections import OrderedDict, deque
-from dataclasses import dataclass, field
+from collections.abc import Iterable
+from contextlib import asynccontextmanager
+from dataclasses import dataclass, field, replace
 import fcntl
 from io import BufferedRandom
 import os
 from pathlib import Path
 import tempfile
-from typing import Callable
+from typing import TYPE_CHECKING, Callable, TypeVar
 from uuid import uuid4
 
 from .adapter_catalog import AdapterCatalog
@@ -23,10 +25,14 @@ from .events import (
     EventEnvelope,
     LeaseId,
     RawFrame,
+    SessionId,
     StreamId,
     SubscriptionKey,
 )
 from .ingestion import FeedCallbacks, FeedSupervisor, ReceiveBoundary, SupervisorConfig
+
+if TYPE_CHECKING:
+    from .recording import Recorder, SessionManifest, StreamSpec
 
 
 @dataclass(frozen=True)
@@ -120,7 +126,10 @@ class _Entry:
     closing: asyncio.Task | None = None
 
 
-async def _join_cleanup(task: asyncio.Task) -> None:
+_CleanupResult = TypeVar("_CleanupResult")
+
+
+async def _join_cleanup(task: asyncio.Future[_CleanupResult]) -> None:
     """Cancellation cannot hand physical ownership to a new task before join."""
     try:
         await asyncio.shield(task)
@@ -167,6 +176,7 @@ class SubscriptionRegistry:
         self._leases: dict[LeaseId, SubscriptionLease] = {}
         self._generations: dict[ClientId, int] = {}
         self._client_locks: dict[ClientId, asyncio.Lock] = {}
+        self._client_operations: dict[ClientId, int] = {}
         self._presentations: dict[ClientId, PresentationQueue] = {}
         self._books: dict[SubscriptionKey, Book] = {}
         self._raw_sinks: list[Callable[[RawFrame], None]] = []
@@ -175,6 +185,50 @@ class SubscriptionRegistry:
         self._closed = False
         self._close_task: asyncio.Task | None = None
         self.max_clients = max_clients
+
+    @property
+    def session_id(self) -> SessionId:
+        return self.boundary.session_id
+
+    @property
+    def clock_id(self) -> str:
+        return self.boundary.clock_id
+
+    @property
+    def recording_config(self) -> tuple[tuple[str, str], ...]:
+        """Session-wide reconstruction and capture settings for Recorder."""
+        return (
+            ("dedup_capacity", str(self.config.dedup_capacity)),
+            ("poll_interval", str(self.config.poll_interval)),
+            ("stop_drain_timeout", str(self.config.stop_drain_timeout)),
+        )
+
+    def describe(self, lease: SubscriptionLease) -> "StreamSpec":
+        """Describe a current lease, including its canonical reconstruction key."""
+        self._check_loop()
+        if self._leases.get(lease.lease_id) != lease:
+            raise ValueError("lease is not current")
+        return self._describe_supervisor(self._entries[lease.key].supervisor)
+
+    @staticmethod
+    def _describe_supervisor(supervisor: FeedSupervisor) -> "StreamSpec":
+        from .recording import StreamSpec
+
+        config = []
+        if supervisor.key.venue == "hyperliquid":
+            from .adapters.hyperliquid import HyperliquidAdapter
+
+            if not isinstance(supervisor.adapter, HyperliquidAdapter):
+                raise ValueError("Hyperliquid descriptor requires the built-in adapter")
+            config.append(("dex", supervisor.adapter.dex))
+        return StreamSpec(
+            supervisor.stream_id,
+            supervisor.instrument,
+            supervisor.key,
+            supervisor.reducer.adapter_revision,
+            supervisor.reducer.config_hash,
+            tuple(sorted(config)),
+        )
 
     def _check_loop(self) -> None:
         loop = asyncio.get_running_loop()
@@ -204,6 +258,35 @@ class SubscriptionRegistry:
                 raise ValueError("client capacity exceeded")
             self._client_locks[client_id] = asyncio.Lock()
         return self._client_locks[client_id]
+
+    def _retire_client(self, client_id: ClientId) -> None:
+        if (
+            self._client_operations.get(client_id, 0)
+            or client_id in self._presentations
+            or any(lease.client_id == client_id for lease in self._leases.values())
+        ):
+            return
+        self._client_locks.pop(client_id, None)
+        self._generations.pop(client_id, None)
+        self._client_operations.pop(client_id, None)
+
+    @asynccontextmanager
+    async def _client_operation(self, client_id: ClientId, *, existing=False):
+        self._check_loop()
+        lock = (
+            self._client_locks[client_id] if existing else self._client_lock(client_id)
+        )
+        # Count before waiting: releasing the holder must never replace a lock
+        # while another operation is queued on that same lock.
+        self._client_operations[client_id] = (
+            self._client_operations.get(client_id, 0) + 1
+        )
+        try:
+            async with lock:
+                yield
+        finally:
+            self._client_operations[client_id] -= 1
+            self._retire_client(client_id)
 
     def subscribe_raw(self, callback: Callable[[RawFrame], None]) -> Callable[[], None]:
         self._raw_sinks.append(callback)
@@ -259,17 +342,42 @@ class SubscriptionRegistry:
             if queue is not None:
                 queue.put(book)
 
+    def _invalidate_presentation(self, entry: _Entry, reason: str) -> None:
+        book = self._books.get(entry.supervisor.key)
+        if book is not None:
+            self._book(
+                replace(
+                    book,
+                    quality=replace(
+                        book.quality,
+                        integrity="invalid",
+                        lifecycle="resynchronizing",
+                        continuous_since_ordinal=None,
+                        transport_alive=False,
+                        reason_codes=(reason,),
+                    ),
+                )
+            )
+
     def presentation_queue(
         self, client_id: ClientId, *, capacity: int = 16
     ) -> PresentationQueue:
         client_id = ClientId(client_id)
         self._client_lock(client_id)
-        if client_id not in self._presentations:
-            self._presentations[client_id] = PresentationQueue(capacity)
-        return self._presentations[client_id]
+        try:
+            if client_id not in self._presentations:
+                self._presentations[client_id] = PresentationQueue(capacity)
+            return self._presentations[client_id]
+        finally:
+            self._retire_client(client_id)
 
     async def _acquire(
-        self, client_id: ClientId, key: SubscriptionKey, generation: int
+        self,
+        client_id: ClientId,
+        key: SubscriptionKey,
+        generation: int,
+        *,
+        before_start: Callable[[FeedSupervisor], None] | None = None,
     ) -> SubscriptionLease:
         while True:
             async with self._lock:
@@ -299,6 +407,8 @@ class SubscriptionRegistry:
                             config=self.config,
                             trade_dedup=self._trade_dedup,
                         )
+                        if before_start is not None:
+                            before_start(supervisor)
                         entry = _Entry(
                             supervisor,
                             asyncio.create_task(
@@ -306,6 +416,23 @@ class SubscriptionRegistry:
                             ),
                         )
                         self._entries[key] = entry
+                    elif before_start is not None:
+                        # Joining under the lifecycle fence prevents competing
+                        # release/acquire operations from replacing this owner.
+                        # Sinks for the new capture remain disabled until joined.
+                        self._invalidate_presentation(entry, "recorder_attach")
+                        entry.supervisor.request_stop()
+                        entry.task.cancel()
+                        try:
+                            await _join_cleanup(
+                                asyncio.gather(entry.task, return_exceptions=True)
+                            )
+                            before_start(entry.supervisor)
+                        finally:
+                            entry.task = asyncio.create_task(
+                                entry.supervisor.run(),
+                                name=f"feed:{entry.supervisor.stream_id}",
+                            )
                     lease = SubscriptionLease(
                         LeaseId(str(uuid4())),
                         client_id,
@@ -323,12 +450,13 @@ class SubscriptionRegistry:
     ) -> SubscriptionLease:
         key = self.catalog.canonical_key(key)
         client_id = ClientId(client_id)
-        async with self._client_lock(client_id):
+        async with self._client_operation(client_id):
             return await self._acquire(
                 client_id, key, self._generations.get(client_id, 0)
             )
 
     async def _finish_entry(self, key: SubscriptionKey, entry: _Entry) -> None:
+        entry.supervisor.request_stop()
         entry.task.cancel()
         await asyncio.gather(entry.task, return_exceptions=True)
         async with self._lock:
@@ -357,8 +485,7 @@ class SubscriptionRegistry:
         lease = self._leases.get(lease_id)
         if lease is None:
             return
-        lock = self._client_locks[lease.client_id]
-        async with lock:
+        async with self._client_operation(lease.client_id, existing=True):
             await self._release(lease_id)
 
     async def replace(
@@ -368,7 +495,7 @@ class SubscriptionRegistry:
         if type(generation) is not int or generation < 0:
             raise ValueError("invalid generation")
         keys = frozenset(self.catalog.canonical_key(key) for key in keys)
-        async with self._client_lock(client_id):
+        async with self._client_operation(client_id):
             previous = tuple(
                 lease for lease in self._leases.values() if lease.client_id == client_id
             )
@@ -423,10 +550,9 @@ class SubscriptionRegistry:
     async def release_client(self, client_id: ClientId) -> None:
         client_id = ClientId(client_id)
         self._check_loop()
-        lock = self._client_locks.get(client_id)
-        if lock is None:
+        if client_id not in self._client_locks:
             return
-        async with lock:
+        async with self._client_operation(client_id, existing=True):
             self._generations[client_id] = self._generations.get(client_id, 0) + 1
             lease_ids = tuple(
                 lease.lease_id
@@ -470,6 +596,8 @@ class SubscriptionRegistry:
         for queue in self._presentations.values():
             queue.close()
         self._presentations.clear()
+        for client_id in tuple(self._client_locks):
+            self._retire_client(client_id)
         if self._lock_file is not None:
             fcntl.flock(self._lock_file.fileno(), fcntl.LOCK_UN)
             self._lock_file.close()
@@ -486,6 +614,154 @@ class SubscriptionRegistry:
 
     async def __aexit__(self, exc_type, exc, tb):
         await self.close()
+
+
+class RecorderBinding:
+    """Durable, headless capture of an explicit set of registry streams.
+
+    Existing owners reconnect at attach and detach. Joining the old run makes
+    both boundaries serial: an attachment never inherits an unrecorded book or
+    bootstrap buffer, and stopping does not abandon pending raw input silently.
+    Recorder's worker, not this callback path, builds projection checkpoints.
+    """
+
+    def __init__(
+        self, registry: SubscriptionRegistry, recorder: "Recorder", client_id: ClientId
+    ):
+        self.registry = registry
+        self.recorder = recorder
+        self.client_id = client_id
+        self.leases: tuple[SubscriptionLease, ...] = ()
+        self._streams: set[StreamId] = set()
+        self._unsubscribe: tuple[Callable[[], None], ...] = ()
+        self._stop_task: asyncio.Task | None = None
+
+    @classmethod
+    async def start(
+        cls,
+        registry: SubscriptionRegistry,
+        recorder: "Recorder",
+        keys: Iterable[SubscriptionKey],
+        client_id: ClientId | None = None,
+    ) -> "RecorderBinding":
+        """Register metadata before delivery and retain independent owner leases.
+
+        A caller-supplied client ID must be unused and dedicated to this binding.
+        The recorder must have been initialized with registry's session/clock.
+        Failed partial attachment is joined and finalized as incomplete.
+        """
+        registry._check_loop()
+        if (
+            recorder.session_id != registry.session_id
+            or recorder.clock_id != registry.clock_id
+        ):
+            raise ValueError("recorder session/clock does not match registry")
+        config = dict(recorder.config)
+        if (
+            int(config.get("dedup_capacity", "50000")) != registry.config.dedup_capacity
+            or float(config.get("poll_interval", "2")) != registry.config.poll_interval
+        ):
+            raise ValueError("recorder reconstruction config does not match registry")
+        keys = frozenset(registry.catalog.canonical_key(key) for key in keys)
+        if not keys:
+            raise ValueError("recording requires at least one stream")
+        binding = cls(registry, recorder, ClientId(client_id or f"recorder:{uuid4()}"))
+        try:
+            async with registry._client_operation(binding.client_id):
+                if binding.client_id in registry._presentations or any(
+                    lease.client_id == binding.client_id
+                    for lease in registry._leases.values()
+                ):
+                    raise ValueError("recorder client ID is already in use")
+                binding._unsubscribe = (
+                    registry.subscribe_raw(binding._raw),
+                    registry.subscribe_events(binding._events),
+                )
+                for key in sorted(keys, key=repr):
+                    lease = await registry._acquire(
+                        binding.client_id,
+                        key,
+                        0,
+                        before_start=binding._register,
+                    )
+                    binding.leases += (lease,)
+        except BaseException:
+            recorder.mark_incomplete("recorder_attach_failed")
+            await binding.stop()
+            raise
+        return binding
+
+    def _register(self, supervisor: FeedSupervisor) -> None:
+        self.recorder.register_stream(self.registry._describe_supervisor(supervisor))
+        self._streams.add(supervisor.stream_id)
+
+    def _raw(self, frame: RawFrame) -> None:
+        if frame.stream_id in self._streams:
+            self.recorder.append_raw(frame)
+
+    def _events(self, events: tuple[EventEnvelope, ...]) -> None:
+        selected = tuple(event for event in events if event.stream_id in self._streams)
+        if selected:
+            self.recorder.append_events(selected)
+
+    async def _detach(self) -> None:
+        registry = self.registry
+        while True:
+            async with registry._lock:
+                entries = [
+                    (key, entry)
+                    for key, entry in registry._entries.items()
+                    if entry.supervisor.stream_id in self._streams
+                ]
+                closing = [entry.closing for _, entry in entries if entry.closing]
+                if not closing:
+                    for _, entry in entries:
+                        registry._invalidate_presentation(entry, "recorder_stop")
+                        entry.supervisor.request_stop()
+                        entry.task.cancel()
+                    await asyncio.gather(
+                        *(entry.task for _, entry in entries), return_exceptions=True
+                    )
+                    for _, entry in entries:
+                        if not entry.supervisor.capture_complete:
+                            self.recorder.mark_incomplete("feed_capture_incomplete")
+                    for unsubscribe in self._unsubscribe:
+                        unsubscribe()
+                    self._unsubscribe = ()
+                    self._streams.clear()
+                    for lease in self.leases:
+                        registry._leases.pop(lease.lease_id, None)
+                        leased_entry = registry._entries.get(lease.key)
+                        if leased_entry is not None:
+                            leased_entry.leases.discard(lease.lease_id)
+                    for key, entry in entries:
+                        if entry.leases:
+                            entry.task = asyncio.create_task(
+                                entry.supervisor.run(),
+                                name=f"feed:{entry.supervisor.stream_id}",
+                            )
+                        else:
+                            del registry._entries[key]
+                            registry._books.pop(key, None)
+                    return
+            await asyncio.gather(*closing, return_exceptions=True)
+
+    async def _stop(self) -> "SessionManifest":
+        registry = self.registry
+        if self.client_id in registry._client_locks:
+            async with registry._client_operation(self.client_id, existing=True):
+                await self._detach()
+        else:
+            await self._detach()
+        return await self.recorder.finalize()
+
+    async def stop(self) -> "SessionManifest":
+        """Join capture, release leases, and finalize once, even if cancelled."""
+        self.registry._check_loop()
+        if self._stop_task is None:
+            self._stop_task = asyncio.create_task(self._stop())
+        await _join_cleanup(self._stop_task)
+        return self._stop_task.result()
 
 
 # FeedHub is the public headless facade, not a second collector implementation.

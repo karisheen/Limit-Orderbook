@@ -1,0 +1,61 @@
+{
+  "baseline_schema1_profiled": {
+    "duration_seconds": 180,
+    "batches": 4410,
+    "streams": 24,
+    "generation_seconds": 28.985694172995863,
+    "reader_verify_seconds": 34.805617039004574,
+    "iterate_seconds": 12.897790396003984,
+    "profiling": "cProfile active; timings include profiler overhead",
+    "files": {
+      "checkpoint": 1452,
+      "normalized": 840,
+      "raw": 1,
+      "catalog": 1
+    },
+    "bytes": {
+      "raw": 2204109,
+      "normalized": 41979989,
+      "checkpoint": 14519617,
+      "catalog": 2744320
+    },
+    "sealed_bytes": 61448035
+  },
+  "final_schema2_unprofiled": {
+    "generation_seconds": 7.247630483005196,
+    "reader_verify_seconds": 7.3583983999997145,
+    "iterate_seconds": 0.5755426560062915,
+    "batches": 4410,
+    "complete": true,
+    "bytes": {
+      "raw": 2204109,
+      "catalog": 1994752,
+      "checkpoint": 1794128,
+      "checkpoint_aux": 447603,
+      "normalized": 774577
+    },
+    "files": {
+      "checkpoint_aux": 84,
+      "checkpoint": 84,
+      "normalized": 48,
+      "raw": 1,
+      "catalog": 1
+    },
+    "cache_bytes": {
+      "_raw_cache": 6004533,
+      "_group_cache": 14210436,
+      "_aux_cache": 6093149,
+      "_batch_cache": 13892711,
+      "_checkpoint_cache": 10129326
+    },
+    "duration_seconds": 180,
+    "streams": 24,
+    "profiling": "No profiler; generation excludes separately timed reader verification; measured before DemoCapture reader-ownership cutover",
+    "sealed_bytes": 7215169
+  },
+  "isolated_reader_cprofile_seconds": {
+    "before": 33.887367284987704,
+    "after": 16.797116861998802
+  },
+  "scope": "Profiling workloads only; no test, lint, type, build or format gates executed by storage owner. Same 180-second synthetic source, 4410 batches, 24 streams; no shortened dataset. Separate wall and cProfile timings are not directly comparable."
+}

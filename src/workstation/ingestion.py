@@ -98,6 +98,7 @@ class SupervisorConfig:
     ws_failures_before_rest: int = 2
     dedup_capacity: int = 50_000
     session_lifetime: float = 23 * 60 * 60
+    stop_drain_timeout: float = 5
 
     def __post_init__(self):
         for name, value in vars(self).items():
@@ -202,6 +203,83 @@ def make_snapshot_reducer(
     return reducer
 
 
+def decode_frame(
+    adapter: Adapter,
+    instrument: Instrument,
+    key: SubscriptionKey,
+    frame: RawFrame,
+    segment_id: SegmentId,
+    source_mode: SourceMode,
+) -> tuple[EventEnvelope, ...]:
+    """The pure decode boundary shared by live ingestion and raw replay."""
+    decoded = (
+        DecodeResult(controls=(Control("heartbeat", "ws_pong"),))
+        if frame.transport == "local" and frame.endpoint_id == "ws_pong"
+        else adapter.decode(frame, instrument, key)
+    )
+    if decoded.error:
+        raise FeedFault(f"decode:{decoded.error.code}")
+    return wrap_decoded(frame, instrument, key, decoded, segment_id, source_mode)
+
+
+def normalize_events(
+    events: tuple[EventEnvelope, ...],
+    accepted_events: tuple[EventEnvelope, ...],
+    dedup: OrderedDict[tuple[str, str, str, str], None],
+    dedup_capacity: int,
+    *,
+    recorded_events: tuple[EventEnvelope, ...] | None = None,
+) -> tuple[EventEnvelope, ...]:
+    """Overlay checked evidence without losing rejected/staged source inputs."""
+    normalized = []
+    accepted = iter(accepted_events)
+    accepted_event = next(accepted, None)
+    if recorded_events is not None and len(recorded_events) != len(events):
+        raise ValueError("recorded transaction length differs from source")
+    for index, event in enumerate(events):
+        if accepted_event is not None and accepted_event.order_key == event.order_key:
+            event = accepted_event
+            accepted_event = next(accepted, None)
+        payload = event.payload
+        if isinstance(payload, Trade):
+            identity = (
+                event.key.venue,
+                event.key.api_family,
+                str(event.key.instrument_id),
+                payload.dedup_key,
+            )
+            recorded = None if recorded_events is None else recorded_events[index]
+            duplicate = identity in dedup
+            if recorded is not None:
+                # Scoped captures cannot infer evictions caused by unrecorded
+                # streams. Actual delivered exclusion annotations are evidence.
+                recorded_payload = recorded.payload
+                if (
+                    isinstance(recorded_payload, Control)
+                    and recorded_payload.reason_code == "duplicate_trade"
+                ):
+                    duplicate = True
+                    if recorded_payload.detail != payload.dedup_key[:4096]:
+                        raise ValueError(
+                            "recorded duplicate identity differs from source"
+                        )
+                else:
+                    duplicate = False
+            if duplicate:
+                event = replace(
+                    event,
+                    payload=Control("ack", "duplicate_trade", payload.dedup_key[:4096]),
+                )
+            else:
+                if recorded_events is not None:
+                    dedup.pop(identity, None)
+                dedup[identity] = None
+                if len(dedup) > dedup_capacity:
+                    dedup.popitem(last=False)
+        normalized.append(event)
+    return tuple(normalized)
+
+
 class FeedSupervisor:
     def __init__(
         self,
@@ -258,6 +336,95 @@ class FeedSupervisor:
         self._valid = False
         self.reconnects = 0
         self._running = False
+        self._stop_requested = False
+        self._stop_deadline = 0.0
+        self._stop_finish_reason: str | None = None
+        self.shutdown_slow = False
+        self._producer_tasks: list[asyncio.Task] = []
+
+    def request_stop(self) -> None:
+        """Quiesce source intake before the owner is cancelled and joined.
+
+        Already captured input remains required. The owner completes its active
+        normalization and drains that bounded queue before publishing its boundary.
+        """
+        if not self._running or self._stop_requested:
+            return
+        self._stop_requested = True
+        self._stop_deadline = time.monotonic() + self.config.stop_drain_timeout
+        self._stop_finish_reason = None
+        self.shutdown_slow = False
+        for task in self._producer_tasks:
+            task.cancel()
+
+    async def _drain_queued(self) -> None:
+        while not self.queue.empty():
+            if self._fault.is_set():
+                raise FeedFault(self._fault_reason)
+            frame = self.queue.get_nowait()
+            self.queued_bytes -= len(frame.payload)
+            await self._process(frame)
+
+    async def _finish_required_input(self) -> str:
+        """Finish capture while transport is open, before its close handshake."""
+        if self._stop_finish_reason is not None:
+            return self._stop_finish_reason
+        reason = "owner_stopped"
+        try:
+            if self._stop_requested and not self._fault.is_set():
+                remaining = self._stop_deadline - time.monotonic()
+                if self._pending_ordinal is not None:
+                    reason = "shutdown_pending_loss"
+                    self.capture_complete = False
+                elif not self.queue.empty():
+                    if remaining <= 0:
+                        reason = "shutdown_drain_timeout"
+                        self.capture_complete = False
+                    else:
+                        try:
+                            await asyncio.wait_for(self._drain_queued(), remaining)
+                        except TimeoutError:
+                            if (
+                                self._pending_ordinal is not None
+                                or not self.queue.empty()
+                            ):
+                                reason = "shutdown_drain_timeout"
+                                self.capture_complete = False
+                        except asyncio.CancelledError:
+                            if (
+                                self._pending_ordinal is not None
+                                or not self.queue.empty()
+                            ):
+                                reason = "shutdown_drain_cancelled"
+                                self.capture_complete = False
+                            raise
+                        except Exception as exc:
+                            reason = _failure_reason(exc)
+                            self.diagnostic_detail = _failure_detail(exc)
+                            self.capture_complete = False
+            elif self._fault.is_set():
+                reason = self._fault_reason
+        finally:
+            self._stop_finish_reason = reason
+        return reason
+
+    async def _shutdown(self) -> None:
+        """Publish one final boundary after required input and transport join."""
+        reason = self._stop_finish_reason or "owner_stopped"
+        try:
+            reason = await self._finish_required_input()
+        finally:
+            self.shutdown_slow = (
+                self._stop_requested and time.monotonic() >= self._stop_deadline
+            )
+            self._gap(self._stop_finish_reason or reason)
+            self.lifecycle = "disconnected"
+            self._running = False
+            if self.shutdown_slow and self.capture_complete:
+                self._diagnostic("shutdown_slow")
+            self._stop_requested = False
+            self._stop_deadline = 0.0
+            self._stop_finish_reason = None
 
     def _diagnostic(self, reason: str) -> None:
         self.reason = reason
@@ -322,6 +489,8 @@ class FeedSupervisor:
         if self._pending_ordinal is not None:
             self._record_loss(self._pending_ordinal)
             self._pending_ordinal = None
+        if self._first_missing_ordinal is not None:
+            self.capture_complete = False
         event = self._local(
             Gap(
                 reason,
@@ -380,7 +549,11 @@ class FeedSupervisor:
         self._emit_events(
             (
                 self._local(
-                    Control("source_change", "rest_fallback" if rest else "ws_connect")
+                    Control(
+                        "source_change",
+                        "rest_fallback" if rest else "ws_connect",
+                        "capture_incomplete" if not self.capture_complete else "",
+                    )
                 ),
             )
         )
@@ -388,7 +561,7 @@ class FeedSupervisor:
     def _receive(
         self, payload: bytes, transport: str, endpoint: str, epoch: int
     ) -> None:
-        if epoch != self.epoch:
+        if epoch != self.epoch or self._stop_requested:
             return
         frame = self.boundary.frame(
             self.stream_id, self.connection_id, epoch, transport, endpoint, payload
@@ -490,18 +663,14 @@ class FeedSupervisor:
                 return
 
     def _decode_reduce(self, frame: RawFrame):
-        decoded = (
-            DecodeResult(controls=(Control("heartbeat", "ws_pong"),))
-            if frame.transport == "local" and frame.endpoint_id == "ws_pong"
-            else self.adapter.decode(frame, self.instrument, self.key)
+        events = decode_frame(
+            self.adapter,
+            self.instrument,
+            self.key,
+            frame,
+            self.segment_id,
+            self.source_mode,
         )
-        if decoded.error:
-            raise FeedFault(f"decode:{decoded.error.code}")
-        events = wrap_decoded(
-            frame, self.instrument, self.key, decoded, self.segment_id, self.source_mode
-        )
-        # Keep sequence-bearing controls and duplicate prints in the reducer's
-        # transaction. Dedup applies only at the normalized downstream boundary.
         return events, self.reducer.apply(events)
 
     async def _process(self, frame: RawFrame) -> None:
@@ -510,56 +679,41 @@ class FeedSupervisor:
             return
         self._pending_ordinal = frame.ingest_ordinal
         work = asyncio.create_task(asyncio.to_thread(self._decode_reduce, frame))
+        interrupted = False
         try:
             events, reduction = await asyncio.shield(work)
         except asyncio.CancelledError:
-            await asyncio.gather(work, return_exceptions=True)
-            raise
+            # Thread work cannot be forcibly stopped. Even repeated cancellation
+            # must join it before releasing reducer ownership to another epoch.
+            while not work.done():
+                try:
+                    await asyncio.shield(work)
+                except asyncio.CancelledError:
+                    continue
+                except Exception:
+                    break
+            if not self._stop_requested or self._fault.is_set():
+                # Retrieve any decoder exception even when the output is lost.
+                if not work.cancelled():
+                    work.exception()
+                raise
+            events, reduction = work.result()
+            interrupted = True
         if self._fault.is_set():
             raise FeedFault(self._fault_reason)
-        normalized = []
-        accepted = iter(reduction.events)
-        accepted_event = next(accepted, None)
-        for event in events:
-            # Reducer output annotates accepted events (for example checked CRCs).
-            # Overlay it in source order without dropping staged, ignored or rejected
-            # source events needed to replay the complete transaction and its gap.
-            if (
-                accepted_event is not None
-                and accepted_event.order_key == event.order_key
-            ):
-                event = accepted_event
-                accepted_event = next(accepted, None)
+        normalized = normalize_events(
+            events, reduction.events, self._dedup, self.config.dedup_capacity
+        )
+        for event in normalized:
             payload = event.payload
             if isinstance(payload, Control):
                 if payload.kind == "rejection":
                     raise FeedFault(f"subscription_rejected:{payload.reason_code}")
-                if payload.kind == "ack":
+                if payload.kind == "ack" and payload.reason_code != "duplicate_trade":
                     self._acked = True
-            elif isinstance(payload, Trade):
-                dedup_key = (
-                    self.key.venue,
-                    self.key.api_family,
-                    str(self.key.instrument_id),
-                    payload.dedup_key,
-                )
-                if dedup_key in self._dedup:
+                if payload.reason_code == "duplicate_trade":
                     self.duplicate_trades += 1
-                    # Preserve receive provenance and explain normalized exclusion.
-                    normalized.append(
-                        replace(
-                            event,
-                            payload=Control(
-                                "ack", "duplicate_trade", payload.dedup_key[:4096]
-                            ),
-                        )
-                    )
-                    continue
-                self._dedup[dedup_key] = None
-                if len(self._dedup) > self.config.dedup_capacity:
-                    self._dedup.popitem(last=False)
-            normalized.append(event)
-        self._emit_events(tuple(normalized))
+        self._emit_events(normalized)
         self._pending_ordinal = None
         self._publish(reduction.book)
         if reduction.recovery:
@@ -592,6 +746,8 @@ class FeedSupervisor:
             self.lifecycle = (
                 "degraded" if self.source_mode == "rest_snapshot" else "live"
             )
+        if interrupted:
+            raise asyncio.CancelledError
 
     async def _consume(self, started: float, *, require_ack: bool) -> None:
         while True:
@@ -636,7 +792,8 @@ class FeedSupervisor:
         except ValueError as exc:
             raise FeedFault("invalid_ws_endpoint") from exc
         self._start_epoch(False)
-        tasks = []
+        tasks: list[asyncio.Task] = []
+        self._producer_tasks = tasks
         try:
             async with self.ws_connect(
                 endpoint,
@@ -647,30 +804,47 @@ class FeedSupervisor:
                 ping_timeout=self.config.silence_timeout,
                 close_timeout=5,
             ) as ws:
-                # Preserve the adapter's exact endpoint and wire body; decode validates
-                # combined-stream identity rather than accepting transport-normalized JSON.
-                tasks.append(
-                    asyncio.create_task(self._reader(ws, endpoint, self.epoch))
-                )
-                requests = self.adapter.subscription_requests(self.instrument, self.key)
-                for request in requests:
-                    if request.method != "WS" or request.endpoint_id != endpoint:
-                        raise FeedFault("invalid_subscription_transport")
-                    if request.body is not None:
-                        await ws.send(request.body.decode("utf-8"))
-                tasks.append(asyncio.create_task(self._heartbeat(ws)))
-                if self.key.venue == "binance-global" and self.key.channel == "book":
-                    snapshot = self.adapter.snapshot_request(self.instrument, self.key)
-                    if snapshot is None:
-                        raise FeedFault("bootstrap_snapshot_unavailable")
+                try:
+                    # Preserve the adapter's exact endpoint and wire body.
                     tasks.append(
-                        asyncio.create_task(self._snapshot(snapshot, self.epoch))
+                        asyncio.create_task(self._reader(ws, endpoint, self.epoch))
                     )
-                await self._consume(time.monotonic(), require_ack=bool(requests))
+                    requests = self.adapter.subscription_requests(
+                        self.instrument, self.key
+                    )
+                    for request in requests:
+                        if request.method != "WS" or request.endpoint_id != endpoint:
+                            raise FeedFault("invalid_subscription_transport")
+                        if request.body is not None:
+                            await ws.send(request.body.decode("utf-8"))
+                    tasks.append(asyncio.create_task(self._heartbeat(ws)))
+                    if (
+                        self.key.venue == "binance-global"
+                        and self.key.channel == "book"
+                    ):
+                        snapshot = self.adapter.snapshot_request(
+                            self.instrument, self.key
+                        )
+                        if snapshot is None:
+                            raise FeedFault("bootstrap_snapshot_unavailable")
+                        tasks.append(
+                            asyncio.create_task(self._snapshot(snapshot, self.epoch))
+                        )
+                    await self._consume(time.monotonic(), require_ack=bool(requests))
+                finally:
+                    # Context exit may spend its entire close timeout waiting for
+                    # the peer. Required capture work must finish BEFORE that
+                    # handshake, not consume its budget waiting on socket close.
+                    for task in tasks:
+                        task.cancel()
+                    await asyncio.gather(*tasks, return_exceptions=True)
+                    self._producer_tasks = []
+                    if self._stop_requested:
+                        await self._finish_required_input()
         finally:
-            for task in tasks:
-                task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)
+            # No producers exist when context entry fails. Otherwise the inner
+            # finally already joined them before __aexit__ can await a close.
+            self._producer_tasks = []
 
     async def _rest_session(self) -> None:
         request = self.adapter.snapshot_request(self.instrument, self.key)
@@ -722,7 +896,7 @@ class FeedSupervisor:
         self._running = True
         failures = 0
         try:
-            while True:
+            while not self._stop_requested:
                 try:
                     ws_supported = (
                         self.adapter.ws_endpoint(self.instrument, self.key) is not None
@@ -753,6 +927,8 @@ class FeedSupervisor:
                             delay = max(delay, self.config.circuit_cooldown)
                         self._ws_retry_until = time.monotonic() + delay
                     self._gap(reason)
+                    if self._stop_requested:
+                        break
                     self.reconnects += 1
                     if reason.endswith(":blocked") or reason == "blocked":
                         self.lifecycle = "blocked"
@@ -803,6 +979,4 @@ class FeedSupervisor:
                             )
                         )
         finally:
-            self._gap("owner_stopped")
-            self.lifecycle = "disconnected"
-            self._running = False
+            await self._shutdown()
