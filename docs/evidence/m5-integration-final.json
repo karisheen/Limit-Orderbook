@@ -1,0 +1,73 @@
+{
+  "scope": "Final native union after causal activation fix and recorder Arrow preparation/headroom correction. Offline suites are not sustained live-feed certification.",
+  "native_command": ".venv-upgrade/bin/python -m ruff format tests/test_workstation_paper.py && bash tools/check.sh -q --tb=short",
+  "native_result": {
+    "python_passed": 1162,
+    "python_seconds": 311.48,
+    "total_seconds": 338.2,
+    "warnings": [
+      "Existing Starlette/httpx deprecation"
+    ],
+    "ruff_and_format_files": 70,
+    "mypy_source_files": 35,
+    "frontend_unit_passed": 15,
+    "node_syntax": true,
+    "frontend_lint": true,
+    "typescript": true,
+    "production_build": true
+  },
+  "browser_command": "env PATH=\"<repo>/.tools/node/bin:$PATH\" npm --prefix frontend run test:e2e",
+  "browser_backend": ".venv-upgrade/bin/python -m src.workstation.cli serve --port 8000 --state-dir data/m5-smoke/final-e2e-state",
+  "browser_result": {
+    "passed": 23,
+    "total_seconds": 128.55,
+    "full_output": "\n> limit-orderbook-terminal@0.3.0 test:e2e\n> playwright test\n\n\nRunning 23 tests using 1 worker\n\n(node:70345) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:70345) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n  \u2713   1 e2e/lifecycle.spec.ts:7:1 \u203a a silent open socket loses current status and recovers with a new session (16.2s)\n  \u2713   2 e2e/lifecycle.spec.ts:29:1 \u203a setup retries survive repeated HTTP failure without a manual reconnect (8.5s)\n  \u2713   3 e2e/lifecycle.spec.ts:41:1 \u203a a replaced session does not inherit an obsolete mutation lock (2.0s)\n  \u2713   4 e2e/lifecycle.spec.ts:72:1 \u203a catalog readiness refreshes without replacing the active session (4.1s)\n  \u2713   5 e2e/lifecycle.spec.ts:94:1 \u203a receive-to-paint ACK includes frame decode time (1.4s)\n  \u2713   6 e2e/terminal.spec.ts:6:1 \u203a exact selection, costs, replay and visible API errors (3.1s)\n  \u2713   7 e2e/terminal.spec.ts:41:1 \u203a documents own independent sessions and closing releases one owner (2.2s)\n  \u2713   8 e2e/terminal.spec.ts:67:1 \u203a laptop workspace retains controls and reconnect replaces a session (2.1s)\n  \u2713   9 e2e/workflow.spec.ts:140:1 \u203a native alert support, explicit spot IOC and linked journal survive rewind and persisted-run resume (8.6s)\n  \u2713  10 e2e/workflow.spec.ts:302:1 \u203a failed and pane-aborted resume never claim success or retry; explicit retry confirms native generation (7.1s)\n  \u2713  11 e2e/workspace.spec.ts:80:1 \u203a exact instrument selection, grouped cumulative depth and pinned time range use server evidence (11.9s)\n  \u2713  12 e2e/workspace.spec.ts:172:1 \u203a linked DOM price outside the chart viewport never selects a different price row (3.5s)\n  \u2713  13 e2e/workspace.spec.ts:190:1 \u203a view pause holds chart and DOM evidence while replay continues independently (6.3s)\n  \u2713  14 e2e/workspace.spec.ts:227:1 \u203a DOM-only freeze keeps exact cumulative snapshot while chart receives advancing replay evidence (3.6s)\n  \u2713  15 e2e/workspace.spec.ts:255:1 \u203a chart mode, selection and resized layout survive reload but session identity does not (5.0s)\n  \u2713  16 e2e/workspace.spec.ts:297:3 \u203a streaming updates do not move workspace panes at 1440px (5.5s)\n  \u2713  17 e2e/workspace.spec.ts:297:3 \u203a streaming updates do not move workspace panes at 1280px (5.4s)\n  \u2713  18 e2e/workspace.spec.ts:336:1 \u203a proposal risk preserves exact inputs and actual results, unknown fees and HTTP errors; cost comparison remains usable (5.8s)\n  \u2713  19 e2e/workspace.spec.ts:417:1 \u203a corrupt and out-of-bound saved preferences recover without resurrecting session ownership (1.6s)\n  \u2713  20 e2e/workspace.spec.ts:443:1 \u203a malformed JSON preferences are replaced by a usable default workspace (1.3s)\n  \u2713  21 e2e/workspace.spec.ts:457:1 \u203a workspace keyboard shortcuts ignore editable fields and act outside them (4.1s)\n  \u2713  22 e2e/workspace.spec.ts:491:1 \u203a narrow workspace exposes real chart, DOM, research and watchlist without document overflow (3.5s)\n  \u2713  23 e2e/workspace.spec.ts:521:1 \u203a hidden documents and collapsed DOM panes stop queries without pausing replay (8.2s)\n\n  23 passed (2.1m)\n"
+  },
+  "native_source_sha256": {
+    "src/workstation/__init__.py": "d32a38cc280c6e747e68e7e64e27ebbe9aef3e3ac4e19fca2e7d8f7fb54f9ac8",
+    "src/workstation/adapter_catalog.py": "82d22123e418ebbb5f56da499805b4fef7671bcf29039124355431855519dba2",
+    "src/workstation/adapters/__init__.py": "ebfb09d028b47872e3ede6cdaea00ff7903029c37ed000f5308741abc23665e8",
+    "src/workstation/adapters/base.py": "078cc7da780e21c11b065a62436986b48664ae244c4a38326a5e9f3ad4e12d45",
+    "src/workstation/adapters/binance.py": "ce02eb26c3ab8b4cebe975240201f9d1fc7403391cffdaab947cc3758d8853ca",
+    "src/workstation/adapters/bybit.py": "3d27a2d2a93ba0dc721aa57b26acf6e02c31507dbb1110a1aeafdf03610cc659",
+    "src/workstation/adapters/coinbase.py": "d09d51a3c7d64a694188d7534e674df1be3ed5939aeb4e0cbeccb39119f2a2f8",
+    "src/workstation/adapters/hyperliquid.py": "e7351320889e13b04d5d54b63b6bf9cc9fed863ad4622e40d08f796e0bf0e056",
+    "src/workstation/adapters/kraken.py": "b5c6723630bbc9612d743d5c8b9f57ba2d7372c447d3b30e300c63641232743f",
+    "src/workstation/adapters/kucoin.py": "d59cd9c8319ec883aef211c851eb0db438b0d657032b1c8a7103f4428cb8bddd",
+    "src/workstation/alerts.py": "767563e72965df28f6316c101b353ab631f9f9640b2386ad0ed5bdb4c00e4de8",
+    "src/workstation/analytics.py": "787a6fe18d59beee561ba389df43eef41cf53a0d1ba2207e199cd176fa0c6be8",
+    "src/workstation/api.py": "da1648f4bcd8770fc0731b7424d19e67102d4b54709301533306d35658e24376",
+    "src/workstation/book.py": "f908201f41719b1d7726af4a38df0a3a166660c7312d21c4e9428e63053e4a74",
+    "src/workstation/cli.py": "63bb4768a17fdb8a19720f3e7b8a97de4c5e080bc76121130137b8bbe4610550",
+    "src/workstation/context.py": "5faea9cfeecc9f7b4ee4e487a215e02bc6f171f847e08a0ae6fe7412298b5362",
+    "src/workstation/costs.py": "1b249341e6e0373e84c9f2c4077d60354950fd96a9a482e26fdcb8d69779a40a",
+    "src/workstation/demo.py": "768822c6c24ee9a3ab24101adf42bbecaa8f1932ca0cb26832769820aedaa5b5",
+    "src/workstation/demo_memory.py": "b0538d2d1dff01bd2a2e7b1b950a45693fb04127c1dbb67b42691645ea520838",
+    "src/workstation/events.py": "63edc89a304a2272e2999708a30153aef2e99dfd10b22c718933f8722a18727d",
+    "src/workstation/ingestion.py": "2660103494335448189e42552ef76a8251bd9c081260e488ac386ed82ffd79d7",
+    "src/workstation/instruments.py": "188e11494cd470414cff1ec3fd96024c528f0a6ae51289a2d2dcab77bf3a27a9",
+    "src/workstation/journal.py": "200330c20dadeda303fcb0f834ee9e53eb249bb8585e7fbef7d18505fa056a63",
+    "src/workstation/paper.py": "afa848e0178a411d971259ab238798f152b3c6646d5aac35f26fb7f200616d90",
+    "src/workstation/precision.py": "abee27115d3d86d88cb32e99627e9b7ec48bdaa13c453b5be30331463ad25edc",
+    "src/workstation/projection.py": "f36753759de852eea545932a1723b749257e74b013f01c057be447de6bb101b8",
+    "src/workstation/quality.py": "a69128aecb293557375cf1605f53f3a28085d918bbe6c107ed3f9d468ea1a314",
+    "src/workstation/recording.py": "e0fe96f61def65c84c874af38f800f3cd7f0d91b9bc37b13b1905b229fc5dc1c",
+    "src/workstation/replay.py": "7282bf11ae9019326d8d8e0f526f75b76e5030190b3c1e677628791dcb6fbf26",
+    "src/workstation/research.py": "dff01c1a8583e55d76ce3c1f7821fe80d52aa1fd60428dc3e254cfeadcff7394",
+    "src/workstation/runtime.py": "6ddba22a223012a68084fcf0c4acd63053890f0bc57746ec13e2b5cb4827ecd0",
+    "src/workstation/subscriptions.py": "2e67ef00d3e46d2795267f0c933131f1a84d75188f325e6e5d4161b91071e542",
+    "src/workstation/transport.py": "3b706b8140f456a9a7f8b54b13ed69be0d01d29b744704e65614cfe79502b530",
+    "src/workstation/visuals.py": "d67b03ac7d85b0c707824a3e1e320a70d745c72d29f66463d78d2da595084956",
+    "src/workstation/wire.py": "c9a22528789684a33b76bfc5f5369cec163fcd3a0169648194fd6cd260e3f2d7"
+  },
+  "frontend_assets": {
+    "frontend/dist/assets/index-DNEp5Wv-.css": "30253beffc9a9debccdb616cb5c13a8b247316459a62989254f33db91fcca0aa",
+    "frontend/dist/assets/index-DjcEpben.js": "617d46d5760707b1428b40bc70c18f94d642c855c016b9c9462253f80bc6cafe"
+  },
+  "regression": "Existing actual browser rewind/resume scenario and expanded deterministic native activation cases fail before the identity-cache reset and pass afterward. Earlier failures remain separately published.",
+  "limitations": [
+    "No successful corrected 30-minute sustained capture yet.",
+    "24-hour soak not run.",
+    "Research profitability and future exchange execution not established."
+  ]
+}

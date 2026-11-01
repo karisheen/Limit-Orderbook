@@ -72,22 +72,29 @@ class ReplayClock:
         frontier = self._frontiers.get(event.clock_id)
         return 0 if frontier is None else max(0, event.receive_mono_ns - frontier)
 
-    def advance(self, event: EventEnvelope) -> int:
-        delta = self.delay_ns(event)
-        if self.reading is not None and event.clock_id != self.reading.clock_id:
+    def observe_frontier(self, now: ClockReading) -> int:
+        """Advance an owner's clock without inventing a market observation."""
+        previous = self._frontiers.get(now.clock_id)
+        delta = 0 if previous is None else max(0, now.mono_ns - previous)
+        if self.reading is not None and now.clock_id != self.reading.clock_id:
             self.discontinuities += 1
         self.virtual_mono_ns += delta
-        self._frontiers[event.clock_id] = max(
-            event.receive_mono_ns, self._frontiers.get(event.clock_id, 0)
+        frontier = max(now.mono_ns, previous or 0)
+        self._frontiers[now.clock_id] = frontier
+        self.reading = ClockReading(
+            now.clock_id, frontier, now.wall_ns if frontier == now.mono_ns else None
         )
+        return delta
+
+    def advance(self, event: EventEnvelope) -> int:
         self.source_reading = ClockReading(
             event.clock_id, event.receive_mono_ns, event.receive_wall_ns
         )
-        # Cross-stream tasks can deliver an older receive observation after a
-        # newer book. Eligibility must not mislabel that already-known book as
-        # future data. No wall-time alignment is invented for this frontier.
-        self.reading = ClockReading(event.clock_id, self._frontiers[event.clock_id])
-        return delta
+        # Preserve original receive evidence even when a live command or another
+        # stream has already advanced the eligibility frontier.
+        return self.observe_frontier(
+            ClockReading(event.clock_id, event.receive_mono_ns)
+        )
 
     @property
     def state_hash(self) -> str:

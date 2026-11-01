@@ -20,7 +20,7 @@ from .events import (
     SubscriptionKey,
     Trade,
 )
-from .instruments import Instrument, InstrumentId
+from .instruments import Instrument
 from .precision import (
     DECIMAL_CONTEXT,
     DERIVED_DECIMAL_POLICY,
@@ -363,6 +363,11 @@ class _BookWindow:
         self.display: deque[DisplayEvidence] = deque()
         self.standing: dict[tuple[str, Decimal], _StandingEvidence] = {}
         self.overflow_until = self.display_overflow_until = 0
+        # Derived immutable evidence only; clock/eligibility gates remain per query.
+        self.depth_totals: dict[
+            tuple[Decimal, str], tuple[Decimal, Decimal, tuple[str, ...]]
+        ] = {}
+        self.frozen_standing: tuple[DisplayEvidence, ...] | None = None
 
 
 class _TradeWindow:
@@ -422,9 +427,15 @@ class AnalyticsEngine:
         if len({s.stream_id for s in self.streams}) != len(self.streams):
             raise ValueError("duplicate analytics stream")
         self._specs = {s.stream_id: s for s in self.streams}
-        self._instruments = {
+        self._instruments: dict[str, Instrument] = {
             s.instrument.instrument_id: s.instrument for s in self.streams
         }
+        self._trade_streams: dict[str, list[StreamId]] = {}
+        for spec in self.streams:
+            if spec.key.channel in ("trade", "trades"):
+                self._trade_streams.setdefault(
+                    spec.instrument.instrument_id, []
+                ).append(spec.stream_id)
         if any(
             self._instruments[s.instrument.instrument_id] != s.instrument
             for s in self.streams
@@ -742,6 +753,9 @@ class AnalyticsEngine:
         self, state: _BookWindow, book: Book, events: tuple[EventEnvelope, ...]
     ) -> None:
         old = state.book
+        if old is not book:
+            state.depth_totals.clear()
+        state.frozen_standing = None
         now = ClockReading(book.asof.clock_id, max(e.receive_mono_ns for e in events))
         eligible = evaluate(
             book,
@@ -856,13 +870,9 @@ class AnalyticsEngine:
     def _trade_source(
         self, instrument_id: str, now: ClockReading
     ) -> tuple[_TradeWindow | None, Eligibility]:
-        instrument = self._instruments[InstrumentId(instrument_id)]
-        candidates = [
-            state
-            for sid, state in self._trades.items()
-            if self._specs[StreamId(sid)].instrument.instrument_id == instrument_id
-        ]
-        state = candidates[0] if len(candidates) == 1 else None
+        instrument = self._instruments[instrument_id]
+        candidates = self._trade_streams.get(instrument_id, ())
+        state = self._trades[candidates[0]] if len(candidates) == 1 else None
         eligibility = evaluate_trades(
             state.evidence if state else None, instrument, now, self.config.policy
         )
@@ -908,7 +918,7 @@ class AnalyticsEngine:
     def _snapshot(
         self, instrument_id: str, now: ClockReading, key: SubscriptionKey | None
     ) -> AnalyticsSnapshot:
-        instrument = self._instruments[InstrumentId(instrument_id)]
+        instrument = self._instruments[instrument_id]
         candidates = [
             s
             for k, s in self._books.items()
@@ -1060,29 +1070,39 @@ class AnalyticsEngine:
                 reasons = list(book_reasons)
                 base = quote = ZERO
                 if book is not None and not reasons:
-                    bound = mid * (
-                        1 - band / 10000 if side == "bid" else 1 + band / 10000
-                    )
-                    levels = book.bids if side == "bid" else book.asks
-                    covered = book.quality.coverage.full_depth or (
-                        levels[-1].price <= bound
-                        if side == "bid"
-                        else levels[-1].price >= bound
-                    )
-                    if not covered:
-                        reasons.append("incomplete_depth_band")
-                    for level in levels:
-                        if (
-                            level.price >= bound
+                    assert state is not None
+                    cache_key = (band, side)
+                    cached = state.depth_totals.get(cache_key)
+                    if cached is None:
+                        bound = mid * (
+                            1 - band / 10000 if side == "bid" else 1 + band / 10000
+                        )
+                        levels = book.bids if side == "bid" else book.asks
+                        covered = book.quality.coverage.full_depth or (
+                            levels[-1].price <= bound
                             if side == "bid"
-                            else level.price <= bound
-                        ):
-                            b, q = _valuation(instrument, level.price, level.quantity)
-                            if b is None or q is None:
-                                reasons.append("unknown_contract_valuation")
-                                break
-                            base += b
-                            quote += q
+                            else levels[-1].price >= bound
+                        )
+                        if not covered:
+                            reasons.append("incomplete_depth_band")
+                        for level in levels:
+                            if (
+                                level.price >= bound
+                                if side == "bid"
+                                else level.price <= bound
+                            ):
+                                b, q = _valuation(
+                                    instrument, level.price, level.quantity
+                                )
+                                if b is None or q is None:
+                                    reasons.append("unknown_contract_valuation")
+                                    break
+                                base += b
+                                quote += q
+                        state.depth_totals[cache_key] = (base, quote, tuple(reasons))
+                    else:
+                        base, quote, cached_reasons = cached
+                        reasons.extend(cached_reasons)
                 for suffix, value, unit in (
                     ("base", base, str(instrument.base.asset_id)),
                     ("quote", quote, str(instrument.quote.asset_id)),
@@ -1278,10 +1298,12 @@ class AnalyticsEngine:
             if state
             else ()
         )
+        if state is not None and state.frozen_standing is None:
+            state.frozen_standing = tuple(d.freeze() for d in state.standing.values())
         standing = (
             tuple(
-                d.freeze()
-                for d in state.standing.values()
+                d
+                for d in state.frozen_standing or ()
                 if d.end_mono_ns <= now.mono_ns
                 and d.end_mono_ns - d.start_mono_ns >= self.config.persistence_ns
             )

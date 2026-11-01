@@ -1,0 +1,67 @@
+{
+  "recorded_at_utc": "2026-11-01T13:59:36.209569+00:00",
+  "worktree": "/tmp/limit-orderbook-m5-NBWAK4/alerts",
+  "interpreter": "/Users/dakariantoine/Developer/personal/limit-orderbook/.venv-upgrade/bin/python",
+  "method": "Bounded direct-domain Python smoke; actual Feed native events, AnalyticsEngine, AlertEngine, compare_pair. No pytest test runner, build, lint, formatter, network, or mock engine.",
+  "before": {
+    "same_id_update": {
+      "armed": true,
+      "cooldown_remaining_ns": 0,
+      "fires_after_update": 2,
+      "fires_inside_cooldown_after_rearm": 2,
+      "fires_at_original_cooldown_end": 2,
+      "rewind_reproduces": true
+    },
+    "oversized_metric": {
+      "source_reference_count": 202,
+      "retained_reference_count": 202,
+      "top_reference_count": 200,
+      "eligible": true,
+      "reasons": [],
+      "events": 0
+    }
+  },
+  "after": [
+    {
+      "same_id_update": {
+        "armed": false,
+        "cooldown_remaining_ns": 10,
+        "fires_after_update": 1,
+        "fires_inside_cooldown_after_rearm": 1,
+        "fires_at_original_cooldown_end": 2,
+        "rewind_reproduces": true
+      },
+      "oversized_metric": {
+        "source_reference_count": 202,
+        "retained_reference_count": 0,
+        "top_reference_count": 0,
+        "eligible": false,
+        "reasons": [
+          "metric_evidence_limit"
+        ],
+        "events": 0
+      }
+    },
+    {
+      "nested_trade_rejected": true,
+      "nested_display_rejected": true,
+      "deep_pair": {
+        "source_eligible": true,
+        "source_consumed_levels": 201,
+        "retained_pair": false,
+        "reasons": [
+          "pair_evidence_limit"
+        ],
+        "fires": 0
+      }
+    }
+  ],
+  "conditions": {
+    "same_id_update": "Fire spread rule at t=1 with cooldown=10; update the same ID threshold from 100 to 150 at the same cutoff; observe t=2, rearm at t=3, observe t=4 and t=11; reset/replay the command history.",
+    "oversized_metric": "Analytics window=202ns, max_references=400; deliver 203 native quote observations with increasing bid quantity. Exact event OFI has 202 supporting references.",
+    "nested_records": "Construct immutable evaluation replacements with 201 nested metric trade references or displayed references; both must reject.",
+    "deep_pair": "Actual compare_pair walks 201 known ask levels for base quantity=201 using sourced explicit 0.001 fee schedules. Underlying comparison remains eligible; alert suppresses oversized retained pair evidence."
+  },
+  "policy": "Same-ID updates retain the existing latch and last-fire time. Oversized nested metric/display/pair evidence is rejected, not truncated; unavailable evaluations expose explicit evidence-limit reasons and omit oversized objects.",
+  "verification_scope": "Only the bounded direct-domain smoke above was executed. Added regressions remain for parent union gate."
+}

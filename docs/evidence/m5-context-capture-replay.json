@@ -1,0 +1,4093 @@
+{
+  "capture": "/tmp/limit-orderbook-m5-NBWAK4/workflow-e2e/data/m5-context-live/ad0b24c4-a23c-498f-affc-36e8eb171325",
+  "replay_code_revision": "workstation-source-sha256:4cd6effb3f07c1473a9292183f173f49f75dbf0b07bdebc726db6e09fa689287",
+  "modes": {
+    "raw": {
+      "book_hash": "4b2bc7f996bc6cc8b89cf450d0eb7e5c7e620276901d713a1cf3c4e926a2dec1",
+      "state_hash": "c7d2fa7da123f1128481dc99cd8ed960e82cfb93beea4c2f29c0a110b0779c87",
+      "context_hash": "0c9b82a8b64234fe3d2a3ce8b75beb6c151957ee1be24f8283d1d0ff0155c661",
+      "cursor": {
+        "delivery_index": "2319",
+        "ordinal": "2319",
+        "event_index": "0"
+      },
+      "payload_counts": {
+        "Control": "72",
+        "BookUpdate": "1187",
+        "Trade": "1029",
+        "AssetContext": "132",
+        "ReferencePrice": "24",
+        "Gap": "18"
+      },
+      "first_eligible_basis": {
+        "binance-global:spot-v3:spot:BTCUSDT": {
+          "delivery": "85",
+          "rows": [
+            {
+              "spot_instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+              "perpetual_instrument_id": "hyperliquid:info:perpetual:BTC",
+              "reference_kind": "mark",
+              "quote_asset_id": "USDT",
+              "spot_mid": "78084.00500000",
+              "perpetual_reference": "78058.0",
+              "perpetual_quote_asset_id": "USDT",
+              "proceeds_in_spot_quote": "78058.0",
+              "funding_cost_in_spot_quote": "78058.0",
+              "proceeds_basis_bps": "-3.3303875742541638329130274503721985059552209188040495617508348860947898356392000",
+              "funding_basis_bps": "-3.3303875742541638329130274503721985059552209188040495617508348860947898356392000",
+              "proceeds_conversion": {
+                "source_asset_id": "USDT",
+                "target_asset_id": "USDT",
+                "source_amount": "78058.0",
+                "target_amount": "78058.0",
+                "mid_equivalent": "78058.0",
+                "cost": "0",
+                "required_input": false,
+                "rate": null,
+                "reasons": []
+              },
+              "funding_conversion": {
+                "source_asset_id": "USDT",
+                "target_asset_id": "USDT",
+                "source_amount": "78058.0",
+                "target_amount": "78058.0",
+                "mid_equivalent": "78058.0",
+                "cost": "0",
+                "required_input": true,
+                "rate": null,
+                "reasons": []
+              },
+              "spot_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "74",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547747602520000",
+                "receive_mono_ns": "125795189137676",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "perpetual_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "51",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547747024777000",
+                "receive_mono_ns": "125794611412227",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "reasons": [],
+              "label": "reference_basis_not_executable_arbitrage",
+              "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+            },
+            {
+              "spot_instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+              "perpetual_instrument_id": "hyperliquid:info:perpetual:BTC",
+              "reference_kind": "oracle",
+              "quote_asset_id": "USDT",
+              "spot_mid": "78084.00500000",
+              "perpetual_reference": "78069.0",
+              "perpetual_quote_asset_id": "USDT",
+              "proceeds_in_spot_quote": "78069.0",
+              "funding_cost_in_spot_quote": "78069.0",
+              "proceeds_basis_bps": "-1.9216483580728217001676591768058003684621453523035863746999145343530983073934000",
+              "funding_basis_bps": "-1.9216483580728217001676591768058003684621453523035863746999145343530983073934000",
+              "proceeds_conversion": {
+                "source_asset_id": "USDT",
+                "target_asset_id": "USDT",
+                "source_amount": "78069.0",
+                "target_amount": "78069.0",
+                "mid_equivalent": "78069.0",
+                "cost": "0",
+                "required_input": false,
+                "rate": null,
+                "reasons": []
+              },
+              "funding_conversion": {
+                "source_asset_id": "USDT",
+                "target_asset_id": "USDT",
+                "source_amount": "78069.0",
+                "target_amount": "78069.0",
+                "mid_equivalent": "78069.0",
+                "cost": "0",
+                "required_input": true,
+                "rate": null,
+                "reasons": []
+              },
+              "spot_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "74",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547747602520000",
+                "receive_mono_ns": "125795189137676",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "perpetual_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "51",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547747024777000",
+                "receive_mono_ns": "125794611412227",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "reasons": [],
+              "label": "reference_basis_not_executable_arbitrage",
+              "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+            }
+          ]
+        },
+        "binance-global:spot-v3:spot:ETHUSDT": {
+          "delivery": "172",
+          "rows": [
+            {
+              "spot_instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+              "perpetual_instrument_id": "hyperliquid:info:perpetual:ETH",
+              "reference_kind": "mark",
+              "quote_asset_id": "USDT",
+              "spot_mid": "2270.39500000",
+              "perpetual_reference": "2269.0",
+              "perpetual_quote_asset_id": "USDT",
+              "proceeds_in_spot_quote": "2269.0",
+              "funding_cost_in_spot_quote": "2269.0",
+              "proceeds_basis_bps": "-6.1443052860845799959918868743104173502848623257186524811761829989935671986593000",
+              "funding_basis_bps": "-6.1443052860845799959918868743104173502848623257186524811761829989935671986593000",
+              "proceeds_conversion": {
+                "source_asset_id": "USDT",
+                "target_asset_id": "USDT",
+                "source_amount": "2269.0",
+                "target_amount": "2269.0",
+                "mid_equivalent": "2269.0",
+                "cost": "0",
+                "required_input": false,
+                "rate": null,
+                "reasons": []
+              },
+              "funding_conversion": {
+                "source_asset_id": "USDT",
+                "target_asset_id": "USDT",
+                "source_amount": "2269.0",
+                "target_amount": "2269.0",
+                "mid_equivalent": "2269.0",
+                "cost": "0",
+                "required_input": true,
+                "rate": null,
+                "reasons": []
+              },
+              "spot_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "159",
+                "event_index": "0",
+                "exchange_event_wall_ns": "1793547749915000000",
+                "receive_wall_ns": "1793547750008351000",
+                "receive_mono_ns": "125797594896641",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "perpetual_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "130",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547749226227000",
+                "receive_mono_ns": "125796812796251",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "reasons": [],
+              "label": "reference_basis_not_executable_arbitrage",
+              "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+            },
+            {
+              "spot_instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+              "perpetual_instrument_id": "hyperliquid:info:perpetual:ETH",
+              "reference_kind": "oracle",
+              "quote_asset_id": "USDT",
+              "spot_mid": "2270.39500000",
+              "perpetual_reference": "2270.26",
+              "perpetual_quote_asset_id": "USDT",
+              "proceeds_in_spot_quote": "2270.26",
+              "funding_cost_in_spot_quote": "2270.26",
+              "proceeds_basis_bps": "-0.59461018897592709638631163299778232422111570894051475624285641925744198696700000",
+              "funding_basis_bps": "-0.59461018897592709638631163299778232422111570894051475624285641925744198696700000",
+              "proceeds_conversion": {
+                "source_asset_id": "USDT",
+                "target_asset_id": "USDT",
+                "source_amount": "2270.26",
+                "target_amount": "2270.26",
+                "mid_equivalent": "2270.26",
+                "cost": "0",
+                "required_input": false,
+                "rate": null,
+                "reasons": []
+              },
+              "funding_conversion": {
+                "source_asset_id": "USDT",
+                "target_asset_id": "USDT",
+                "source_amount": "2270.26",
+                "target_amount": "2270.26",
+                "mid_equivalent": "2270.26",
+                "cost": "0",
+                "required_input": true,
+                "rate": null,
+                "reasons": []
+              },
+              "spot_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "159",
+                "event_index": "0",
+                "exchange_event_wall_ns": "1793547749915000000",
+                "receive_wall_ns": "1793547750008351000",
+                "receive_mono_ns": "125797594896641",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "perpetual_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "130",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547749226227000",
+                "receive_mono_ns": "125796812796251",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "reasons": [],
+              "label": "reference_basis_not_executable_arbitrage",
+              "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+            },
+            {
+              "spot_instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+              "perpetual_instrument_id": "hyperliquid:info:perpetual:ETH",
+              "reference_kind": "mid",
+              "quote_asset_id": "USDT",
+              "spot_mid": "2270.39500000",
+              "perpetual_reference": "2269.25",
+              "perpetual_quote_asset_id": "USDT",
+              "proceeds_in_spot_quote": "2269.25",
+              "funding_cost_in_spot_quote": "2269.25",
+              "proceeds_basis_bps": "-5.0431753064995298174987171835737834165420554573102918214671896299983042598314000",
+              "funding_basis_bps": "-5.0431753064995298174987171835737834165420554573102918214671896299983042598314000",
+              "proceeds_conversion": {
+                "source_asset_id": "USDT",
+                "target_asset_id": "USDT",
+                "source_amount": "2269.25",
+                "target_amount": "2269.25",
+                "mid_equivalent": "2269.25",
+                "cost": "0",
+                "required_input": false,
+                "rate": null,
+                "reasons": []
+              },
+              "funding_conversion": {
+                "source_asset_id": "USDT",
+                "target_asset_id": "USDT",
+                "source_amount": "2269.25",
+                "target_amount": "2269.25",
+                "mid_equivalent": "2269.25",
+                "cost": "0",
+                "required_input": true,
+                "rate": null,
+                "reasons": []
+              },
+              "spot_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "159",
+                "event_index": "0",
+                "exchange_event_wall_ns": "1793547749915000000",
+                "receive_wall_ns": "1793547750008351000",
+                "receive_mono_ns": "125797594896641",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "perpetual_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "183",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547750492148000",
+                "receive_mono_ns": "125798078678923",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "reasons": [],
+              "label": "reference_basis_not_executable_arbitrage",
+              "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+            }
+          ]
+        },
+        "binance-global:spot-v3:spot:SOLUSDT": {
+          "delivery": "173",
+          "rows": [
+            {
+              "spot_instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+              "perpetual_instrument_id": "hyperliquid:info:perpetual:SOL",
+              "reference_kind": "mid",
+              "quote_asset_id": "USDT",
+              "spot_mid": "94.89500000",
+              "perpetual_reference": "94.8795",
+              "perpetual_quote_asset_id": "USDT",
+              "proceeds_in_spot_quote": "94.8795",
+              "funding_cost_in_spot_quote": "94.8795",
+              "proceeds_basis_bps": "-1.6333842668212234575056641551188155329574793192475894409610622266715843827388000",
+              "funding_basis_bps": "-1.6333842668212234575056641551188155329574793192475894409610622266715843827388000",
+              "proceeds_conversion": {
+                "source_asset_id": "USDT",
+                "target_asset_id": "USDT",
+                "source_amount": "94.8795",
+                "target_amount": "94.8795",
+                "mid_equivalent": "94.8795",
+                "cost": "0",
+                "required_input": false,
+                "rate": null,
+                "reasons": []
+              },
+              "funding_conversion": {
+                "source_asset_id": "USDT",
+                "target_asset_id": "USDT",
+                "source_amount": "94.8795",
+                "target_amount": "94.8795",
+                "mid_equivalent": "94.8795",
+                "cost": "0",
+                "required_input": true,
+                "rate": null,
+                "reasons": []
+              },
+              "spot_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "180",
+                "event_index": "0",
+                "exchange_event_wall_ns": "1793547750395000000",
+                "receive_wall_ns": "1793547750430778000",
+                "receive_mono_ns": "125798017310812",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "perpetual_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "184",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547750517669000",
+                "receive_mono_ns": "125798104199836",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "reasons": [],
+              "label": "reference_basis_not_executable_arbitrage",
+              "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+            }
+          ]
+        }
+      },
+      "final_context": [
+        {
+          "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+          "now": {
+            "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71",
+            "mono_ns": "125843170816038",
+            "wall_ns": null
+          },
+          "watchlist": [
+            {
+              "instrument": {
+                "instrument_id": "hyperliquid:info:perpetual:BTC",
+                "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793547733629278000:hyperliquid-denomination-v2",
+                "venue": "hyperliquid",
+                "api_family": "info",
+                "native_symbol": "BTC",
+                "base": {
+                  "asset_id": "BTC",
+                  "ticker": "BTC",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "quote": {
+                  "asset_id": "USDT",
+                  "ticker": "USDT",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "tick_size": null,
+                "lot_size": "0.00001",
+                "native_asset_id": "0",
+                "dex_namespace": "default",
+                "settlement": {
+                  "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+                  "ticker": "USDC",
+                  "native_token_id": "0",
+                  "network": "hypercore",
+                  "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+                  "reference_asset_id": null
+                },
+                "market_type": "perpetual",
+                "expiry_wall_ns": null,
+                "constraints": {
+                  "min_base": "0.00001",
+                  "max_base": null,
+                  "min_notional": null,
+                  "max_notional": null,
+                  "min_notional_currency": null,
+                  "price_rule": "hyperliquid_significant_digits",
+                  "size_rule": "fixed_lot",
+                  "max_limit_base": null,
+                  "max_market_base": null
+                },
+                "contract_multiplier": "1",
+                "quantity_unit": "base",
+                "contract_value_currency": "BTC",
+                "inverse": false,
+                "status": "active",
+                "data_access": "unknown",
+                "execution_access": "unknown",
+                "metadata_asof_wall_ns": "1793547733629278000",
+                "metadata_source": "https://api.hyperliquid.xyz/info",
+                "reference_multiplier": null,
+                "settlement_conversion": "quanto_no_fx",
+                "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+              },
+              "stream_id": "da490cab-bcf6-4119-9c71-5889f9513f07",
+              "value": {
+                "kind": "mid",
+                "price": "78066.5",
+                "currency": "USDT",
+                "interval_ns": null
+              },
+              "asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "1597",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547785650716000",
+                "receive_mono_ns": "125833236192462",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "eligibility": {
+                "eligible": false,
+                "reasons": [
+                  "context_continuity_reset",
+                  "owner_stopped",
+                  "stale_context_channel"
+                ],
+                "evaluated_at_mono_ns": "125843170816038",
+                "policy_version": "eligibility-v1"
+              },
+              "label": "reference_only_not_executable"
+            },
+            {
+              "instrument": {
+                "instrument_id": "hyperliquid:info:perpetual:ETH",
+                "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793547733629278000:hyperliquid-denomination-v2",
+                "venue": "hyperliquid",
+                "api_family": "info",
+                "native_symbol": "ETH",
+                "base": {
+                  "asset_id": "ETH",
+                  "ticker": "ETH",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "quote": {
+                  "asset_id": "USDT",
+                  "ticker": "USDT",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "tick_size": null,
+                "lot_size": "0.0001",
+                "native_asset_id": "1",
+                "dex_namespace": "default",
+                "settlement": {
+                  "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+                  "ticker": "USDC",
+                  "native_token_id": "0",
+                  "network": "hypercore",
+                  "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+                  "reference_asset_id": null
+                },
+                "market_type": "perpetual",
+                "expiry_wall_ns": null,
+                "constraints": {
+                  "min_base": "0.0001",
+                  "max_base": null,
+                  "min_notional": null,
+                  "max_notional": null,
+                  "min_notional_currency": null,
+                  "price_rule": "hyperliquid_significant_digits",
+                  "size_rule": "fixed_lot",
+                  "max_limit_base": null,
+                  "max_market_base": null
+                },
+                "contract_multiplier": "1",
+                "quantity_unit": "base",
+                "contract_value_currency": "ETH",
+                "inverse": false,
+                "status": "active",
+                "data_access": "unknown",
+                "execution_access": "unknown",
+                "metadata_asof_wall_ns": "1793547733629278000",
+                "metadata_source": "https://api.hyperliquid.xyz/info",
+                "reference_multiplier": null,
+                "settlement_conversion": "quanto_no_fx",
+                "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+              },
+              "stream_id": "e6ebd8b4-6a42-4116-a8f1-3ec51305c386",
+              "value": {
+                "kind": "mid",
+                "price": "2269.25",
+                "currency": "USDT",
+                "interval_ns": null
+              },
+              "asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "1598",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547785664530000",
+                "receive_mono_ns": "125833250006472",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "eligibility": {
+                "eligible": false,
+                "reasons": [
+                  "context_continuity_reset",
+                  "owner_stopped",
+                  "stale_context_channel"
+                ],
+                "evaluated_at_mono_ns": "125843170816038",
+                "policy_version": "eligibility-v1"
+              },
+              "label": "reference_only_not_executable"
+            },
+            {
+              "instrument": {
+                "instrument_id": "hyperliquid:info:perpetual:SOL",
+                "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793547733629278000:hyperliquid-denomination-v2",
+                "venue": "hyperliquid",
+                "api_family": "info",
+                "native_symbol": "SOL",
+                "base": {
+                  "asset_id": "SOL",
+                  "ticker": "SOL",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "quote": {
+                  "asset_id": "USDT",
+                  "ticker": "USDT",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "tick_size": null,
+                "lot_size": "0.01",
+                "native_asset_id": "5",
+                "dex_namespace": "default",
+                "settlement": {
+                  "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+                  "ticker": "USDC",
+                  "native_token_id": "0",
+                  "network": "hypercore",
+                  "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+                  "reference_asset_id": null
+                },
+                "market_type": "perpetual",
+                "expiry_wall_ns": null,
+                "constraints": {
+                  "min_base": "0.01",
+                  "max_base": null,
+                  "min_notional": null,
+                  "max_notional": null,
+                  "min_notional_currency": null,
+                  "price_rule": "hyperliquid_significant_digits",
+                  "size_rule": "fixed_lot",
+                  "max_limit_base": null,
+                  "max_market_base": null
+                },
+                "contract_multiplier": "1",
+                "quantity_unit": "base",
+                "contract_value_currency": "SOL",
+                "inverse": false,
+                "status": "active",
+                "data_access": "unknown",
+                "execution_access": "unknown",
+                "metadata_asof_wall_ns": "1793547733629278000",
+                "metadata_source": "https://api.hyperliquid.xyz/info",
+                "reference_multiplier": null,
+                "settlement_conversion": "quanto_no_fx",
+                "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+              },
+              "stream_id": "4f9058af-f9ff-4043-b7bc-0c774d96bc78",
+              "value": {
+                "kind": "mid",
+                "price": "94.9105",
+                "currency": "USDT",
+                "interval_ns": null
+              },
+              "asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "1599",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547785665684000",
+                "receive_mono_ns": "125833251160044",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "eligibility": {
+                "eligible": false,
+                "reasons": [
+                  "context_continuity_reset",
+                  "owner_stopped",
+                  "stale_context_channel"
+                ],
+                "evaluated_at_mono_ns": "125843170816038",
+                "policy_version": "eligibility-v1"
+              },
+              "label": "reference_only_not_executable"
+            }
+          ],
+          "contexts": [
+            {
+              "instrument": {
+                "instrument_id": "hyperliquid:info:perpetual:BTC",
+                "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793547733629278000:hyperliquid-denomination-v2",
+                "venue": "hyperliquid",
+                "api_family": "info",
+                "native_symbol": "BTC",
+                "base": {
+                  "asset_id": "BTC",
+                  "ticker": "BTC",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "quote": {
+                  "asset_id": "USDT",
+                  "ticker": "USDT",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "tick_size": null,
+                "lot_size": "0.00001",
+                "native_asset_id": "0",
+                "dex_namespace": "default",
+                "settlement": {
+                  "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+                  "ticker": "USDC",
+                  "native_token_id": "0",
+                  "network": "hypercore",
+                  "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+                  "reference_asset_id": null
+                },
+                "market_type": "perpetual",
+                "expiry_wall_ns": null,
+                "constraints": {
+                  "min_base": "0.00001",
+                  "max_base": null,
+                  "min_notional": null,
+                  "max_notional": null,
+                  "min_notional_currency": null,
+                  "price_rule": "hyperliquid_significant_digits",
+                  "size_rule": "fixed_lot",
+                  "max_limit_base": null,
+                  "max_market_base": null
+                },
+                "contract_multiplier": "1",
+                "quantity_unit": "base",
+                "contract_value_currency": "BTC",
+                "inverse": false,
+                "status": "active",
+                "data_access": "unknown",
+                "execution_access": "unknown",
+                "metadata_asof_wall_ns": "1793547733629278000",
+                "metadata_source": "https://api.hyperliquid.xyz/info",
+                "reference_multiplier": null,
+                "settlement_conversion": "quanto_no_fx",
+                "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+              },
+              "stream_id": "00107d2e-bb47-406f-bcf7-4f081eaa7088",
+              "value": {
+                "mark": "78060.0",
+                "oracle": "78070.8",
+                "funding_rate": "0.0000125",
+                "funding_interval_ns": "3600000000000",
+                "open_interest": "40709.1807799999",
+                "open_interest_unit": "base"
+              },
+              "asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2220",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547790020358000",
+                "receive_mono_ns": "125837605704019",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "eligibility": {
+                "eligible": false,
+                "reasons": [
+                  "context_continuity_reset",
+                  "owner_stopped",
+                  "stale_context_channel"
+                ],
+                "evaluated_at_mono_ns": "125843170816038",
+                "policy_version": "eligibility-v1"
+              },
+              "field_reasons": [
+                [
+                  "mark",
+                  [
+                    "context_continuity_reset",
+                    "owner_stopped",
+                    "stale_context_channel"
+                  ]
+                ],
+                [
+                  "oracle",
+                  [
+                    "context_continuity_reset",
+                    "owner_stopped",
+                    "stale_context_channel"
+                  ]
+                ],
+                [
+                  "funding_rate",
+                  [
+                    "context_continuity_reset",
+                    "owner_stopped",
+                    "stale_context_channel"
+                  ]
+                ],
+                [
+                  "funding_interval_ns",
+                  [
+                    "context_continuity_reset",
+                    "owner_stopped",
+                    "stale_context_channel"
+                  ]
+                ],
+                [
+                  "open_interest",
+                  [
+                    "context_continuity_reset",
+                    "owner_stopped",
+                    "stale_context_channel"
+                  ]
+                ]
+              ],
+              "funding_rate_unit": "fraction_per_funding_interval",
+              "open_interest_unit_provenance": "adapter_declared_not_independently_verified",
+              "label": "reference_only_not_executable"
+            }
+          ],
+          "basis": [
+            {
+              "spot_instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+              "perpetual_instrument_id": "hyperliquid:info:perpetual:BTC",
+              "reference_kind": "mark",
+              "quote_asset_id": "USDT",
+              "spot_mid": "78069.40500000",
+              "perpetual_reference": "78060.0",
+              "perpetual_quote_asset_id": "USDT",
+              "proceeds_in_spot_quote": null,
+              "funding_cost_in_spot_quote": null,
+              "proceeds_basis_bps": null,
+              "funding_basis_bps": null,
+              "proceeds_conversion": null,
+              "funding_conversion": null,
+              "spot_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2283",
+                "event_index": "0",
+                "exchange_event_wall_ns": "1793547790416000000",
+                "receive_wall_ns": "1793547790433856000",
+                "receive_mono_ns": "125838019189525",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "perpetual_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2220",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547790020358000",
+                "receive_mono_ns": "125837605704019",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "reasons": [
+                "data_access_unknown",
+                "integrity_invalid",
+                "lifecycle_resynchronizing",
+                "stale",
+                "context_continuity_reset",
+                "owner_stopped",
+                "stale_context_channel"
+              ],
+              "label": "reference_basis_not_executable_arbitrage",
+              "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+            },
+            {
+              "spot_instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+              "perpetual_instrument_id": "hyperliquid:info:perpetual:BTC",
+              "reference_kind": "oracle",
+              "quote_asset_id": "USDT",
+              "spot_mid": "78069.40500000",
+              "perpetual_reference": "78070.8",
+              "perpetual_quote_asset_id": "USDT",
+              "proceeds_in_spot_quote": null,
+              "funding_cost_in_spot_quote": null,
+              "proceeds_basis_bps": null,
+              "funding_basis_bps": null,
+              "proceeds_conversion": null,
+              "funding_conversion": null,
+              "spot_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2283",
+                "event_index": "0",
+                "exchange_event_wall_ns": "1793547790416000000",
+                "receive_wall_ns": "1793547790433856000",
+                "receive_mono_ns": "125838019189525",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "perpetual_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2220",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547790020358000",
+                "receive_mono_ns": "125837605704019",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "reasons": [
+                "data_access_unknown",
+                "integrity_invalid",
+                "lifecycle_resynchronizing",
+                "stale",
+                "context_continuity_reset",
+                "owner_stopped",
+                "stale_context_channel"
+              ],
+              "label": "reference_basis_not_executable_arbitrage",
+              "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+            },
+            {
+              "spot_instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+              "perpetual_instrument_id": "hyperliquid:info:perpetual:BTC",
+              "reference_kind": "mid",
+              "quote_asset_id": "USDT",
+              "spot_mid": "78069.40500000",
+              "perpetual_reference": "78066.5",
+              "perpetual_quote_asset_id": "USDT",
+              "proceeds_in_spot_quote": null,
+              "funding_cost_in_spot_quote": null,
+              "proceeds_basis_bps": null,
+              "funding_basis_bps": null,
+              "proceeds_conversion": null,
+              "funding_conversion": null,
+              "spot_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2283",
+                "event_index": "0",
+                "exchange_event_wall_ns": "1793547790416000000",
+                "receive_wall_ns": "1793547790433856000",
+                "receive_mono_ns": "125838019189525",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "perpetual_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "1597",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547785650716000",
+                "receive_mono_ns": "125833236192462",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "reasons": [
+                "data_access_unknown",
+                "integrity_invalid",
+                "lifecycle_resynchronizing",
+                "stale",
+                "context_continuity_reset",
+                "owner_stopped",
+                "stale_context_channel",
+                "asof_skew"
+              ],
+              "label": "reference_basis_not_executable_arbitrage",
+              "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+            }
+          ],
+          "reasons": [
+            "reference_channel_not_subscribed",
+            "context_channel_not_subscribed"
+          ]
+        },
+        {
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+          "now": {
+            "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71",
+            "mono_ns": "125843170816038",
+            "wall_ns": null
+          },
+          "watchlist": [
+            {
+              "instrument": {
+                "instrument_id": "hyperliquid:info:perpetual:BTC",
+                "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793547733629278000:hyperliquid-denomination-v2",
+                "venue": "hyperliquid",
+                "api_family": "info",
+                "native_symbol": "BTC",
+                "base": {
+                  "asset_id": "BTC",
+                  "ticker": "BTC",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "quote": {
+                  "asset_id": "USDT",
+                  "ticker": "USDT",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "tick_size": null,
+                "lot_size": "0.00001",
+                "native_asset_id": "0",
+                "dex_namespace": "default",
+                "settlement": {
+                  "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+                  "ticker": "USDC",
+                  "native_token_id": "0",
+                  "network": "hypercore",
+                  "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+                  "reference_asset_id": null
+                },
+                "market_type": "perpetual",
+                "expiry_wall_ns": null,
+                "constraints": {
+                  "min_base": "0.00001",
+                  "max_base": null,
+                  "min_notional": null,
+                  "max_notional": null,
+                  "min_notional_currency": null,
+                  "price_rule": "hyperliquid_significant_digits",
+                  "size_rule": "fixed_lot",
+                  "max_limit_base": null,
+                  "max_market_base": null
+                },
+                "contract_multiplier": "1",
+                "quantity_unit": "base",
+                "contract_value_currency": "BTC",
+                "inverse": false,
+                "status": "active",
+                "data_access": "unknown",
+                "execution_access": "unknown",
+                "metadata_asof_wall_ns": "1793547733629278000",
+                "metadata_source": "https://api.hyperliquid.xyz/info",
+                "reference_multiplier": null,
+                "settlement_conversion": "quanto_no_fx",
+                "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+              },
+              "stream_id": "da490cab-bcf6-4119-9c71-5889f9513f07",
+              "value": {
+                "kind": "mid",
+                "price": "78066.5",
+                "currency": "USDT",
+                "interval_ns": null
+              },
+              "asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "1597",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547785650716000",
+                "receive_mono_ns": "125833236192462",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "eligibility": {
+                "eligible": false,
+                "reasons": [
+                  "context_continuity_reset",
+                  "owner_stopped",
+                  "stale_context_channel"
+                ],
+                "evaluated_at_mono_ns": "125843170816038",
+                "policy_version": "eligibility-v1"
+              },
+              "label": "reference_only_not_executable"
+            },
+            {
+              "instrument": {
+                "instrument_id": "hyperliquid:info:perpetual:ETH",
+                "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793547733629278000:hyperliquid-denomination-v2",
+                "venue": "hyperliquid",
+                "api_family": "info",
+                "native_symbol": "ETH",
+                "base": {
+                  "asset_id": "ETH",
+                  "ticker": "ETH",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "quote": {
+                  "asset_id": "USDT",
+                  "ticker": "USDT",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "tick_size": null,
+                "lot_size": "0.0001",
+                "native_asset_id": "1",
+                "dex_namespace": "default",
+                "settlement": {
+                  "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+                  "ticker": "USDC",
+                  "native_token_id": "0",
+                  "network": "hypercore",
+                  "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+                  "reference_asset_id": null
+                },
+                "market_type": "perpetual",
+                "expiry_wall_ns": null,
+                "constraints": {
+                  "min_base": "0.0001",
+                  "max_base": null,
+                  "min_notional": null,
+                  "max_notional": null,
+                  "min_notional_currency": null,
+                  "price_rule": "hyperliquid_significant_digits",
+                  "size_rule": "fixed_lot",
+                  "max_limit_base": null,
+                  "max_market_base": null
+                },
+                "contract_multiplier": "1",
+                "quantity_unit": "base",
+                "contract_value_currency": "ETH",
+                "inverse": false,
+                "status": "active",
+                "data_access": "unknown",
+                "execution_access": "unknown",
+                "metadata_asof_wall_ns": "1793547733629278000",
+                "metadata_source": "https://api.hyperliquid.xyz/info",
+                "reference_multiplier": null,
+                "settlement_conversion": "quanto_no_fx",
+                "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+              },
+              "stream_id": "e6ebd8b4-6a42-4116-a8f1-3ec51305c386",
+              "value": {
+                "kind": "mid",
+                "price": "2269.25",
+                "currency": "USDT",
+                "interval_ns": null
+              },
+              "asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "1598",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547785664530000",
+                "receive_mono_ns": "125833250006472",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "eligibility": {
+                "eligible": false,
+                "reasons": [
+                  "context_continuity_reset",
+                  "owner_stopped",
+                  "stale_context_channel"
+                ],
+                "evaluated_at_mono_ns": "125843170816038",
+                "policy_version": "eligibility-v1"
+              },
+              "label": "reference_only_not_executable"
+            },
+            {
+              "instrument": {
+                "instrument_id": "hyperliquid:info:perpetual:SOL",
+                "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793547733629278000:hyperliquid-denomination-v2",
+                "venue": "hyperliquid",
+                "api_family": "info",
+                "native_symbol": "SOL",
+                "base": {
+                  "asset_id": "SOL",
+                  "ticker": "SOL",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "quote": {
+                  "asset_id": "USDT",
+                  "ticker": "USDT",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "tick_size": null,
+                "lot_size": "0.01",
+                "native_asset_id": "5",
+                "dex_namespace": "default",
+                "settlement": {
+                  "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+                  "ticker": "USDC",
+                  "native_token_id": "0",
+                  "network": "hypercore",
+                  "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+                  "reference_asset_id": null
+                },
+                "market_type": "perpetual",
+                "expiry_wall_ns": null,
+                "constraints": {
+                  "min_base": "0.01",
+                  "max_base": null,
+                  "min_notional": null,
+                  "max_notional": null,
+                  "min_notional_currency": null,
+                  "price_rule": "hyperliquid_significant_digits",
+                  "size_rule": "fixed_lot",
+                  "max_limit_base": null,
+                  "max_market_base": null
+                },
+                "contract_multiplier": "1",
+                "quantity_unit": "base",
+                "contract_value_currency": "SOL",
+                "inverse": false,
+                "status": "active",
+                "data_access": "unknown",
+                "execution_access": "unknown",
+                "metadata_asof_wall_ns": "1793547733629278000",
+                "metadata_source": "https://api.hyperliquid.xyz/info",
+                "reference_multiplier": null,
+                "settlement_conversion": "quanto_no_fx",
+                "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+              },
+              "stream_id": "4f9058af-f9ff-4043-b7bc-0c774d96bc78",
+              "value": {
+                "kind": "mid",
+                "price": "94.9105",
+                "currency": "USDT",
+                "interval_ns": null
+              },
+              "asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "1599",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547785665684000",
+                "receive_mono_ns": "125833251160044",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "eligibility": {
+                "eligible": false,
+                "reasons": [
+                  "context_continuity_reset",
+                  "owner_stopped",
+                  "stale_context_channel"
+                ],
+                "evaluated_at_mono_ns": "125843170816038",
+                "policy_version": "eligibility-v1"
+              },
+              "label": "reference_only_not_executable"
+            }
+          ],
+          "contexts": [
+            {
+              "instrument": {
+                "instrument_id": "hyperliquid:info:perpetual:ETH",
+                "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793547733629278000:hyperliquid-denomination-v2",
+                "venue": "hyperliquid",
+                "api_family": "info",
+                "native_symbol": "ETH",
+                "base": {
+                  "asset_id": "ETH",
+                  "ticker": "ETH",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "quote": {
+                  "asset_id": "USDT",
+                  "ticker": "USDT",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "tick_size": null,
+                "lot_size": "0.0001",
+                "native_asset_id": "1",
+                "dex_namespace": "default",
+                "settlement": {
+                  "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+                  "ticker": "USDC",
+                  "native_token_id": "0",
+                  "network": "hypercore",
+                  "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+                  "reference_asset_id": null
+                },
+                "market_type": "perpetual",
+                "expiry_wall_ns": null,
+                "constraints": {
+                  "min_base": "0.0001",
+                  "max_base": null,
+                  "min_notional": null,
+                  "max_notional": null,
+                  "min_notional_currency": null,
+                  "price_rule": "hyperliquid_significant_digits",
+                  "size_rule": "fixed_lot",
+                  "max_limit_base": null,
+                  "max_market_base": null
+                },
+                "contract_multiplier": "1",
+                "quantity_unit": "base",
+                "contract_value_currency": "ETH",
+                "inverse": false,
+                "status": "active",
+                "data_access": "unknown",
+                "execution_access": "unknown",
+                "metadata_asof_wall_ns": "1793547733629278000",
+                "metadata_source": "https://api.hyperliquid.xyz/info",
+                "reference_multiplier": null,
+                "settlement_conversion": "quanto_no_fx",
+                "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+              },
+              "stream_id": "0e0c2090-9f76-41f7-9213-ecf5e4fdbb62",
+              "value": {
+                "mark": "2269.2",
+                "oracle": "2270.3",
+                "funding_rate": "0.0000125",
+                "funding_interval_ns": "3600000000000",
+                "open_interest": "983554.7919999998",
+                "open_interest_unit": "base"
+              },
+              "asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2217",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547789978971000",
+                "receive_mono_ns": "125837564318281",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "eligibility": {
+                "eligible": false,
+                "reasons": [
+                  "context_continuity_reset",
+                  "owner_stopped",
+                  "stale_context_channel"
+                ],
+                "evaluated_at_mono_ns": "125843170816038",
+                "policy_version": "eligibility-v1"
+              },
+              "field_reasons": [
+                [
+                  "mark",
+                  [
+                    "context_continuity_reset",
+                    "owner_stopped",
+                    "stale_context_channel"
+                  ]
+                ],
+                [
+                  "oracle",
+                  [
+                    "context_continuity_reset",
+                    "owner_stopped",
+                    "stale_context_channel"
+                  ]
+                ],
+                [
+                  "funding_rate",
+                  [
+                    "context_continuity_reset",
+                    "owner_stopped",
+                    "stale_context_channel"
+                  ]
+                ],
+                [
+                  "funding_interval_ns",
+                  [
+                    "context_continuity_reset",
+                    "owner_stopped",
+                    "stale_context_channel"
+                  ]
+                ],
+                [
+                  "open_interest",
+                  [
+                    "context_continuity_reset",
+                    "owner_stopped",
+                    "stale_context_channel"
+                  ]
+                ]
+              ],
+              "funding_rate_unit": "fraction_per_funding_interval",
+              "open_interest_unit_provenance": "adapter_declared_not_independently_verified",
+              "label": "reference_only_not_executable"
+            }
+          ],
+          "basis": [
+            {
+              "spot_instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+              "perpetual_instrument_id": "hyperliquid:info:perpetual:ETH",
+              "reference_kind": "mark",
+              "quote_asset_id": "USDT",
+              "spot_mid": "2270.23500000",
+              "perpetual_reference": "2269.2",
+              "perpetual_quote_asset_id": "USDT",
+              "proceeds_in_spot_quote": null,
+              "funding_cost_in_spot_quote": null,
+              "proceeds_basis_bps": null,
+              "funding_basis_bps": null,
+              "proceeds_conversion": null,
+              "funding_conversion": null,
+              "spot_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2282",
+                "event_index": "0",
+                "exchange_event_wall_ns": "1793547790416000000",
+                "receive_wall_ns": "1793547790433288000",
+                "receive_mono_ns": "125838018621162",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "perpetual_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2217",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547789978971000",
+                "receive_mono_ns": "125837564318281",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "reasons": [
+                "data_access_unknown",
+                "integrity_invalid",
+                "lifecycle_resynchronizing",
+                "stale",
+                "context_continuity_reset",
+                "owner_stopped",
+                "stale_context_channel"
+              ],
+              "label": "reference_basis_not_executable_arbitrage",
+              "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+            },
+            {
+              "spot_instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+              "perpetual_instrument_id": "hyperliquid:info:perpetual:ETH",
+              "reference_kind": "oracle",
+              "quote_asset_id": "USDT",
+              "spot_mid": "2270.23500000",
+              "perpetual_reference": "2270.3",
+              "perpetual_quote_asset_id": "USDT",
+              "proceeds_in_spot_quote": null,
+              "funding_cost_in_spot_quote": null,
+              "proceeds_basis_bps": null,
+              "funding_basis_bps": null,
+              "proceeds_conversion": null,
+              "funding_conversion": null,
+              "spot_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2282",
+                "event_index": "0",
+                "exchange_event_wall_ns": "1793547790416000000",
+                "receive_wall_ns": "1793547790433288000",
+                "receive_mono_ns": "125838018621162",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "perpetual_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2217",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547789978971000",
+                "receive_mono_ns": "125837564318281",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "reasons": [
+                "data_access_unknown",
+                "integrity_invalid",
+                "lifecycle_resynchronizing",
+                "stale",
+                "context_continuity_reset",
+                "owner_stopped",
+                "stale_context_channel"
+              ],
+              "label": "reference_basis_not_executable_arbitrage",
+              "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+            },
+            {
+              "spot_instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+              "perpetual_instrument_id": "hyperliquid:info:perpetual:ETH",
+              "reference_kind": "mid",
+              "quote_asset_id": "USDT",
+              "spot_mid": "2270.23500000",
+              "perpetual_reference": "2269.25",
+              "perpetual_quote_asset_id": "USDT",
+              "proceeds_in_spot_quote": null,
+              "funding_cost_in_spot_quote": null,
+              "proceeds_basis_bps": null,
+              "funding_basis_bps": null,
+              "proceeds_conversion": null,
+              "funding_conversion": null,
+              "spot_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2282",
+                "event_index": "0",
+                "exchange_event_wall_ns": "1793547790416000000",
+                "receive_wall_ns": "1793547790433288000",
+                "receive_mono_ns": "125838018621162",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "perpetual_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "1598",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547785664530000",
+                "receive_mono_ns": "125833250006472",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "reasons": [
+                "data_access_unknown",
+                "integrity_invalid",
+                "lifecycle_resynchronizing",
+                "stale",
+                "context_continuity_reset",
+                "owner_stopped",
+                "stale_context_channel",
+                "asof_skew"
+              ],
+              "label": "reference_basis_not_executable_arbitrage",
+              "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+            }
+          ],
+          "reasons": [
+            "reference_channel_not_subscribed",
+            "context_channel_not_subscribed"
+          ]
+        },
+        {
+          "instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+          "now": {
+            "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71",
+            "mono_ns": "125843170816038",
+            "wall_ns": null
+          },
+          "watchlist": [
+            {
+              "instrument": {
+                "instrument_id": "hyperliquid:info:perpetual:BTC",
+                "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793547733629278000:hyperliquid-denomination-v2",
+                "venue": "hyperliquid",
+                "api_family": "info",
+                "native_symbol": "BTC",
+                "base": {
+                  "asset_id": "BTC",
+                  "ticker": "BTC",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "quote": {
+                  "asset_id": "USDT",
+                  "ticker": "USDT",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "tick_size": null,
+                "lot_size": "0.00001",
+                "native_asset_id": "0",
+                "dex_namespace": "default",
+                "settlement": {
+                  "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+                  "ticker": "USDC",
+                  "native_token_id": "0",
+                  "network": "hypercore",
+                  "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+                  "reference_asset_id": null
+                },
+                "market_type": "perpetual",
+                "expiry_wall_ns": null,
+                "constraints": {
+                  "min_base": "0.00001",
+                  "max_base": null,
+                  "min_notional": null,
+                  "max_notional": null,
+                  "min_notional_currency": null,
+                  "price_rule": "hyperliquid_significant_digits",
+                  "size_rule": "fixed_lot",
+                  "max_limit_base": null,
+                  "max_market_base": null
+                },
+                "contract_multiplier": "1",
+                "quantity_unit": "base",
+                "contract_value_currency": "BTC",
+                "inverse": false,
+                "status": "active",
+                "data_access": "unknown",
+                "execution_access": "unknown",
+                "metadata_asof_wall_ns": "1793547733629278000",
+                "metadata_source": "https://api.hyperliquid.xyz/info",
+                "reference_multiplier": null,
+                "settlement_conversion": "quanto_no_fx",
+                "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+              },
+              "stream_id": "da490cab-bcf6-4119-9c71-5889f9513f07",
+              "value": {
+                "kind": "mid",
+                "price": "78066.5",
+                "currency": "USDT",
+                "interval_ns": null
+              },
+              "asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "1597",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547785650716000",
+                "receive_mono_ns": "125833236192462",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "eligibility": {
+                "eligible": false,
+                "reasons": [
+                  "context_continuity_reset",
+                  "owner_stopped",
+                  "stale_context_channel"
+                ],
+                "evaluated_at_mono_ns": "125843170816038",
+                "policy_version": "eligibility-v1"
+              },
+              "label": "reference_only_not_executable"
+            },
+            {
+              "instrument": {
+                "instrument_id": "hyperliquid:info:perpetual:ETH",
+                "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793547733629278000:hyperliquid-denomination-v2",
+                "venue": "hyperliquid",
+                "api_family": "info",
+                "native_symbol": "ETH",
+                "base": {
+                  "asset_id": "ETH",
+                  "ticker": "ETH",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "quote": {
+                  "asset_id": "USDT",
+                  "ticker": "USDT",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "tick_size": null,
+                "lot_size": "0.0001",
+                "native_asset_id": "1",
+                "dex_namespace": "default",
+                "settlement": {
+                  "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+                  "ticker": "USDC",
+                  "native_token_id": "0",
+                  "network": "hypercore",
+                  "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+                  "reference_asset_id": null
+                },
+                "market_type": "perpetual",
+                "expiry_wall_ns": null,
+                "constraints": {
+                  "min_base": "0.0001",
+                  "max_base": null,
+                  "min_notional": null,
+                  "max_notional": null,
+                  "min_notional_currency": null,
+                  "price_rule": "hyperliquid_significant_digits",
+                  "size_rule": "fixed_lot",
+                  "max_limit_base": null,
+                  "max_market_base": null
+                },
+                "contract_multiplier": "1",
+                "quantity_unit": "base",
+                "contract_value_currency": "ETH",
+                "inverse": false,
+                "status": "active",
+                "data_access": "unknown",
+                "execution_access": "unknown",
+                "metadata_asof_wall_ns": "1793547733629278000",
+                "metadata_source": "https://api.hyperliquid.xyz/info",
+                "reference_multiplier": null,
+                "settlement_conversion": "quanto_no_fx",
+                "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+              },
+              "stream_id": "e6ebd8b4-6a42-4116-a8f1-3ec51305c386",
+              "value": {
+                "kind": "mid",
+                "price": "2269.25",
+                "currency": "USDT",
+                "interval_ns": null
+              },
+              "asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "1598",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547785664530000",
+                "receive_mono_ns": "125833250006472",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "eligibility": {
+                "eligible": false,
+                "reasons": [
+                  "context_continuity_reset",
+                  "owner_stopped",
+                  "stale_context_channel"
+                ],
+                "evaluated_at_mono_ns": "125843170816038",
+                "policy_version": "eligibility-v1"
+              },
+              "label": "reference_only_not_executable"
+            },
+            {
+              "instrument": {
+                "instrument_id": "hyperliquid:info:perpetual:SOL",
+                "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793547733629278000:hyperliquid-denomination-v2",
+                "venue": "hyperliquid",
+                "api_family": "info",
+                "native_symbol": "SOL",
+                "base": {
+                  "asset_id": "SOL",
+                  "ticker": "SOL",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "quote": {
+                  "asset_id": "USDT",
+                  "ticker": "USDT",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "tick_size": null,
+                "lot_size": "0.01",
+                "native_asset_id": "5",
+                "dex_namespace": "default",
+                "settlement": {
+                  "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+                  "ticker": "USDC",
+                  "native_token_id": "0",
+                  "network": "hypercore",
+                  "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+                  "reference_asset_id": null
+                },
+                "market_type": "perpetual",
+                "expiry_wall_ns": null,
+                "constraints": {
+                  "min_base": "0.01",
+                  "max_base": null,
+                  "min_notional": null,
+                  "max_notional": null,
+                  "min_notional_currency": null,
+                  "price_rule": "hyperliquid_significant_digits",
+                  "size_rule": "fixed_lot",
+                  "max_limit_base": null,
+                  "max_market_base": null
+                },
+                "contract_multiplier": "1",
+                "quantity_unit": "base",
+                "contract_value_currency": "SOL",
+                "inverse": false,
+                "status": "active",
+                "data_access": "unknown",
+                "execution_access": "unknown",
+                "metadata_asof_wall_ns": "1793547733629278000",
+                "metadata_source": "https://api.hyperliquid.xyz/info",
+                "reference_multiplier": null,
+                "settlement_conversion": "quanto_no_fx",
+                "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+              },
+              "stream_id": "4f9058af-f9ff-4043-b7bc-0c774d96bc78",
+              "value": {
+                "kind": "mid",
+                "price": "94.9105",
+                "currency": "USDT",
+                "interval_ns": null
+              },
+              "asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "1599",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547785665684000",
+                "receive_mono_ns": "125833251160044",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "eligibility": {
+                "eligible": false,
+                "reasons": [
+                  "context_continuity_reset",
+                  "owner_stopped",
+                  "stale_context_channel"
+                ],
+                "evaluated_at_mono_ns": "125843170816038",
+                "policy_version": "eligibility-v1"
+              },
+              "label": "reference_only_not_executable"
+            }
+          ],
+          "contexts": [
+            {
+              "instrument": {
+                "instrument_id": "hyperliquid:info:perpetual:SOL",
+                "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793547733629278000:hyperliquid-denomination-v2",
+                "venue": "hyperliquid",
+                "api_family": "info",
+                "native_symbol": "SOL",
+                "base": {
+                  "asset_id": "SOL",
+                  "ticker": "SOL",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "quote": {
+                  "asset_id": "USDT",
+                  "ticker": "USDT",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "tick_size": null,
+                "lot_size": "0.01",
+                "native_asset_id": "5",
+                "dex_namespace": "default",
+                "settlement": {
+                  "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+                  "ticker": "USDC",
+                  "native_token_id": "0",
+                  "network": "hypercore",
+                  "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+                  "reference_asset_id": null
+                },
+                "market_type": "perpetual",
+                "expiry_wall_ns": null,
+                "constraints": {
+                  "min_base": "0.01",
+                  "max_base": null,
+                  "min_notional": null,
+                  "max_notional": null,
+                  "min_notional_currency": null,
+                  "price_rule": "hyperliquid_significant_digits",
+                  "size_rule": "fixed_lot",
+                  "max_limit_base": null,
+                  "max_market_base": null
+                },
+                "contract_multiplier": "1",
+                "quantity_unit": "base",
+                "contract_value_currency": "SOL",
+                "inverse": false,
+                "status": "active",
+                "data_access": "unknown",
+                "execution_access": "unknown",
+                "metadata_asof_wall_ns": "1793547733629278000",
+                "metadata_source": "https://api.hyperliquid.xyz/info",
+                "reference_multiplier": null,
+                "settlement_conversion": "quanto_no_fx",
+                "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+              },
+              "stream_id": "f7453fcc-cc2f-4900-95a6-c70687662369",
+              "value": {
+                "mark": "94.895",
+                "oracle": "94.92",
+                "funding_rate": "0.0000125",
+                "funding_interval_ns": "3600000000000",
+                "open_interest": "5541927.3999999985",
+                "open_interest_unit": "base"
+              },
+              "asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2218",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547790006782000",
+                "receive_mono_ns": "125837592128179",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "eligibility": {
+                "eligible": false,
+                "reasons": [
+                  "context_continuity_reset",
+                  "owner_stopped",
+                  "stale_context_channel"
+                ],
+                "evaluated_at_mono_ns": "125843170816038",
+                "policy_version": "eligibility-v1"
+              },
+              "field_reasons": [
+                [
+                  "mark",
+                  [
+                    "context_continuity_reset",
+                    "owner_stopped",
+                    "stale_context_channel"
+                  ]
+                ],
+                [
+                  "oracle",
+                  [
+                    "context_continuity_reset",
+                    "owner_stopped",
+                    "stale_context_channel"
+                  ]
+                ],
+                [
+                  "funding_rate",
+                  [
+                    "context_continuity_reset",
+                    "owner_stopped",
+                    "stale_context_channel"
+                  ]
+                ],
+                [
+                  "funding_interval_ns",
+                  [
+                    "context_continuity_reset",
+                    "owner_stopped",
+                    "stale_context_channel"
+                  ]
+                ],
+                [
+                  "open_interest",
+                  [
+                    "context_continuity_reset",
+                    "owner_stopped",
+                    "stale_context_channel"
+                  ]
+                ]
+              ],
+              "funding_rate_unit": "fraction_per_funding_interval",
+              "open_interest_unit_provenance": "adapter_declared_not_independently_verified",
+              "label": "reference_only_not_executable"
+            }
+          ],
+          "basis": [
+            {
+              "spot_instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+              "perpetual_instrument_id": "hyperliquid:info:perpetual:SOL",
+              "reference_kind": "mark",
+              "quote_asset_id": "USDT",
+              "spot_mid": "94.90500000",
+              "perpetual_reference": "94.895",
+              "perpetual_quote_asset_id": "USDT",
+              "proceeds_in_spot_quote": null,
+              "funding_cost_in_spot_quote": null,
+              "proceeds_basis_bps": null,
+              "funding_basis_bps": null,
+              "proceeds_conversion": null,
+              "funding_conversion": null,
+              "spot_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2280",
+                "event_index": "0",
+                "exchange_event_wall_ns": "1793547790395000000",
+                "receive_wall_ns": "1793547790413695000",
+                "receive_mono_ns": "125837999029076",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "perpetual_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2218",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547790006782000",
+                "receive_mono_ns": "125837592128179",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "reasons": [
+                "data_access_unknown",
+                "integrity_invalid",
+                "lifecycle_resynchronizing",
+                "stale",
+                "context_continuity_reset",
+                "owner_stopped",
+                "stale_context_channel"
+              ],
+              "label": "reference_basis_not_executable_arbitrage",
+              "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+            },
+            {
+              "spot_instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+              "perpetual_instrument_id": "hyperliquid:info:perpetual:SOL",
+              "reference_kind": "oracle",
+              "quote_asset_id": "USDT",
+              "spot_mid": "94.90500000",
+              "perpetual_reference": "94.92",
+              "perpetual_quote_asset_id": "USDT",
+              "proceeds_in_spot_quote": null,
+              "funding_cost_in_spot_quote": null,
+              "proceeds_basis_bps": null,
+              "funding_basis_bps": null,
+              "proceeds_conversion": null,
+              "funding_conversion": null,
+              "spot_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2280",
+                "event_index": "0",
+                "exchange_event_wall_ns": "1793547790395000000",
+                "receive_wall_ns": "1793547790413695000",
+                "receive_mono_ns": "125837999029076",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "perpetual_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2218",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547790006782000",
+                "receive_mono_ns": "125837592128179",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "reasons": [
+                "data_access_unknown",
+                "integrity_invalid",
+                "lifecycle_resynchronizing",
+                "stale",
+                "context_continuity_reset",
+                "owner_stopped",
+                "stale_context_channel"
+              ],
+              "label": "reference_basis_not_executable_arbitrage",
+              "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+            },
+            {
+              "spot_instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+              "perpetual_instrument_id": "hyperliquid:info:perpetual:SOL",
+              "reference_kind": "mid",
+              "quote_asset_id": "USDT",
+              "spot_mid": "94.90500000",
+              "perpetual_reference": "94.9105",
+              "perpetual_quote_asset_id": "USDT",
+              "proceeds_in_spot_quote": null,
+              "funding_cost_in_spot_quote": null,
+              "proceeds_basis_bps": null,
+              "funding_basis_bps": null,
+              "proceeds_conversion": null,
+              "funding_conversion": null,
+              "spot_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2280",
+                "event_index": "0",
+                "exchange_event_wall_ns": "1793547790395000000",
+                "receive_wall_ns": "1793547790413695000",
+                "receive_mono_ns": "125837999029076",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "perpetual_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "1599",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547785665684000",
+                "receive_mono_ns": "125833251160044",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "reasons": [
+                "data_access_unknown",
+                "integrity_invalid",
+                "lifecycle_resynchronizing",
+                "stale",
+                "context_continuity_reset",
+                "owner_stopped",
+                "stale_context_channel",
+                "asof_skew"
+              ],
+              "label": "reference_basis_not_executable_arbitrage",
+              "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+            }
+          ],
+          "reasons": [
+            "reference_channel_not_subscribed",
+            "context_channel_not_subscribed"
+          ]
+        }
+      ]
+    },
+    "normalized": {
+      "book_hash": "4b2bc7f996bc6cc8b89cf450d0eb7e5c7e620276901d713a1cf3c4e926a2dec1",
+      "state_hash": "c7d2fa7da123f1128481dc99cd8ed960e82cfb93beea4c2f29c0a110b0779c87",
+      "context_hash": "0c9b82a8b64234fe3d2a3ce8b75beb6c151957ee1be24f8283d1d0ff0155c661",
+      "cursor": {
+        "delivery_index": "2319",
+        "ordinal": "2319",
+        "event_index": "0"
+      },
+      "payload_counts": {
+        "Control": "72",
+        "BookUpdate": "1187",
+        "Trade": "1029",
+        "AssetContext": "132",
+        "ReferencePrice": "24",
+        "Gap": "18"
+      },
+      "first_eligible_basis": {
+        "binance-global:spot-v3:spot:BTCUSDT": {
+          "delivery": "85",
+          "rows": [
+            {
+              "spot_instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+              "perpetual_instrument_id": "hyperliquid:info:perpetual:BTC",
+              "reference_kind": "mark",
+              "quote_asset_id": "USDT",
+              "spot_mid": "78084.00500000",
+              "perpetual_reference": "78058.0",
+              "perpetual_quote_asset_id": "USDT",
+              "proceeds_in_spot_quote": "78058.0",
+              "funding_cost_in_spot_quote": "78058.0",
+              "proceeds_basis_bps": "-3.3303875742541638329130274503721985059552209188040495617508348860947898356392000",
+              "funding_basis_bps": "-3.3303875742541638329130274503721985059552209188040495617508348860947898356392000",
+              "proceeds_conversion": {
+                "source_asset_id": "USDT",
+                "target_asset_id": "USDT",
+                "source_amount": "78058.0",
+                "target_amount": "78058.0",
+                "mid_equivalent": "78058.0",
+                "cost": "0",
+                "required_input": false,
+                "rate": null,
+                "reasons": []
+              },
+              "funding_conversion": {
+                "source_asset_id": "USDT",
+                "target_asset_id": "USDT",
+                "source_amount": "78058.0",
+                "target_amount": "78058.0",
+                "mid_equivalent": "78058.0",
+                "cost": "0",
+                "required_input": true,
+                "rate": null,
+                "reasons": []
+              },
+              "spot_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "74",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547747602520000",
+                "receive_mono_ns": "125795189137676",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "perpetual_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "51",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547747024777000",
+                "receive_mono_ns": "125794611412227",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "reasons": [],
+              "label": "reference_basis_not_executable_arbitrage",
+              "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+            },
+            {
+              "spot_instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+              "perpetual_instrument_id": "hyperliquid:info:perpetual:BTC",
+              "reference_kind": "oracle",
+              "quote_asset_id": "USDT",
+              "spot_mid": "78084.00500000",
+              "perpetual_reference": "78069.0",
+              "perpetual_quote_asset_id": "USDT",
+              "proceeds_in_spot_quote": "78069.0",
+              "funding_cost_in_spot_quote": "78069.0",
+              "proceeds_basis_bps": "-1.9216483580728217001676591768058003684621453523035863746999145343530983073934000",
+              "funding_basis_bps": "-1.9216483580728217001676591768058003684621453523035863746999145343530983073934000",
+              "proceeds_conversion": {
+                "source_asset_id": "USDT",
+                "target_asset_id": "USDT",
+                "source_amount": "78069.0",
+                "target_amount": "78069.0",
+                "mid_equivalent": "78069.0",
+                "cost": "0",
+                "required_input": false,
+                "rate": null,
+                "reasons": []
+              },
+              "funding_conversion": {
+                "source_asset_id": "USDT",
+                "target_asset_id": "USDT",
+                "source_amount": "78069.0",
+                "target_amount": "78069.0",
+                "mid_equivalent": "78069.0",
+                "cost": "0",
+                "required_input": true,
+                "rate": null,
+                "reasons": []
+              },
+              "spot_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "74",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547747602520000",
+                "receive_mono_ns": "125795189137676",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "perpetual_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "51",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547747024777000",
+                "receive_mono_ns": "125794611412227",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "reasons": [],
+              "label": "reference_basis_not_executable_arbitrage",
+              "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+            }
+          ]
+        },
+        "binance-global:spot-v3:spot:ETHUSDT": {
+          "delivery": "172",
+          "rows": [
+            {
+              "spot_instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+              "perpetual_instrument_id": "hyperliquid:info:perpetual:ETH",
+              "reference_kind": "mark",
+              "quote_asset_id": "USDT",
+              "spot_mid": "2270.39500000",
+              "perpetual_reference": "2269.0",
+              "perpetual_quote_asset_id": "USDT",
+              "proceeds_in_spot_quote": "2269.0",
+              "funding_cost_in_spot_quote": "2269.0",
+              "proceeds_basis_bps": "-6.1443052860845799959918868743104173502848623257186524811761829989935671986593000",
+              "funding_basis_bps": "-6.1443052860845799959918868743104173502848623257186524811761829989935671986593000",
+              "proceeds_conversion": {
+                "source_asset_id": "USDT",
+                "target_asset_id": "USDT",
+                "source_amount": "2269.0",
+                "target_amount": "2269.0",
+                "mid_equivalent": "2269.0",
+                "cost": "0",
+                "required_input": false,
+                "rate": null,
+                "reasons": []
+              },
+              "funding_conversion": {
+                "source_asset_id": "USDT",
+                "target_asset_id": "USDT",
+                "source_amount": "2269.0",
+                "target_amount": "2269.0",
+                "mid_equivalent": "2269.0",
+                "cost": "0",
+                "required_input": true,
+                "rate": null,
+                "reasons": []
+              },
+              "spot_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "159",
+                "event_index": "0",
+                "exchange_event_wall_ns": "1793547749915000000",
+                "receive_wall_ns": "1793547750008351000",
+                "receive_mono_ns": "125797594896641",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "perpetual_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "130",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547749226227000",
+                "receive_mono_ns": "125796812796251",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "reasons": [],
+              "label": "reference_basis_not_executable_arbitrage",
+              "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+            },
+            {
+              "spot_instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+              "perpetual_instrument_id": "hyperliquid:info:perpetual:ETH",
+              "reference_kind": "oracle",
+              "quote_asset_id": "USDT",
+              "spot_mid": "2270.39500000",
+              "perpetual_reference": "2270.26",
+              "perpetual_quote_asset_id": "USDT",
+              "proceeds_in_spot_quote": "2270.26",
+              "funding_cost_in_spot_quote": "2270.26",
+              "proceeds_basis_bps": "-0.59461018897592709638631163299778232422111570894051475624285641925744198696700000",
+              "funding_basis_bps": "-0.59461018897592709638631163299778232422111570894051475624285641925744198696700000",
+              "proceeds_conversion": {
+                "source_asset_id": "USDT",
+                "target_asset_id": "USDT",
+                "source_amount": "2270.26",
+                "target_amount": "2270.26",
+                "mid_equivalent": "2270.26",
+                "cost": "0",
+                "required_input": false,
+                "rate": null,
+                "reasons": []
+              },
+              "funding_conversion": {
+                "source_asset_id": "USDT",
+                "target_asset_id": "USDT",
+                "source_amount": "2270.26",
+                "target_amount": "2270.26",
+                "mid_equivalent": "2270.26",
+                "cost": "0",
+                "required_input": true,
+                "rate": null,
+                "reasons": []
+              },
+              "spot_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "159",
+                "event_index": "0",
+                "exchange_event_wall_ns": "1793547749915000000",
+                "receive_wall_ns": "1793547750008351000",
+                "receive_mono_ns": "125797594896641",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "perpetual_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "130",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547749226227000",
+                "receive_mono_ns": "125796812796251",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "reasons": [],
+              "label": "reference_basis_not_executable_arbitrage",
+              "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+            },
+            {
+              "spot_instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+              "perpetual_instrument_id": "hyperliquid:info:perpetual:ETH",
+              "reference_kind": "mid",
+              "quote_asset_id": "USDT",
+              "spot_mid": "2270.39500000",
+              "perpetual_reference": "2269.25",
+              "perpetual_quote_asset_id": "USDT",
+              "proceeds_in_spot_quote": "2269.25",
+              "funding_cost_in_spot_quote": "2269.25",
+              "proceeds_basis_bps": "-5.0431753064995298174987171835737834165420554573102918214671896299983042598314000",
+              "funding_basis_bps": "-5.0431753064995298174987171835737834165420554573102918214671896299983042598314000",
+              "proceeds_conversion": {
+                "source_asset_id": "USDT",
+                "target_asset_id": "USDT",
+                "source_amount": "2269.25",
+                "target_amount": "2269.25",
+                "mid_equivalent": "2269.25",
+                "cost": "0",
+                "required_input": false,
+                "rate": null,
+                "reasons": []
+              },
+              "funding_conversion": {
+                "source_asset_id": "USDT",
+                "target_asset_id": "USDT",
+                "source_amount": "2269.25",
+                "target_amount": "2269.25",
+                "mid_equivalent": "2269.25",
+                "cost": "0",
+                "required_input": true,
+                "rate": null,
+                "reasons": []
+              },
+              "spot_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "159",
+                "event_index": "0",
+                "exchange_event_wall_ns": "1793547749915000000",
+                "receive_wall_ns": "1793547750008351000",
+                "receive_mono_ns": "125797594896641",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "perpetual_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "183",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547750492148000",
+                "receive_mono_ns": "125798078678923",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "reasons": [],
+              "label": "reference_basis_not_executable_arbitrage",
+              "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+            }
+          ]
+        },
+        "binance-global:spot-v3:spot:SOLUSDT": {
+          "delivery": "173",
+          "rows": [
+            {
+              "spot_instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+              "perpetual_instrument_id": "hyperliquid:info:perpetual:SOL",
+              "reference_kind": "mid",
+              "quote_asset_id": "USDT",
+              "spot_mid": "94.89500000",
+              "perpetual_reference": "94.8795",
+              "perpetual_quote_asset_id": "USDT",
+              "proceeds_in_spot_quote": "94.8795",
+              "funding_cost_in_spot_quote": "94.8795",
+              "proceeds_basis_bps": "-1.6333842668212234575056641551188155329574793192475894409610622266715843827388000",
+              "funding_basis_bps": "-1.6333842668212234575056641551188155329574793192475894409610622266715843827388000",
+              "proceeds_conversion": {
+                "source_asset_id": "USDT",
+                "target_asset_id": "USDT",
+                "source_amount": "94.8795",
+                "target_amount": "94.8795",
+                "mid_equivalent": "94.8795",
+                "cost": "0",
+                "required_input": false,
+                "rate": null,
+                "reasons": []
+              },
+              "funding_conversion": {
+                "source_asset_id": "USDT",
+                "target_asset_id": "USDT",
+                "source_amount": "94.8795",
+                "target_amount": "94.8795",
+                "mid_equivalent": "94.8795",
+                "cost": "0",
+                "required_input": true,
+                "rate": null,
+                "reasons": []
+              },
+              "spot_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "180",
+                "event_index": "0",
+                "exchange_event_wall_ns": "1793547750395000000",
+                "receive_wall_ns": "1793547750430778000",
+                "receive_mono_ns": "125798017310812",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "perpetual_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "184",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547750517669000",
+                "receive_mono_ns": "125798104199836",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "reasons": [],
+              "label": "reference_basis_not_executable_arbitrage",
+              "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+            }
+          ]
+        }
+      },
+      "final_context": [
+        {
+          "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+          "now": {
+            "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71",
+            "mono_ns": "125843170816038",
+            "wall_ns": null
+          },
+          "watchlist": [
+            {
+              "instrument": {
+                "instrument_id": "hyperliquid:info:perpetual:BTC",
+                "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793547733629278000:hyperliquid-denomination-v2",
+                "venue": "hyperliquid",
+                "api_family": "info",
+                "native_symbol": "BTC",
+                "base": {
+                  "asset_id": "BTC",
+                  "ticker": "BTC",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "quote": {
+                  "asset_id": "USDT",
+                  "ticker": "USDT",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "tick_size": null,
+                "lot_size": "0.00001",
+                "native_asset_id": "0",
+                "dex_namespace": "default",
+                "settlement": {
+                  "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+                  "ticker": "USDC",
+                  "native_token_id": "0",
+                  "network": "hypercore",
+                  "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+                  "reference_asset_id": null
+                },
+                "market_type": "perpetual",
+                "expiry_wall_ns": null,
+                "constraints": {
+                  "min_base": "0.00001",
+                  "max_base": null,
+                  "min_notional": null,
+                  "max_notional": null,
+                  "min_notional_currency": null,
+                  "price_rule": "hyperliquid_significant_digits",
+                  "size_rule": "fixed_lot",
+                  "max_limit_base": null,
+                  "max_market_base": null
+                },
+                "contract_multiplier": "1",
+                "quantity_unit": "base",
+                "contract_value_currency": "BTC",
+                "inverse": false,
+                "status": "active",
+                "data_access": "unknown",
+                "execution_access": "unknown",
+                "metadata_asof_wall_ns": "1793547733629278000",
+                "metadata_source": "https://api.hyperliquid.xyz/info",
+                "reference_multiplier": null,
+                "settlement_conversion": "quanto_no_fx",
+                "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+              },
+              "stream_id": "da490cab-bcf6-4119-9c71-5889f9513f07",
+              "value": {
+                "kind": "mid",
+                "price": "78066.5",
+                "currency": "USDT",
+                "interval_ns": null
+              },
+              "asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "1597",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547785650716000",
+                "receive_mono_ns": "125833236192462",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "eligibility": {
+                "eligible": false,
+                "reasons": [
+                  "context_continuity_reset",
+                  "owner_stopped",
+                  "stale_context_channel"
+                ],
+                "evaluated_at_mono_ns": "125843170816038",
+                "policy_version": "eligibility-v1"
+              },
+              "label": "reference_only_not_executable"
+            },
+            {
+              "instrument": {
+                "instrument_id": "hyperliquid:info:perpetual:ETH",
+                "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793547733629278000:hyperliquid-denomination-v2",
+                "venue": "hyperliquid",
+                "api_family": "info",
+                "native_symbol": "ETH",
+                "base": {
+                  "asset_id": "ETH",
+                  "ticker": "ETH",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "quote": {
+                  "asset_id": "USDT",
+                  "ticker": "USDT",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "tick_size": null,
+                "lot_size": "0.0001",
+                "native_asset_id": "1",
+                "dex_namespace": "default",
+                "settlement": {
+                  "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+                  "ticker": "USDC",
+                  "native_token_id": "0",
+                  "network": "hypercore",
+                  "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+                  "reference_asset_id": null
+                },
+                "market_type": "perpetual",
+                "expiry_wall_ns": null,
+                "constraints": {
+                  "min_base": "0.0001",
+                  "max_base": null,
+                  "min_notional": null,
+                  "max_notional": null,
+                  "min_notional_currency": null,
+                  "price_rule": "hyperliquid_significant_digits",
+                  "size_rule": "fixed_lot",
+                  "max_limit_base": null,
+                  "max_market_base": null
+                },
+                "contract_multiplier": "1",
+                "quantity_unit": "base",
+                "contract_value_currency": "ETH",
+                "inverse": false,
+                "status": "active",
+                "data_access": "unknown",
+                "execution_access": "unknown",
+                "metadata_asof_wall_ns": "1793547733629278000",
+                "metadata_source": "https://api.hyperliquid.xyz/info",
+                "reference_multiplier": null,
+                "settlement_conversion": "quanto_no_fx",
+                "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+              },
+              "stream_id": "e6ebd8b4-6a42-4116-a8f1-3ec51305c386",
+              "value": {
+                "kind": "mid",
+                "price": "2269.25",
+                "currency": "USDT",
+                "interval_ns": null
+              },
+              "asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "1598",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547785664530000",
+                "receive_mono_ns": "125833250006472",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "eligibility": {
+                "eligible": false,
+                "reasons": [
+                  "context_continuity_reset",
+                  "owner_stopped",
+                  "stale_context_channel"
+                ],
+                "evaluated_at_mono_ns": "125843170816038",
+                "policy_version": "eligibility-v1"
+              },
+              "label": "reference_only_not_executable"
+            },
+            {
+              "instrument": {
+                "instrument_id": "hyperliquid:info:perpetual:SOL",
+                "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793547733629278000:hyperliquid-denomination-v2",
+                "venue": "hyperliquid",
+                "api_family": "info",
+                "native_symbol": "SOL",
+                "base": {
+                  "asset_id": "SOL",
+                  "ticker": "SOL",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "quote": {
+                  "asset_id": "USDT",
+                  "ticker": "USDT",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "tick_size": null,
+                "lot_size": "0.01",
+                "native_asset_id": "5",
+                "dex_namespace": "default",
+                "settlement": {
+                  "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+                  "ticker": "USDC",
+                  "native_token_id": "0",
+                  "network": "hypercore",
+                  "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+                  "reference_asset_id": null
+                },
+                "market_type": "perpetual",
+                "expiry_wall_ns": null,
+                "constraints": {
+                  "min_base": "0.01",
+                  "max_base": null,
+                  "min_notional": null,
+                  "max_notional": null,
+                  "min_notional_currency": null,
+                  "price_rule": "hyperliquid_significant_digits",
+                  "size_rule": "fixed_lot",
+                  "max_limit_base": null,
+                  "max_market_base": null
+                },
+                "contract_multiplier": "1",
+                "quantity_unit": "base",
+                "contract_value_currency": "SOL",
+                "inverse": false,
+                "status": "active",
+                "data_access": "unknown",
+                "execution_access": "unknown",
+                "metadata_asof_wall_ns": "1793547733629278000",
+                "metadata_source": "https://api.hyperliquid.xyz/info",
+                "reference_multiplier": null,
+                "settlement_conversion": "quanto_no_fx",
+                "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+              },
+              "stream_id": "4f9058af-f9ff-4043-b7bc-0c774d96bc78",
+              "value": {
+                "kind": "mid",
+                "price": "94.9105",
+                "currency": "USDT",
+                "interval_ns": null
+              },
+              "asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "1599",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547785665684000",
+                "receive_mono_ns": "125833251160044",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "eligibility": {
+                "eligible": false,
+                "reasons": [
+                  "context_continuity_reset",
+                  "owner_stopped",
+                  "stale_context_channel"
+                ],
+                "evaluated_at_mono_ns": "125843170816038",
+                "policy_version": "eligibility-v1"
+              },
+              "label": "reference_only_not_executable"
+            }
+          ],
+          "contexts": [
+            {
+              "instrument": {
+                "instrument_id": "hyperliquid:info:perpetual:BTC",
+                "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793547733629278000:hyperliquid-denomination-v2",
+                "venue": "hyperliquid",
+                "api_family": "info",
+                "native_symbol": "BTC",
+                "base": {
+                  "asset_id": "BTC",
+                  "ticker": "BTC",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "quote": {
+                  "asset_id": "USDT",
+                  "ticker": "USDT",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "tick_size": null,
+                "lot_size": "0.00001",
+                "native_asset_id": "0",
+                "dex_namespace": "default",
+                "settlement": {
+                  "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+                  "ticker": "USDC",
+                  "native_token_id": "0",
+                  "network": "hypercore",
+                  "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+                  "reference_asset_id": null
+                },
+                "market_type": "perpetual",
+                "expiry_wall_ns": null,
+                "constraints": {
+                  "min_base": "0.00001",
+                  "max_base": null,
+                  "min_notional": null,
+                  "max_notional": null,
+                  "min_notional_currency": null,
+                  "price_rule": "hyperliquid_significant_digits",
+                  "size_rule": "fixed_lot",
+                  "max_limit_base": null,
+                  "max_market_base": null
+                },
+                "contract_multiplier": "1",
+                "quantity_unit": "base",
+                "contract_value_currency": "BTC",
+                "inverse": false,
+                "status": "active",
+                "data_access": "unknown",
+                "execution_access": "unknown",
+                "metadata_asof_wall_ns": "1793547733629278000",
+                "metadata_source": "https://api.hyperliquid.xyz/info",
+                "reference_multiplier": null,
+                "settlement_conversion": "quanto_no_fx",
+                "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+              },
+              "stream_id": "00107d2e-bb47-406f-bcf7-4f081eaa7088",
+              "value": {
+                "mark": "78060.0",
+                "oracle": "78070.8",
+                "funding_rate": "0.0000125",
+                "funding_interval_ns": "3600000000000",
+                "open_interest": "40709.1807799999",
+                "open_interest_unit": "base"
+              },
+              "asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2220",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547790020358000",
+                "receive_mono_ns": "125837605704019",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "eligibility": {
+                "eligible": false,
+                "reasons": [
+                  "context_continuity_reset",
+                  "owner_stopped",
+                  "stale_context_channel"
+                ],
+                "evaluated_at_mono_ns": "125843170816038",
+                "policy_version": "eligibility-v1"
+              },
+              "field_reasons": [
+                [
+                  "mark",
+                  [
+                    "context_continuity_reset",
+                    "owner_stopped",
+                    "stale_context_channel"
+                  ]
+                ],
+                [
+                  "oracle",
+                  [
+                    "context_continuity_reset",
+                    "owner_stopped",
+                    "stale_context_channel"
+                  ]
+                ],
+                [
+                  "funding_rate",
+                  [
+                    "context_continuity_reset",
+                    "owner_stopped",
+                    "stale_context_channel"
+                  ]
+                ],
+                [
+                  "funding_interval_ns",
+                  [
+                    "context_continuity_reset",
+                    "owner_stopped",
+                    "stale_context_channel"
+                  ]
+                ],
+                [
+                  "open_interest",
+                  [
+                    "context_continuity_reset",
+                    "owner_stopped",
+                    "stale_context_channel"
+                  ]
+                ]
+              ],
+              "funding_rate_unit": "fraction_per_funding_interval",
+              "open_interest_unit_provenance": "adapter_declared_not_independently_verified",
+              "label": "reference_only_not_executable"
+            }
+          ],
+          "basis": [
+            {
+              "spot_instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+              "perpetual_instrument_id": "hyperliquid:info:perpetual:BTC",
+              "reference_kind": "mark",
+              "quote_asset_id": "USDT",
+              "spot_mid": "78069.40500000",
+              "perpetual_reference": "78060.0",
+              "perpetual_quote_asset_id": "USDT",
+              "proceeds_in_spot_quote": null,
+              "funding_cost_in_spot_quote": null,
+              "proceeds_basis_bps": null,
+              "funding_basis_bps": null,
+              "proceeds_conversion": null,
+              "funding_conversion": null,
+              "spot_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2283",
+                "event_index": "0",
+                "exchange_event_wall_ns": "1793547790416000000",
+                "receive_wall_ns": "1793547790433856000",
+                "receive_mono_ns": "125838019189525",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "perpetual_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2220",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547790020358000",
+                "receive_mono_ns": "125837605704019",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "reasons": [
+                "data_access_unknown",
+                "integrity_invalid",
+                "lifecycle_resynchronizing",
+                "stale",
+                "context_continuity_reset",
+                "owner_stopped",
+                "stale_context_channel"
+              ],
+              "label": "reference_basis_not_executable_arbitrage",
+              "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+            },
+            {
+              "spot_instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+              "perpetual_instrument_id": "hyperliquid:info:perpetual:BTC",
+              "reference_kind": "oracle",
+              "quote_asset_id": "USDT",
+              "spot_mid": "78069.40500000",
+              "perpetual_reference": "78070.8",
+              "perpetual_quote_asset_id": "USDT",
+              "proceeds_in_spot_quote": null,
+              "funding_cost_in_spot_quote": null,
+              "proceeds_basis_bps": null,
+              "funding_basis_bps": null,
+              "proceeds_conversion": null,
+              "funding_conversion": null,
+              "spot_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2283",
+                "event_index": "0",
+                "exchange_event_wall_ns": "1793547790416000000",
+                "receive_wall_ns": "1793547790433856000",
+                "receive_mono_ns": "125838019189525",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "perpetual_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2220",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547790020358000",
+                "receive_mono_ns": "125837605704019",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "reasons": [
+                "data_access_unknown",
+                "integrity_invalid",
+                "lifecycle_resynchronizing",
+                "stale",
+                "context_continuity_reset",
+                "owner_stopped",
+                "stale_context_channel"
+              ],
+              "label": "reference_basis_not_executable_arbitrage",
+              "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+            },
+            {
+              "spot_instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+              "perpetual_instrument_id": "hyperliquid:info:perpetual:BTC",
+              "reference_kind": "mid",
+              "quote_asset_id": "USDT",
+              "spot_mid": "78069.40500000",
+              "perpetual_reference": "78066.5",
+              "perpetual_quote_asset_id": "USDT",
+              "proceeds_in_spot_quote": null,
+              "funding_cost_in_spot_quote": null,
+              "proceeds_basis_bps": null,
+              "funding_basis_bps": null,
+              "proceeds_conversion": null,
+              "funding_conversion": null,
+              "spot_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2283",
+                "event_index": "0",
+                "exchange_event_wall_ns": "1793547790416000000",
+                "receive_wall_ns": "1793547790433856000",
+                "receive_mono_ns": "125838019189525",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "perpetual_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "1597",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547785650716000",
+                "receive_mono_ns": "125833236192462",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "reasons": [
+                "data_access_unknown",
+                "integrity_invalid",
+                "lifecycle_resynchronizing",
+                "stale",
+                "context_continuity_reset",
+                "owner_stopped",
+                "stale_context_channel",
+                "asof_skew"
+              ],
+              "label": "reference_basis_not_executable_arbitrage",
+              "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+            }
+          ],
+          "reasons": [
+            "reference_channel_not_subscribed",
+            "context_channel_not_subscribed"
+          ]
+        },
+        {
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+          "now": {
+            "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71",
+            "mono_ns": "125843170816038",
+            "wall_ns": null
+          },
+          "watchlist": [
+            {
+              "instrument": {
+                "instrument_id": "hyperliquid:info:perpetual:BTC",
+                "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793547733629278000:hyperliquid-denomination-v2",
+                "venue": "hyperliquid",
+                "api_family": "info",
+                "native_symbol": "BTC",
+                "base": {
+                  "asset_id": "BTC",
+                  "ticker": "BTC",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "quote": {
+                  "asset_id": "USDT",
+                  "ticker": "USDT",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "tick_size": null,
+                "lot_size": "0.00001",
+                "native_asset_id": "0",
+                "dex_namespace": "default",
+                "settlement": {
+                  "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+                  "ticker": "USDC",
+                  "native_token_id": "0",
+                  "network": "hypercore",
+                  "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+                  "reference_asset_id": null
+                },
+                "market_type": "perpetual",
+                "expiry_wall_ns": null,
+                "constraints": {
+                  "min_base": "0.00001",
+                  "max_base": null,
+                  "min_notional": null,
+                  "max_notional": null,
+                  "min_notional_currency": null,
+                  "price_rule": "hyperliquid_significant_digits",
+                  "size_rule": "fixed_lot",
+                  "max_limit_base": null,
+                  "max_market_base": null
+                },
+                "contract_multiplier": "1",
+                "quantity_unit": "base",
+                "contract_value_currency": "BTC",
+                "inverse": false,
+                "status": "active",
+                "data_access": "unknown",
+                "execution_access": "unknown",
+                "metadata_asof_wall_ns": "1793547733629278000",
+                "metadata_source": "https://api.hyperliquid.xyz/info",
+                "reference_multiplier": null,
+                "settlement_conversion": "quanto_no_fx",
+                "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+              },
+              "stream_id": "da490cab-bcf6-4119-9c71-5889f9513f07",
+              "value": {
+                "kind": "mid",
+                "price": "78066.5",
+                "currency": "USDT",
+                "interval_ns": null
+              },
+              "asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "1597",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547785650716000",
+                "receive_mono_ns": "125833236192462",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "eligibility": {
+                "eligible": false,
+                "reasons": [
+                  "context_continuity_reset",
+                  "owner_stopped",
+                  "stale_context_channel"
+                ],
+                "evaluated_at_mono_ns": "125843170816038",
+                "policy_version": "eligibility-v1"
+              },
+              "label": "reference_only_not_executable"
+            },
+            {
+              "instrument": {
+                "instrument_id": "hyperliquid:info:perpetual:ETH",
+                "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793547733629278000:hyperliquid-denomination-v2",
+                "venue": "hyperliquid",
+                "api_family": "info",
+                "native_symbol": "ETH",
+                "base": {
+                  "asset_id": "ETH",
+                  "ticker": "ETH",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "quote": {
+                  "asset_id": "USDT",
+                  "ticker": "USDT",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "tick_size": null,
+                "lot_size": "0.0001",
+                "native_asset_id": "1",
+                "dex_namespace": "default",
+                "settlement": {
+                  "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+                  "ticker": "USDC",
+                  "native_token_id": "0",
+                  "network": "hypercore",
+                  "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+                  "reference_asset_id": null
+                },
+                "market_type": "perpetual",
+                "expiry_wall_ns": null,
+                "constraints": {
+                  "min_base": "0.0001",
+                  "max_base": null,
+                  "min_notional": null,
+                  "max_notional": null,
+                  "min_notional_currency": null,
+                  "price_rule": "hyperliquid_significant_digits",
+                  "size_rule": "fixed_lot",
+                  "max_limit_base": null,
+                  "max_market_base": null
+                },
+                "contract_multiplier": "1",
+                "quantity_unit": "base",
+                "contract_value_currency": "ETH",
+                "inverse": false,
+                "status": "active",
+                "data_access": "unknown",
+                "execution_access": "unknown",
+                "metadata_asof_wall_ns": "1793547733629278000",
+                "metadata_source": "https://api.hyperliquid.xyz/info",
+                "reference_multiplier": null,
+                "settlement_conversion": "quanto_no_fx",
+                "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+              },
+              "stream_id": "e6ebd8b4-6a42-4116-a8f1-3ec51305c386",
+              "value": {
+                "kind": "mid",
+                "price": "2269.25",
+                "currency": "USDT",
+                "interval_ns": null
+              },
+              "asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "1598",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547785664530000",
+                "receive_mono_ns": "125833250006472",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "eligibility": {
+                "eligible": false,
+                "reasons": [
+                  "context_continuity_reset",
+                  "owner_stopped",
+                  "stale_context_channel"
+                ],
+                "evaluated_at_mono_ns": "125843170816038",
+                "policy_version": "eligibility-v1"
+              },
+              "label": "reference_only_not_executable"
+            },
+            {
+              "instrument": {
+                "instrument_id": "hyperliquid:info:perpetual:SOL",
+                "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793547733629278000:hyperliquid-denomination-v2",
+                "venue": "hyperliquid",
+                "api_family": "info",
+                "native_symbol": "SOL",
+                "base": {
+                  "asset_id": "SOL",
+                  "ticker": "SOL",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "quote": {
+                  "asset_id": "USDT",
+                  "ticker": "USDT",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "tick_size": null,
+                "lot_size": "0.01",
+                "native_asset_id": "5",
+                "dex_namespace": "default",
+                "settlement": {
+                  "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+                  "ticker": "USDC",
+                  "native_token_id": "0",
+                  "network": "hypercore",
+                  "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+                  "reference_asset_id": null
+                },
+                "market_type": "perpetual",
+                "expiry_wall_ns": null,
+                "constraints": {
+                  "min_base": "0.01",
+                  "max_base": null,
+                  "min_notional": null,
+                  "max_notional": null,
+                  "min_notional_currency": null,
+                  "price_rule": "hyperliquid_significant_digits",
+                  "size_rule": "fixed_lot",
+                  "max_limit_base": null,
+                  "max_market_base": null
+                },
+                "contract_multiplier": "1",
+                "quantity_unit": "base",
+                "contract_value_currency": "SOL",
+                "inverse": false,
+                "status": "active",
+                "data_access": "unknown",
+                "execution_access": "unknown",
+                "metadata_asof_wall_ns": "1793547733629278000",
+                "metadata_source": "https://api.hyperliquid.xyz/info",
+                "reference_multiplier": null,
+                "settlement_conversion": "quanto_no_fx",
+                "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+              },
+              "stream_id": "4f9058af-f9ff-4043-b7bc-0c774d96bc78",
+              "value": {
+                "kind": "mid",
+                "price": "94.9105",
+                "currency": "USDT",
+                "interval_ns": null
+              },
+              "asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "1599",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547785665684000",
+                "receive_mono_ns": "125833251160044",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "eligibility": {
+                "eligible": false,
+                "reasons": [
+                  "context_continuity_reset",
+                  "owner_stopped",
+                  "stale_context_channel"
+                ],
+                "evaluated_at_mono_ns": "125843170816038",
+                "policy_version": "eligibility-v1"
+              },
+              "label": "reference_only_not_executable"
+            }
+          ],
+          "contexts": [
+            {
+              "instrument": {
+                "instrument_id": "hyperliquid:info:perpetual:ETH",
+                "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793547733629278000:hyperliquid-denomination-v2",
+                "venue": "hyperliquid",
+                "api_family": "info",
+                "native_symbol": "ETH",
+                "base": {
+                  "asset_id": "ETH",
+                  "ticker": "ETH",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "quote": {
+                  "asset_id": "USDT",
+                  "ticker": "USDT",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "tick_size": null,
+                "lot_size": "0.0001",
+                "native_asset_id": "1",
+                "dex_namespace": "default",
+                "settlement": {
+                  "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+                  "ticker": "USDC",
+                  "native_token_id": "0",
+                  "network": "hypercore",
+                  "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+                  "reference_asset_id": null
+                },
+                "market_type": "perpetual",
+                "expiry_wall_ns": null,
+                "constraints": {
+                  "min_base": "0.0001",
+                  "max_base": null,
+                  "min_notional": null,
+                  "max_notional": null,
+                  "min_notional_currency": null,
+                  "price_rule": "hyperliquid_significant_digits",
+                  "size_rule": "fixed_lot",
+                  "max_limit_base": null,
+                  "max_market_base": null
+                },
+                "contract_multiplier": "1",
+                "quantity_unit": "base",
+                "contract_value_currency": "ETH",
+                "inverse": false,
+                "status": "active",
+                "data_access": "unknown",
+                "execution_access": "unknown",
+                "metadata_asof_wall_ns": "1793547733629278000",
+                "metadata_source": "https://api.hyperliquid.xyz/info",
+                "reference_multiplier": null,
+                "settlement_conversion": "quanto_no_fx",
+                "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+              },
+              "stream_id": "0e0c2090-9f76-41f7-9213-ecf5e4fdbb62",
+              "value": {
+                "mark": "2269.2",
+                "oracle": "2270.3",
+                "funding_rate": "0.0000125",
+                "funding_interval_ns": "3600000000000",
+                "open_interest": "983554.7919999998",
+                "open_interest_unit": "base"
+              },
+              "asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2217",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547789978971000",
+                "receive_mono_ns": "125837564318281",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "eligibility": {
+                "eligible": false,
+                "reasons": [
+                  "context_continuity_reset",
+                  "owner_stopped",
+                  "stale_context_channel"
+                ],
+                "evaluated_at_mono_ns": "125843170816038",
+                "policy_version": "eligibility-v1"
+              },
+              "field_reasons": [
+                [
+                  "mark",
+                  [
+                    "context_continuity_reset",
+                    "owner_stopped",
+                    "stale_context_channel"
+                  ]
+                ],
+                [
+                  "oracle",
+                  [
+                    "context_continuity_reset",
+                    "owner_stopped",
+                    "stale_context_channel"
+                  ]
+                ],
+                [
+                  "funding_rate",
+                  [
+                    "context_continuity_reset",
+                    "owner_stopped",
+                    "stale_context_channel"
+                  ]
+                ],
+                [
+                  "funding_interval_ns",
+                  [
+                    "context_continuity_reset",
+                    "owner_stopped",
+                    "stale_context_channel"
+                  ]
+                ],
+                [
+                  "open_interest",
+                  [
+                    "context_continuity_reset",
+                    "owner_stopped",
+                    "stale_context_channel"
+                  ]
+                ]
+              ],
+              "funding_rate_unit": "fraction_per_funding_interval",
+              "open_interest_unit_provenance": "adapter_declared_not_independently_verified",
+              "label": "reference_only_not_executable"
+            }
+          ],
+          "basis": [
+            {
+              "spot_instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+              "perpetual_instrument_id": "hyperliquid:info:perpetual:ETH",
+              "reference_kind": "mark",
+              "quote_asset_id": "USDT",
+              "spot_mid": "2270.23500000",
+              "perpetual_reference": "2269.2",
+              "perpetual_quote_asset_id": "USDT",
+              "proceeds_in_spot_quote": null,
+              "funding_cost_in_spot_quote": null,
+              "proceeds_basis_bps": null,
+              "funding_basis_bps": null,
+              "proceeds_conversion": null,
+              "funding_conversion": null,
+              "spot_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2282",
+                "event_index": "0",
+                "exchange_event_wall_ns": "1793547790416000000",
+                "receive_wall_ns": "1793547790433288000",
+                "receive_mono_ns": "125838018621162",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "perpetual_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2217",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547789978971000",
+                "receive_mono_ns": "125837564318281",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "reasons": [
+                "data_access_unknown",
+                "integrity_invalid",
+                "lifecycle_resynchronizing",
+                "stale",
+                "context_continuity_reset",
+                "owner_stopped",
+                "stale_context_channel"
+              ],
+              "label": "reference_basis_not_executable_arbitrage",
+              "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+            },
+            {
+              "spot_instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+              "perpetual_instrument_id": "hyperliquid:info:perpetual:ETH",
+              "reference_kind": "oracle",
+              "quote_asset_id": "USDT",
+              "spot_mid": "2270.23500000",
+              "perpetual_reference": "2270.3",
+              "perpetual_quote_asset_id": "USDT",
+              "proceeds_in_spot_quote": null,
+              "funding_cost_in_spot_quote": null,
+              "proceeds_basis_bps": null,
+              "funding_basis_bps": null,
+              "proceeds_conversion": null,
+              "funding_conversion": null,
+              "spot_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2282",
+                "event_index": "0",
+                "exchange_event_wall_ns": "1793547790416000000",
+                "receive_wall_ns": "1793547790433288000",
+                "receive_mono_ns": "125838018621162",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "perpetual_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2217",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547789978971000",
+                "receive_mono_ns": "125837564318281",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "reasons": [
+                "data_access_unknown",
+                "integrity_invalid",
+                "lifecycle_resynchronizing",
+                "stale",
+                "context_continuity_reset",
+                "owner_stopped",
+                "stale_context_channel"
+              ],
+              "label": "reference_basis_not_executable_arbitrage",
+              "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+            },
+            {
+              "spot_instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+              "perpetual_instrument_id": "hyperliquid:info:perpetual:ETH",
+              "reference_kind": "mid",
+              "quote_asset_id": "USDT",
+              "spot_mid": "2270.23500000",
+              "perpetual_reference": "2269.25",
+              "perpetual_quote_asset_id": "USDT",
+              "proceeds_in_spot_quote": null,
+              "funding_cost_in_spot_quote": null,
+              "proceeds_basis_bps": null,
+              "funding_basis_bps": null,
+              "proceeds_conversion": null,
+              "funding_conversion": null,
+              "spot_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2282",
+                "event_index": "0",
+                "exchange_event_wall_ns": "1793547790416000000",
+                "receive_wall_ns": "1793547790433288000",
+                "receive_mono_ns": "125838018621162",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "perpetual_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "1598",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547785664530000",
+                "receive_mono_ns": "125833250006472",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "reasons": [
+                "data_access_unknown",
+                "integrity_invalid",
+                "lifecycle_resynchronizing",
+                "stale",
+                "context_continuity_reset",
+                "owner_stopped",
+                "stale_context_channel",
+                "asof_skew"
+              ],
+              "label": "reference_basis_not_executable_arbitrage",
+              "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+            }
+          ],
+          "reasons": [
+            "reference_channel_not_subscribed",
+            "context_channel_not_subscribed"
+          ]
+        },
+        {
+          "instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+          "now": {
+            "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71",
+            "mono_ns": "125843170816038",
+            "wall_ns": null
+          },
+          "watchlist": [
+            {
+              "instrument": {
+                "instrument_id": "hyperliquid:info:perpetual:BTC",
+                "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793547733629278000:hyperliquid-denomination-v2",
+                "venue": "hyperliquid",
+                "api_family": "info",
+                "native_symbol": "BTC",
+                "base": {
+                  "asset_id": "BTC",
+                  "ticker": "BTC",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "quote": {
+                  "asset_id": "USDT",
+                  "ticker": "USDT",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "tick_size": null,
+                "lot_size": "0.00001",
+                "native_asset_id": "0",
+                "dex_namespace": "default",
+                "settlement": {
+                  "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+                  "ticker": "USDC",
+                  "native_token_id": "0",
+                  "network": "hypercore",
+                  "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+                  "reference_asset_id": null
+                },
+                "market_type": "perpetual",
+                "expiry_wall_ns": null,
+                "constraints": {
+                  "min_base": "0.00001",
+                  "max_base": null,
+                  "min_notional": null,
+                  "max_notional": null,
+                  "min_notional_currency": null,
+                  "price_rule": "hyperliquid_significant_digits",
+                  "size_rule": "fixed_lot",
+                  "max_limit_base": null,
+                  "max_market_base": null
+                },
+                "contract_multiplier": "1",
+                "quantity_unit": "base",
+                "contract_value_currency": "BTC",
+                "inverse": false,
+                "status": "active",
+                "data_access": "unknown",
+                "execution_access": "unknown",
+                "metadata_asof_wall_ns": "1793547733629278000",
+                "metadata_source": "https://api.hyperliquid.xyz/info",
+                "reference_multiplier": null,
+                "settlement_conversion": "quanto_no_fx",
+                "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+              },
+              "stream_id": "da490cab-bcf6-4119-9c71-5889f9513f07",
+              "value": {
+                "kind": "mid",
+                "price": "78066.5",
+                "currency": "USDT",
+                "interval_ns": null
+              },
+              "asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "1597",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547785650716000",
+                "receive_mono_ns": "125833236192462",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "eligibility": {
+                "eligible": false,
+                "reasons": [
+                  "context_continuity_reset",
+                  "owner_stopped",
+                  "stale_context_channel"
+                ],
+                "evaluated_at_mono_ns": "125843170816038",
+                "policy_version": "eligibility-v1"
+              },
+              "label": "reference_only_not_executable"
+            },
+            {
+              "instrument": {
+                "instrument_id": "hyperliquid:info:perpetual:ETH",
+                "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793547733629278000:hyperliquid-denomination-v2",
+                "venue": "hyperliquid",
+                "api_family": "info",
+                "native_symbol": "ETH",
+                "base": {
+                  "asset_id": "ETH",
+                  "ticker": "ETH",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "quote": {
+                  "asset_id": "USDT",
+                  "ticker": "USDT",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "tick_size": null,
+                "lot_size": "0.0001",
+                "native_asset_id": "1",
+                "dex_namespace": "default",
+                "settlement": {
+                  "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+                  "ticker": "USDC",
+                  "native_token_id": "0",
+                  "network": "hypercore",
+                  "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+                  "reference_asset_id": null
+                },
+                "market_type": "perpetual",
+                "expiry_wall_ns": null,
+                "constraints": {
+                  "min_base": "0.0001",
+                  "max_base": null,
+                  "min_notional": null,
+                  "max_notional": null,
+                  "min_notional_currency": null,
+                  "price_rule": "hyperliquid_significant_digits",
+                  "size_rule": "fixed_lot",
+                  "max_limit_base": null,
+                  "max_market_base": null
+                },
+                "contract_multiplier": "1",
+                "quantity_unit": "base",
+                "contract_value_currency": "ETH",
+                "inverse": false,
+                "status": "active",
+                "data_access": "unknown",
+                "execution_access": "unknown",
+                "metadata_asof_wall_ns": "1793547733629278000",
+                "metadata_source": "https://api.hyperliquid.xyz/info",
+                "reference_multiplier": null,
+                "settlement_conversion": "quanto_no_fx",
+                "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+              },
+              "stream_id": "e6ebd8b4-6a42-4116-a8f1-3ec51305c386",
+              "value": {
+                "kind": "mid",
+                "price": "2269.25",
+                "currency": "USDT",
+                "interval_ns": null
+              },
+              "asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "1598",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547785664530000",
+                "receive_mono_ns": "125833250006472",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "eligibility": {
+                "eligible": false,
+                "reasons": [
+                  "context_continuity_reset",
+                  "owner_stopped",
+                  "stale_context_channel"
+                ],
+                "evaluated_at_mono_ns": "125843170816038",
+                "policy_version": "eligibility-v1"
+              },
+              "label": "reference_only_not_executable"
+            },
+            {
+              "instrument": {
+                "instrument_id": "hyperliquid:info:perpetual:SOL",
+                "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793547733629278000:hyperliquid-denomination-v2",
+                "venue": "hyperliquid",
+                "api_family": "info",
+                "native_symbol": "SOL",
+                "base": {
+                  "asset_id": "SOL",
+                  "ticker": "SOL",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "quote": {
+                  "asset_id": "USDT",
+                  "ticker": "USDT",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "tick_size": null,
+                "lot_size": "0.01",
+                "native_asset_id": "5",
+                "dex_namespace": "default",
+                "settlement": {
+                  "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+                  "ticker": "USDC",
+                  "native_token_id": "0",
+                  "network": "hypercore",
+                  "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+                  "reference_asset_id": null
+                },
+                "market_type": "perpetual",
+                "expiry_wall_ns": null,
+                "constraints": {
+                  "min_base": "0.01",
+                  "max_base": null,
+                  "min_notional": null,
+                  "max_notional": null,
+                  "min_notional_currency": null,
+                  "price_rule": "hyperliquid_significant_digits",
+                  "size_rule": "fixed_lot",
+                  "max_limit_base": null,
+                  "max_market_base": null
+                },
+                "contract_multiplier": "1",
+                "quantity_unit": "base",
+                "contract_value_currency": "SOL",
+                "inverse": false,
+                "status": "active",
+                "data_access": "unknown",
+                "execution_access": "unknown",
+                "metadata_asof_wall_ns": "1793547733629278000",
+                "metadata_source": "https://api.hyperliquid.xyz/info",
+                "reference_multiplier": null,
+                "settlement_conversion": "quanto_no_fx",
+                "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+              },
+              "stream_id": "4f9058af-f9ff-4043-b7bc-0c774d96bc78",
+              "value": {
+                "kind": "mid",
+                "price": "94.9105",
+                "currency": "USDT",
+                "interval_ns": null
+              },
+              "asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "1599",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547785665684000",
+                "receive_mono_ns": "125833251160044",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "eligibility": {
+                "eligible": false,
+                "reasons": [
+                  "context_continuity_reset",
+                  "owner_stopped",
+                  "stale_context_channel"
+                ],
+                "evaluated_at_mono_ns": "125843170816038",
+                "policy_version": "eligibility-v1"
+              },
+              "label": "reference_only_not_executable"
+            }
+          ],
+          "contexts": [
+            {
+              "instrument": {
+                "instrument_id": "hyperliquid:info:perpetual:SOL",
+                "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793547733629278000:hyperliquid-denomination-v2",
+                "venue": "hyperliquid",
+                "api_family": "info",
+                "native_symbol": "SOL",
+                "base": {
+                  "asset_id": "SOL",
+                  "ticker": "SOL",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "quote": {
+                  "asset_id": "USDT",
+                  "ticker": "USDT",
+                  "native_token_id": null,
+                  "network": null,
+                  "contract_address": null,
+                  "reference_asset_id": null
+                },
+                "tick_size": null,
+                "lot_size": "0.01",
+                "native_asset_id": "5",
+                "dex_namespace": "default",
+                "settlement": {
+                  "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+                  "ticker": "USDC",
+                  "native_token_id": "0",
+                  "network": "hypercore",
+                  "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+                  "reference_asset_id": null
+                },
+                "market_type": "perpetual",
+                "expiry_wall_ns": null,
+                "constraints": {
+                  "min_base": "0.01",
+                  "max_base": null,
+                  "min_notional": null,
+                  "max_notional": null,
+                  "min_notional_currency": null,
+                  "price_rule": "hyperliquid_significant_digits",
+                  "size_rule": "fixed_lot",
+                  "max_limit_base": null,
+                  "max_market_base": null
+                },
+                "contract_multiplier": "1",
+                "quantity_unit": "base",
+                "contract_value_currency": "SOL",
+                "inverse": false,
+                "status": "active",
+                "data_access": "unknown",
+                "execution_access": "unknown",
+                "metadata_asof_wall_ns": "1793547733629278000",
+                "metadata_source": "https://api.hyperliquid.xyz/info",
+                "reference_multiplier": null,
+                "settlement_conversion": "quanto_no_fx",
+                "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+              },
+              "stream_id": "f7453fcc-cc2f-4900-95a6-c70687662369",
+              "value": {
+                "mark": "94.895",
+                "oracle": "94.92",
+                "funding_rate": "0.0000125",
+                "funding_interval_ns": "3600000000000",
+                "open_interest": "5541927.3999999985",
+                "open_interest_unit": "base"
+              },
+              "asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2218",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547790006782000",
+                "receive_mono_ns": "125837592128179",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "eligibility": {
+                "eligible": false,
+                "reasons": [
+                  "context_continuity_reset",
+                  "owner_stopped",
+                  "stale_context_channel"
+                ],
+                "evaluated_at_mono_ns": "125843170816038",
+                "policy_version": "eligibility-v1"
+              },
+              "field_reasons": [
+                [
+                  "mark",
+                  [
+                    "context_continuity_reset",
+                    "owner_stopped",
+                    "stale_context_channel"
+                  ]
+                ],
+                [
+                  "oracle",
+                  [
+                    "context_continuity_reset",
+                    "owner_stopped",
+                    "stale_context_channel"
+                  ]
+                ],
+                [
+                  "funding_rate",
+                  [
+                    "context_continuity_reset",
+                    "owner_stopped",
+                    "stale_context_channel"
+                  ]
+                ],
+                [
+                  "funding_interval_ns",
+                  [
+                    "context_continuity_reset",
+                    "owner_stopped",
+                    "stale_context_channel"
+                  ]
+                ],
+                [
+                  "open_interest",
+                  [
+                    "context_continuity_reset",
+                    "owner_stopped",
+                    "stale_context_channel"
+                  ]
+                ]
+              ],
+              "funding_rate_unit": "fraction_per_funding_interval",
+              "open_interest_unit_provenance": "adapter_declared_not_independently_verified",
+              "label": "reference_only_not_executable"
+            }
+          ],
+          "basis": [
+            {
+              "spot_instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+              "perpetual_instrument_id": "hyperliquid:info:perpetual:SOL",
+              "reference_kind": "mark",
+              "quote_asset_id": "USDT",
+              "spot_mid": "94.90500000",
+              "perpetual_reference": "94.895",
+              "perpetual_quote_asset_id": "USDT",
+              "proceeds_in_spot_quote": null,
+              "funding_cost_in_spot_quote": null,
+              "proceeds_basis_bps": null,
+              "funding_basis_bps": null,
+              "proceeds_conversion": null,
+              "funding_conversion": null,
+              "spot_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2280",
+                "event_index": "0",
+                "exchange_event_wall_ns": "1793547790395000000",
+                "receive_wall_ns": "1793547790413695000",
+                "receive_mono_ns": "125837999029076",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "perpetual_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2218",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547790006782000",
+                "receive_mono_ns": "125837592128179",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "reasons": [
+                "data_access_unknown",
+                "integrity_invalid",
+                "lifecycle_resynchronizing",
+                "stale",
+                "context_continuity_reset",
+                "owner_stopped",
+                "stale_context_channel"
+              ],
+              "label": "reference_basis_not_executable_arbitrage",
+              "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+            },
+            {
+              "spot_instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+              "perpetual_instrument_id": "hyperliquid:info:perpetual:SOL",
+              "reference_kind": "oracle",
+              "quote_asset_id": "USDT",
+              "spot_mid": "94.90500000",
+              "perpetual_reference": "94.92",
+              "perpetual_quote_asset_id": "USDT",
+              "proceeds_in_spot_quote": null,
+              "funding_cost_in_spot_quote": null,
+              "proceeds_basis_bps": null,
+              "funding_basis_bps": null,
+              "proceeds_conversion": null,
+              "funding_conversion": null,
+              "spot_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2280",
+                "event_index": "0",
+                "exchange_event_wall_ns": "1793547790395000000",
+                "receive_wall_ns": "1793547790413695000",
+                "receive_mono_ns": "125837999029076",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "perpetual_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2218",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547790006782000",
+                "receive_mono_ns": "125837592128179",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "reasons": [
+                "data_access_unknown",
+                "integrity_invalid",
+                "lifecycle_resynchronizing",
+                "stale",
+                "context_continuity_reset",
+                "owner_stopped",
+                "stale_context_channel"
+              ],
+              "label": "reference_basis_not_executable_arbitrage",
+              "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+            },
+            {
+              "spot_instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+              "perpetual_instrument_id": "hyperliquid:info:perpetual:SOL",
+              "reference_kind": "mid",
+              "quote_asset_id": "USDT",
+              "spot_mid": "94.90500000",
+              "perpetual_reference": "94.9105",
+              "perpetual_quote_asset_id": "USDT",
+              "proceeds_in_spot_quote": null,
+              "funding_cost_in_spot_quote": null,
+              "proceeds_basis_bps": null,
+              "funding_basis_bps": null,
+              "proceeds_conversion": null,
+              "funding_conversion": null,
+              "spot_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "2280",
+                "event_index": "0",
+                "exchange_event_wall_ns": "1793547790395000000",
+                "receive_wall_ns": "1793547790413695000",
+                "receive_mono_ns": "125837999029076",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "perpetual_asof": {
+                "session_id": "ad0b24c4-a23c-498f-affc-36e8eb171325",
+                "ingest_ordinal": "1599",
+                "event_index": "0",
+                "exchange_event_wall_ns": null,
+                "receive_wall_ns": "1793547785665684000",
+                "receive_mono_ns": "125833251160044",
+                "clock_id": "c8151617-291c-4efd-acf3-be2b07936f71"
+              },
+              "reasons": [
+                "data_access_unknown",
+                "integrity_invalid",
+                "lifecycle_resynchronizing",
+                "stale",
+                "context_continuity_reset",
+                "owner_stopped",
+                "stale_context_channel",
+                "asof_skew"
+              ],
+              "label": "reference_basis_not_executable_arbitrage",
+              "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+            }
+          ],
+          "reasons": [
+            "reference_channel_not_subscribed",
+            "context_channel_not_subscribed"
+          ]
+        }
+      ]
+    }
+  },
+  "claim": "finite actual capture and native replay parity, not sustained-load acceptance or independently verified funding payments/OI units",
+  "manifest_sha256": "0a835080c9c954859c241e13460c0d7111d9b712c63b586a5969cb2059cf0140",
+  "capture_code_revision": "workstation-source-sha256:5e6156f683bcbe3a0d38951b45cfe00c466ed815a96f17ae645803c5dc0f4f3f",
+  "counts": {
+    "raw_count": "2283",
+    "batch_count": "2319",
+    "event_count": "2462",
+    "checkpoint_count": "360"
+  },
+  "selected_native_instruments": [
+    "binance-global:spot-v3:spot:BTCUSDT",
+    "binance-global:spot-v3:spot:ETHUSDT",
+    "binance-global:spot-v3:spot:SOLUSDT"
+  ],
+  "checks": {
+    "native_book_parity": true,
+    "complete_observer_state_parity": true,
+    "native_context_parity": true,
+    "delivery_parity": true,
+    "reference_and_context_received": true,
+    "each_selected_asset_had_eligible_reference_basis": true
+  },
+  "elapsed_seconds": "31.561799318005797"
+}

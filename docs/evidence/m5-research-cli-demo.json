@@ -1,0 +1,402 @@
+{
+  "command": ".venv-upgrade/bin/python -m src.workstation.cli research run --demo --duration 900 --state-dir data/m5-smoke/state --limit 1",
+  "elapsed_seconds": "131.34",
+  "result": {
+    "attempt": {
+      "attempt_id": "3e41fc4916f84642827febad25cd733d",
+      "config_hash": "a43062ff8c1e6a4525ac6ae2fbefb2ef50bc8f2744265fecd23c1003f5bc4de5",
+      "failure": null,
+      "finished_wall_ns": "1793545845948427000",
+      "report_hash": "391f557c0dbe2310751cf1e4287ae17d11c0d72e1d5ee64cf813236b370821ee",
+      "source": "synthetic-demo-v3-900s",
+      "started_wall_ns": "1793545732253694000",
+      "status": "completed"
+    },
+    "config": {
+      "base_quantity": "0.001",
+      "depth_band_bps": "25",
+      "embargo_ns": "60000000000",
+      "feature_window_ns": "60000000000",
+      "fees": [],
+      "horizons_ns": [
+        "1000000000",
+        "5000000000",
+        "30000000000",
+        "60000000000"
+      ],
+      "max_observations": "20000",
+      "min_samples": "30",
+      "policy": {
+        "allow_snapshot_quotes": true,
+        "max_age_ns": "5000000000",
+        "max_asof_skew_ns": "1000000000",
+        "require_execution_access": false,
+        "required_capabilities": [],
+        "version": "eligibility-v1"
+      },
+      "sample_interval_ns": "1000000000",
+      "scenarios": [
+        {
+          "extra_fee_bps": "0",
+          "extra_slippage_bps": "0",
+          "latency_ns": "0",
+          "name": "base"
+        },
+        {
+          "extra_fee_bps": "2",
+          "extra_slippage_bps": "2",
+          "latency_ns": "0",
+          "name": "fee_slippage"
+        },
+        {
+          "extra_fee_bps": "0",
+          "extra_slippage_bps": "0",
+          "latency_ns": "1000000000",
+          "name": "latency_1s"
+        }
+      ],
+      "stream_ids": [],
+      "thresholds": [
+        "0",
+        "0.25",
+        "0.5"
+      ],
+      "train_fraction": "0.5",
+      "validation_fraction": "0.25"
+    },
+    "report": {
+      "attempt_id": "3e41fc4916f84642827febad25cd733d",
+      "config": {
+        "base_quantity": "0.001",
+        "depth_band_bps": "25",
+        "embargo_ns": "60000000000",
+        "feature_window_ns": "60000000000",
+        "fees": [],
+        "horizons_ns": [
+          "1000000000",
+          "5000000000",
+          "30000000000",
+          "60000000000"
+        ],
+        "max_observations": "20000",
+        "min_samples": "30",
+        "policy": {
+          "allow_snapshot_quotes": true,
+          "max_age_ns": "5000000000",
+          "max_asof_skew_ns": "1000000000",
+          "require_execution_access": false,
+          "required_capabilities": [],
+          "version": "eligibility-v1"
+        },
+        "sample_interval_ns": "1000000000",
+        "scenarios": [
+          {
+            "extra_fee_bps": "0",
+            "extra_slippage_bps": "0",
+            "latency_ns": "0",
+            "name": "base"
+          },
+          {
+            "extra_fee_bps": "2",
+            "extra_slippage_bps": "2",
+            "latency_ns": "0",
+            "name": "fee_slippage"
+          },
+          {
+            "extra_fee_bps": "0",
+            "extra_slippage_bps": "0",
+            "latency_ns": "1000000000",
+            "name": "latency_1s"
+          }
+        ],
+        "stream_ids": [],
+        "thresholds": [
+          "0",
+          "0.25",
+          "0.5"
+        ],
+        "train_fraction": "0.5",
+        "validation_fraction": "0.25"
+      },
+      "config_hash": "a43062ff8c1e6a4525ac6ae2fbefb2ef50bc8f2744265fecd23c1003f5bc4de5",
+      "drawdown": null,
+      "duration_ns": "899999037000",
+      "exclusions": [
+        [
+          "book_continuity_or_quality_break",
+          "53976"
+        ],
+        [
+          "book_window_warming",
+          "5040"
+        ],
+        [
+          "continuity_changed",
+          "72"
+        ],
+        [
+          "data_access_unknown",
+          "14"
+        ],
+        [
+          "empty_depth_band",
+          "5394"
+        ],
+        [
+          "end_of_source",
+          "2688"
+        ],
+        [
+          "incomplete_depth_band",
+          "3596"
+        ],
+        [
+          "lot_remainder",
+          "31488"
+        ],
+        [
+          "missing_exact_event_flow",
+          "4495"
+        ],
+        [
+          "no_book",
+          "28"
+        ],
+        [
+          "no_book_at_arrival",
+          "48"
+        ],
+        [
+          "no_event_continuity",
+          "4495"
+        ],
+        [
+          "no_trade_evidence",
+          "14"
+        ],
+        [
+          "partial_or_unfilled_order",
+          "31488"
+        ],
+        [
+          "quiet_trade_interval_unproven",
+          "14"
+        ],
+        [
+          "trade_window_warming",
+          "840"
+        ],
+        [
+          "unavailable_effective_price",
+          "94464"
+        ],
+        [
+          "unknown_fees",
+          "94464"
+        ]
+      ],
+      "label_count": "151200",
+      "label_hash": "cfedafd4aad6461e978032f1f1b00a77316e5719dc3f59df94ea9e4a04e39f98",
+      "limitations": [
+        "unfunded_directional_markouts_not_realizable_portfolio_returns",
+        "independent_taker_roundtrips_no_shared_inventory_or_market_impact",
+        "short_direction_does_not_establish_borrow_or_margin_access",
+        "fees_are_sourced_assumptions_unknown_fees_exclude_net",
+        "exact_deadline_last_available_book_no_future_arrival_book",
+        "closed_outcome_intervals_purged_and_later_partition_embargoed",
+        "all_candidate_tests_reported_once_selection_uses_train_validation_only",
+        "fixed_spread_regimes_no_full_sample_fitting",
+        "synthetic_data_cannot_establish_edge"
+      ],
+      "observation_count": "12600",
+      "observation_hash": "7e8b28434c2ac7abd1fd322c9d29563c1d21aac4c1b5a1f2fd5f4b77636f765b",
+      "outcome": "insufficient_evidence",
+      "portfolio_unavailable_reasons": [
+        "no_sequential_funded_portfolio_model"
+      ],
+      "provenance": "Original deterministic synthetic source-schema examples, dedicated to the public domain under CC0-1.0. Not recorded market activity: all prices, sizes, timestamps, sequence IDs, funding and open interest are invented. Hyperliquid metadata is a pinned public Info subset, not current discovery or execution permission. fixture_sha256=097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2",
+      "report_hash": "391f557c0dbe2310751cf1e4287ae17d11c0d72e1d5ee64cf813236b370821ee",
+      "selections": [
+        {
+          "horizon_ns": "1000000000",
+          "hypothesis": "depth_band_imbalance",
+          "reason": "insufficient_support_or_no_positive_train_payoff",
+          "threshold": null
+        },
+        {
+          "horizon_ns": "5000000000",
+          "hypothesis": "depth_band_imbalance",
+          "reason": "insufficient_support_or_no_positive_train_payoff",
+          "threshold": null
+        },
+        {
+          "horizon_ns": "30000000000",
+          "hypothesis": "depth_band_imbalance",
+          "reason": "insufficient_support_or_no_positive_train_payoff",
+          "threshold": null
+        },
+        {
+          "horizon_ns": "60000000000",
+          "hypothesis": "depth_band_imbalance",
+          "reason": "insufficient_support_or_no_positive_train_payoff",
+          "threshold": null
+        },
+        {
+          "horizon_ns": "1000000000",
+          "hypothesis": "event_ofi",
+          "reason": "insufficient_support_or_no_positive_train_payoff",
+          "threshold": null
+        },
+        {
+          "horizon_ns": "5000000000",
+          "hypothesis": "event_ofi",
+          "reason": "insufficient_support_or_no_positive_train_payoff",
+          "threshold": null
+        },
+        {
+          "horizon_ns": "30000000000",
+          "hypothesis": "event_ofi",
+          "reason": "insufficient_support_or_no_positive_train_payoff",
+          "threshold": null
+        },
+        {
+          "horizon_ns": "60000000000",
+          "hypothesis": "event_ofi",
+          "reason": "insufficient_support_or_no_positive_train_payoff",
+          "threshold": null
+        },
+        {
+          "horizon_ns": "1000000000",
+          "hypothesis": "executed_trade_flow",
+          "reason": "insufficient_support_or_no_positive_train_payoff",
+          "threshold": null
+        },
+        {
+          "horizon_ns": "5000000000",
+          "hypothesis": "executed_trade_flow",
+          "reason": "insufficient_support_or_no_positive_train_payoff",
+          "threshold": null
+        },
+        {
+          "horizon_ns": "30000000000",
+          "hypothesis": "executed_trade_flow",
+          "reason": "insufficient_support_or_no_positive_train_payoff",
+          "threshold": null
+        },
+        {
+          "horizon_ns": "60000000000",
+          "hypothesis": "executed_trade_flow",
+          "reason": "insufficient_support_or_no_positive_train_payoff",
+          "threshold": null
+        }
+      ],
+      "source_hash": "e536fd803d78449e7312a0c9839825621446357b5926ed581a750b29528d93fb",
+      "source_id": "synthetic-demo-v3-900s",
+      "split_counts": [
+        [
+          "embargoed",
+          "1680"
+        ],
+        [
+          "purged",
+          "1708"
+        ],
+        [
+          "test",
+          "2310"
+        ],
+        [
+          "train",
+          "5446"
+        ],
+        [
+          "validation",
+          "1456"
+        ]
+      ],
+      "synthetic": true,
+      "train_end_ns": "449999518500",
+      "trials": [
+        {
+          "group": "all",
+          "horizon_ns": "1000000000",
+          "hypothesis": "depth_band_imbalance",
+          "scenario": "base",
+          "split": "train",
+          "statistics": {
+            "average_loss_bps": null,
+            "average_win_bps": null,
+            "eligible_samples": "1552",
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "2328"
+              ],
+              [
+                "incomplete_depth_band",
+                "1552"
+              ],
+              [
+                "no_book",
+                "14"
+              ],
+              [
+                "unavailable_effective_price",
+                "1244"
+              ],
+              [
+                "unknown_fees",
+                "1244"
+              ]
+            ],
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "labeled_samples": "1244",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "mean_gross_bps": "0",
+            "net_samples": "0",
+            "no_trade_bps": "0",
+            "nonoverlapping_samples": "0",
+            "selected_samples": "1244"
+          },
+          "threshold": "0"
+        }
+      ],
+      "turnover": null,
+      "validation_end_ns": "674999277750",
+      "version": "research-v1"
+    },
+    "source": [
+      [
+        "source_id",
+        "synthetic-demo-v3-900s"
+      ],
+      [
+        "provenance",
+        "Original deterministic synthetic source-schema examples, dedicated to the public domain under CC0-1.0. Not recorded market activity: all prices, sizes, timestamps, sequence IDs, funding and open interest are invented. Hyperliquid metadata is a pinned public Info subset, not current discovery or execution permission. fixture_sha256=097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2"
+      ],
+      [
+        "synthetic",
+        "True"
+      ],
+      [
+        "source_hash",
+        "e536fd803d78449e7312a0c9839825621446357b5926ed581a750b29528d93fb"
+      ],
+      [
+        "streams_hash",
+        "b96ca65272cadce3eba2bbaf7447f61247a53a50c26dc7684209595fe82f4cd6"
+      ]
+    ],
+    "trial_limit": "1",
+    "trial_offset": "0",
+    "trial_omitted": "2591",
+    "trial_total": "2592"
+  },
+  "limitations": [
+    "Synthetic source cannot establish edge.",
+    "No fees supplied: net statistics must remain unavailable, never zero.",
+    "This is a completed research run, not a claim of operational or predictive readiness."
+  ]
+}

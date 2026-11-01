@@ -2,8 +2,9 @@
 
 A local public-market research workstation with an exact Python core and a
 React/TypeScript terminal: instrument-specific book/tape, quality-gated analytics,
-size-aware costs, independent sessions and deterministic replay. The older
-Streamlit dashboard remains runnable until the terminal's M4 visualization cutover.
+size-aware costs, deterministic replay, local alerts, reference context, spot IOC
+paper accounting, a durable journal and offline research. The supported Streamlit
+dashboard is a thin native-API observation client, not a second market-data engine.
 
 ## Upgrade progress
 
@@ -16,18 +17,16 @@ Streamlit dashboard remains runnable until the terminal's M4 visualization cutov
 - **M2:** durable raw/normalized capture, verified manifests/checkpoints, deterministic
   replay and an explicitly synthetic offline demo implemented. Integration and
   Git delivery evidence are tracked in the handoff.
-- **M3:** analytics, exact costs and the end-to-end terminal are implemented,
-  verified locally/in CI and merged. Full-depth finite loads and a30-second
-  Binance-global/Hyperliquid capture passed. The replacement30-minute attempt
-  failed with recorder queue overflow at1610.440 seconds; sustained capture is
-  **not accepted**.
-- **M4:** historical liquidity visualization and persistent workspace are in
-  implementation, **not yet verified or merged**.
-- **M5–M6:** **not done**. Alerts/paper/journal/research, required Hyperliquid
-  context and final operational acceptance remain.
+- **M3–M4:** native analytics/costs, independent terminal sessions, historical
+  liquidity visualization and persistent workspace are implemented. Earlier
+  benchmark and capture observations remain historical evidence in the handoff.
+- **M5:** native alerts/evidence, Hyperliquid context, paper/journal persistence
+  and research CLI/report tabs are implemented. These workflows are simulations
+  and analysis, not exchange execution or evidence of profitable signals.
+- **M6 / operational acceptance:** implementation alone does not establish final
+  acceptance, sustained capture readiness or latency compliance.
 
-This is an interim progress summary; later milestone documentation will replace
-it as implementation and acceptance evidence land. See the
+For current acceptance status and executed evidence, see the
 [full acceptance backlog](docs/UPGRADE_BACKLOG.md),
 [delivery/evidence handoff](docs/OMP_UPGRADE_HANDOFF.md),
 [architecture decisions](docs/ARCHITECTURE.md) and
@@ -57,6 +56,32 @@ second live collector beside a recorder. Unknown fees, missing depth, stale
 inputs and incompatible quotes remain explicit exclusions. No order is sent
 to an exchange. See [terminal controls](docs/TERMINAL.md),
 [API](docs/API.md), [analytics](docs/ANALYTICS.md) and [costs](docs/COSTS.md).
+
+## Local alerts, paper, journal and research
+
+`serve --state-dir data/workstation-state` stores `paper.sqlite3`,
+`journal.sqlite3` and `research.sqlite3` under the chosen directory (this is also
+the CLI default). Use the same directory for `research run`, `research list`,
+`research show` and the server to inspect persisted attempts in the terminal.
+See [demo/CLI workflows](docs/DEMO.md) for exact research configuration and
+commands, and [API contracts](docs/API.md) for bounded request/response fields.
+
+The terminal's **Alerts**, **Context**, **Paper**, **Journal** and **Research**
+tabs consume native results. Alert thresholds have explicit units, hysteresis,
+cooldown and supporting evidence; they are not forecasts. Hyperliquid mids,
+mark/oracle, funding and open interest are reference-only. USD, USDT and USDC
+remain distinct identities; missing FX or fees remain unknown.
+
+Paper requires explicit venue/asset funds, dated fee assumptions and feed,
+decision and order latencies. Only spot market/marketable-limit IOC is modeled:
+partial fills cancel the remainder, consumed depth cannot be reused without
+observed replenishment, and neither passive fills nor market impact is inferred.
+Initial inventory cost basis is unknown. Archives preserve accounting evidence;
+they do not silently become the active replay ledger. Resume is explicit,
+source-matched and unavailable for live histories. Journals preserve authored
+provenance; research reports retain failed attempts and all candidate outcomes.
+Interrupted mutations may already have committed: inspect native state before
+retrying; the client does not retry workflow mutations automatically.
 
 ## New headless feeds
 
@@ -147,7 +172,8 @@ See [legacy client operation and bounds](docs/LEGACY.md), [API](docs/API.md) and
 - `crypto_lob.py`, `src/ui/`: thin Streamlit observation client of the native API.
 - `frontend/`: React/TypeScript terminal and historical Canvas workspace.
 - `src/workstation/`: exact core, public adapters, shared feed registry,
-  recording/replay, analytics, visualization and versioned terminal API.
+  recording/replay, analytics, visualization, alerts/context, paper/journal,
+  research and versioned terminal API.
 - `tests/`: offline contracts/regressions and explicitly separate live checks.
 - `docs/`: development instructions, contracts, acceptance and evidence.
 

@@ -25,8 +25,8 @@ class MemoryReplaySource:
         return len(self.batches)
 
     @classmethod
-    def demo(cls) -> "MemoryReplaySource":
-        source = demo_source()  # Full released 180-second, 24-stream scenario.
+    def demo(cls, *, duration_seconds: int = 180) -> "MemoryReplaySource":
+        source = demo_source(duration_seconds=duration_seconds)
         projection = RecordingProjection(source.streams)
         batches: list[RecordedBatch] = []
         frames: dict[tuple[str, int], RawFrame] = {}
@@ -54,7 +54,11 @@ class MemoryReplaySource:
             ReplaySourceDescriptor(
                 source.session_id,
                 source.streams,
-                (("fixture_sha256", source.fixture_hash), ("duration_seconds", "180")),
+                (
+                    ("fixture_sha256", source.fixture_hash),
+                    ("fixture_version", "3"),
+                    ("duration_seconds", str(duration_seconds)),
+                ),
                 synthetic=True,
                 recording=False,
                 provenance=source.provenance,
@@ -68,7 +72,7 @@ class MemoryReplaySource:
                     for event in batch.events
                 }
             ),
-            180_000_000_000,
+            duration_seconds * 1_000_000_000,
         )
 
     def iter_batches(

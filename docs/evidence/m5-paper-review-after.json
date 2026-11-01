@@ -1,0 +1,205 @@
+{
+  "label": "after",
+  "python": "3.13.5 (main, Jul 23 2025, 00:30:58) [Clang 20.1.4 ]",
+  "platform": "macOS-13.7.8-x86_64-i386-64bit-Mach-O",
+  "cases": {
+    "metadata_rewind": {
+      "original": "filled",
+      "replayed": "filled",
+      "reasons": [],
+      "fill_count": 1
+    },
+    "metadata_restore": {
+      "version": "synthetic-v1",
+      "mark": "99.00"
+    },
+    "cross_clock": {
+      "mutation": "run_source_clock_mismatch",
+      "snapshot_reasons": [
+        "run_source_clock_mismatch"
+      ],
+      "mark": "None",
+      "balances": [
+        [
+          "BTC",
+          "1"
+        ],
+        [
+          "USD",
+          "9900.00"
+        ]
+      ]
+    },
+    "hyperliquid_spot_limit": "filled",
+    "limit_reasons": {
+      "status": "partial",
+      "filled": "1",
+      "reasons": [
+        "limit_price_reached",
+        "known_depth_exhausted",
+        "ioc_remainder_cancelled"
+      ]
+    },
+    "journal_origin": {
+      "outcome": "journal origin provenance is immutable",
+      "stored_session": "origin-session"
+    }
+  },
+  "profile": {
+    "depth_per_side": 1000,
+    "deliveries": 200,
+    "seconds_with_profile_and_tracemalloc": 0.4859469670045655,
+    "traced_retained_bytes": 18507,
+    "traced_peak_bytes": 28610,
+    "reservation_count": 20,
+    "financial": {
+      "balances": [
+        [
+          "BTC",
+          "20"
+        ],
+        [
+          "USD",
+          "7998.10"
+        ]
+      ],
+      "positions": [
+        [
+          "20",
+          "2001.90",
+          "0",
+          "-21.90"
+        ]
+      ],
+      "fills": [
+        [
+          "10",
+          "1000.45",
+          "0.00",
+          [
+            [
+              "100.00",
+              "1"
+            ],
+            [
+              "100.01",
+              "1"
+            ],
+            [
+              "100.02",
+              "1"
+            ],
+            [
+              "100.03",
+              "1"
+            ],
+            [
+              "100.04",
+              "1"
+            ],
+            [
+              "100.05",
+              "1"
+            ],
+            [
+              "100.06",
+              "1"
+            ],
+            [
+              "100.07",
+              "1"
+            ],
+            [
+              "100.08",
+              "1"
+            ],
+            [
+              "100.09",
+              "1"
+            ]
+          ]
+        ],
+        [
+          "10",
+          "1001.45",
+          "0.00",
+          [
+            [
+              "100.10",
+              "1"
+            ],
+            [
+              "100.11",
+              "1"
+            ],
+            [
+              "100.12",
+              "1"
+            ],
+            [
+              "100.13",
+              "1"
+            ],
+            [
+              "100.14",
+              "1"
+            ],
+            [
+              "100.15",
+              "1"
+            ],
+            [
+              "100.16",
+              "1"
+            ],
+            [
+              "100.17",
+              "1"
+            ],
+            [
+              "100.18",
+              "1"
+            ],
+            [
+              "100.19",
+              "1"
+            ]
+          ]
+        ]
+      ]
+    },
+    "financial_sha256": "13989b75b57229d6abad89a134f00c9accce099b74e661e9370a3e22de3ba2c1",
+    "profile": "         978601 function calls in 0.467 seconds\n\n   Ordered by: cumulative time\n   List reduced from 49 to 20 due to restriction <20>\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n     1000    0.004    0.000    0.397    0.000 /Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/dataclasses.py:1580(replace)\n     1000    0.028    0.000    0.393    0.000 /Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/dataclasses.py:1599(_replace)\n      200    0.046    0.000    0.276    0.001 /private/tmp/limit-orderbook-m5-NBWAK4/paper/src/workstation/book.py:58(__post_init__)\n     4000    0.076    0.000    0.252    0.000 {built-in method builtins.any}\n   400400    0.108    0.000    0.154    0.000 /private/tmp/limit-orderbook-m5-NBWAK4/paper/src/workstation/book.py:76(<genexpr>)\n      200    0.002    0.000    0.091    0.000 /private/tmp/limit-orderbook-m5-NBWAK4/paper/docs/evidence/m5-paper-review-smoke.py:48(advance)\n      200    0.006    0.000    0.073    0.000 /private/tmp/limit-orderbook-m5-NBWAK4/paper/src/workstation/paper.py:622(on_batch)\n   414400    0.050    0.000    0.050    0.000 {built-in method builtins.isinstance}\n     3400    0.011    0.000    0.046    0.000 /private/tmp/limit-orderbook-m5-NBWAK4/paper/src/workstation/precision.py:111(text)\n      200    0.002    0.000    0.044    0.000 /private/tmp/limit-orderbook-m5-NBWAK4/paper/src/workstation/paper.py:682(_schedule)\n      200    0.012    0.000    0.041    0.000 <string>:2(__init__)\n      200    0.009    0.000    0.040    0.000 /private/tmp/limit-orderbook-m5-NBWAK4/paper/src/workstation/paper.py:703(_observe)\n      200    0.008    0.000    0.030    0.000 /private/tmp/limit-orderbook-m5-NBWAK4/paper/src/workstation/events.py:422(__post_init__)\n     1200    0.002    0.000    0.024    0.000 /private/tmp/limit-orderbook-m5-NBWAK4/paper/src/workstation/instruments.py:13(__new__)\n    57200    0.016    0.000    0.022    0.000 /private/tmp/limit-orderbook-m5-NBWAK4/paper/src/workstation/precision.py:116(<genexpr>)\n      200    0.012    0.000    0.020    0.000 /private/tmp/limit-orderbook-m5-NBWAK4/paper/src/workstation/quality.py:188(evaluate)\n    12400    0.014    0.000    0.014    0.000 {built-in method builtins.getattr}\n      800    0.001    0.000    0.013    0.000 /private/tmp/limit-orderbook-m5-NBWAK4/paper/src/workstation/quality.py:35(__post_init__)\n      200    0.004    0.000    0.012    0.000 /private/tmp/limit-orderbook-m5-NBWAK4/paper/src/workstation/replay.py:75(advance)\n      400    0.008    0.000    0.012    0.000 /private/tmp/limit-orderbook-m5-NBWAK4/paper/src/workstation/paper.py:730(_advance)\n\n\n"
+  },
+  "delayed_bound": {
+    "outcome": "feed_latency_byte_limit",
+    "delayed_book_count": 10,
+    "charged_bytes": 16051440
+  },
+  "archive_and_live_time": {
+    "initial_status": "pending",
+    "arrival_status": "filled",
+    "arrival_mono_ns": 120,
+    "delivery_index_unchanged": 1,
+    "archive_clock": "synthetic-clock",
+    "archive_source": "review-synthetic",
+    "archive_revision": 1,
+    "archive_reasons": [
+      "archived_not_live_projection"
+    ],
+    "archive_balances": [
+      [
+        "BTC",
+        "1"
+      ],
+      [
+        "USD",
+        "9900.00"
+      ]
+    ],
+    "quiet_tick_did_not_rewrite_archive": true,
+    "rewind_did_not_overwrite_archive": true,
+    "reopened_archive_exact": true,
+    "new_active_projection_empty": true
+  }
+}

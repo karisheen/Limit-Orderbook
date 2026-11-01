@@ -1,0 +1,425 @@
+{
+  "scope": "Final M5 native service correction; full-depth original events and production owner capacity. Not a sustained soak or trading-readiness claim.",
+  "final_gate": {
+    "command": "bash tools/check.sh -q --tb=short",
+    "python_passed": 1166,
+    "python_seconds": 398.70,
+    "wall_seconds": 435.10,
+    "warning": "Existing Starlette/httpx deprecation",
+    "ruff_and_format": "passed;70 files",
+    "mypy": "passed;35 modules",
+    "frontend": "lint,15 unit tests,TypeScript,production build passed",
+    "javascript_asset": "index-DjcEpben.js",
+    "stylesheet_asset": "index-DNEp5Wv-.css"
+  },
+  "production_live_report": "m5-integrated-cohort-20261101T175620Z.json",
+  "production_queue_bytes": 134217728,
+  "effective_queue_bytes": 134217728,
+  "all_three_native_workflows": {
+    "passed": true,
+    "detail": [
+      {
+        "asset": "BTC",
+        "created": true,
+        "ready_observed": true,
+        "terminal_failure_observed": false,
+        "filled": true
+      },
+      {
+        "asset": "ETH",
+        "created": true,
+        "ready_observed": true,
+        "terminal_failure_observed": false,
+        "filled": true
+      },
+      {
+        "asset": "SOL",
+        "created": true,
+        "ready_observed": true,
+        "terminal_failure_observed": false,
+        "filled": true
+      }
+    ]
+  },
+  "sessions": {
+    "5925a35d4f1f491f92292e0d9708ae6d": {
+      "instrument": null,
+      "started_ns": 133842028274156,
+      "offers": 2463,
+      "native_depths": {
+        "kucoin:classic-spot:spot:BTC-USDT": {
+          "levels": 40,
+          "bids": 20,
+          "asks": 20
+        },
+        "coinbase:advanced-trade:spot:BTC-INR": {
+          "levels": 61,
+          "bids": 43,
+          "asks": 18
+        },
+        "kucoin:classic-spot:spot:BTC-USD1": {
+          "levels": 40,
+          "bids": 20,
+          "asks": 20
+        },
+        "kucoin:classic-spot:spot:BTC-EUR": {
+          "levels": 40,
+          "bids": 20,
+          "asks": 20
+        },
+        "coinbase:advanced-trade:spot:BTC-USDT": {
+          "levels": 2232,
+          "bids": 1083,
+          "asks": 1149
+        },
+        "coinbase:advanced-trade:spot:BTC-GBP": {
+          "levels": 1719,
+          "bids": 870,
+          "asks": 849
+        },
+        "coinbase:advanced-trade:spot:BTC-EUR": {
+          "levels": 6138,
+          "bids": 3031,
+          "asks": 3107
+        },
+        "kraken:spot-v2:spot:BTC/USDT": {
+          "levels": 50,
+          "bids": 25,
+          "asks": 25
+        },
+        "kraken:spot-v2:spot:BTC/CAD": {
+          "levels": 50,
+          "bids": 25,
+          "asks": 25
+        },
+        "hyperliquid:info:perpetual:BTC": {
+          "levels": 40,
+          "bids": 20,
+          "asks": 20
+        },
+        "kraken:spot-v2:spot:BTC/AUD": {
+          "levels": 50,
+          "bids": 25,
+          "asks": 25
+        },
+        "kraken:spot-v2:spot:BTC/AUSD": {
+          "levels": 27,
+          "bids": 17,
+          "asks": 10
+        },
+        "binance-global:spot-v3:spot:BTCBRL": {
+          "levels": 7556,
+          "bids": 3120,
+          "asks": 4436
+        },
+        "binance-global:spot-v3:spot:BTCUSDT": {
+          "levels": 10007,
+          "bids": 5006,
+          "asks": 5001
+        },
+        "binance-global:spot-v3:spot:BTCEUR": {
+          "levels": 8737,
+          "bids": 3736,
+          "asks": 5001
+        },
+        "binance-global:spot-v3:spot:BTCARS": {
+          "levels": 291,
+          "bids": 175,
+          "asks": 116
+        }
+      },
+      "cold": {
+        "high_bytes": 14233525,
+        "high_count": 40,
+        "empty_observations": 0
+      },
+      "steady": {
+        "high_bytes": 62400848,
+        "high_count": 70,
+        "empty_observations": 0
+      },
+      "completed_owner_batches": 1168,
+      "drained_boundaries": 634
+    },
+    "3201925d95554c4dbdfae8e8c8141412": {
+      "instrument": null,
+      "started_ns": 133874573836180,
+      "offers": 3100,
+      "native_depths": {
+        "coinbase:advanced-trade:spot:ETH-USDT": {
+          "levels": 1201,
+          "bids": 342,
+          "asks": 859
+        },
+        "coinbase:advanced-trade:spot:ETH-BTC": {
+          "levels": 2740,
+          "bids": 593,
+          "asks": 2147
+        },
+        "coinbase:advanced-trade:spot:ETH-EUR": {
+          "levels": 3227,
+          "bids": 924,
+          "asks": 2303
+        },
+        "kucoin:classic-spot:spot:ETH-EUR": {
+          "levels": 40,
+          "bids": 20,
+          "asks": 20
+        },
+        "coinbase:advanced-trade:spot:ETH-GBP": {
+          "levels": 781,
+          "bids": 238,
+          "asks": 543
+        },
+        "kucoin:classic-spot:spot:ETH-USDT": {
+          "levels": 40,
+          "bids": 20,
+          "asks": 20
+        },
+        "kucoin:classic-spot:spot:ETH-BTC": {
+          "levels": 40,
+          "bids": 20,
+          "asks": 20
+        },
+        "kraken:spot-v2:spot:ETH/CAD": {
+          "levels": 50,
+          "bids": 25,
+          "asks": 25
+        },
+        "kraken:spot-v2:spot:ETH/BTC": {
+          "levels": 50,
+          "bids": 25,
+          "asks": 25
+        },
+        "kraken:spot-v2:spot:ETH/AUD": {
+          "levels": 50,
+          "bids": 25,
+          "asks": 25
+        },
+        "kraken:spot-v2:spot:ETH/USDT": {
+          "levels": 50,
+          "bids": 25,
+          "asks": 25
+        },
+        "hyperliquid:info:perpetual:ETH": {
+          "levels": 40,
+          "bids": 20,
+          "asks": 20
+        },
+        "binance-global:spot-v3:spot:ETHBRL": {
+          "levels": 1493,
+          "bids": 320,
+          "asks": 1173
+        },
+        "binance-global:spot-v3:spot:ETHBTC": {
+          "levels": 6509,
+          "bids": 1509,
+          "asks": 5000
+        },
+        "binance-global:spot-v3:spot:ETHUSDT": {
+          "levels": 10012,
+          "bids": 5003,
+          "asks": 5009
+        },
+        "binance-global:spot-v3:spot:ETHARS": {
+          "levels": 66,
+          "bids": 32,
+          "asks": 34
+        }
+      },
+      "cold": {
+        "high_bytes": 20653249,
+        "high_count": 40,
+        "empty_observations": 0
+      },
+      "steady": {
+        "high_bytes": 57145382,
+        "high_count": 58,
+        "empty_observations": 0
+      },
+      "completed_owner_batches": 1540,
+      "drained_boundaries": 784
+    },
+    "0172c2a2f3f148dbad5750e8d09d0eca": {
+      "instrument": null,
+      "started_ns": 133907777720765,
+      "offers": 1844,
+      "native_depths": {
+        "kucoin:classic-spot:spot:SOL-USD1": {
+          "levels": 40,
+          "bids": 20,
+          "asks": 20
+        },
+        "kucoin:classic-spot:spot:SOL-USDT": {
+          "levels": 40,
+          "bids": 20,
+          "asks": 20
+        },
+        "kucoin:classic-spot:spot:SOL-KCS": {
+          "levels": 40,
+          "bids": 20,
+          "asks": 20
+        },
+        "coinbase:advanced-trade:spot:SOL-BTC": {
+          "levels": 1811,
+          "bids": 281,
+          "asks": 1530
+        },
+        "coinbase:advanced-trade:spot:SOL-USDT": {
+          "levels": 943,
+          "bids": 196,
+          "asks": 747
+        },
+        "coinbase:advanced-trade:spot:SOL-ETH": {
+          "levels": 909,
+          "bids": 235,
+          "asks": 674
+        },
+        "coinbase:advanced-trade:spot:SOL-EUR": {
+          "levels": 1779,
+          "bids": 401,
+          "asks": 1378
+        },
+        "kraken:spot-v2:spot:SOL/USDT": {
+          "levels": 50,
+          "bids": 25,
+          "asks": 25
+        },
+        "kraken:spot-v2:spot:SOL/CAD": {
+          "levels": 50,
+          "bids": 25,
+          "asks": 25
+        },
+        "kraken:spot-v2:spot:SOL/BTC": {
+          "levels": 50,
+          "bids": 25,
+          "asks": 25
+        },
+        "kraken:spot-v2:spot:SOL/AUD": {
+          "levels": 50,
+          "bids": 25,
+          "asks": 25
+        },
+        "hyperliquid:info:perpetual:SOL": {
+          "levels": 40,
+          "bids": 20,
+          "asks": 20
+        },
+        "binance-global:spot-v3:spot:SOLUSDT": {
+          "levels": 9736,
+          "bids": 4736,
+          "asks": 5000
+        },
+        "binance-global:spot-v3:spot:SOLBTC": {
+          "levels": 6853,
+          "bids": 1853,
+          "asks": 5000
+        },
+        "binance-global:spot-v3:spot:SOLBRL": {
+          "levels": 1100,
+          "bids": 238,
+          "asks": 862
+        },
+        "binance-global:spot-v3:spot:SOLBNB": {
+          "levels": 3363,
+          "bids": 473,
+          "asks": 2890
+        }
+      },
+      "cold": {
+        "high_bytes": 16346585,
+        "high_count": 40,
+        "empty_observations": 0
+      },
+      "steady": {
+        "high_bytes": 18053683,
+        "high_count": 22,
+        "empty_observations": 0
+      },
+      "completed_owner_batches": 1376,
+      "drained_boundaries": 1017
+    }
+  },
+  "rss_highwater_bytes": 280432640,
+  "shutdown_note": "10 BTC and3 ETH offers were not applied when their sessions were explicitly closed after the successful finite observation interval; not claimed as complete analytical delivery through shutdown. All sources/processes reaped; source capture was not enabled in this workflow.",
+  "single_thread_snapshot_parity": {
+    "before": "m5-depth-service-before.json",
+    "after": "m5-depth-service-after.json",
+    "complete_snapshot_sha256": "d500b09b8b93c6ff8ebac290dbfc79644bb760bc554fafbf03dc248270af5957",
+    "checkpoint_sha256": "45f1baad1bf2dd28ac1e48a79545fb6d06abbd500a4fb6d0d59bb94656322c42"
+  },
+  "browser": {
+    "command": "env PATH=\"<repo>/.tools/node/bin:$PATH\" npm --prefix frontend run test:e2e",
+    "result": "23 passed",
+    "wall_seconds": 166.09,
+    "backend_command": ".venv-upgrade/bin/python -m src.workstation.cli serve --port 8000 --state-dir data/m5-smoke/final-cached-e2e-state",
+    "backend_pid": 77111,
+    "backend_shutdown": "Owned SIGINT; supervised process reported exit code2, not zero.",
+    "workers": 1,
+    "retries": 0,
+    "mocked_exchange_orders": false
+  },
+  "focused_native": {
+    "command": ".venv-upgrade/bin/python -m pytest -q tests/test_workstation_api_runtime.py -k \"inflight_ownership or batched_owner\" --tb=short",
+    "passed": 3,
+    "deselected": 19,
+    "pytest_seconds": 0.91
+  },
+  "publication_reports": [
+    {
+      "path": "docs/evidence/m5-integrated-cohort-20261101T172219Z.json",
+      "original_bytes": 1760617,
+      "published_bytes": 1487531,
+      "original_sha256": "7a55579573ea2efa60a16b13ee6d3a18ba9d18b48dce1aec47c8318e44828843",
+      "published_sha256": "db025d33921d0dec19e1aa993ff809e7b0d827c35773e094e0c774a199ecc53f"
+    },
+    {
+      "path": "docs/evidence/m5-integrated-cohort-20261101T172847Z.json",
+      "original_bytes": 12341231,
+      "published_bytes": 5093400,
+      "original_sha256": "a80499d8c1cfbad546099f187d382a67969d7c02d1b225a2221dc38707860802",
+      "published_sha256": "c31eca53d171a3c5b2b882d1911886b4a6a0a315a0723e006f98321665c2f891"
+    },
+    {
+      "path": "docs/evidence/m5-integrated-cohort-20261101T173829Z.json",
+      "original_bytes": 23732398,
+      "published_bytes": 8768563,
+      "original_sha256": "753d69176f4bcd08e3b8b67dd5f114ce7bcdebf0457031a5afa90ee1327ccdb2",
+      "published_sha256": "b71ec99f37143aaac1e7f6cf312c92a4925bc021fac5a96dee3c78aedf5c52fc"
+    },
+    {
+      "path": "docs/evidence/m5-integrated-cohort-20261101T174454Z.json",
+      "original_bytes": 22042674,
+      "published_bytes": 8936771,
+      "original_sha256": "55187486dbcc64bfc1aca3aac8a20e67e9ccdf10094105baa02ddb454441437f",
+      "published_sha256": "929347f93958f8e083e76993afa43e7a5573a4a96749f41d65ce39418aba684e"
+    },
+    {
+      "path": "docs/evidence/m5-integrated-cohort-20261101T174750Z.json",
+      "original_bytes": 10523343,
+      "published_bytes": 6211085,
+      "original_sha256": "db3ac72b929f98019496531499ea746004165b2608ccfc6b3186ff915f022c50",
+      "published_sha256": "a6c17ebbc2c0420f89ed228ef05349f50b76af69a8abe4d0515a75bd17943d39"
+    },
+    {
+      "path": "docs/evidence/m5-integrated-cohort-20261101T175259Z.json",
+      "original_bytes": 32941991,
+      "published_bytes": 11414875,
+      "original_sha256": "c0f79ba6422a5d87c127491ec839e16d4efb1d00f9db3e7933d2310c3bc09e28",
+      "published_sha256": "67f0dc49d080d4923a812bbb13eff3033061c42a91dd433f83c4385a19a16a51"
+    },
+    {
+      "path": "docs/evidence/m5-integrated-cohort-20261101T175620Z.json",
+      "original_bytes": 32925889,
+      "published_bytes": 11233647,
+      "original_sha256": "5767ead84c0f77bf50255886089b43ea01b1c2e7ce23f346d899c1df9d225d74",
+      "published_sha256": "8ad52db5edb9dcdc307e44ed74f8c9e9b8807dd7bd6202b392dd31b3fb451657"
+    }
+  ],
+  "source_sha256": {
+    "src/workstation/runtime.py": "00b9c782635b07b99371b87bcc79c85a97b8681b73f3574f40b04d37c409d2e5",
+    "src/workstation/analytics.py": "bdb6c4f5f0c2b6d5d3aaada63a93de8a78b40f28337665f935768827d72d279d",
+    "src/workstation/paper.py": "afa848e0178a411d971259ab238798f152b3c6646d5aac35f26fb7f200616d90",
+    "frontend/src/useTerminal.ts": "47597924596ca80ae63d26812ddf14dd13cfaf3c70b281822c3a598108218037"
+  }
+}

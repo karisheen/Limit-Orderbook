@@ -1,0 +1,8 @@
+{
+  "scope": "synthetic native demo delivery through actual ReplayClock; live initialization/older queued receive ordering",
+  "baseline_mono_ns": "1001001000",
+  "source_receive_mono_ns": "1001000000",
+  "result_mono_ns": "1001001000",
+  "frontier_preserved": true,
+  "source_receive_preserved": true
+}

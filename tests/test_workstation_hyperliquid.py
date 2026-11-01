@@ -721,7 +721,7 @@ def test_perpetual_context_units_funding_interval_and_spot_separation():
     )  # Context is not constrained to book ticks.
     _, spot, spot_key = setup("@12", channel="context")
     message = {
-        "channel": "activeAssetCtx",
+        "channel": "activeSpotAssetCtx",
         "data": {"coin": "@12", "ctx": {"markPx": "60001"}},
     }
     spot_payload = adapter.decode(frame(message), spot, spot_key).events[0].payload
@@ -734,6 +734,41 @@ def test_perpetual_context_units_funding_interval_and_spot_separation():
     message["data"]["ctx"] = ctx
     assert adapter.decode(frame(message), spot, spot_key).error
     assert adapter.capabilities(spot, spot_key).asset_context == frozenset({"mark"})
+
+
+def test_spot_context_ack_and_data_use_distinct_native_channel_names():
+    adapter, spot, key = setup("@107", channel="context")
+    subscription = json.loads(adapter.subscription_requests(spot, key)[0].body)
+    assert subscription["subscription"] == {"type": "activeAssetCtx", "coin": "@107"}
+    ack = adapter.decode(
+        frame({"channel": "subscriptionResponse", "data": subscription}), spot, key
+    )
+    assert ack.error is None and ack.controls[0].kind == "ack"
+    message = {
+        "channel": "activeSpotAssetCtx",
+        "data": {
+            "coin": "@107",
+            "ctx": {
+                "prevDayPx": "86.766",
+                "dayNtlVlm": "25303124.0211699829",
+                "markPx": "88.006",
+                "midPx": "88.0125",
+                "circulatingSupply": "301920297.2344350219",
+                "coin": "@107",
+                "totalSupply": "998806575.6361390352",
+                "dayBaseVlm": "288202.01",
+            },
+        },
+    }
+    decoded = adapter.decode(frame(message), spot, key)
+    assert decoded.error is None
+    assert decoded.events[0].payload == AssetContext(mark=D("88.006"))
+    message["channel"] = "activeAssetCtx"
+    assert adapter.decode(frame(message), spot, key).error
+    _, perp, perp_key = setup("HYPE", channel="context")
+    message["channel"] = "activeSpotAssetCtx"
+    message["data"]["coin"] = "HYPE"
+    assert adapter.decode(frame(message), perp, perp_key).error
 
 
 @pytest.mark.parametrize("symbol", ["BTC", "@12"])

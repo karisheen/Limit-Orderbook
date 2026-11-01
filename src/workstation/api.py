@@ -186,6 +186,140 @@ class ProposalRiskRequest(SessionAction):
         return self
 
 
+class FeeInput(StrictInput):
+    fee_bps: str | None = Field(default=None, max_length=128)
+    fee_provenance: str | None = Field(default=None, min_length=1, max_length=256)
+    fee_date: str | None = Field(default=None, pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
+    fee_asset_id: str | None = Field(default=None, min_length=1, max_length=256)
+
+    @model_validator(mode="after")
+    def validate_fee(self):
+        values = (self.fee_bps, self.fee_provenance, self.fee_date)
+        if any(value is not None for value in values):
+            if not all(value is not None for value in values):
+                raise ValueError(
+                    "fee rate, provenance and date must be supplied together"
+                )
+            assert self.fee_bps is not None
+            if not 0 <= decimal(self.fee_bps) < 10000:
+                raise ValueError("fee bps must be nonnegative and below 10000")
+            from datetime import date
+
+            assert self.fee_date is not None
+            date.fromisoformat(self.fee_date)
+        return self
+
+
+class AlertQuery(SessionAction):
+    event_limit: int = Field(default=20, ge=1, le=100)
+
+
+class AlertRuleRequest(AlertQuery):
+    rule_id: str | None = Field(default=None, min_length=1, max_length=128)
+    instrument_id: str | None = Field(default=None, min_length=1, max_length=512)
+    kind: Literal[
+        "spread_shock",
+        "depth_shock",
+        "large_executed_print",
+        "event_ofi",
+        "best_quote_imbalance",
+        "persistent_displayed_liquidity",
+        "net_cost",
+    ]
+    direction: Literal["above", "below"]
+    threshold: str = Field(max_length=128)
+    rearm_threshold: str = Field(max_length=128)
+    window_ns: str = Field(default="0", max_length=20, pattern=r"^[0-9]+$")
+    cooldown_ns: str = Field(default="0", max_length=20, pattern=r"^[0-9]+$")
+    depth_side: Literal["bid", "ask"] = "bid"
+    depth_bps: str = Field(default="10", max_length=128)
+    sell_instrument_id: str | None = Field(default=None, min_length=1, max_length=512)
+    base_quantity: str | None = Field(default=None, max_length=128)
+    buy_fees: FeeInput = Field(default_factory=FeeInput)
+    sell_fees: FeeInput = Field(default_factory=FeeInput)
+    latency_bps: str = Field(default="0", max_length=128)
+    rebalance_quote: str = Field(default="0", max_length=128)
+
+
+class AlertRemoveRequest(AlertQuery):
+    rule_id: str = Field(min_length=1, max_length=128)
+
+
+class AlertEvidenceRequest(SessionAction):
+    rule_id: str | None = Field(default=None, min_length=1, max_length=128)
+    event_id: str | None = Field(default=None, max_length=20, pattern=r"^[0-9]+$")
+
+    @model_validator(mode="after")
+    def validate_target(self):
+        if (self.rule_id is None) == (self.event_id is None):
+            raise ValueError("choose one current rule or historical event")
+        return self
+
+
+class ContextRequest(SessionAction):
+    fx_rates: list[FXInput] = Field(default_factory=list, max_length=16)
+
+
+class PaperQuery(SessionAction):
+    orders_limit: int = Field(default=20, ge=1, le=100)
+    fills_limit: int = Field(default=20, ge=1, le=100)
+
+
+class PaperFeeInput(FeeInput):
+    instrument_id: str = Field(min_length=1, max_length=512)
+
+
+class PaperConfigureRequest(PaperQuery):
+    balances: list[InventoryInput] = Field(max_length=64)
+    fees: list[PaperFeeInput] = Field(max_length=64)
+    feed_latency_ns: str = Field(default="0", max_length=20, pattern=r"^[0-9]+$")
+    decision_latency_ns: str = Field(default="0", max_length=20, pattern=r"^[0-9]+$")
+    order_latency_ns: str = Field(default="0", max_length=20, pattern=r"^[0-9]+$")
+
+
+class PaperOrderInput(PaperQuery):
+    instrument_id: str | None = Field(default=None, min_length=1, max_length=512)
+    side: Literal["buy", "sell"]
+    quantity: str = Field(max_length=128)
+    order_type: Literal["market", "limit"] = "market"
+    limit_price: str | None = Field(default=None, max_length=128)
+
+
+class PaperCancelRequest(PaperQuery):
+    order_id: str = Field(min_length=1, max_length=128)
+
+
+class PaperRunRequest(PaperQuery):
+    run_id: str = Field(min_length=1, max_length=128)
+
+
+class PaperRunsRequest(SessionAction):
+    limit: int = Field(default=20, ge=1, le=100)
+
+
+class JournalQuery(SessionAction):
+    limit: int = Field(default=50, ge=1, le=100)
+    all_sources: bool = False
+    run_id: str | None = Field(default=None, min_length=1, max_length=128)
+
+
+class JournalPutRequest(SessionAction):
+    entry_id: str | None = Field(default=None, min_length=1, max_length=128)
+    rationale: str = Field(min_length=1, max_length=8192)
+    entry: str | None = Field(default=None, max_length=128)
+    stop: str | None = Field(default=None, max_length=128)
+    context: str = Field(default="", max_length=16384)
+    run_id: str | None = Field(default=None, min_length=1, max_length=128)
+    order_id: str | None = Field(default=None, min_length=1, max_length=128)
+
+
+class ResearchQuery(SessionAction):
+    limit: int = Field(default=20, ge=1, le=100)
+    attempt_id: str | None = Field(default=None, min_length=1, max_length=128)
+    trial_offset: int = Field(default=0, ge=0, le=50000)
+    trial_limit: int = Field(default=50, ge=1, le=200)
+
+
 class VisualAck(SessionAction):
     view_id: str = Field(min_length=1, max_length=64, pattern=r"^[a-f0-9]+$")
     browser_receive_to_paint_ms: float = Field(ge=0, le=60000, allow_inf_nan=False)
@@ -434,6 +568,107 @@ def create_app(
         async with session.activity(), session.actions, session.lock:
             session.check(request.generation)
             return await session.work(session._visual_ack, request)
+
+    async def consumer_action(request, method: str):
+        session = runtime.get(request.session_id)
+        session.check(request.generation)
+        async with session.activity(), session.actions, session.lock:
+            session.check(request.generation)
+            return await session.work(getattr(session, method), request)
+
+    @app.post("/api/v1/alerts/query")
+    async def alerts_query(request: AlertQuery):
+        return await consumer_action(request, "_alerts_query")
+
+    @app.post("/api/v1/alerts/rules/put")
+    async def alert_put(request: AlertRuleRequest):
+        return await consumer_action(request, "_alert_put")
+
+    @app.post("/api/v1/alerts/rules/remove")
+    async def alert_remove(request: AlertRemoveRequest):
+        return await consumer_action(request, "_alert_remove")
+
+    @app.post("/api/v1/alerts/evidence")
+    async def alert_evidence(request: AlertEvidenceRequest):
+        return await consumer_action(request, "_alert_evidence")
+
+    @app.post("/api/v1/context")
+    async def context_query(request: ContextRequest):
+        return await consumer_action(request, "_context_query")
+
+    @app.post("/api/v1/paper/query")
+    async def paper_query(request: PaperQuery):
+        return await consumer_action(request, "_paper_query")
+
+    @app.post("/api/v1/paper/configure")
+    async def paper_configure(request: PaperConfigureRequest):
+        return await consumer_action(request, "_paper_configure")
+
+    @app.post("/api/v1/paper/orders")
+    async def paper_order(request: PaperOrderInput):
+        return await consumer_action(request, "_paper_order")
+
+    @app.post("/api/v1/paper/cancel")
+    async def paper_cancel(request: PaperCancelRequest):
+        return await consumer_action(request, "_paper_cancel")
+
+    @app.post("/api/v1/paper/runs")
+    async def paper_runs(request: PaperRunsRequest):
+        return await consumer_action(request, "_paper_runs")
+
+    @app.post("/api/v1/paper/archive")
+    async def paper_archive(request: PaperRunRequest):
+        return await consumer_action(request, "_paper_archive")
+
+    @app.post("/api/v1/paper/resume")
+    async def paper_resume(request: PaperRunRequest):
+        session = runtime.get(request.session_id)
+        session.check(request.generation)
+        async with session.activity(), session.actions:
+            async with session.lock:
+                session.check(request.generation)
+                candidate = await session.work(session._paper_candidate, request)
+                # The held lock excludes all pacer work. Joining it here keeps
+                # the staged prefix fixed through the atomic owner cutover.
+                was_playing = session.status == "playing"
+                try:
+                    await session.stop_play()
+                    session.check(request.generation)
+                    await session.work(session._resume_paper, candidate)
+                except BaseException:
+                    if (
+                        was_playing
+                        and not session.closed
+                        and session.status == "playing"
+                        and session.play_task is None
+                    ):
+                        session.play_task = asyncio.create_task(session._play())
+                    raise
+            return await session.frame()
+
+    @app.post("/api/v1/journal/query")
+    async def journal_query(request: JournalQuery):
+        return await consumer_action(request, "_journal_query")
+
+    @app.post("/api/v1/journal/put")
+    async def journal_put(request: JournalPutRequest):
+        return await consumer_action(request, "_journal_put")
+
+    @app.post("/api/v1/research/query")
+    async def research_query(request: ResearchQuery):
+        session = runtime.get(request.session_id)
+        session.check(request.generation)
+        # Immutable research history uses the catalog worker, not the replay
+        # owner. Hold lifecycle actions, but leave source delivery unblocked.
+        async with session.activity(), session.actions:
+            session.check(request.generation)
+            result = await runtime._catalog_work(runtime._research_query, request)
+            session.check(request.generation)
+            return {
+                **result,
+                "session_id": session.id,
+                "generation": str(session.generation),
+            }
 
     @app.websocket("/api/v1/stream")
     async def stream(websocket: WebSocket, session_id: str = Query(max_length=64)):

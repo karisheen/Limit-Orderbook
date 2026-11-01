@@ -408,3 +408,75 @@ def evaluate_trades(
     return Eligibility(
         not reasons, tuple(dict.fromkeys(reasons)), now.mono_ns, policy.version
     )
+
+
+@dataclass(frozen=True)
+class ContextEvidence:
+    """Independent validated reference/context evidence, never book health."""
+
+    instrument_id: str
+    metadata_version: str
+    stream_id: str
+    channel: str
+    clock_id: str
+    last_validated_mono_ns: int | None = None
+    reason_codes: tuple[str, ...] = ()
+
+    def __post_init__(self):
+        for value in (
+            self.instrument_id,
+            self.metadata_version,
+            self.stream_id,
+            self.clock_id,
+        ):
+            text(value)
+        choice(self.channel, ("reference", "context"), "context channel")
+        if self.last_validated_mono_ns is not None:
+            nonnegative_int(self.last_validated_mono_ns)
+        object.__setattr__(self, "reason_codes", tuple(self.reason_codes))
+        for reason in self.reason_codes:
+            text(reason)
+
+
+def evaluate_context(
+    evidence: ContextEvidence | None,
+    instrument: "Instrument",
+    now: ClockReading | None,
+    policy: EligibilityPolicy = EligibilityPolicy(),
+) -> Eligibility:
+    """Reference freshness does not imply executable depth or trade continuity."""
+    reasons: list[str] = []
+    if instrument.status != "active":
+        reasons.append("instrument_" + instrument.status)
+    established = evidence is not None and evidence.last_validated_mono_ns is not None
+    if instrument.data_access in ("blocked", "unsupported") or (
+        instrument.data_access == "unknown" and not established
+    ):
+        reasons.append("data_access_" + instrument.data_access)
+    if now is None:
+        reasons.append("clock_unavailable")
+    if evidence is None:
+        reasons.append("no_context_evidence")
+    else:
+        if (evidence.instrument_id, evidence.metadata_version) != (
+            instrument.instrument_id,
+            instrument.metadata_version,
+        ):
+            reasons.append("instrument_mismatch")
+        reasons.extend(evidence.reason_codes)
+        if evidence.last_validated_mono_ns is None:
+            reasons.append("no_validated_context_observation")
+        if now is not None:
+            if evidence.clock_id != now.clock_id:
+                reasons.append("clock_mismatch")
+            elif evidence.last_validated_mono_ns is not None:
+                if evidence.last_validated_mono_ns > now.mono_ns:
+                    reasons.append("clock_regression")
+                elif now.mono_ns - evidence.last_validated_mono_ns > policy.max_age_ns:
+                    reasons.append("stale_context_channel")
+    return Eligibility(
+        not reasons,
+        tuple(dict.fromkeys(reasons)),
+        now.mono_ns if now is not None else 0,
+        policy.version,
+    )

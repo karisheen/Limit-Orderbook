@@ -1,0 +1,1391 @@
+{
+  "scope": "Actual HTTP durable session reopen and exact prefix reconstruction; synthetic demo-v2",
+  "prior_evidence": "m5-native-api-initial.json",
+  "prior_harness_failure": "The prior assertion incorrectly rejected retained run intent. Its observed active balances/orders/fills/positions were empty and explicitly inactive at cursor zero.",
+  "checks": {
+    "exact_paper_prefix_rebuild": true,
+    "exact_reauthored_alert_prefix": true,
+    "journal_origin_preserved": true,
+    "archived_separate_from_current": true,
+    "no_future_derived_state": true,
+    "no_implicit_run_adoption": true,
+    "generation_fenced": true
+  },
+  "before_resume": {
+    "version": "1",
+    "session_id": "a8c663f61223415792bca995b745d5d7",
+    "generation": "1",
+    "source_identity": "demo:ce521c54ac3ce89084427e77e5cf4c04ebe0b40bab703de4ebb1b389b0f39813",
+    "delivery_index": "115",
+    "snapshot": {
+      "delivery_index": "115",
+      "at": {
+        "clock_id": "synthetic-clock-v2",
+        "mono_ns": "3000000000",
+        "wall_ns": null
+      },
+      "balances": [],
+      "positions": [],
+      "reasons": [
+        "not_configured"
+      ],
+      "assumptions": [
+        "spot_only",
+        "immediate_or_cancel",
+        "no_market_impact",
+        "no_passive_fills",
+        "conservative_per_price_reservations",
+        "average_cost_basis",
+        "initial_inventory_basis_unknown",
+        "marks_are_gross_best_bid_not_liquidation_proceeds"
+      ],
+      "run": null,
+      "orders": [],
+      "fills": [],
+      "presentation": {
+        "orders_limit": 20,
+        "orders_omitted": 0,
+        "fills_limit": 20,
+        "fills_omitted": 0,
+        "fill_levels_limit": 20
+      }
+    }
+  },
+  "resumed": {
+    "version": "1",
+    "session_id": "a8c663f61223415792bca995b745d5d7",
+    "generation": "2",
+    "source_identity": "demo:ce521c54ac3ce89084427e77e5cf4c04ebe0b40bab703de4ebb1b389b0f39813",
+    "delivery_index": "115",
+    "snapshot": {
+      "delivery_index": "115",
+      "at": {
+        "clock_id": "synthetic-clock-v2",
+        "mono_ns": "3000000000",
+        "wall_ns": null
+      },
+      "balances": [
+        {
+          "venue": "coinbase",
+          "asset_id": "BTC",
+          "available": "0.01"
+        },
+        {
+          "venue": "coinbase",
+          "asset_id": "USD",
+          "available": "99399.689995"
+        }
+      ],
+      "positions": [
+        {
+          "venue": "coinbase",
+          "asset_id": "BTC",
+          "quote_asset_id": "USD",
+          "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+          "quantity": "0.01",
+          "cost_basis_quote": "600.310005",
+          "realized_pnl_quote": "0",
+          "unrealized_pnl_quote": "-0.320005",
+          "mark_price": "59999",
+          "reasons": []
+        }
+      ],
+      "reasons": [],
+      "assumptions": [
+        "spot_only",
+        "immediate_or_cancel",
+        "no_market_impact",
+        "no_passive_fills",
+        "conservative_per_price_reservations",
+        "average_cost_basis",
+        "initial_inventory_basis_unknown",
+        "marks_are_gross_best_bid_not_liquidation_proceeds"
+      ],
+      "run": {
+        "run_id": "2abd80177b174dfda73925de986be7b6",
+        "source_id": "demo:ce521c54ac3ce89084427e77e5cf4c04ebe0b40bab703de4ebb1b389b0f39813",
+        "config": {
+          "balances": [
+            {
+              "venue": "coinbase",
+              "asset_id": "USD",
+              "available": "100000",
+              "provenance": "user supplied prefunded balance",
+              "asof": null
+            }
+          ],
+          "fees": [
+            {
+              "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+              "schedule": {
+                "rate": "0.0005",
+                "asset_id": null,
+                "provenance": "Explicit synthetic smoke assumption; not a venue fee claim",
+                "asof_wall_ns": "1735689600000000000",
+                "assumed": true
+              }
+            }
+          ],
+          "feed_latency_ns": "0",
+          "decision_latency_ns": "0",
+          "order_latency_ns": "0",
+          "policy": {
+            "max_age_ns": "5000000000",
+            "max_asof_skew_ns": "1000000000",
+            "allow_snapshot_quotes": true,
+            "require_execution_access": false,
+            "required_capabilities": [],
+            "version": "eligibility-v1"
+          }
+        },
+        "created_at": {
+          "clock_id": "synthetic-clock-v2",
+          "mono_ns": "3000000000",
+          "wall_ns": "1735689602000000000"
+        },
+        "delivery_index": "115",
+        "revision": "1",
+        "parent_run_id": null,
+        "instrument_metadata": [
+          {
+            "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+            "metadata_version": "04ab32d44ea51bec5d654074e982bc08d2dced5a9b0710ee9755c6d717f95839:1735689600000000000"
+          },
+          {
+            "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+            "metadata_version": "04ab32d44ea51bec5d654074e982bc08d2dced5a9b0710ee9755c6d717f95839:1735689600000000000"
+          },
+          {
+            "instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+            "metadata_version": "04ab32d44ea51bec5d654074e982bc08d2dced5a9b0710ee9755c6d717f95839:1735689600000000000"
+          },
+          {
+            "instrument_id": "hyperliquid:info:perpetual:BTC",
+            "metadata_version": "5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9:1735689600000000000:hyperliquid-denomination-v2"
+          },
+          {
+            "instrument_id": "hyperliquid:info:perpetual:ETH",
+            "metadata_version": "5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9:1735689600000000000:hyperliquid-denomination-v2"
+          },
+          {
+            "instrument_id": "hyperliquid:info:perpetual:SOL",
+            "metadata_version": "5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9:1735689600000000000:hyperliquid-denomination-v2"
+          },
+          {
+            "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+            "metadata_version": "synthetic-v2:5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9"
+          },
+          {
+            "instrument_id": "coinbase:advanced-trade:spot:ETH-USD",
+            "metadata_version": "synthetic-v2:5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9"
+          },
+          {
+            "instrument_id": "coinbase:advanced-trade:spot:SOL-USD",
+            "metadata_version": "synthetic-v2:5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9"
+          },
+          {
+            "instrument_id": "kraken:spot-v2:spot:BTC/USD",
+            "metadata_version": "synthetic-v2:5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9"
+          },
+          {
+            "instrument_id": "kraken:spot-v2:spot:ETH/USD",
+            "metadata_version": "synthetic-v2:5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9"
+          },
+          {
+            "instrument_id": "kraken:spot-v2:spot:SOL/USD",
+            "metadata_version": "synthetic-v2:5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9"
+          }
+        ]
+      },
+      "orders": [
+        {
+          "order_id": "1ecfacefb1c1437293f3ee9361bc8a10",
+          "run_id": "2abd80177b174dfda73925de986be7b6",
+          "request": {
+            "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+            "side": "buy",
+            "quantity": "0.01",
+            "order_type": "market",
+            "limit_price": null
+          },
+          "submitted_at": {
+            "clock_id": "synthetic-clock-v2",
+            "mono_ns": "3000000000",
+            "wall_ns": "1735689602000000000"
+          },
+          "delivery_index": "115",
+          "arrival_at": {
+            "clock_id": "synthetic-clock-v2",
+            "mono_ns": "3000000000",
+            "wall_ns": "1735689602000000000"
+          },
+          "status": "filled",
+          "filled_quantity": "0.01",
+          "remaining_quantity": "0",
+          "reasons": []
+        }
+      ],
+      "fills": [
+        {
+          "fill_id": "1ecfacefb1c1437293f3ee9361bc8a10:fill",
+          "run_id": "2abd80177b174dfda73925de986be7b6",
+          "order_id": "1ecfacefb1c1437293f3ee9361bc8a10",
+          "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+          "venue": "coinbase",
+          "side": "buy",
+          "at": {
+            "clock_id": "synthetic-clock-v2",
+            "mono_ns": "3000000000",
+            "wall_ns": "1735689602000000000"
+          },
+          "delivery_index": "115",
+          "quantity": "0.01",
+          "notional_quote": "600.01",
+          "quote_asset_id": "USD",
+          "fee_amount": "0.300005",
+          "fee_asset_id": "USD",
+          "fees": {
+            "rate": "0.0005",
+            "asset_id": null,
+            "provenance": "Explicit synthetic smoke assumption; not a venue fee claim",
+            "asof_wall_ns": "1735689600000000000",
+            "assumed": true
+          },
+          "book_asof": {
+            "session_id": "synthetic-demo-v2-180s",
+            "ingest_ordinal": "103",
+            "event_index": "0",
+            "exchange_event_wall_ns": "1735689601000000000",
+            "receive_wall_ns": "1735689601000012000",
+            "receive_mono_ns": "2000012000",
+            "clock_id": "synthetic-clock-v2"
+          },
+          "book_key": {
+            "venue": "coinbase",
+            "api_family": "advanced-trade",
+            "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+            "channel": "book",
+            "depth": null,
+            "aggregation": []
+          },
+          "book_revision": "2",
+          "consumed_levels": [
+            {
+              "price": "60001",
+              "native_quantity": "0.01",
+              "base_quantity": "0.01",
+              "notional_quote": "600.01"
+            }
+          ],
+          "consumed_levels_omitted": 0
+        }
+      ],
+      "presentation": {
+        "orders_limit": 20,
+        "orders_omitted": 0,
+        "fills_limit": 20,
+        "fills_omitted": 0,
+        "fill_levels_limit": 20
+      }
+    }
+  },
+  "reauthored_local_alert": {
+    "version": "1",
+    "session_id": "a8c663f61223415792bca995b745d5d7",
+    "generation": "2",
+    "source_identity": "demo:ce521c54ac3ce89084427e77e5cf4c04ebe0b40bab703de4ebb1b389b0f39813",
+    "delivery_index": "115",
+    "snapshot": {
+      "rules": [
+        {
+          "rule_id": "e49be846dcbb489ea35b5c7816ddb161",
+          "key": {
+            "venue": "coinbase",
+            "api_family": "advanced-trade",
+            "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+            "channel": "book",
+            "depth": null,
+            "aggregation": []
+          },
+          "kind": "spread_shock",
+          "direction": "above",
+          "threshold": "0",
+          "rearm_threshold": "-1",
+          "unit": "bps",
+          "window_ns": "0",
+          "cooldown_ns": "1000000000",
+          "depth_side": "bid",
+          "depth_bps": "10",
+          "sell_key": null,
+          "base_quantity": null,
+          "buy_fees": {
+            "rate": null,
+            "asset_id": null,
+            "provenance": "unknown",
+            "asof_wall_ns": null,
+            "assumed": true
+          },
+          "sell_fees": {
+            "rate": null,
+            "asset_id": null,
+            "provenance": "unknown",
+            "asof_wall_ns": null,
+            "assumed": true
+          },
+          "stress": {
+            "latency_bps": "0",
+            "rebalance_cost": "0",
+            "provenance": "user assumption"
+          }
+        }
+      ],
+      "evaluations": [
+        {
+          "rule": {
+            "rule_id": "e49be846dcbb489ea35b5c7816ddb161",
+            "key": {
+              "venue": "coinbase",
+              "api_family": "advanced-trade",
+              "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+              "channel": "book",
+              "depth": null,
+              "aggregation": []
+            },
+            "kind": "spread_shock",
+            "direction": "above",
+            "threshold": "0",
+            "rearm_threshold": "-1",
+            "unit": "bps",
+            "window_ns": "0",
+            "cooldown_ns": "1000000000",
+            "depth_side": "bid",
+            "depth_bps": "10",
+            "sell_key": null,
+            "base_quantity": null,
+            "buy_fees": {
+              "rate": null,
+              "asset_id": null,
+              "provenance": "unknown",
+              "asof_wall_ns": null,
+              "assumed": true
+            },
+            "sell_fees": {
+              "rate": null,
+              "asset_id": null,
+              "provenance": "unknown",
+              "asof_wall_ns": null,
+              "assumed": true
+            },
+            "stress": {
+              "latency_bps": "0",
+              "rebalance_cost": "0",
+              "provenance": "user assumption"
+            }
+          },
+          "delivery_index": "115",
+          "now": {
+            "clock_id": "synthetic-clock-v2",
+            "mono_ns": "3000000000",
+            "wall_ns": null
+          },
+          "value": null,
+          "eligibility": {
+            "eligible": false,
+            "reasons": [
+              "awaiting_observation"
+            ],
+            "evaluated_at_mono_ns": "3000000000",
+            "policy_version": "eligibility-v1"
+          },
+          "window": null,
+          "armed": true,
+          "cooldown_remaining_ns": "0",
+          "condition_met": false,
+          "reasons": [],
+          "persistence_ns": "0",
+          "evidence_available": false
+        }
+      ],
+      "events": [],
+      "delivery_index": "115",
+      "now": {
+        "clock_id": "synthetic-clock-v2",
+        "mono_ns": "3000000000",
+        "wall_ns": null
+      },
+      "dropped_events": "0",
+      "reasons": []
+    },
+    "kinds": [
+      {
+        "kind": "spread_shock",
+        "unit": "bps"
+      },
+      {
+        "kind": "depth_shock",
+        "unit": "BTC"
+      },
+      {
+        "kind": "large_executed_print",
+        "unit": "base:coinbase:advanced-trade:spot:BTC-USD"
+      },
+      {
+        "kind": "event_ofi",
+        "unit": "base:coinbase:advanced-trade:spot:BTC-USD"
+      },
+      {
+        "kind": "best_quote_imbalance",
+        "unit": "ratio"
+      },
+      {
+        "kind": "persistent_displayed_liquidity",
+        "unit": "base:coinbase:advanced-trade:spot:BTC-USD"
+      },
+      {
+        "kind": "net_cost",
+        "unit": "USD"
+      }
+    ],
+    "evaluation_scope": "last_delivered_batch",
+    "presentation": {
+      "event_limit": 20,
+      "events_omitted": 0
+    }
+  },
+  "paper_at_zero": {
+    "version": "1",
+    "session_id": "a8c663f61223415792bca995b745d5d7",
+    "generation": "3",
+    "source_identity": "demo:ce521c54ac3ce89084427e77e5cf4c04ebe0b40bab703de4ebb1b389b0f39813",
+    "delivery_index": "0",
+    "snapshot": {
+      "delivery_index": "0",
+      "at": null,
+      "balances": [],
+      "positions": [],
+      "reasons": [
+        "run_not_active_at_cursor",
+        "future_commands_fork_required"
+      ],
+      "assumptions": [
+        "spot_only",
+        "immediate_or_cancel",
+        "no_market_impact",
+        "no_passive_fills",
+        "conservative_per_price_reservations",
+        "average_cost_basis",
+        "initial_inventory_basis_unknown",
+        "marks_are_gross_best_bid_not_liquidation_proceeds"
+      ],
+      "run": {
+        "run_id": "2abd80177b174dfda73925de986be7b6",
+        "source_id": "demo:ce521c54ac3ce89084427e77e5cf4c04ebe0b40bab703de4ebb1b389b0f39813",
+        "config": {
+          "balances": [
+            {
+              "venue": "coinbase",
+              "asset_id": "USD",
+              "available": "100000",
+              "provenance": "user supplied prefunded balance",
+              "asof": null
+            }
+          ],
+          "fees": [
+            {
+              "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+              "schedule": {
+                "rate": "0.0005",
+                "asset_id": null,
+                "provenance": "Explicit synthetic smoke assumption; not a venue fee claim",
+                "asof_wall_ns": "1735689600000000000",
+                "assumed": true
+              }
+            }
+          ],
+          "feed_latency_ns": "0",
+          "decision_latency_ns": "0",
+          "order_latency_ns": "0",
+          "policy": {
+            "max_age_ns": "5000000000",
+            "max_asof_skew_ns": "1000000000",
+            "allow_snapshot_quotes": true,
+            "require_execution_access": false,
+            "required_capabilities": [],
+            "version": "eligibility-v1"
+          }
+        },
+        "created_at": {
+          "clock_id": "synthetic-clock-v2",
+          "mono_ns": "3000000000",
+          "wall_ns": "1735689602000000000"
+        },
+        "delivery_index": "115",
+        "revision": "1",
+        "parent_run_id": null,
+        "instrument_metadata": [
+          {
+            "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+            "metadata_version": "04ab32d44ea51bec5d654074e982bc08d2dced5a9b0710ee9755c6d717f95839:1735689600000000000"
+          },
+          {
+            "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+            "metadata_version": "04ab32d44ea51bec5d654074e982bc08d2dced5a9b0710ee9755c6d717f95839:1735689600000000000"
+          },
+          {
+            "instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+            "metadata_version": "04ab32d44ea51bec5d654074e982bc08d2dced5a9b0710ee9755c6d717f95839:1735689600000000000"
+          },
+          {
+            "instrument_id": "hyperliquid:info:perpetual:BTC",
+            "metadata_version": "5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9:1735689600000000000:hyperliquid-denomination-v2"
+          },
+          {
+            "instrument_id": "hyperliquid:info:perpetual:ETH",
+            "metadata_version": "5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9:1735689600000000000:hyperliquid-denomination-v2"
+          },
+          {
+            "instrument_id": "hyperliquid:info:perpetual:SOL",
+            "metadata_version": "5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9:1735689600000000000:hyperliquid-denomination-v2"
+          },
+          {
+            "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+            "metadata_version": "synthetic-v2:5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9"
+          },
+          {
+            "instrument_id": "coinbase:advanced-trade:spot:ETH-USD",
+            "metadata_version": "synthetic-v2:5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9"
+          },
+          {
+            "instrument_id": "coinbase:advanced-trade:spot:SOL-USD",
+            "metadata_version": "synthetic-v2:5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9"
+          },
+          {
+            "instrument_id": "kraken:spot-v2:spot:BTC/USD",
+            "metadata_version": "synthetic-v2:5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9"
+          },
+          {
+            "instrument_id": "kraken:spot-v2:spot:ETH/USD",
+            "metadata_version": "synthetic-v2:5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9"
+          },
+          {
+            "instrument_id": "kraken:spot-v2:spot:SOL/USD",
+            "metadata_version": "synthetic-v2:5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9"
+          }
+        ]
+      },
+      "orders": [],
+      "fills": [],
+      "presentation": {
+        "orders_limit": 20,
+        "orders_omitted": 0,
+        "fills_limit": 20,
+        "fills_omitted": 0,
+        "fill_levels_limit": 20
+      }
+    }
+  },
+  "alerts_at_zero": {
+    "version": "1",
+    "session_id": "a8c663f61223415792bca995b745d5d7",
+    "generation": "3",
+    "source_identity": "demo:ce521c54ac3ce89084427e77e5cf4c04ebe0b40bab703de4ebb1b389b0f39813",
+    "delivery_index": "0",
+    "snapshot": {
+      "rules": [],
+      "evaluations": [],
+      "events": [],
+      "delivery_index": "0",
+      "now": null,
+      "dropped_events": "0",
+      "reasons": []
+    },
+    "kinds": [
+      {
+        "kind": "spread_shock",
+        "unit": "bps"
+      },
+      {
+        "kind": "depth_shock",
+        "unit": "BTC"
+      },
+      {
+        "kind": "large_executed_print",
+        "unit": "base:coinbase:advanced-trade:spot:BTC-USD"
+      },
+      {
+        "kind": "event_ofi",
+        "unit": "base:coinbase:advanced-trade:spot:BTC-USD"
+      },
+      {
+        "kind": "best_quote_imbalance",
+        "unit": "ratio"
+      },
+      {
+        "kind": "persistent_displayed_liquidity",
+        "unit": "base:coinbase:advanced-trade:spot:BTC-USD"
+      },
+      {
+        "kind": "net_cost",
+        "unit": "USD"
+      }
+    ],
+    "evaluation_scope": "last_delivered_batch",
+    "presentation": {
+      "event_limit": 20,
+      "events_omitted": 0
+    }
+  },
+  "stale_generation": {
+    "status": 409,
+    "body": {
+      "detail": "obsolete session generation"
+    }
+  },
+  "paper_rebuilt": {
+    "version": "1",
+    "session_id": "a8c663f61223415792bca995b745d5d7",
+    "generation": "4",
+    "source_identity": "demo:ce521c54ac3ce89084427e77e5cf4c04ebe0b40bab703de4ebb1b389b0f39813",
+    "delivery_index": "145",
+    "snapshot": {
+      "delivery_index": "145",
+      "at": {
+        "clock_id": "synthetic-clock-v2",
+        "mono_ns": "4000006000",
+        "wall_ns": null
+      },
+      "balances": [
+        {
+          "venue": "coinbase",
+          "asset_id": "BTC",
+          "available": "0.01"
+        },
+        {
+          "venue": "coinbase",
+          "asset_id": "USD",
+          "available": "99399.689995"
+        }
+      ],
+      "positions": [
+        {
+          "venue": "coinbase",
+          "asset_id": "BTC",
+          "quote_asset_id": "USD",
+          "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+          "quantity": "0.01",
+          "cost_basis_quote": "600.310005",
+          "realized_pnl_quote": "0",
+          "unrealized_pnl_quote": "-0.320005",
+          "mark_price": "59999",
+          "reasons": []
+        }
+      ],
+      "reasons": [],
+      "assumptions": [
+        "spot_only",
+        "immediate_or_cancel",
+        "no_market_impact",
+        "no_passive_fills",
+        "conservative_per_price_reservations",
+        "average_cost_basis",
+        "initial_inventory_basis_unknown",
+        "marks_are_gross_best_bid_not_liquidation_proceeds"
+      ],
+      "run": {
+        "run_id": "2abd80177b174dfda73925de986be7b6",
+        "source_id": "demo:ce521c54ac3ce89084427e77e5cf4c04ebe0b40bab703de4ebb1b389b0f39813",
+        "config": {
+          "balances": [
+            {
+              "venue": "coinbase",
+              "asset_id": "USD",
+              "available": "100000",
+              "provenance": "user supplied prefunded balance",
+              "asof": null
+            }
+          ],
+          "fees": [
+            {
+              "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+              "schedule": {
+                "rate": "0.0005",
+                "asset_id": null,
+                "provenance": "Explicit synthetic smoke assumption; not a venue fee claim",
+                "asof_wall_ns": "1735689600000000000",
+                "assumed": true
+              }
+            }
+          ],
+          "feed_latency_ns": "0",
+          "decision_latency_ns": "0",
+          "order_latency_ns": "0",
+          "policy": {
+            "max_age_ns": "5000000000",
+            "max_asof_skew_ns": "1000000000",
+            "allow_snapshot_quotes": true,
+            "require_execution_access": false,
+            "required_capabilities": [],
+            "version": "eligibility-v1"
+          }
+        },
+        "created_at": {
+          "clock_id": "synthetic-clock-v2",
+          "mono_ns": "3000000000",
+          "wall_ns": "1735689602000000000"
+        },
+        "delivery_index": "115",
+        "revision": "1",
+        "parent_run_id": null,
+        "instrument_metadata": [
+          {
+            "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+            "metadata_version": "04ab32d44ea51bec5d654074e982bc08d2dced5a9b0710ee9755c6d717f95839:1735689600000000000"
+          },
+          {
+            "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+            "metadata_version": "04ab32d44ea51bec5d654074e982bc08d2dced5a9b0710ee9755c6d717f95839:1735689600000000000"
+          },
+          {
+            "instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+            "metadata_version": "04ab32d44ea51bec5d654074e982bc08d2dced5a9b0710ee9755c6d717f95839:1735689600000000000"
+          },
+          {
+            "instrument_id": "hyperliquid:info:perpetual:BTC",
+            "metadata_version": "5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9:1735689600000000000:hyperliquid-denomination-v2"
+          },
+          {
+            "instrument_id": "hyperliquid:info:perpetual:ETH",
+            "metadata_version": "5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9:1735689600000000000:hyperliquid-denomination-v2"
+          },
+          {
+            "instrument_id": "hyperliquid:info:perpetual:SOL",
+            "metadata_version": "5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9:1735689600000000000:hyperliquid-denomination-v2"
+          },
+          {
+            "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+            "metadata_version": "synthetic-v2:5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9"
+          },
+          {
+            "instrument_id": "coinbase:advanced-trade:spot:ETH-USD",
+            "metadata_version": "synthetic-v2:5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9"
+          },
+          {
+            "instrument_id": "coinbase:advanced-trade:spot:SOL-USD",
+            "metadata_version": "synthetic-v2:5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9"
+          },
+          {
+            "instrument_id": "kraken:spot-v2:spot:BTC/USD",
+            "metadata_version": "synthetic-v2:5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9"
+          },
+          {
+            "instrument_id": "kraken:spot-v2:spot:ETH/USD",
+            "metadata_version": "synthetic-v2:5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9"
+          },
+          {
+            "instrument_id": "kraken:spot-v2:spot:SOL/USD",
+            "metadata_version": "synthetic-v2:5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9"
+          }
+        ]
+      },
+      "orders": [
+        {
+          "order_id": "1ecfacefb1c1437293f3ee9361bc8a10",
+          "run_id": "2abd80177b174dfda73925de986be7b6",
+          "request": {
+            "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+            "side": "buy",
+            "quantity": "0.01",
+            "order_type": "market",
+            "limit_price": null
+          },
+          "submitted_at": {
+            "clock_id": "synthetic-clock-v2",
+            "mono_ns": "3000000000",
+            "wall_ns": "1735689602000000000"
+          },
+          "delivery_index": "115",
+          "arrival_at": {
+            "clock_id": "synthetic-clock-v2",
+            "mono_ns": "3000000000",
+            "wall_ns": "1735689602000000000"
+          },
+          "status": "filled",
+          "filled_quantity": "0.01",
+          "remaining_quantity": "0",
+          "reasons": []
+        }
+      ],
+      "fills": [
+        {
+          "fill_id": "1ecfacefb1c1437293f3ee9361bc8a10:fill",
+          "run_id": "2abd80177b174dfda73925de986be7b6",
+          "order_id": "1ecfacefb1c1437293f3ee9361bc8a10",
+          "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+          "venue": "coinbase",
+          "side": "buy",
+          "at": {
+            "clock_id": "synthetic-clock-v2",
+            "mono_ns": "3000000000",
+            "wall_ns": "1735689602000000000"
+          },
+          "delivery_index": "115",
+          "quantity": "0.01",
+          "notional_quote": "600.01",
+          "quote_asset_id": "USD",
+          "fee_amount": "0.300005",
+          "fee_asset_id": "USD",
+          "fees": {
+            "rate": "0.0005",
+            "asset_id": null,
+            "provenance": "Explicit synthetic smoke assumption; not a venue fee claim",
+            "asof_wall_ns": "1735689600000000000",
+            "assumed": true
+          },
+          "book_asof": {
+            "session_id": "synthetic-demo-v2-180s",
+            "ingest_ordinal": "103",
+            "event_index": "0",
+            "exchange_event_wall_ns": "1735689601000000000",
+            "receive_wall_ns": "1735689601000012000",
+            "receive_mono_ns": "2000012000",
+            "clock_id": "synthetic-clock-v2"
+          },
+          "book_key": {
+            "venue": "coinbase",
+            "api_family": "advanced-trade",
+            "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+            "channel": "book",
+            "depth": null,
+            "aggregation": []
+          },
+          "book_revision": "2",
+          "consumed_levels": [
+            {
+              "price": "60001",
+              "native_quantity": "0.01",
+              "base_quantity": "0.01",
+              "notional_quote": "600.01"
+            }
+          ],
+          "consumed_levels_omitted": 0
+        }
+      ],
+      "presentation": {
+        "orders_limit": 20,
+        "orders_omitted": 0,
+        "fills_limit": 20,
+        "fills_omitted": 0,
+        "fill_levels_limit": 20
+      }
+    }
+  },
+  "alerts_rebuilt": {
+    "version": "1",
+    "session_id": "a8c663f61223415792bca995b745d5d7",
+    "generation": "4",
+    "source_identity": "demo:ce521c54ac3ce89084427e77e5cf4c04ebe0b40bab703de4ebb1b389b0f39813",
+    "delivery_index": "145",
+    "snapshot": {
+      "rules": [
+        {
+          "rule_id": "e49be846dcbb489ea35b5c7816ddb161",
+          "key": {
+            "venue": "coinbase",
+            "api_family": "advanced-trade",
+            "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+            "channel": "book",
+            "depth": null,
+            "aggregation": []
+          },
+          "kind": "spread_shock",
+          "direction": "above",
+          "threshold": "0",
+          "rearm_threshold": "-1",
+          "unit": "bps",
+          "window_ns": "0",
+          "cooldown_ns": "1000000000",
+          "depth_side": "bid",
+          "depth_bps": "10",
+          "sell_key": null,
+          "base_quantity": null,
+          "buy_fees": {
+            "rate": null,
+            "asset_id": null,
+            "provenance": "unknown",
+            "asof_wall_ns": null,
+            "assumed": true
+          },
+          "sell_fees": {
+            "rate": null,
+            "asset_id": null,
+            "provenance": "unknown",
+            "asof_wall_ns": null,
+            "assumed": true
+          },
+          "stress": {
+            "latency_bps": "0",
+            "rebalance_cost": "0",
+            "provenance": "user assumption"
+          }
+        }
+      ],
+      "evaluations": [
+        {
+          "rule": {
+            "rule_id": "e49be846dcbb489ea35b5c7816ddb161",
+            "key": {
+              "venue": "coinbase",
+              "api_family": "advanced-trade",
+              "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+              "channel": "book",
+              "depth": null,
+              "aggregation": []
+            },
+            "kind": "spread_shock",
+            "direction": "above",
+            "threshold": "0",
+            "rearm_threshold": "-1",
+            "unit": "bps",
+            "window_ns": "0",
+            "cooldown_ns": "1000000000",
+            "depth_side": "bid",
+            "depth_bps": "10",
+            "sell_key": null,
+            "base_quantity": null,
+            "buy_fees": {
+              "rate": null,
+              "asset_id": null,
+              "provenance": "unknown",
+              "asof_wall_ns": null,
+              "assumed": true
+            },
+            "sell_fees": {
+              "rate": null,
+              "asset_id": null,
+              "provenance": "unknown",
+              "asof_wall_ns": null,
+              "assumed": true
+            },
+            "stress": {
+              "latency_bps": "0",
+              "rebalance_cost": "0",
+              "provenance": "user assumption"
+            }
+          },
+          "delivery_index": "145",
+          "now": {
+            "clock_id": "synthetic-clock-v2",
+            "mono_ns": "4000006000",
+            "wall_ns": null
+          },
+          "value": "0.33333333333333333333333333333333333333333333333333333333333333333333333333333333",
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "4000006000",
+            "policy_version": "eligibility-v1"
+          },
+          "window": {
+            "start_mono_ns": "4000006000",
+            "end_mono_ns": "4000006000",
+            "clock_id": "synthetic-clock-v2",
+            "definition": "latest_observation"
+          },
+          "armed": false,
+          "cooldown_remaining_ns": "0",
+          "condition_met": true,
+          "reasons": [
+            "awaiting_rearm"
+          ],
+          "persistence_ns": "0",
+          "evidence_available": true
+        }
+      ],
+      "events": [
+        {
+          "event_id": "1",
+          "evaluation": {
+            "rule": {
+              "rule_id": "e49be846dcbb489ea35b5c7816ddb161",
+              "key": {
+                "venue": "coinbase",
+                "api_family": "advanced-trade",
+                "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+                "channel": "book",
+                "depth": null,
+                "aggregation": []
+              },
+              "kind": "spread_shock",
+              "direction": "above",
+              "threshold": "0",
+              "rearm_threshold": "-1",
+              "unit": "bps",
+              "window_ns": "0",
+              "cooldown_ns": "1000000000",
+              "depth_side": "bid",
+              "depth_bps": "10",
+              "sell_key": null,
+              "base_quantity": null,
+              "buy_fees": {
+                "rate": null,
+                "asset_id": null,
+                "provenance": "unknown",
+                "asof_wall_ns": null,
+                "assumed": true
+              },
+              "sell_fees": {
+                "rate": null,
+                "asset_id": null,
+                "provenance": "unknown",
+                "asof_wall_ns": null,
+                "assumed": true
+              },
+              "stress": {
+                "latency_bps": "0",
+                "rebalance_cost": "0",
+                "provenance": "user assumption"
+              }
+            },
+            "delivery_index": "116",
+            "now": {
+              "clock_id": "synthetic-clock-v2",
+              "mono_ns": "3000001000",
+              "wall_ns": null
+            },
+            "value": "0.33333333333333333333333333333333333333333333333333333333333333333333333333333333",
+            "eligibility": {
+              "eligible": true,
+              "reasons": [],
+              "evaluated_at_mono_ns": "3000001000",
+              "policy_version": "eligibility-v1"
+            },
+            "window": {
+              "start_mono_ns": "3000001000",
+              "end_mono_ns": "3000001000",
+              "clock_id": "synthetic-clock-v2",
+              "definition": "latest_observation"
+            },
+            "armed": true,
+            "cooldown_remaining_ns": "0",
+            "condition_met": true,
+            "reasons": [],
+            "persistence_ns": "0",
+            "evidence_available": true
+          }
+        }
+      ],
+      "delivery_index": "145",
+      "now": {
+        "clock_id": "synthetic-clock-v2",
+        "mono_ns": "4000006000",
+        "wall_ns": null
+      },
+      "dropped_events": "0",
+      "reasons": []
+    },
+    "kinds": [
+      {
+        "kind": "spread_shock",
+        "unit": "bps"
+      },
+      {
+        "kind": "depth_shock",
+        "unit": "BTC"
+      },
+      {
+        "kind": "large_executed_print",
+        "unit": "base:coinbase:advanced-trade:spot:BTC-USD"
+      },
+      {
+        "kind": "event_ofi",
+        "unit": "base:coinbase:advanced-trade:spot:BTC-USD"
+      },
+      {
+        "kind": "best_quote_imbalance",
+        "unit": "ratio"
+      },
+      {
+        "kind": "persistent_displayed_liquidity",
+        "unit": "base:coinbase:advanced-trade:spot:BTC-USD"
+      },
+      {
+        "kind": "net_cost",
+        "unit": "USD"
+      }
+    ],
+    "evaluation_scope": "last_delivered_batch",
+    "presentation": {
+      "event_limit": 20,
+      "events_omitted": 0
+    }
+  },
+  "journal_edited": {
+    "version": "1",
+    "session_id": "a8c663f61223415792bca995b745d5d7",
+    "generation": "4",
+    "source_identity": "demo:ce521c54ac3ce89084427e77e5cf4c04ebe0b40bab703de4ebb1b389b0f39813",
+    "delivery_index": "145",
+    "entry": {
+      "entry_id": "95da3b022a9741c3a8d320539696c5c2",
+      "source_id": "demo:ce521c54ac3ce89084427e77e5cf4c04ebe0b40bab703de4ebb1b389b0f39813",
+      "session_id": "a72d6f4a7024457ea5194e78d1522819",
+      "delivery_index": "115",
+      "at": {
+        "clock_id": "synthetic-clock-v2",
+        "mono_ns": "3000000000",
+        "wall_ns": null
+      },
+      "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+      "venue": "coinbase",
+      "rationale": "Authored revision after reopening the session",
+      "entry": "60001",
+      "stop": null,
+      "context": "Exact native fees, cash and source-prefix linkage exercised",
+      "run_id": "2abd80177b174dfda73925de986be7b6",
+      "order_id": "1ecfacefb1c1437293f3ee9361bc8a10"
+    }
+  },
+  "archive": {
+    "version": "1",
+    "session_id": "a8c663f61223415792bca995b745d5d7",
+    "generation": "4",
+    "source_identity": "demo:ce521c54ac3ce89084427e77e5cf4c04ebe0b40bab703de4ebb1b389b0f39813",
+    "delivery_index": "145",
+    "archived": true,
+    "archive_scope": "historical_accounting_not_current_replay_state",
+    "snapshot": {
+      "delivery_index": "115",
+      "at": {
+        "clock_id": "synthetic-clock-v2",
+        "mono_ns": "3000000000",
+        "wall_ns": "1735689602000000000"
+      },
+      "balances": [
+        {
+          "venue": "coinbase",
+          "asset_id": "BTC",
+          "available": "0.01"
+        },
+        {
+          "venue": "coinbase",
+          "asset_id": "USD",
+          "available": "99399.689995"
+        }
+      ],
+      "positions": [
+        {
+          "venue": "coinbase",
+          "asset_id": "BTC",
+          "quote_asset_id": "USD",
+          "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+          "quantity": "0.01",
+          "cost_basis_quote": "600.310005",
+          "realized_pnl_quote": "0",
+          "unrealized_pnl_quote": "-0.320005",
+          "mark_price": "59999",
+          "reasons": []
+        }
+      ],
+      "reasons": [
+        "archived_not_live_projection"
+      ],
+      "assumptions": [
+        "spot_only",
+        "immediate_or_cancel",
+        "no_market_impact",
+        "no_passive_fills",
+        "conservative_per_price_reservations",
+        "average_cost_basis",
+        "initial_inventory_basis_unknown",
+        "marks_are_gross_best_bid_not_liquidation_proceeds"
+      ],
+      "run": {
+        "run_id": "2abd80177b174dfda73925de986be7b6",
+        "source_id": "demo:ce521c54ac3ce89084427e77e5cf4c04ebe0b40bab703de4ebb1b389b0f39813",
+        "config": {
+          "balances": [
+            {
+              "venue": "coinbase",
+              "asset_id": "USD",
+              "available": "100000",
+              "provenance": "user supplied prefunded balance",
+              "asof": null
+            }
+          ],
+          "fees": [
+            {
+              "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+              "schedule": {
+                "rate": "0.0005",
+                "asset_id": null,
+                "provenance": "Explicit synthetic smoke assumption; not a venue fee claim",
+                "asof_wall_ns": "1735689600000000000",
+                "assumed": true
+              }
+            }
+          ],
+          "feed_latency_ns": "0",
+          "decision_latency_ns": "0",
+          "order_latency_ns": "0",
+          "policy": {
+            "max_age_ns": "5000000000",
+            "max_asof_skew_ns": "1000000000",
+            "allow_snapshot_quotes": true,
+            "require_execution_access": false,
+            "required_capabilities": [],
+            "version": "eligibility-v1"
+          }
+        },
+        "created_at": {
+          "clock_id": "synthetic-clock-v2",
+          "mono_ns": "3000000000",
+          "wall_ns": "1735689602000000000"
+        },
+        "delivery_index": "115",
+        "revision": "1",
+        "parent_run_id": null,
+        "instrument_metadata": [
+          {
+            "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+            "metadata_version": "04ab32d44ea51bec5d654074e982bc08d2dced5a9b0710ee9755c6d717f95839:1735689600000000000"
+          },
+          {
+            "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+            "metadata_version": "04ab32d44ea51bec5d654074e982bc08d2dced5a9b0710ee9755c6d717f95839:1735689600000000000"
+          },
+          {
+            "instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+            "metadata_version": "04ab32d44ea51bec5d654074e982bc08d2dced5a9b0710ee9755c6d717f95839:1735689600000000000"
+          },
+          {
+            "instrument_id": "hyperliquid:info:perpetual:BTC",
+            "metadata_version": "5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9:1735689600000000000:hyperliquid-denomination-v2"
+          },
+          {
+            "instrument_id": "hyperliquid:info:perpetual:ETH",
+            "metadata_version": "5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9:1735689600000000000:hyperliquid-denomination-v2"
+          },
+          {
+            "instrument_id": "hyperliquid:info:perpetual:SOL",
+            "metadata_version": "5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9:1735689600000000000:hyperliquid-denomination-v2"
+          },
+          {
+            "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+            "metadata_version": "synthetic-v2:5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9"
+          },
+          {
+            "instrument_id": "coinbase:advanced-trade:spot:ETH-USD",
+            "metadata_version": "synthetic-v2:5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9"
+          },
+          {
+            "instrument_id": "coinbase:advanced-trade:spot:SOL-USD",
+            "metadata_version": "synthetic-v2:5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9"
+          },
+          {
+            "instrument_id": "kraken:spot-v2:spot:BTC/USD",
+            "metadata_version": "synthetic-v2:5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9"
+          },
+          {
+            "instrument_id": "kraken:spot-v2:spot:ETH/USD",
+            "metadata_version": "synthetic-v2:5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9"
+          },
+          {
+            "instrument_id": "kraken:spot-v2:spot:SOL/USD",
+            "metadata_version": "synthetic-v2:5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9"
+          }
+        ]
+      },
+      "orders": [
+        {
+          "order_id": "1ecfacefb1c1437293f3ee9361bc8a10",
+          "run_id": "2abd80177b174dfda73925de986be7b6",
+          "request": {
+            "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+            "side": "buy",
+            "quantity": "0.01",
+            "order_type": "market",
+            "limit_price": null
+          },
+          "submitted_at": {
+            "clock_id": "synthetic-clock-v2",
+            "mono_ns": "3000000000",
+            "wall_ns": "1735689602000000000"
+          },
+          "delivery_index": "115",
+          "arrival_at": {
+            "clock_id": "synthetic-clock-v2",
+            "mono_ns": "3000000000",
+            "wall_ns": "1735689602000000000"
+          },
+          "status": "filled",
+          "filled_quantity": "0.01",
+          "remaining_quantity": "0",
+          "reasons": []
+        }
+      ],
+      "fills": [
+        {
+          "fill_id": "1ecfacefb1c1437293f3ee9361bc8a10:fill",
+          "run_id": "2abd80177b174dfda73925de986be7b6",
+          "order_id": "1ecfacefb1c1437293f3ee9361bc8a10",
+          "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+          "venue": "coinbase",
+          "side": "buy",
+          "at": {
+            "clock_id": "synthetic-clock-v2",
+            "mono_ns": "3000000000",
+            "wall_ns": "1735689602000000000"
+          },
+          "delivery_index": "115",
+          "quantity": "0.01",
+          "notional_quote": "600.01",
+          "quote_asset_id": "USD",
+          "fee_amount": "0.300005",
+          "fee_asset_id": "USD",
+          "fees": {
+            "rate": "0.0005",
+            "asset_id": null,
+            "provenance": "Explicit synthetic smoke assumption; not a venue fee claim",
+            "asof_wall_ns": "1735689600000000000",
+            "assumed": true
+          },
+          "book_asof": {
+            "session_id": "synthetic-demo-v2-180s",
+            "ingest_ordinal": "103",
+            "event_index": "0",
+            "exchange_event_wall_ns": "1735689601000000000",
+            "receive_wall_ns": "1735689601000012000",
+            "receive_mono_ns": "2000012000",
+            "clock_id": "synthetic-clock-v2"
+          },
+          "book_key": {
+            "venue": "coinbase",
+            "api_family": "advanced-trade",
+            "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+            "channel": "book",
+            "depth": null,
+            "aggregation": []
+          },
+          "book_revision": "2",
+          "consumed_levels": [
+            {
+              "price": "60001",
+              "native_quantity": "0.01",
+              "base_quantity": "0.01",
+              "notional_quote": "600.01"
+            }
+          ],
+          "consumed_levels_omitted": 0
+        }
+      ],
+      "presentation": {
+        "orders_limit": 20,
+        "orders_omitted": 0,
+        "fills_limit": 20,
+        "fills_omitted": 0,
+        "fill_levels_limit": 20
+      }
+    }
+  },
+  "completed": true
+}

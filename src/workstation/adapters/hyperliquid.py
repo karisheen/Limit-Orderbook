@@ -485,7 +485,14 @@ class HyperliquidAdapter:
                     return DecodeResult(
                         controls=(Control("ack", "hyperliquid_subscribed"),)
                     )
-                if channel != _CHANNELS[key.channel]:
+                # Spot uses the same subscription/ack type as perps, but its
+                # public data response has a distinct channel discriminator.
+                expected_channel = (
+                    "activeSpotAssetCtx"
+                    if key.channel == "context" and instrument.market_type == "spot"
+                    else _CHANNELS[key.channel]
+                )
+                if channel != expected_channel:
                     raise ValueError("unexpected Hyperliquid channel")
             else:
                 if frame.transport == "ws":

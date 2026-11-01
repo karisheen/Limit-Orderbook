@@ -1,6 +1,6 @@
 # Workstation contracts (schema version 1)
 
-The exact instrument/event/quality/book/wire contracts, venue adapters, public transport, single-worker subscription supervision, recording/replay, analytics and visualization are implemented in `src/workstation`. React and the supported thin Streamlit client consume the same native API/core; the duplicate `src/data` and `src/domain` compatibility engines are retired. Implementation is not certification of acceptance: executed evidence belongs in `OMP_UPGRADE_HANDOFF.md`. Core domain modules have no Streamlit, React, network or database imports; transport and ingestion own network I/O.
+The exact instrument/event/quality/book/wire contracts, venue adapters, transport/supervision, recording/replay, analytics/visualization and native alerts/context/paper/journal/research consumers are implemented in `src/workstation`. React and the supported thin Streamlit observation client consume the same native API/core; duplicate `src/data` and `src/domain` compatibility engines are retired. Implementation is not certification of acceptance: executed evidence belongs in `OMP_UPGRADE_HANDOFF.md`. Core instrument/event/book/quality models have no UI, network or database imports; transport/ingestion own network I/O and consumer stores own their SQLite connections.
 
 ## Conventions and module ownership
 
@@ -14,10 +14,12 @@ The exact instrument/event/quality/book/wire contracts, venue adapters, public t
 | `book.py` | Single-owner mutable reducer internals; immutable published Book/checkpoints |
 | `ingestion.py`, `subscriptions.py` | Transport lifecycle, bounded queues, epochs and shared leases |
 | `transport.py` | Bounded public HTTP response bytes, per-origin retry/rate/circuit policy |
-| `analytics.py`, `comparison.py` | Pure metrics, depth walks, costs and cohort/conversion policy |
-| `recording.py`, `catalog.py`, `replay.py` | Capture, manifests, recovery, deterministic clock/order |
-| `alerts.py`, `paper.py`, `journal.py` | Quality-gated local alerts, simulated ledger, linked rationale |
-| `api.py`, `wire.py` | FastAPI routes, input limits, origin policy and explicit wire codecs |
+| `analytics.py`, `costs.py`, `visuals.py` | Metrics, depth walks, costs/cohort/conversion policy and bounded visual history |
+| `recording.py`, `replay.py` | Capture, manifests, recovery, deterministic clock/order |
+| `alerts.py`, `context.py` | Quality-gated local alert evidence and non-executable references |
+| `paper.py`, `journal.py` | Spot IOC simulation, durable command/accounting archive and manual rationale |
+| `research.py` | Causal offline experiments, durable attempts/evidence/all trial outcomes |
+| `api.py`, `runtime.py`, `wire.py` | Versioned routes, owned sessions/consumers, input/origin limits and exact codecs |
 
 Types below are Python annotations: `Decimal`, `Optional[T]`, `Tuple[T, ...]`, `FrozenSet[T]`, and immutable `@dataclass(frozen=True)` records. Enum values are lower-case strings. Domain containers are tuples/frozensets, not mutable nested lists/dictionaries. Internal reducer maps may mutate under their single owner; published records never expose them. Runtime version/locked dependencies are established by the integration owner, not by these annotations.
 
@@ -79,6 +81,59 @@ Bybit xstock `reference_multiplier=m` describes reference stock quantity `token_
 These metadata fields are part of the current strict all-fields wire schema. Python constructors retain their positional prefix and appended defaults; old serialized `Instrument`/`OrderConstraints` records missing the new fields are rejected rather than silently upgraded. This is a draft M1 content cutover, not a compatibility promise for released M2 captures.
 
 Default executable-comparison candidate cohort is Coinbase/Kraken BTC/ETH/SOL spot USD subject to discovery/access. USDT and USDC are separate cohorts. Hyperliquid BTC/ETH/SOL perpetuals, HYPE where listed, and metadata-discovered spot tokens stay separate throughout capture, UI and replay.
+
+Live terminal selection retains the exact selected instrument and fills the existing
+16-product bound with active same-base peers, round-robin across discovered venues.
+Other venues precede extra peers from the selected venue; within a venue, matching
+market type and exact quote identity precede other native instruments. Suspended,
+delisted or unknown implicit peers cannot prevent selecting an active product.
+Explicit selection still passes subscription validation. Collection membership is
+not executable comparability; quote identities and native book depths stay intact.
+
+At live ownership cutover, paper observation removes departed book keys **before**
+awaiting collector replacement. Pending arrivals cannot consume departed books
+during network cleanup/bootstrap. Retained keys keep their causal evidence, and
+run identity, balances, prior fills and alert rules survive the switch.
+
+The analytical queue remains fail-closed at 256 deliveries / 128 MiB. Each atomic
+delivery retains only its affected books, charged conservatively at 512 bytes per
+level plus fixed overhead. Event representation size is computed once and reused
+for bounded history accounting. Trade-only deliveries reuse the immutable current
+book tuple; paper skips an identical already-scheduled book object. Analytics
+indexes immutable instrument-to-trade-stream relationships instead of validating
+identifiers and scanning all streams for each lookup.
+The owner takes at most32 already-admitted deliveries per executor call, preserving
+every atomic batch and its original order. Detached in-flight batches remain charged
+to both count and byte bounds until completion or cancellation has joined the worker;
+there is no second unaccounted queue. This is scheduling, not analytical coalescing.
+Run activation first clears the scheduled-source identity cache, then reschedules
+its observed baseline under the configured feed latency. The steady-state object
+identity optimization cannot skip reconstruction after rewind or durable resume.
+
+Analytics caches only book-derived depth totals and frozen standing evidence within
+the owning book window. New immutable books invalidate depth totals; book observations
+invalidate standing evidence. Reset/restore discards both caches. Freshness, clock,
+rolling windows, trade evidence and quality eligibility are still evaluated per query.
+The caches do not change canonical checkpoints, source depth or metric formulas.
+
+`evidence/m5-lifecycle-offline-summary.json` records complete state/history parity
+before and after this service correction. `evidence/m5-lifecycle-capacity-summary.json`
+preserves both the misleading same-event-loop raw-decoding stress and its corrected
+dedicated-producer experiment. The latter applied all 703 retained deliveries at
+the unchanged 8 MiB bound, with cold/steady highwaters of 6,626,908 / 5,131,912 bytes.
+Its diagnostic 256 MiB comparison did not increase those highwaters. This serialized
+12-stream experiment does **not** certify concurrent 16-product live bootstrap:
+two large atomic snapshots can exceed 8 MiB, and no retained Coinbase 40k-level
+payload was available. Original public overload evidence remains a failed run.
+
+The full16-product native run subsequently exceeded the original8MiB budget.
+After removing repeated immutable full-depth analytics work, a diagnostic64MiB
+run completed all three BTC/ETH/SOL paper/alert/context workflows, but reached
+64,597,682 accounted bytes for BTC. One further approximately5MiB full-depth
+book would exceed that allowance. The production128MiB limit supplies bounded
+burst headroom without reducing depth, dropping events or changing the256-item
+bound. This is admission accounting, not a claimed RSS limit or sustained-load pass;
+the independent live-history retention budget remains8MiB.
 
 ## Event boundary (`events.py`)
 
@@ -261,7 +316,165 @@ Per-event-loop/origin budgets reserve requests at 0.1-second intervals. HTTP 401
 
 `walk_book(book, side, base_quantity: Optional[Decimal], quote_budget: Optional[Decimal], constraints, fees, policy, now) -> ExecutionEstimate` accepts exactly one size input and returns requested/filled/unfilled base, quote spent/received, VWAP, best-price slippage, fee amounts/currencies, effective price, coverage and eligibility. No extrapolation beyond known depth. `compare_pair(buy_book, sell_book, feasible_base_quantity, conversion, fees, inventory_assumptions, latency_stress, now) -> PairEstimate` uses the same feasible size on both sides and explicit conversion orientation/cost. Paper orders use this shared engine at simulated arrival with an explicit liquidity-consumption model; they do not submit exchange orders.
 
-API JSON is versioned (`schema_version`, request/subscription ID, generation, message kind, decimal/time strings, quality and reasons). Planned `/api/v1/instruments`, `/subscriptions`, `/history`, `/sessions`, `/replay`, `/alerts`, `/paper`, `/journal` and stream endpoints validate IDs, range/row limits, size inputs and allowed local origins. `/health/live` reports process liveness; `/health/ready` reports required synchronized capabilities and recording status, not just HTTP success. Slow-client resync uses a fresh validated snapshot plus revision; UI never reconstructs authoritative exchange books from coalesced display frames. Accessible tables use exact formatted values; chart floats are disposable projections.
+Terminal JSON uses `version:'1'`, session ID and generation, exact decimal/domain-integer strings, quality and reasons. Implemented routes and bounded request/response fields are specified in [API](API.md), including alerts, context, paper, journal and read-only research queries. `/health/live` reports process liveness; `/health/ready` reports synchronized active-session eligibility, not just HTTP success. UI never reconstructs authoritative exchange books from coalesced display frames. Accessible tables retain exact values; chart floats are disposable projections.
+
+## Native M5 consumer contracts
+
+### Alerts: intent, qualification and evidence
+
+`AlertEngine` shares admitted `AnalyticsEngine` evidence, not a second feed or
+browser-calculated signal. Rule commands apply after their recorded delivery
+cutoff; rules, hysteresis latches, cooldown and fires are a replay-prefix
+projection. Seek/reset reconstructs them without future evidence. Rules are
+session-local, not a durable notification service.
+
+Supported kinds are spread shock, depth shock, large executed print, event OFI,
+best-quote imbalance, persistent displayed liquidity and net cost. Thresholds
+are absolute levels: a depth shock is a low-depth condition, not an inferred
+percentage change. Units are native base/instrument units, ratio, bps or native
+quote as appropriate. Inclusive threshold crossing fires only while armed and
+outside cooldown; rearm must lie beyond the nontrigger side. OFI and persistent
+display rules require a positive rolling window, other kinds zero.
+
+`AlertEvaluation` retains the rule, delivery/clock, value or null, eligibility,
+window, latch/cooldown, condition and reasons, plus applicable metric references,
+executed prints, displayed evidence, pair estimates and book/trade evidence.
+Trades are not inferred from depth disappearance; snapshot liquidity is not
+exact event OFI, passive fills, spoofing or predictive intent. Unsupported flow,
+incomplete windows, stale/gapped sources, incompatible units and unavailable
+fees exclude the affected calculation rather than producing a zero signal.
+Net-cost alerts use shared paired size/cost assumptions, not account execution.
+
+Native bounds are 64 rules, 256 retained fires, 4096 commands and 200 supporting
+evidence items per bounded collection; overflow/unavailable reasons remain
+visible. HTTP summaries omit heavy evidence and expose omission counts; explicit
+evidence queries retrieve retained current-rule or historical-fire detail.
+
+### Hyperliquid context and reference basis
+
+`ContextEngine` observes reference and context streams independently of the book.
+Hyperliquid mids, mark/oracle, funding rate/interval and open interest retain
+instrument identity, source as-of and field-specific missing/eligibility reasons.
+Funding is a fraction per funding interval, not an annualized return; open
+interest units are adapter-declared, not independently verified. Reference-only
+prices cannot repair missing depth, trigger fabricated trades or establish
+executable liquidity.
+
+Related spot/perpetual rows compare eligible spot mid with `mark`, `oracle` or
+reference `mid`. A ticker can discover a candidate explanation but canonical
+underlying identity, unit/multiplier compatibility, independent channel gates,
+clock/freshness/skew and exact quote conversion determine availability. Wrapped
+or otherwise distinct assets never become fungible because their tickers match.
+USD/USDT/USDC quote and settlement identities remain separate. Without required
+fresh, side-appropriate FX and conversion fees, cross-quote basis is unknown.
+
+`ReferenceBasis` retains spot/reference as-of, native amounts, both FX conversions,
+proceeds/funding basis and reasons under
+`reference_basis_not_executable_arbitrage`. Here “funding cost” means FX input
+required to acquire the reference amount; it is not perpetual funding P&L.
+Cost scope is explicit FX spread/conversion fees only, excluding trading fees,
+funding P&L, inventory, borrow/margin or a realizable arbitrage trade.
+
+### Paper funds, fees, time and consumed liquidity
+
+`PaperEngine` implements **spot-only market/marketable-limit IOC** over the shared
+native depth walker. A `PaperConfig` explicitly records venue/asset balances,
+instrument fee schedules, eligibility policy and separate feed, decision and
+order latency nanoseconds. Feed delay gates book availability, including initial
+baseline; decision plus order delay fixes arrival. Pending commands compete for
+funds at arrival, not at submission. No borrowing, margin, cross-venue transfer,
+perpetual funding, passive queue priority or market impact is modeled.
+
+Fill eligibility includes exact product constraints, quality, available balance,
+fee denomination/date and known observed depth. Unknown fees, future-dated fees,
+missing arrival wall clock or third-token fee assumptions are unavailable.
+Partial fills retain filled quantity and explicitly cancel the IOC remainder;
+unmarketable/unfunded orders do not become resting orders. Pending cancellation
+is a recorded command, not an exchange message.
+
+Reservations are keyed by native instrument, side and price and survive
+unsubscription. Healthy displayed decreases retire consumed quantity down to
+the new size; only observed increases replenish availability. Disappearance
+inside observed coverage followed by reappearance is replenishment; disappearance
+outside truncated coverage is not. Heartbeats, unchanged snapshots, revision
+changes and cohort replacement do not create reusable liquidity.
+
+Balances, orders, fills and positions retain exact Decimal amounts, native
+assets/venues, source clocks/deliveries and book key/revision/as-of. Fees are
+applied in supported native base or quote. Position accounting is average-cost;
+initial inventory basis is unknown, so affected basis/P&L remains null. Marks
+are gross best bid, not fee-adjusted liquidation proceeds or guaranteed fills.
+
+### Durable state, archive, resume and manual provenance
+
+`serve --state-dir` defaults to `data/workstation-state`, holding
+`paper.sqlite3`, `journal.sqlite3` and `research.sqlite3`. SQLite connections
+belong to their dedicated worker; serialized immutable records preserve exact
+values. The embedded runtime without a state directory instead uses temporary
+storage. These databases supplement immutable recording files, not replace them.
+
+Paper stores durable run configuration/metadata and ordered commands, plus a
+separately queried transition archive. Archives preserve historical accounting,
+including live audit evidence after shutdown. They are not active replay state.
+New clients do not auto-adopt old runs. Explicit replay/demo resume validates
+source identity, rebuilds a candidate at the current prefix, publishes before
+cutover, pauses playback and increments generation. Failed staging leaves the
+active projection untouched. Reset reconstructs balances/reservations/fills/P&L
+from commands and delivered history; archive rows never supply future state.
+
+Recording identity includes session ID and immutable manifest hash; demo
+identity hashes its source descriptor. Live identity includes clock and client
+session, so live history cannot resume under a new owner. Source or generation
+changes fence requests and obsolete presentation. A cancelled HTTP mutation may
+already be committed; clients inspect state rather than automatically retry.
+
+`JournalEntry` is manually authored evidence: entry ID, source/session,
+delivery/clock, instrument/venue, rationale, optional entry/stop/context and
+optional run/order links. New links must refer to the active run and a visible
+matching-instrument order. Editing text/prices cannot reassign original
+provenance or links. Source-scoped/all-source query is explicit. Journal notes
+remain historical authorship, not observations available to an earlier replay
+prefix and not research features or alerts.
+
+### Offline research and applicability
+
+`research run` accepts a verified capture or explicitly synthetic demo source;
+`research list` retains attempts including failures; `research show` pages
+results by attempt ID. See [DEMO](DEMO.md) for configuration/CLI usage. The
+terminal's Research tab is read-only and uses the same state directory.
+
+`ResearchStore` persists a begun attempt before opening/scanning its source.
+Running, completed and failed attempts remain inspectable; a killed worker can
+leave `running`, never fabricated success. Invalid configuration rejected before
+an attempt begins is not an experiment. Source/config hashes, observation/label
+evidence and all candidate trial outcomes are retained; publication of the
+finished report is atomic. Query pagination does not discard nonwinning trials.
+
+Hypotheses are depth-band imbalance, exact event OFI and known-side executed
+trade flow. Features use only admitted prefixes. Outcomes use the last available
+book at exact receive-clock deadlines, not a later book borrowed backward.
+Default horizons are 1/5/30/60 seconds; default scenarios are base, extra
+fee/slippage and one-second latency. Unknown fees exclude net economics, not
+silently become zero. Gaps/continuity changes, unavailable depth, partial fills,
+unknown flow, incomplete capture and censored outcomes retain exclusion reasons.
+
+Chronological partitions default to 50% train, 25% validation and the remainder
+test. All variants share splits: a closed outcome interval including the maximum
+horizon plus maximum scenario latency that touches a boundary is purged; later
+partitions embargo the configured interval (default 60 seconds). Causal feature
+warmup from earlier partitions is allowed, future-label fitting is not.
+Selection uses supported positive train payoff and validation ranking, never
+test fitting. Every hypothesis/threshold/horizon/scenario/split and all/venue/
+fixed-spread-regime group's statistics remain reported, including exclusions,
+support/nonoverlap counts, no-trade and matched directional baselines.
+
+These are independent unfunded directional taker markouts, not sequential funded
+portfolio returns or paper fills. A short markout does not establish borrow or
+margin access. Turnover/drawdown remain null with
+`no_sequential_funded_portfolio_model`; no impact/shared inventory model is
+invented. Outcomes are `insufficient_evidence`, `no_reliable_edge` or
+`unvalidated_positive_markout`. Synthetic data always yields insufficient
+evidence of edge, regardless of positive fixture results.
 
 ## Native replacement boundary
 

@@ -1,0 +1,1188 @@
+{
+  "capture": "/private/tmp/limit-orderbook-m5-NBWAK4/lifecycle-proof/data/m2-smoke/live-cli-gry1ld8s/captures/9b355ab1-b2a2-4dbb-ae67-a47710272382",
+  "cleanup": {
+    "consumer_done": true,
+    "runtime_closed": true,
+    "session_closed": true
+  },
+  "complete_native_state_hash": "5c6e5d795a472825cf59d1e34eac2868759177d01627d022333d3bb16bfef1b4",
+  "diagnostic_source": "\"\"\"Actual native live owner/queue, driven offline by an unchanged real recording.\"\"\"\nimport argparse\nimport asyncio\nfrom decimal import Decimal\nimport hashlib\nimport json\nfrom pathlib import Path\nfrom tempfile import TemporaryDirectory\nimport time\n\nfrom src.workstation.analytics import AnalyticsEngine\nfrom src.workstation.recording import RecordingReader\nfrom src.workstation.replay import ReplaySession\nfrom src.workstation.runtime import ClientSession, TerminalRuntime\nfrom src.workstation.visuals import VisualHistory\n\nROOT = Path(__file__).resolve().parents[2]\nCAPTURE = ROOT / 'data/m2-smoke/live-cli-gry1ld8s/captures/9b355ab1-b2a2-4dbb-ae67-a47710272382'\nparser = argparse.ArgumentParser()\nparser.add_argument('--mode', choices=('raw', 'normalized'), default='normalized')\nargs = parser.parse_args()\n\nasync def main():\n    observations = []\n    rejected = []\n    checkpoint_digest = None\n    with TemporaryDirectory(prefix='m5-native-offline-queue-') as state:\n        runtime = TerminalRuntime(state_dir=Path(state))\n        native = ClientSession(runtime, 'live', 'retained-offline-source')\n        with RecordingReader(CAPTURE) as reader:\n            def initialize():\n                native.streams = reader.manifest.streams\n                native.choose('binance-global:spot-v3:spot:BTCUSDT')\n                native.engine = AnalyticsEngine(native.streams)\n                native.visuals = VisualHistory(native.engine, native.key)\n                native.source_identity = 'offline-profile:' + hashlib.sha256((CAPTURE / 'manifest.json').read_bytes()).hexdigest()\n                native._initialize_consumers()\n                native.status = 'live'\n                native.live_stream_ids = frozenset(spec.stream_id for spec in native.streams)\n                native.live_stream_keys = {spec.stream_id: spec.key for spec in native.streams}\n            await native.work(initialize)\n            class Driver:\n                observer_id = 'native-live-service-profile'\n                version = '1'\n                def reset(self):\n                    observations.clear()\n                    rejected.clear()\n                def checkpoint(self):\n                    if checkpoint_digest is None:\n                        raise RuntimeError('owner checkpoint requires completed drain')\n                    return checkpoint_digest\n                def on_batch(self, batch, books, clock):\n                    if native.status != 'live':\n                        return\n                    prior_bytes = native.live_bytes\n                    native.offer(batch.events, books)\n                    observations.append({'delivery': str(batch.delivery_index), 'wall_mono_ns': str(time.monotonic_ns()),\n                        'source_mono_ns': str(batch.events[0].receive_mono_ns), 'replay_mono_ns': str(clock.reading.mono_ns),\n                        'queue_count': native.live_queue.qsize(), 'queue_bytes': native.live_bytes, 'status': native.status,\n                        'instruments': sorted({str(event.key.instrument_id) for event in batch.events}),\n                        'payload_types': [type(event.payload).__name__ for event in batch.events]})\n                    if native.status == 'unavailable':\n                        changed = [book for book in books if book.key in native.affected_keys(batch.events)]\n                        rejected.append({'delivery': str(batch.delivery_index), 'prior_queued_bytes': prior_bytes,\n                            'atomic_event_bytes': len(repr(batch.events)),\n                            'atomic_book_bytes': sum(4096 + 512 * (len(book.bids) + len(book.asks)) for book in changed),\n                            'books': [{'instrument_id': str(book.instrument_id), 'bids': len(book.bids), 'asks': len(book.asks)} for book in changed],\n                            'error': native.error})\n            replay = ReplaySession(reader, mode=args.mode, observers=(Driver(),))\n            native.live_task = asyncio.create_task(native.consume_live())\n            started = time.monotonic()\n            try:\n                await replay.run_to_end(speed=Decimal(\"1\"))\n                drain_started = time.monotonic()\n                while native.live_queue.qsize() and time.monotonic() - drain_started < 5:\n                    await asyncio.sleep(.01)\n                checkpoint_digest = await native.work(\n                    lambda: hashlib.sha256(b''.join(observer.checkpoint() for observer in native._observers())).digest()\n                )\n                result = {'native_status': native.status, 'native_error': native.error,\n                    'native_deliveries_applied': native.delivery, 'telemetry': dict(native.telemetry),\n                    'queue_count_after_drain': native.live_queue.qsize(), 'queue_bytes_after_drain': native.live_bytes,\n                    'elapsed_seconds': time.monotonic() - started, 'drain_seconds': time.monotonic() - drain_started,\n                    'replay_deliveries': replay.cursor.delivery_index, 'replay_book_hash': replay.book_hash,\n                    'complete_native_state_hash': replay.state_hash,\n                    'matches_serial_native_reference': replay.state_hash == json.loads((ROOT / 'docs/evidence/m5-lifecycle-offline-after.json').read_text())['replay_hashes']['state']}\n            finally:\n                replay.close()\n                await native.close()\n                await runtime.close()\n    result.update(mode=args.mode, scope='OFFLINE real retained capture at native ReplaySession speed1 into actual ClientSession.offer/consume_live and owner executor. Raw mode reruns native adapters/reducers from retained actual payloads; normalized mode uses stored native events. Source ordering, native depths and256-delivery/8MiB bounds unchanged. No network. Incomplete owner history after fail-closed overflow is explicitly not a successful live acceptance.',\n        capture=str(CAPTURE), manifest_sha256=hashlib.sha256((CAPTURE / 'manifest.json').read_bytes()).hexdigest(),\n        diagnostic_source=Path(__file__).read_text(), native_sources={str(p.relative_to(ROOT)): {'sha256': hashlib.sha256(p.read_bytes()).hexdigest(), 'source': p.read_text()} for p in sorted((ROOT / 'src/workstation').rglob('*.py'))},\n        observations=observations, rejected_atomic_deliveries=rejected,\n        cleanup={'session_closed': native.closed, 'runtime_closed': runtime.closed, 'consumer_done': native.live_task.done()})\n    output = ROOT / 'docs/evidence' / ('m5-lifecycle-offline-native-queue-' + args.mode + '.json')\n    output.write_text(json.dumps(result, indent=2) + '\\n')\n    print(json.dumps({k: v for k, v in result.items() if k not in ('native_sources', 'diagnostic_source', 'observations')}, indent=2))\n    print('Evidence:', output)\n\nasyncio.run(main())\n",
+  "drain_seconds": 0.3419519540038891,
+  "elapsed_seconds": 25.359705130991642,
+  "manifest_sha256": "c1f2b35a0f5c897679cc9aa53a2e6bece6019945e094f1daabb34b67bc237cbf",
+  "matches_serial_native_reference": false,
+  "mode": "raw",
+  "native_deliveries_applied": 56,
+  "native_error": "analytical_queue_overflow: reselect to establish fresh history",
+  "native_sources": {
+    "src/workstation/__init__.py": {
+      "sha256": "d32a38cc280c6e747e68e7e64e27ebbe9aef3e3ac4e19fca2e7d8f7fb54f9ac8",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/d32a38cc280c6e747e68e7e64e27ebbe9aef3e3ac4e19fca2e7d8f7fb54f9ac8"
+    },
+    "src/workstation/adapter_catalog.py": {
+      "sha256": "82d22123e418ebbb5f56da499805b4fef7671bcf29039124355431855519dba2",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/82d22123e418ebbb5f56da499805b4fef7671bcf29039124355431855519dba2"
+    },
+    "src/workstation/adapters/__init__.py": {
+      "sha256": "ebfb09d028b47872e3ede6cdaea00ff7903029c37ed000f5308741abc23665e8",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/ebfb09d028b47872e3ede6cdaea00ff7903029c37ed000f5308741abc23665e8"
+    },
+    "src/workstation/adapters/base.py": {
+      "sha256": "078cc7da780e21c11b065a62436986b48664ae244c4a38326a5e9f3ad4e12d45",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/078cc7da780e21c11b065a62436986b48664ae244c4a38326a5e9f3ad4e12d45"
+    },
+    "src/workstation/adapters/binance.py": {
+      "sha256": "ce02eb26c3ab8b4cebe975240201f9d1fc7403391cffdaab947cc3758d8853ca",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/ce02eb26c3ab8b4cebe975240201f9d1fc7403391cffdaab947cc3758d8853ca"
+    },
+    "src/workstation/adapters/bybit.py": {
+      "sha256": "3d27a2d2a93ba0dc721aa57b26acf6e02c31507dbb1110a1aeafdf03610cc659",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/3d27a2d2a93ba0dc721aa57b26acf6e02c31507dbb1110a1aeafdf03610cc659"
+    },
+    "src/workstation/adapters/coinbase.py": {
+      "sha256": "d09d51a3c7d64a694188d7534e674df1be3ed5939aeb4e0cbeccb39119f2a2f8",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/d09d51a3c7d64a694188d7534e674df1be3ed5939aeb4e0cbeccb39119f2a2f8"
+    },
+    "src/workstation/adapters/hyperliquid.py": {
+      "sha256": "e7351320889e13b04d5d54b63b6bf9cc9fed863ad4622e40d08f796e0bf0e056",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/e7351320889e13b04d5d54b63b6bf9cc9fed863ad4622e40d08f796e0bf0e056"
+    },
+    "src/workstation/adapters/kraken.py": {
+      "sha256": "b5c6723630bbc9612d743d5c8b9f57ba2d7372c447d3b30e300c63641232743f",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/b5c6723630bbc9612d743d5c8b9f57ba2d7372c447d3b30e300c63641232743f"
+    },
+    "src/workstation/adapters/kucoin.py": {
+      "sha256": "d59cd9c8319ec883aef211c851eb0db438b0d657032b1c8a7103f4428cb8bddd",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/d59cd9c8319ec883aef211c851eb0db438b0d657032b1c8a7103f4428cb8bddd"
+    },
+    "src/workstation/alerts.py": {
+      "sha256": "767563e72965df28f6316c101b353ab631f9f9640b2386ad0ed5bdb4c00e4de8",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/767563e72965df28f6316c101b353ab631f9f9640b2386ad0ed5bdb4c00e4de8"
+    },
+    "src/workstation/analytics.py": {
+      "sha256": "f6d475a0e295dbc8f92e82227d441f8393b790c18cbe08d1073640459af63e7e",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/f6d475a0e295dbc8f92e82227d441f8393b790c18cbe08d1073640459af63e7e"
+    },
+    "src/workstation/api.py": {
+      "sha256": "da1648f4bcd8770fc0731b7424d19e67102d4b54709301533306d35658e24376",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/da1648f4bcd8770fc0731b7424d19e67102d4b54709301533306d35658e24376"
+    },
+    "src/workstation/book.py": {
+      "sha256": "f908201f41719b1d7726af4a38df0a3a166660c7312d21c4e9428e63053e4a74",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/f908201f41719b1d7726af4a38df0a3a166660c7312d21c4e9428e63053e4a74"
+    },
+    "src/workstation/cli.py": {
+      "sha256": "63bb4768a17fdb8a19720f3e7b8a97de4c5e080bc76121130137b8bbe4610550",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/63bb4768a17fdb8a19720f3e7b8a97de4c5e080bc76121130137b8bbe4610550"
+    },
+    "src/workstation/context.py": {
+      "sha256": "5faea9cfeecc9f7b4ee4e487a215e02bc6f171f847e08a0ae6fe7412298b5362",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/5faea9cfeecc9f7b4ee4e487a215e02bc6f171f847e08a0ae6fe7412298b5362"
+    },
+    "src/workstation/costs.py": {
+      "sha256": "1b249341e6e0373e84c9f2c4077d60354950fd96a9a482e26fdcb8d69779a40a",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/1b249341e6e0373e84c9f2c4077d60354950fd96a9a482e26fdcb8d69779a40a"
+    },
+    "src/workstation/demo.py": {
+      "sha256": "768822c6c24ee9a3ab24101adf42bbecaa8f1932ca0cb26832769820aedaa5b5",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/768822c6c24ee9a3ab24101adf42bbecaa8f1932ca0cb26832769820aedaa5b5"
+    },
+    "src/workstation/demo_memory.py": {
+      "sha256": "b0538d2d1dff01bd2a2e7b1b950a45693fb04127c1dbb67b42691645ea520838",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/b0538d2d1dff01bd2a2e7b1b950a45693fb04127c1dbb67b42691645ea520838"
+    },
+    "src/workstation/events.py": {
+      "sha256": "63edc89a304a2272e2999708a30153aef2e99dfd10b22c718933f8722a18727d",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/63edc89a304a2272e2999708a30153aef2e99dfd10b22c718933f8722a18727d"
+    },
+    "src/workstation/ingestion.py": {
+      "sha256": "2660103494335448189e42552ef76a8251bd9c081260e488ac386ed82ffd79d7",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/2660103494335448189e42552ef76a8251bd9c081260e488ac386ed82ffd79d7"
+    },
+    "src/workstation/instruments.py": {
+      "sha256": "188e11494cd470414cff1ec3fd96024c528f0a6ae51289a2d2dcab77bf3a27a9",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/188e11494cd470414cff1ec3fd96024c528f0a6ae51289a2d2dcab77bf3a27a9"
+    },
+    "src/workstation/journal.py": {
+      "sha256": "200330c20dadeda303fcb0f834ee9e53eb249bb8585e7fbef7d18505fa056a63",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/200330c20dadeda303fcb0f834ee9e53eb249bb8585e7fbef7d18505fa056a63"
+    },
+    "src/workstation/paper.py": {
+      "sha256": "798a0f8b1f88cd2da2d7a518d7c20e2aad2889435f337e7047e57fb0ca437428",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/798a0f8b1f88cd2da2d7a518d7c20e2aad2889435f337e7047e57fb0ca437428"
+    },
+    "src/workstation/precision.py": {
+      "sha256": "abee27115d3d86d88cb32e99627e9b7ec48bdaa13c453b5be30331463ad25edc",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/abee27115d3d86d88cb32e99627e9b7ec48bdaa13c453b5be30331463ad25edc"
+    },
+    "src/workstation/projection.py": {
+      "sha256": "f36753759de852eea545932a1723b749257e74b013f01c057be447de6bb101b8",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/f36753759de852eea545932a1723b749257e74b013f01c057be447de6bb101b8"
+    },
+    "src/workstation/quality.py": {
+      "sha256": "a69128aecb293557375cf1605f53f3a28085d918bbe6c107ed3f9d468ea1a314",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/a69128aecb293557375cf1605f53f3a28085d918bbe6c107ed3f9d468ea1a314"
+    },
+    "src/workstation/recording.py": {
+      "sha256": "7111e9529b259ba4154058fa066e2b83ad9ffb6570c6c1c8c276726df6eb577d",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/7111e9529b259ba4154058fa066e2b83ad9ffb6570c6c1c8c276726df6eb577d"
+    },
+    "src/workstation/replay.py": {
+      "sha256": "7282bf11ae9019326d8d8e0f526f75b76e5030190b3c1e677628791dcb6fbf26",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/7282bf11ae9019326d8d8e0f526f75b76e5030190b3c1e677628791dcb6fbf26"
+    },
+    "src/workstation/research.py": {
+      "sha256": "dff01c1a8583e55d76ce3c1f7821fe80d52aa1fd60428dc3e254cfeadcff7394",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/dff01c1a8583e55d76ce3c1f7821fe80d52aa1fd60428dc3e254cfeadcff7394"
+    },
+    "src/workstation/runtime.py": {
+      "sha256": "74737ebb3a2a1e8f4bb1a1825f08ea5f9fa3b2ca176232ce7f790d3ca38fbcbd",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/74737ebb3a2a1e8f4bb1a1825f08ea5f9fa3b2ca176232ce7f790d3ca38fbcbd"
+    },
+    "src/workstation/subscriptions.py": {
+      "sha256": "2e67ef00d3e46d2795267f0c933131f1a84d75188f325e6e5d4161b91071e542",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/2e67ef00d3e46d2795267f0c933131f1a84d75188f325e6e5d4161b91071e542"
+    },
+    "src/workstation/transport.py": {
+      "sha256": "3b706b8140f456a9a7f8b54b13ed69be0d01d29b744704e65614cfe79502b530",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/3b706b8140f456a9a7f8b54b13ed69be0d01d29b744704e65614cfe79502b530"
+    },
+    "src/workstation/visuals.py": {
+      "sha256": "d67b03ac7d85b0c707824a3e1e320a70d745c72d29f66463d78d2da595084956",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/d67b03ac7d85b0c707824a3e1e320a70d745c72d29f66463d78d2da595084956"
+    },
+    "src/workstation/wire.py": {
+      "sha256": "c9a22528789684a33b76bfc5f5369cec163fcd3a0169648194fd6cd260e3f2d7",
+      "source_ref": "m5-lifecycle-source-snapshots.json#/sources/c9a22528789684a33b76bfc5f5369cec163fcd3a0169648194fd6cd260e3f2d7"
+    }
+  },
+  "native_status": "unavailable",
+  "observations": [
+    {
+      "delivery": "1",
+      "instruments": [
+        "binance-global:spot-v3:spot:BTCUSDT"
+      ],
+      "payload_types": [
+        "Control"
+      ],
+      "queue_bytes": 1149,
+      "queue_count": 1,
+      "replay_mono_ns": "90366377132716",
+      "source_mono_ns": "90366377132716",
+      "status": "live",
+      "wall_mono_ns": "128919316269513"
+    },
+    {
+      "delivery": "2",
+      "instruments": [
+        "binance-global:spot-v3:spot:BTCUSDT"
+      ],
+      "payload_types": [
+        "Control"
+      ],
+      "queue_bytes": 1154,
+      "queue_count": 1,
+      "replay_mono_ns": "90366378448234",
+      "source_mono_ns": "90366378448234",
+      "status": "live",
+      "wall_mono_ns": "128919317605748"
+    },
+    {
+      "delivery": "3",
+      "instruments": [
+        "binance-global:spot-v3:spot:ETHUSDT"
+      ],
+      "payload_types": [
+        "Control"
+      ],
+      "queue_bytes": 2303,
+      "queue_count": 2,
+      "replay_mono_ns": "90366379574849",
+      "source_mono_ns": "90366379574849",
+      "status": "live",
+      "wall_mono_ns": "128919318161950"
+    },
+    {
+      "delivery": "4",
+      "instruments": [
+        "binance-global:spot-v3:spot:ETHUSDT"
+      ],
+      "payload_types": [
+        "Control"
+      ],
+      "queue_bytes": 2303,
+      "queue_count": 2,
+      "replay_mono_ns": "90366380928463",
+      "source_mono_ns": "90366380928463",
+      "status": "live",
+      "wall_mono_ns": "128919324386209"
+    },
+    {
+      "delivery": "5",
+      "instruments": [
+        "binance-global:spot-v3:spot:SOLUSDT"
+      ],
+      "payload_types": [
+        "Control"
+      ],
+      "queue_bytes": 3452,
+      "queue_count": 3,
+      "replay_mono_ns": "90366382082699",
+      "source_mono_ns": "90366382082699",
+      "status": "live",
+      "wall_mono_ns": "128919324836867"
+    },
+    {
+      "delivery": "6",
+      "instruments": [
+        "binance-global:spot-v3:spot:SOLUSDT"
+      ],
+      "payload_types": [
+        "Control"
+      ],
+      "queue_bytes": 4606,
+      "queue_count": 4,
+      "replay_mono_ns": "90366383423981",
+      "source_mono_ns": "90366383423981",
+      "status": "live",
+      "wall_mono_ns": "128919325570159"
+    },
+    {
+      "delivery": "7",
+      "instruments": [
+        "hyperliquid:info:perpetual:BTC"
+      ],
+      "payload_types": [
+        "Control"
+      ],
+      "queue_bytes": 4624,
+      "queue_count": 4,
+      "replay_mono_ns": "90366385111946",
+      "source_mono_ns": "90366385111946",
+      "status": "live",
+      "wall_mono_ns": "128919326600025"
+    },
+    {
+      "delivery": "8",
+      "instruments": [
+        "hyperliquid:info:perpetual:BTC"
+      ],
+      "payload_types": [
+        "Control"
+      ],
+      "queue_bytes": 5795,
+      "queue_count": 5,
+      "replay_mono_ns": "90366386649298",
+      "source_mono_ns": "90366386649298",
+      "status": "live",
+      "wall_mono_ns": "128919327220632"
+    },
+    {
+      "delivery": "9",
+      "instruments": [
+        "hyperliquid:info:perpetual:ETH"
+      ],
+      "payload_types": [
+        "Control"
+      ],
+      "queue_bytes": 6962,
+      "queue_count": 6,
+      "replay_mono_ns": "90366388149446",
+      "source_mono_ns": "90366388149446",
+      "status": "live",
+      "wall_mono_ns": "128919327760646"
+    },
+    {
+      "delivery": "10",
+      "instruments": [
+        "hyperliquid:info:perpetual:ETH"
+      ],
+      "payload_types": [
+        "Control"
+      ],
+      "queue_bytes": 6981,
+      "queue_count": 6,
+      "replay_mono_ns": "90366389661055",
+      "source_mono_ns": "90366389661055",
+      "status": "live",
+      "wall_mono_ns": "128919328817893"
+    },
+    {
+      "delivery": "11",
+      "instruments": [
+        "hyperliquid:info:perpetual:SOL"
+      ],
+      "payload_types": [
+        "Control"
+      ],
+      "queue_bytes": 5847,
+      "queue_count": 5,
+      "replay_mono_ns": "90366391429630",
+      "source_mono_ns": "90366391429630",
+      "status": "live",
+      "wall_mono_ns": "128919331627354"
+    },
+    {
+      "delivery": "12",
+      "instruments": [
+        "hyperliquid:info:perpetual:SOL"
+      ],
+      "payload_types": [
+        "Control"
+      ],
+      "queue_bytes": 7020,
+      "queue_count": 6,
+      "replay_mono_ns": "90366392894863",
+      "source_mono_ns": "90366392894863",
+      "status": "live",
+      "wall_mono_ns": "128919332825658"
+    },
+    {
+      "delivery": "13",
+      "instruments": [
+        "hyperliquid:info:perpetual:BTC"
+      ],
+      "payload_types": [
+        "Control"
+      ],
+      "queue_bytes": 1169,
+      "queue_count": 1,
+      "replay_mono_ns": "90367028344252",
+      "source_mono_ns": "90367028344252",
+      "status": "live",
+      "wall_mono_ns": "128919968096116"
+    },
+    {
+      "delivery": "14",
+      "instruments": [
+        "hyperliquid:info:perpetual:BTC"
+      ],
+      "payload_types": [
+        "BookUpdate"
+      ],
+      "queue_bytes": 31375,
+      "queue_count": 1,
+      "replay_mono_ns": "90367028494421",
+      "source_mono_ns": "90367028494421",
+      "status": "live",
+      "wall_mono_ns": "128919977934969"
+    },
+    {
+      "delivery": "15",
+      "instruments": [
+        "hyperliquid:info:perpetual:SOL"
+      ],
+      "payload_types": [
+        "Control"
+      ],
+      "queue_bytes": 1173,
+      "queue_count": 1,
+      "replay_mono_ns": "90367263314241",
+      "source_mono_ns": "90367263314241",
+      "status": "live",
+      "wall_mono_ns": "128920217461425"
+    },
+    {
+      "delivery": "16",
+      "instruments": [
+        "hyperliquid:info:perpetual:ETH"
+      ],
+      "payload_types": [
+        "Control"
+      ],
+      "queue_bytes": 1169,
+      "queue_count": 1,
+      "replay_mono_ns": "90367266412365",
+      "source_mono_ns": "90367266412365",
+      "status": "live",
+      "wall_mono_ns": "128920219242997"
+    },
+    {
+      "delivery": "17",
+      "instruments": [
+        "hyperliquid:info:perpetual:ETH"
+      ],
+      "payload_types": [
+        "Control"
+      ],
+      "queue_bytes": 2342,
+      "queue_count": 2,
+      "replay_mono_ns": "90367266811824",
+      "source_mono_ns": "90367266811824",
+      "status": "live",
+      "wall_mono_ns": "128920221653173"
+    },
+    {
+      "delivery": "18",
+      "instruments": [
+        "hyperliquid:info:perpetual:BTC"
+      ],
+      "payload_types": [
+        "Control"
+      ],
+      "queue_bytes": 3515,
+      "queue_count": 3,
+      "replay_mono_ns": "90367266811824",
+      "source_mono_ns": "90367262784434",
+      "status": "live",
+      "wall_mono_ns": "128920222286439"
+    },
+    {
+      "delivery": "19",
+      "instruments": [
+        "hyperliquid:info:perpetual:SOL"
+      ],
+      "payload_types": [
+        "Control"
+      ],
+      "queue_bytes": 4684,
+      "queue_count": 4,
+      "replay_mono_ns": "90367267146554",
+      "source_mono_ns": "90367267146554",
+      "status": "live",
+      "wall_mono_ns": "128920223746591"
+    },
+    {
+      "delivery": "20",
+      "instruments": [
+        "hyperliquid:info:perpetual:SOL"
+      ],
+      "payload_types": [
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade"
+      ],
+      "queue_bytes": 46427,
+      "queue_count": 4,
+      "replay_mono_ns": "90367267146554",
+      "source_mono_ns": "90367263469513",
+      "status": "live",
+      "wall_mono_ns": "128920241344917"
+    },
+    {
+      "delivery": "21",
+      "instruments": [
+        "hyperliquid:info:perpetual:ETH"
+      ],
+      "payload_types": [
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade"
+      ],
+      "queue_bytes": 89397,
+      "queue_count": 5,
+      "replay_mono_ns": "90367267146554",
+      "source_mono_ns": "90367266874117",
+      "status": "live",
+      "wall_mono_ns": "128920269220936"
+    },
+    {
+      "delivery": "22",
+      "instruments": [
+        "hyperliquid:info:perpetual:ETH"
+      ],
+      "payload_types": [
+        "BookUpdate"
+      ],
+      "queue_bytes": 120758,
+      "queue_count": 6,
+      "replay_mono_ns": "90367267146554",
+      "source_mono_ns": "90367266725310",
+      "status": "live",
+      "wall_mono_ns": "128920273375828"
+    },
+    {
+      "delivery": "23",
+      "instruments": [
+        "hyperliquid:info:perpetual:SOL"
+      ],
+      "payload_types": [
+        "BookUpdate"
+      ],
+      "queue_bytes": 150862,
+      "queue_count": 6,
+      "replay_mono_ns": "90367267272284",
+      "source_mono_ns": "90367267272284",
+      "status": "live",
+      "wall_mono_ns": "128920286245871"
+    },
+    {
+      "delivery": "24",
+      "instruments": [
+        "hyperliquid:info:perpetual:BTC"
+      ],
+      "payload_types": [
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade",
+        "Trade"
+      ],
+      "queue_bytes": 193876,
+      "queue_count": 7,
+      "replay_mono_ns": "90367267272284",
+      "source_mono_ns": "90367262893723",
+      "status": "live",
+      "wall_mono_ns": "128920303794249"
+    },
+    {
+      "delivery": "25",
+      "instruments": [
+        "binance-global:spot-v3:spot:SOLUSDT"
+      ],
+      "payload_types": [
+        "Control"
+      ],
+      "queue_bytes": 1138,
+      "queue_count": 1,
+      "replay_mono_ns": "90367420260605",
+      "source_mono_ns": "90367420260605",
+      "status": "live",
+      "wall_mono_ns": "128920363139351"
+    },
+    {
+      "delivery": "26",
+      "instruments": [
+        "binance-global:spot-v3:spot:ETHUSDT"
+      ],
+      "payload_types": [
+        "Control"
+      ],
+      "queue_bytes": 1138,
+      "queue_count": 1,
+      "replay_mono_ns": "90367441149797",
+      "source_mono_ns": "90367441149797",
+      "status": "live",
+      "wall_mono_ns": "128920381941375"
+    },
+    {
+      "delivery": "27",
+      "instruments": [
+        "binance-global:spot-v3:spot:BTCUSDT"
+      ],
+      "payload_types": [
+        "Control"
+      ],
+      "queue_bytes": 1133,
+      "queue_count": 1,
+      "replay_mono_ns": "90367461856183",
+      "source_mono_ns": "90367461856183",
+      "status": "live",
+      "wall_mono_ns": "128920401121241"
+    },
+    {
+      "delivery": "28",
+      "instruments": [
+        "binance-global:spot-v3:spot:SOLUSDT"
+      ],
+      "payload_types": [
+        "Control"
+      ],
+      "queue_bytes": 1133,
+      "queue_count": 1,
+      "replay_mono_ns": "90367474717279",
+      "source_mono_ns": "90367474717279",
+      "status": "live",
+      "wall_mono_ns": "128920416265297"
+    },
+    {
+      "delivery": "29",
+      "instruments": [
+        "binance-global:spot-v3:spot:ETHUSDT"
+      ],
+      "payload_types": [
+        "Control"
+      ],
+      "queue_bytes": 1133,
+      "queue_count": 1,
+      "replay_mono_ns": "90367475957867",
+      "source_mono_ns": "90367475957867",
+      "status": "live",
+      "wall_mono_ns": "128920418524728"
+    },
+    {
+      "delivery": "30",
+      "instruments": [
+        "binance-global:spot-v3:spot:BTCUSDT"
+      ],
+      "payload_types": [
+        "Control"
+      ],
+      "queue_bytes": 1138,
+      "queue_count": 1,
+      "replay_mono_ns": "90367503741186",
+      "source_mono_ns": "90367503741186",
+      "status": "live",
+      "wall_mono_ns": "128920443084266"
+    },
+    {
+      "delivery": "31",
+      "instruments": [
+        "binance-global:spot-v3:spot:BTCUSDT"
+      ],
+      "payload_types": [
+        "BookUpdate"
+      ],
+      "queue_bytes": 1738,
+      "queue_count": 1,
+      "replay_mono_ns": "90367557159521",
+      "source_mono_ns": "90367557159521",
+      "status": "live",
+      "wall_mono_ns": "128920497999232"
+    },
+    {
+      "delivery": "32",
+      "instruments": [
+        "binance-global:spot-v3:spot:ETHUSDT"
+      ],
+      "payload_types": [
+        "BookUpdate"
+      ],
+      "queue_bytes": 1590,
+      "queue_count": 1,
+      "replay_mono_ns": "90367558273380",
+      "source_mono_ns": "90367558273380",
+      "status": "live",
+      "wall_mono_ns": "128920500218710"
+    },
+    {
+      "delivery": "33",
+      "instruments": [
+        "binance-global:spot-v3:spot:BTCUSDT"
+      ],
+      "payload_types": [
+        "BookUpdate"
+      ],
+      "queue_bytes": 2044,
+      "queue_count": 1,
+      "replay_mono_ns": "90367657002860",
+      "source_mono_ns": "90367657002860",
+      "status": "live",
+      "wall_mono_ns": "128920598894746"
+    },
+    {
+      "delivery": "34",
+      "instruments": [
+        "binance-global:spot-v3:spot:ETHUSDT"
+      ],
+      "payload_types": [
+        "BookUpdate"
+      ],
+      "queue_bytes": 1436,
+      "queue_count": 1,
+      "replay_mono_ns": "90367657957060",
+      "source_mono_ns": "90367657957060",
+      "status": "live",
+      "wall_mono_ns": "128920602141090"
+    },
+    {
+      "delivery": "35",
+      "instruments": [
+        "binance-global:spot-v3:spot:SOLUSDT"
+      ],
+      "payload_types": [
+        "BookUpdate"
+      ],
+      "queue_bytes": 1440,
+      "queue_count": 1,
+      "replay_mono_ns": "90367737643309",
+      "source_mono_ns": "90367737643309",
+      "status": "live",
+      "wall_mono_ns": "128920679455756"
+    },
+    {
+      "delivery": "36",
+      "instruments": [
+        "binance-global:spot-v3:spot:BTCUSDT"
+      ],
+      "payload_types": [
+        "BookUpdate"
+      ],
+      "queue_bytes": 1445,
+      "queue_count": 1,
+      "replay_mono_ns": "90367757428477",
+      "source_mono_ns": "90367757428477",
+      "status": "live",
+      "wall_mono_ns": "128920698633958"
+    },
+    {
+      "delivery": "37",
+      "instruments": [
+        "binance-global:spot-v3:spot:ETHUSDT"
+      ],
+      "payload_types": [
+        "BookUpdate"
+      ],
+      "queue_bytes": 1442,
+      "queue_count": 1,
+      "replay_mono_ns": "90367759243830",
+      "source_mono_ns": "90367759243830",
+      "status": "live",
+      "wall_mono_ns": "128920702865130"
+    },
+    {
+      "delivery": "38",
+      "instruments": [
+        "binance-global:spot-v3:spot:BTCUSDT"
+      ],
+      "payload_types": [
+        "Trade"
+      ],
+      "queue_bytes": 1371,
+      "queue_count": 1,
+      "replay_mono_ns": "90367813922355",
+      "source_mono_ns": "90367813922355",
+      "status": "live",
+      "wall_mono_ns": "128920768533687"
+    },
+    {
+      "delivery": "39",
+      "instruments": [
+        "binance-global:spot-v3:spot:BTCUSDT"
+      ],
+      "payload_types": [
+        "Trade"
+      ],
+      "queue_bytes": 1371,
+      "queue_count": 1,
+      "replay_mono_ns": "90367826285366",
+      "source_mono_ns": "90367826285366",
+      "status": "live",
+      "wall_mono_ns": "128920770905537"
+    },
+    {
+      "delivery": "40",
+      "instruments": [
+        "binance-global:spot-v3:spot:BTCUSDT"
+      ],
+      "payload_types": [
+        "BookUpdate"
+      ],
+      "queue_bytes": 2344,
+      "queue_count": 1,
+      "replay_mono_ns": "90367856977710",
+      "source_mono_ns": "90367856977710",
+      "status": "live",
+      "wall_mono_ns": "128920797070015"
+    },
+    {
+      "delivery": "41",
+      "instruments": [
+        "binance-global:spot-v3:spot:ETHUSDT"
+      ],
+      "payload_types": [
+        "BookUpdate"
+      ],
+      "queue_bytes": 1888,
+      "queue_count": 1,
+      "replay_mono_ns": "90367858004884",
+      "source_mono_ns": "90367858004884",
+      "status": "live",
+      "wall_mono_ns": "128920799021550"
+    },
+    {
+      "delivery": "42",
+      "instruments": [
+        "hyperliquid:info:perpetual:BTC"
+      ],
+      "payload_types": [
+        "Trade"
+      ],
+      "queue_bytes": 1435,
+      "queue_count": 1,
+      "replay_mono_ns": "90367880060596",
+      "source_mono_ns": "90367880060596",
+      "status": "live",
+      "wall_mono_ns": "128920821611165"
+    },
+    {
+      "delivery": "43",
+      "instruments": [
+        "binance-global:spot-v3:spot:BTCUSDT"
+      ],
+      "payload_types": [
+        "Trade"
+      ],
+      "queue_bytes": 1370,
+      "queue_count": 1,
+      "replay_mono_ns": "90367944036618",
+      "source_mono_ns": "90367944036618",
+      "status": "live",
+      "wall_mono_ns": "128920884281272"
+    },
+    {
+      "delivery": "44",
+      "instruments": [
+        "binance-global:spot-v3:spot:BTCUSDT"
+      ],
+      "payload_types": [
+        "BookUpdate"
+      ],
+      "queue_bytes": 1894,
+      "queue_count": 1,
+      "replay_mono_ns": "90367956727702",
+      "source_mono_ns": "90367956727702",
+      "status": "live",
+      "wall_mono_ns": "128920896658540"
+    },
+    {
+      "delivery": "45",
+      "instruments": [
+        "binance-global:spot-v3:spot:SOLUSDT"
+      ],
+      "payload_types": [
+        "BookUpdate"
+      ],
+      "queue_bytes": 1440,
+      "queue_count": 1,
+      "replay_mono_ns": "90368037687698",
+      "source_mono_ns": "90368037687698",
+      "status": "live",
+      "wall_mono_ns": "128920979363783"
+    },
+    {
+      "delivery": "46",
+      "instruments": [
+        "binance-global:spot-v3:spot:BTCUSDT"
+      ],
+      "payload_types": [
+        "BookUpdate"
+      ],
+      "queue_bytes": 1594,
+      "queue_count": 1,
+      "replay_mono_ns": "90368057051863",
+      "source_mono_ns": "90368057051863",
+      "status": "live",
+      "wall_mono_ns": "128920997783359"
+    },
+    {
+      "delivery": "47",
+      "instruments": [
+        "binance-global:spot-v3:spot:ETHUSDT"
+      ],
+      "payload_types": [
+        "BookUpdate"
+      ],
+      "queue_bytes": 2484,
+      "queue_count": 1,
+      "replay_mono_ns": "90368058813713",
+      "source_mono_ns": "90368058813713",
+      "status": "live",
+      "wall_mono_ns": "128921000742129"
+    },
+    {
+      "delivery": "48",
+      "instruments": [
+        "binance-global:spot-v3:spot:BTCUSDT"
+      ],
+      "payload_types": [
+        "Trade"
+      ],
+      "queue_bytes": 1371,
+      "queue_count": 1,
+      "replay_mono_ns": "90368136290657",
+      "source_mono_ns": "90368136290657",
+      "status": "live",
+      "wall_mono_ns": "128921077755140"
+    },
+    {
+      "delivery": "49",
+      "instruments": [
+        "binance-global:spot-v3:spot:BTCUSDT"
+      ],
+      "payload_types": [
+        "BookUpdate"
+      ],
+      "queue_bytes": 2626,
+      "queue_count": 1,
+      "replay_mono_ns": "90368156460734",
+      "source_mono_ns": "90368156460734",
+      "status": "live",
+      "wall_mono_ns": "128921096779312"
+    },
+    {
+      "delivery": "50",
+      "instruments": [
+        "binance-global:spot-v3:spot:ETHUSDT"
+      ],
+      "payload_types": [
+        "BookUpdate"
+      ],
+      "queue_bytes": 1889,
+      "queue_count": 1,
+      "replay_mono_ns": "90368159309990",
+      "source_mono_ns": "90368159309990",
+      "status": "live",
+      "wall_mono_ns": "128921100935343"
+    },
+    {
+      "delivery": "51",
+      "instruments": [
+        "binance-global:spot-v3:spot:ETHUSDT"
+      ],
+      "payload_types": [
+        "BookUpdate"
+      ],
+      "queue_bytes": 2331,
+      "queue_count": 1,
+      "replay_mono_ns": "90368395167235",
+      "source_mono_ns": "90368395167235",
+      "status": "live",
+      "wall_mono_ns": "128921335369761"
+    },
+    {
+      "delivery": "52",
+      "instruments": [
+        "binance-global:spot-v3:spot:ETHUSDT"
+      ],
+      "payload_types": [
+        "BookUpdate"
+      ],
+      "queue_bytes": 1741,
+      "queue_count": 1,
+      "replay_mono_ns": "90368395223038",
+      "source_mono_ns": "90368395223038",
+      "status": "live",
+      "wall_mono_ns": "128921337372009"
+    },
+    {
+      "delivery": "53",
+      "instruments": [
+        "hyperliquid:info:perpetual:BTC"
+      ],
+      "payload_types": [
+        "Trade",
+        "Trade"
+      ],
+      "queue_bytes": 2866,
+      "queue_count": 1,
+      "replay_mono_ns": "90369046380751",
+      "source_mono_ns": "90369046380751",
+      "status": "live",
+      "wall_mono_ns": "128921987066184"
+    },
+    {
+      "delivery": "54",
+      "instruments": [
+        "binance-global:spot-v3:spot:BTCUSDT"
+      ],
+      "payload_types": [
+        "Trade"
+      ],
+      "queue_bytes": 1371,
+      "queue_count": 1,
+      "replay_mono_ns": "90369046380751",
+      "source_mono_ns": "90368692415560",
+      "status": "live",
+      "wall_mono_ns": "128921990750951"
+    },
+    {
+      "delivery": "55",
+      "instruments": [
+        "binance-global:spot-v3:spot:SOLUSDT"
+      ],
+      "payload_types": [
+        "Trade"
+      ],
+      "queue_bytes": 1368,
+      "queue_count": 1,
+      "replay_mono_ns": "90369145193908",
+      "source_mono_ns": "90369145193908",
+      "status": "live",
+      "wall_mono_ns": "128922090295601"
+    },
+    {
+      "delivery": "56",
+      "instruments": [
+        "binance-global:spot-v3:spot:BTCUSDT"
+      ],
+      "payload_types": [
+        "BookUpdate"
+      ],
+      "queue_bytes": 6626908,
+      "queue_count": 1,
+      "replay_mono_ns": "90369145193908",
+      "source_mono_ns": "90368195485854",
+      "status": "live",
+      "wall_mono_ns": "128923116710345"
+    },
+    {
+      "delivery": "57",
+      "instruments": [
+        "binance-global:spot-v3:spot:BTCUSDT"
+      ],
+      "payload_types": [
+        "Trade"
+      ],
+      "queue_bytes": 6628279,
+      "queue_count": 2,
+      "replay_mono_ns": "90369145193908",
+      "source_mono_ns": "90369045783943",
+      "status": "live",
+      "wall_mono_ns": "128923117830155"
+    },
+    {
+      "delivery": "58",
+      "instruments": [
+        "hyperliquid:info:perpetual:BTC"
+      ],
+      "payload_types": [
+        "Trade"
+      ],
+      "queue_bytes": 6629714,
+      "queue_count": 3,
+      "replay_mono_ns": "90369171762154",
+      "source_mono_ns": "90369171762154",
+      "status": "live",
+      "wall_mono_ns": "128923118737991"
+    },
+    {
+      "delivery": "59",
+      "instruments": [
+        "binance-global:spot-v3:spot:SOLUSDT"
+      ],
+      "payload_types": [
+        "BookUpdate"
+      ],
+      "queue_bytes": 6504039,
+      "queue_count": 3,
+      "replay_mono_ns": "90369171762154",
+      "source_mono_ns": "90368387898172",
+      "status": "live",
+      "wall_mono_ns": "128923954292290"
+    },
+    {
+      "delivery": "60",
+      "instruments": [
+        "binance-global:spot-v3:spot:BTCUSDT"
+      ],
+      "payload_types": [
+        "BookUpdate"
+      ],
+      "queue_bytes": 6504039,
+      "queue_count": 3,
+      "replay_mono_ns": "90369171762154",
+      "source_mono_ns": "90368395014579",
+      "status": "unavailable",
+      "wall_mono_ns": "128923960016601"
+    }
+  ],
+  "publication": {
+    "original_bytes": 1012479,
+    "original_path": "/tmp/limit-orderbook-m5-NBWAK4/lifecycle-proof/docs/evidence/m5-lifecycle-offline-native-queue-raw.json",
+    "original_sha256": "7cd711f94e8be7a112ffc4905b44a77e726995ad1720ad31090d8e7593c82646",
+    "transformation": "Deduplicated native source texts into SHA256-addressed source bundle; all measurements, observations, diagnostic source, assertions and failure results retained. Summary input SHA256 values identify original retained reports, not these derived publication files. Full discovery catalog originals remain local; bounded public lifecycle reports label their excerpts."
+  },
+  "queue_bytes_after_drain": 0,
+  "queue_count_after_drain": 0,
+  "rejected_atomic_deliveries": [
+    {
+      "atomic_book_bytes": 5126144,
+      "atomic_event_bytes": 3958,
+      "books": [
+        {
+          "asks": 5003,
+          "bids": 5001,
+          "instrument_id": "binance-global:spot-v3:spot:BTCUSDT"
+        }
+      ],
+      "delivery": "60",
+      "error": "analytical_queue_overflow: reselect to establish fresh history",
+      "prior_queued_bytes": 6504039
+    }
+  ],
+  "replay_book_hash": "addf0fe4ddff4ca7e4581bcaea2f010621c36d9a3e04f799bd36f1c9a0ec1a22",
+  "replay_deliveries": 703,
+  "scope": "OFFLINE real retained capture at native ReplaySession speed1 into actual ClientSession.offer/consume_live and owner executor. Raw mode reruns native adapters/reducers from retained actual payloads; normalized mode uses stored native events. Source ordering, native depths and256-delivery/8MiB bounds unchanged. No network. Incomplete owner history after fail-closed overflow is explicitly not a successful live acceptance.",
+  "telemetry": {
+    "ack_expired": 0,
+    "browser_receive_to_paint_ms": null,
+    "coalesced": 0,
+    "observer_duration_ms": 842.175891,
+    "overflows": 1,
+    "publish_to_ack_upper_bound_ms": null,
+    "queue_depth": 0,
+    "queue_highwater": 7,
+    "queue_wait_ms": 6.698426
+  }
+}

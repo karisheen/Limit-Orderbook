@@ -27,10 +27,38 @@ _DECIMAL_MEMO_ENTRY_CHARS = 512
 
 @lru_cache(maxsize=1)
 def _registry() -> dict[str, type]:
-    from . import analytics, book, costs, events, instruments, precision, quality
+    from . import (
+        alerts,
+        analytics,
+        book,
+        context,
+        costs,
+        events,
+        instruments,
+        journal,
+        paper,
+        precision,
+        quality,
+        research,
+    )
+    from .recording import RecordedBatch, StreamSpec
+    from .replay import ReplaySourceDescriptor
 
     result: dict[str, type] = {}
-    for module in (book, events, instruments, precision, quality, analytics, costs):
+    for module in (
+        book,
+        events,
+        instruments,
+        precision,
+        quality,
+        analytics,
+        costs,
+        alerts,
+        context,
+        journal,
+        paper,
+        research,
+    ):
         for name, cls in vars(module).items():
             if (
                 isinstance(cls, type)
@@ -38,6 +66,9 @@ def _registry() -> dict[str, type]:
                 and cls.__module__ == module.__name__
             ):
                 result[name] = cls
+    # Exact replay provenance carriers, not recorder configuration with floats.
+    for cls in (RecordedBatch, StreamSpec, ReplaySourceDescriptor):
+        result[cls.__name__] = cls
     return result
 
 

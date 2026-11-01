@@ -35,14 +35,14 @@ from .recording import Recorder, RecordingReader, StreamSpec
 
 
 FIXTURE_PATH = (
-    Path(__file__).resolve().parents[2] / "tests/fixtures/workstation/demo-v2.json"
+    Path(__file__).resolve().parents[2] / "tests/fixtures/workstation/demo-v3.json"
 )
-DEMO_SESSION = "synthetic-demo-v2-180s"
-DEMO_CLOCK = "synthetic-clock-v2"
+DEMO_SESSION = "synthetic-demo-v3-180s"
+DEMO_CLOCK = "synthetic-clock-v3"
 
 
 def demo_session_id(duration_seconds: int) -> str:
-    return f"synthetic-demo-v2-{duration_seconds}s"
+    return f"synthetic-demo-v3-{duration_seconds}s"
 
 
 def source_tree_revision() -> str:
@@ -68,7 +68,9 @@ def _expand(value: object, fields: dict[str, str]) -> object:
     if isinstance(value, list):
         return [_expand(item, fields) for item in value]
     if isinstance(value, dict):
-        return {key: _expand(item, fields) for key, item in value.items()}
+        return {
+            key.format_map(fields): _expand(item, fields) for key, item in value.items()
+        }
     return value
 
 
@@ -175,6 +177,16 @@ class DemoSource:
                 Control("source_change", "ws_connect", "synthetic fixture source")
             )
             binance = instrument.venue == "binance-global"
+            if key.channel in ("reference", "context"):
+                template = (
+                    "hyperliquid_reference"
+                    if key.channel == "reference"
+                    else "hyperliquid_spot_context"
+                    if instrument.market_type == "spot"
+                    else "hyperliquid_context"
+                )
+                yield frame(template)
+                continue
             if key.channel == "trades":
                 yield frame("binance_trade" if binance else "hyperliquid_trade")
                 # Duplicate raw print: shared downstream dedup must exclude it.
@@ -358,6 +370,15 @@ class DemoSource:
                 message["data"].update(t=trade_id, T=stamp_ms, m=bool(tick % 2))
             return _json(message)
         if instrument.venue == "hyperliquid":
+            if key.channel in ("reference", "context"):
+                template = (
+                    "hyperliquid_reference"
+                    if key.channel == "reference"
+                    else "hyperliquid_spot_context"
+                    if instrument.market_type == "spot"
+                    else "hyperliquid_context"
+                )
+                return _json(_expand(self.fixture[template], fields))
             template = (
                 "hyperliquid_book" if key.channel == "book" else "hyperliquid_trade"
             )
@@ -458,8 +479,8 @@ def demo_source(
     raw = fixture_path.read_bytes()
     fixture = json.loads(raw)
     if (
-        fixture.get("schema_version") != 2
-        or fixture.get("fixture_id") != "workstation-synthetic-v2"
+        fixture.get("schema_version") != 3
+        or fixture.get("fixture_id") != "workstation-synthetic-v3"
     ):
         raise ValueError("unsupported demo fixture version")
     if type(duration_seconds) is not int or not 1 <= duration_seconds <= 86400:
@@ -468,6 +489,8 @@ def demo_source(
     wall = int(fixture["wall_ns"])
     symbols = []
     for row in fixture["assets"]:
+        if "binance-global" not in row["venues"]:
+            continue
         symbols.append(
             {
                 "symbol": row["base"] + "USDT",
@@ -508,6 +531,8 @@ def demo_source(
             CoinbaseAdapter() if venue == "coinbase" else KrakenAdapter()
         )
         for row in fixture["assets"]:
+            if venue not in row["venues"]:
+                continue
             base = row["base"]
             symbol = f"{base}-USD" if venue == "coinbase" else f"{base}/USD"
             native = (
@@ -516,7 +541,7 @@ def demo_source(
             usd_instruments.append(
                 Instrument(
                     InstrumentId(f"{venue}:{usd_adapter.api_family}:spot:{symbol}"),
-                    f"synthetic-v2:{digest}",
+                    f"synthetic-v3:{digest}",
                     venue,
                     usd_adapter.api_family,
                     symbol,
@@ -536,16 +561,19 @@ def demo_source(
     streams = []
     for instrument in instruments:
         adapter = create_adapter(instrument.venue)
-        for channel in ("book", "trades"):
+        channels = (
+            ("book", "trades", "reference", "context")
+            if instrument.venue == "hyperliquid"
+            else ("book", "trades")
+        )
+        for channel in channels:
             key = AdapterCatalog.canonical_key(
                 SubscriptionKey.for_instrument(instrument, channel=channel)
             )
             reducer = adapter.new_reducer(instrument, key)
             streams.append(
                 StreamSpec(
-                    StreamId(
-                        f"demo-{instrument.venue}-{instrument.base.ticker}-{channel}"
-                    ),
+                    StreamId(f"demo-{instrument.instrument_id}-{channel}"),
                     instrument,
                     key,
                     reducer.adapter_revision,
@@ -593,7 +621,7 @@ async def create_demo(
     path = Path(root) / source.session_id
     revision = source_tree_revision()
     config = (
-        ("fixture_version", "2"),
+        ("fixture_version", "3"),
         ("fixture_sha256", source.fixture_hash),
         ("duration_seconds", str(duration_seconds)),
         ("source_cadence_hz", "1"),

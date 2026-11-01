@@ -2,7 +2,7 @@
 
 import argparse
 import asyncio
-from dataclasses import asdict, is_dataclass
+from dataclasses import asdict, is_dataclass, replace
 from decimal import Decimal, InvalidOperation
 import importlib.util
 import json
@@ -84,8 +84,15 @@ def parser() -> argparse.ArgumentParser:
         help="explicitly enable shared public live discovery/collection",
     )
     serve.add_argument("--max-sessions", type=int, default=8)
+    serve.add_argument(
+        "--state-dir",
+        type=Path,
+        default=Path("data/workstation-state"),
+        help="durable local paper, manual journal and research databases",
+    )
     demo = commands.add_parser(
-        "demo", help="generate and replay explicitly synthetic BTC/ETH/SOL; no network"
+        "demo",
+        help="generate and replay explicit synthetic markets and Hyperliquid context; no network",
     )
     demo.add_argument("--root", type=Path, default=Path("data/workstation"))
     demo.add_argument("--mode", choices=("raw", "normalized"), default="normalized")
@@ -150,12 +157,41 @@ def parser() -> argparse.ArgumentParser:
     record.add_argument(
         "--assets",
         nargs="+",
-        choices=("BTC", "ETH", "SOL"),
+        choices=("BTC", "ETH", "SOL", "HYPE"),
         default=["BTC", "ETH", "SOL"],
     )
     record.add_argument(
         "--probe-timeout", type=_positive_decimal, default=Decimal("25")
     )
+    research = commands.add_parser(
+        "research", help="offline causal experiments; all outcomes retained locally"
+    ).add_subparsers(dest="research_command", required=True)
+    experiment = research.add_parser(
+        "run", help="run a bounded native replay experiment"
+    )
+    source = experiment.add_mutually_exclusive_group(required=True)
+    source.add_argument("--demo", action="store_true")
+    source.add_argument("--capture", type=Path)
+    experiment.add_argument(
+        "--duration", type=_nonnegative, help="demo virtual seconds; default 900"
+    )
+    experiment.add_argument(
+        "--config", type=Path, help="exact JSON ResearchConfig, at most 64 KiB"
+    )
+    attempts = research.add_parser(
+        "list", help="list persisted attempts, including failures"
+    )
+    report = research.add_parser(
+        "show", help="inspect an attempt and a page of all trial results"
+    )
+    report.add_argument("attempt_id")
+    for command in (experiment, attempts, report):
+        command.add_argument(
+            "--state-dir", type=Path, default=Path("data/workstation-state")
+        )
+        command.add_argument("--limit", type=_nonnegative, default=50)
+    for command in (experiment, report):
+        command.add_argument("--offset", type=_nonnegative, default=0)
     return result
 
 
@@ -332,7 +368,7 @@ async def _demo(args) -> int:
 async def _record(args) -> int:
     from .adapter_catalog import AdapterCatalog, VenueStatus
     from .demo import source_tree_revision
-    from .events import SubscriptionKey, Trade
+    from .events import AssetContext, ReferencePrice, SubscriptionKey, Trade
     from .instruments import InstrumentQuery
     from .recording import Recorder
     from .subscriptions import RecorderBinding, SubscriptionRegistry, SubscriptionStatus
@@ -358,14 +394,14 @@ async def _record(args) -> int:
                 item
                 for item in available
                 if item.base.ticker == asset
-                and item.quote.ticker == "USDT"
+                and (venue == "hyperliquid" or item.quote.ticker == "USDT")
                 and item.market_type
                 == ("perpetual" if venue == "hyperliquid" else "spot")
                 and (venue != "hyperliquid" or item.dex_namespace == "default")
             ]
             if len(matches) != 1:
                 raise ValueError(
-                    f"no unique discovered supported {venue} {asset}/USDT instrument"
+                    f"no unique discovered supported {venue} {asset} instrument"
                 )
             products.append(matches[0])
     probes = await asyncio.gather(
@@ -389,13 +425,17 @@ async def _record(args) -> int:
     keys = frozenset(
         catalog.canonical_key(SubscriptionKey.for_instrument(item, channel=channel))
         for item in products
-        for channel in ("book", "trades")
+        for channel in (
+            ("book", "trades", "reference", "context")
+            if item.venue == "hyperliquid"
+            else ("book", "trades")
+        )
     )
     registry = SubscriptionRegistry(catalog)
     recorder = None
     binding = None
     unsubscribe = None
-    seen_trades = set()
+    seen_observations = set()
     interrupted = False
     capture_error = None
     manifest = None
@@ -403,8 +443,10 @@ async def _record(args) -> int:
 
     def observe(events):
         for event in events:
-            if event.key in keys and isinstance(event.payload, Trade):
-                seen_trades.add(event.key)
+            if event.key in keys and isinstance(
+                event.payload, (Trade, ReferencePrice, AssetContext)
+            ):
+                seen_observations.add(event.key)
 
     try:
         source_revision = source_tree_revision()
@@ -414,7 +456,10 @@ async def _record(args) -> int:
             clock_id=registry.clock_id,
             config=registry.recording_config
             + (
-                ("capture_scope", "selected_public_book_and_trades"),
+                (
+                    "capture_scope",
+                    "selected_public_book_trades_and_hyperliquid_context",
+                ),
                 ("duration_seconds", str(args.duration)),
             ),
             code_revision=source_revision,
@@ -473,8 +518,14 @@ async def _record(args) -> int:
         for key in keys:
             if key.channel == "book" and key not in usable_books:
                 recorder.mark_incomplete(f"no_valid_book:{key.instrument_id}")
-            elif key.channel == "trades" and key not in seen_trades:
+            elif key.channel == "trades" and key not in seen_observations:
                 recorder.mark_incomplete(f"no_trade_evidence:{key.instrument_id}")
+            elif (
+                key.channel in ("reference", "context") and key not in seen_observations
+            ):
+                recorder.mark_incomplete(
+                    f"no_{key.channel}_evidence:{key.instrument_id}"
+                )
         for status in statuses:
             if not status.capture_complete:
                 recorder.mark_incomplete(
@@ -524,6 +575,163 @@ async def _record(args) -> int:
     return COMPLETE if manifest.complete and not interrupted else INCOMPLETE
 
 
+def _research_integer_fields(data: dict, names: tuple[str, ...]) -> None:
+    """Accept exact CLI integer strings, never truncate JSON decimal values."""
+    for name in names:
+        if name not in data or data[name] is None:
+            continue
+        value = data[name]
+        if isinstance(value, str) and value.isascii() and value.isdecimal():
+            value = int(value)
+        if type(value) is not int or value < 0:
+            raise ValueError(f"{name} must be a nonnegative integer")
+        data[name] = value
+
+
+def _research_config(path: Path | None):
+    from .costs import FeeSchedule
+    from .quality import EligibilityPolicy
+    from .research import ResearchConfig, ResearchScenario
+
+    if path is None:
+        return ResearchConfig()
+    with path.open("rb") as handle:
+        raw = handle.read(65537)
+    if len(raw) > 65536:
+        raise ValueError("research config exceeds 64 KiB")
+    data = json.loads(raw, parse_float=Decimal, parse_constant=Decimal)
+    if not isinstance(data, dict):
+        raise ValueError("research config must be an object")
+    _research_integer_fields(
+        data,
+        (
+            "sample_interval_ns",
+            "feature_window_ns",
+            "embargo_ns",
+            "min_samples",
+            "max_observations",
+        ),
+    )
+    if "stream_ids" in data:
+        if not isinstance(data["stream_ids"], list) or any(
+            not isinstance(item, str) for item in data["stream_ids"]
+        ):
+            raise ValueError("stream_ids must be an array of native stream IDs")
+    if "horizons_ns" in data:
+        if not isinstance(data["horizons_ns"], list):
+            raise ValueError("horizons_ns must be an array")
+        horizons = []
+        for value in data["horizons_ns"]:
+            item = {"horizon_ns": value}
+            _research_integer_fields(item, ("horizon_ns",))
+            horizons.append(item["horizon_ns"])
+        data["horizons_ns"] = tuple(horizons)
+    if "fees" in data:
+        if not isinstance(data["fees"], list):
+            raise ValueError(
+                "fees must be an array of [instrument_id, FeeSchedule] pairs"
+            )
+        fees = []
+        for item in data["fees"]:
+            if (
+                not isinstance(item, list)
+                or len(item) != 2
+                or not isinstance(item[0], str)
+                or not isinstance(item[1], dict)
+            ):
+                raise ValueError(
+                    "fees require [native instrument ID, explicit FeeSchedule] pairs"
+                )
+            _research_integer_fields(item[1], ("asof_wall_ns",))
+            fees.append((item[0], FeeSchedule(**item[1])))
+        data["fees"] = tuple(fees)
+    if "scenarios" in data:
+        if not isinstance(data["scenarios"], list):
+            raise ValueError("scenarios must be an array")
+        scenarios = []
+        for item in data["scenarios"]:
+            if not isinstance(item, dict):
+                raise ValueError("scenario must be an object")
+            _research_integer_fields(item, ("latency_ns",))
+            scenarios.append(ResearchScenario(**item))
+        data["scenarios"] = tuple(scenarios)
+    if "policy" in data:
+        policy = data["policy"]
+        if not isinstance(policy, dict):
+            raise ValueError("policy must be an object")
+        _research_integer_fields(policy, ("max_age_ns", "max_asof_skew_ns"))
+        for name in ("allow_snapshot_quotes", "require_execution_access"):
+            if name in policy and type(policy[name]) is not bool:
+                raise ValueError(f"{name} must be boolean")
+        data["policy"] = EligibilityPolicy(**policy)
+    return ResearchConfig(**data)
+
+
+def _research(args) -> int:
+    from .demo_memory import MemoryReplaySource
+    from .research import ResearchReport, ResearchStore, run_research
+
+    if not 1 <= args.limit <= 1000:
+        raise ValueError("research page limit must be 1..1000")
+    config = _research_config(args.config) if args.research_command == "run" else None
+    store = ResearchStore(args.state_dir / "research.sqlite3")
+    try:
+        if args.research_command == "list":
+            _emit(
+                {
+                    "attempts": store.list_attempts(args.limit),
+                    "limit": args.limit,
+                    "scope": "latest_attempts; older attempts remain addressable by ID",
+                }
+            )
+            return COMPLETE
+        report: ResearchReport | None
+        if args.research_command == "run":
+            if args.capture is not None and args.duration is not None:
+                raise ValueError("--duration applies only to --demo")
+            source = (
+                MemoryReplaySource.demo(
+                    duration_seconds=900 if args.duration is None else args.duration
+                )
+                if args.demo
+                else args.capture
+            )
+            assert config is not None
+            report = run_research(source, config, store)
+            attempt_id = report.attempt_id
+        else:
+            attempt_id = args.attempt_id
+            report = store.get_report(attempt_id)
+        attempt = store.get_attempt(attempt_id)
+        if attempt is None:
+            raise ValueError("unknown research attempt")
+        total = 0 if report is None else len(report.trials)
+        shown = (
+            None
+            if report is None
+            else replace(
+                report, trials=report.trials[args.offset : args.offset + args.limit]
+            )
+        )
+        _emit(
+            {
+                "attempt": attempt,
+                "config": store.get_config(attempt_id),
+                "source": store.get_source(attempt_id),
+                "report": shown,
+                "trial_total": total,
+                "trial_offset": args.offset,
+                "trial_limit": args.limit,
+                "trial_omitted": max(
+                    0, total - (0 if shown is None else len(shown.trials))
+                ),
+            }
+        )
+        return COMPLETE
+    finally:
+        store.close()
+
+
 async def _serve(args) -> int:
     import uvicorn
     from .api import create_app
@@ -532,7 +740,10 @@ async def _serve(args) -> int:
     if not 1 <= args.port <= 65535:
         raise ValueError("port must be 1..65535")
     runtime = TerminalRuntime(
-        captures=args.capture, enable_live=args.network, max_sessions=args.max_sessions
+        captures=args.capture,
+        enable_live=args.network,
+        max_sessions=args.max_sessions,
+        state_dir=args.state_dir,
     )
     origins = tuple(
         f"http://{host}:{port}"
@@ -568,6 +779,8 @@ async def _dispatch(args) -> int:
         return await _replay(args)
     if args.command == "demo":
         return await _demo(args)
+    if args.command == "research":
+        return _research(args)
     return await _record(args)
 
 

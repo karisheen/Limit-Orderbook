@@ -25,6 +25,7 @@ from src.workstation.events import (
     synthetic_envelope,
 )
 from src.workstation.projection import RecordingProjection
+from src.workstation.quality import ClockReading
 from src.workstation.recording import (
     RecordedBatch,
     Recorder,
@@ -382,6 +383,32 @@ def test_clock_preserves_original_readings_across_discontinuities(streams):
     assert clock.reading is None
     assert clock.source_reading is None
     assert clock.discontinuities == 0
+
+
+def test_live_frontier_does_not_invent_observations_or_regress_for_queued_input(
+    streams,
+):
+    clock = ReplayClock()
+    clock.observe_frontier(ClockReading("live", 100, 1000))
+    assert clock.source_reading is None
+    delayed = synthetic_envelope(
+        streams[0].instrument,
+        Control("heartbeat"),
+        clock_id="live",
+        mono_ns=90,
+        receive_wall_ns=900,
+    )
+    assert clock.advance(delayed) == 0
+    assert clock.reading == ClockReading("live", 100)
+    assert clock.source_reading == ClockReading("live", 90, 900)
+    assert clock.observe_frontier(ClockReading("live", 110, 1010)) == 10
+    assert clock.virtual_mono_ns == 10
+    assert clock.source_reading == ClockReading("live", 90, 900)
+    assert (
+        clock.advance(replace(delayed, receive_mono_ns=105, receive_wall_ns=905)) == 0
+    )
+    assert clock.reading == ClockReading("live", 110)
+    assert clock.source_reading == ClockReading("live", 105, 905)
 
 
 @pytest.mark.parametrize("mode", ["raw", "normalized"])
