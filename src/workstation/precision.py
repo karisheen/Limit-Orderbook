@@ -33,6 +33,10 @@ class DecimalPolicy:
 
 
 DEFAULT_DECIMAL_POLICY = DecimalPolicy()
+# Explicit derived-output bound; native source/model constructors keep their policy.
+DERIVED_DECIMAL_POLICY = DecimalPolicy(
+    max_chars=512, max_digits=80, max_exponent=256, max_abs=Decimal("1e120")
+)
 
 
 def decimal(
@@ -70,8 +74,10 @@ def decimal(
     return result
 
 
-def canonical_decimal(value: Decimal) -> str:
-    value = decimal(value)
+def canonical_decimal(
+    value: Decimal, *, policy: DecimalPolicy = DEFAULT_DECIMAL_POLICY
+) -> str:
+    value = decimal(value, policy=policy)
     if not value:
         return "0"
     text = format(value, "f")

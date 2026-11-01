@@ -31,7 +31,17 @@ Implemented precision entry points are `decimal(value: str | int | Decimal, *, p
 
 `wire.to_wire(value, *, canonical=True)` and `wire.dumps(value, *, canonical=True) -> bytes` emit tagged records (`"$type"`), decimal/integer fields as strings, immutable arrays and base64 bytes. The outer object is `{"schema_version":1,"value":...}`. `from_wire(value, expected_type=None)` / `loads(payload, expected_type=None, *, max_bytes=268435456)` validate the allowlisted record type, every field and nested constructor; unknown/missing fields and numeric decimal fields fail. The larger bounded wire limit accommodates full-book checkpoints with state, provenance, buffered frames and base64 overhead; it does not increase the inbound market-frame limit. Default decimal text is canonical; `canonical=False` retains Decimal scale/exponent text for checksum-sensitive state. Checkpoints explicitly use this lossless mode internally. Raw bytes preserve the complete original notation. This schema is a domain codec, not the later presentation-stream schema.
 
-Wire encoding caches immutable schema field descriptors and at most 8,192 lexical Decimal conversions per public call. Keys retain scale/exponent, rather than numeric Decimal equality; every new key still passes the native bounds. Mutable wire dictionaries are never shared between calls. Native schema and validation limits are unchanged.
+Wire encoding caches immutable schema field descriptors and at most 8,192 lexical Decimal conversions per public call. Keys retain scale/exponent, rather than numeric Decimal equality; every new key passes the selected explicit policy. Mutable wire dictionaries are never shared between calls. Native schema and default validation limits are unchanged.
+
+Derived p80 results explicitly opt into `DERIVED_DECIMAL_POLICY`: at most 80
+coefficient digits, exponent magnitude 256, 512 text characters and absolute
+magnitude `1e120`. `canonical_decimal(value, *, policy=...)` and
+`wire.to_wire/from_wire/dumps/loads(..., decimal_policy=...)` accept the policy;
+their defaults remain native. This allows recurring division results to round-trip
+without binary floats or truncating them to source precision. Nested native
+constructors still enforce native bounds even under derived decoding. Derived
+model checkpoints/configuration hashes must declare the same policy. Cash
+accounting uses accumulated notional and fees, never reconstructed rounded VWAP.
 
 ## Instruments (`instruments.py`)
 
