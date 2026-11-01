@@ -6,7 +6,7 @@
 | --- | --- | --- | --- | --- |
 | M0 | `upgrade/m0-contracts` | `a9f3259a22a358c4578f59f9b0d9762cad61e14f`, pushed successfully | [PR #1](https://github.com/karisheen/Limit-Orderbook/pull/1), merged `56b7c0dfbf9be5e146faffdf6afb77dc523257c0` | Complete; local gates attached to PR, no remote checks configured |
 | M1 | `upgrade/m1-feed-integrity` | `65502311ff6e4e7f3ebdba41191e85c9f7104ee1`, `df8d22e900f0d62d94d0463871a597d41b7487e0`, final `1b25192d5c837ccda4b9a0cdf47b6ea6c04c50b7`; all pushed | [PR #2](https://github.com/karisheen/Limit-Orderbook/pull/2), both final offline checks green; merged normally as `d96c14d6d68a0a971a94bd08c947cc760a231eb7` | Feed milestone integrated; explicitly retained cross-milestone consumer acceptance |
-| M2 | `upgrade/m2-record-replay`, from merged M1 | Not yet committed/pushed | Not yet opened | Recording/replay core and actual three-asset Binance-global/Hyperliquid integration verified. Pending publication; immediate terminal startup and downstream analytics/alert/paper seek acceptance remain explicitly tracked in M3/M5 |
+| M2 | `upgrade/m2-record-replay`, from merged M1 | `e37a28946ebb79a2e0c74572c2083e6894ab1458`, pushed successfully | [PR #3](https://github.com/karisheen/Limit-Orderbook/pull/3), open; final remote checks pending | Recording/replay core and actual three-asset Binance-global/Hyperliquid integration verified. Immediate terminal startup and downstream analytics/alert/paper seek acceptance remain explicitly tracked in M3/M5 |
 | M3–M6 | Not started | Not performed | Not performed | Required; not complete |
 
 ## M0 verified evidence
@@ -66,6 +66,7 @@
 - Integrated writer profiling reduced **31.688→19.714 s** on the same preserved real-data prefix, with raw/event/checkpoint hashes identical to both baseline and original capture. Queue **512 items / 128 MiB**, depth, schema and checkpoint cadence were unchanged; no storage algorithm change was justified by the profile. `m2-full-depth-profile.json` retains source/code hashes, full comparisons and attribution.
 - Final local tests: **816 passed in 55.33 s**, Ruff clean, **38 files formatted**. A schema-cache typing error was then corrected using the registered class type; Ruff/format and mypy **24 source files** passed afterward. The actual final-source CLI integration below passed; remote CI will gate the published head.
 - Actual full-scope CLI capture/replay **passed**: **20 seconds**, **12 BTC/ETH/SOL Binance-global+Hyperliquid book/trade streams**, all owners live in epoch1 at the pre-stop observation, **679 raw / 826 events / 703 batches / 216 checkpoints**, complete capture, zero incomplete reasons. Raw and normalized CLI replays both exited0 with identical book/state/cursor hashes. Total record command **47.642 s** includes discovery/probes/start/finalize; raw replay **19.313 s** and normalized replay **16.916 s** include verification. These are not steady-state latency quantiles. See `m2-live-capture-final.json`.
+- Final typed-cache boundary regression run: **9 passed in 0.37 s**. Executed temporary smoke/profile scripts were removed after verification; profiling workload text is retained with the evidence for reproduction against the retained local capture. Raw exchange recordings, environments and generated captures remain ignored and are not pushed.
 
 ## Decisions and next action
 
