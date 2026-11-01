@@ -104,6 +104,30 @@ class ReplayClock:
         ).hexdigest()
 
 
+class ReplayPacer:
+    """Ephemeral monotonic deadlines, separate from deterministic replay clocks.
+
+    Each interval extends the previous target, not the completion of its work.
+    The owner supplies monotonic seconds so reads, observers and lock contention
+    consume the interval rather than accumulating as extra playback delay.
+    """
+
+    def __init__(self, now: float, speed: Decimal) -> None:
+        self.deadline = now
+        self.speed = speed
+
+    def advance(self, delay_ns: int) -> None:
+        self.deadline += float(Decimal(delay_ns) / Decimal(1_000_000_000) / self.speed)
+
+    def remaining(self, now: float) -> float:
+        return max(0.0, self.deadline - now)
+
+    def set_speed(self, speed: Decimal, now: float) -> None:
+        # Preserve both the unconsumed source interval and any catch-up debt.
+        self.deadline = now + (self.deadline - now) * float(self.speed / speed)
+        self.speed = speed
+
+
 class ReplayObserver(Protocol):
     """Future windows/alerts/paper must implement reset, never retain future state."""
 
@@ -205,6 +229,7 @@ class ReplaySession:
         self.checkpoint_status = "not_used"
         self._interrupt = asyncio.Event()
         self._playing = False
+        self._pacer: ReplayPacer | None = None
         self._generation = 0
         self._iterator: Iterator[RecordedBatch] | None = None
         self._pending: RecordedBatch | None = None
@@ -250,6 +275,8 @@ class ReplaySession:
 
     def set_speed(self, speed: Decimal) -> None:
         self.clock.set_speed(speed)
+        if self._pacer is not None:
+            self._pacer.set_speed(speed, asyncio.get_running_loop().time())
         self._interrupt.set()
 
     def _peek(self) -> RecordedBatch | None:
@@ -344,33 +371,32 @@ class ReplaySession:
         self._generation += 1
         generation = self._generation
         self.status = "playing"
+        loop = asyncio.get_running_loop()
+        pacer = self._pacer = ReplayPacer(loop.time(), self.clock.speed)
         try:
             while self.status == "playing" and generation == self._generation:
                 batch = self._peek()
                 if batch is None:
                     self.status = "finished"
                     break
-                delay_ns = self.clock.delay_ns(batch.events[0])
-                self._interrupt.clear()
-                if delay_ns:
+                pacer.advance(self.clock.delay_ns(batch.events[0]))
+                while self.status == "playing" and generation == self._generation:
+                    self._interrupt.clear()
+                    remaining = pacer.remaining(loop.time())
+                    if not remaining:
+                        break
                     try:
                         await asyncio.wait_for(
-                            self._interrupt.wait(),
-                            timeout=float(
-                                Decimal(delay_ns)
-                                / Decimal(1_000_000_000)
-                                / self.clock.speed
-                            ),
+                            self._interrupt.wait(), timeout=remaining
                         )
                     except asyncio.TimeoutError:
                         pass
-                    else:
-                        continue
                 if self.status != "playing" or generation != self._generation:
                     break
                 self._apply(batch)
                 await asyncio.sleep(0)
         finally:
+            self._pacer = None
             self._playing = False
             if self.status == "playing":
                 self.status = "paused"

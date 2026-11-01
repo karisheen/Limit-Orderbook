@@ -26,7 +26,7 @@ from typing import (
 )
 from uuid import uuid4
 
-from .analytics import AnalyticsEngine
+from .analytics import AnalyticsEngine, AnalyticsSnapshot
 from .book import Book
 from .demo import demo_source
 from .demo_memory import MemoryReplaySource
@@ -35,14 +35,18 @@ from .instruments import Instrument
 from .precision import DERIVED_DECIMAL_POLICY, canonical_decimal, decimal
 from .quality import ClockReading, EligibilityPolicy, evaluate
 from .recording import RecordedBatch, RecordingReader, SessionManifest, StreamSpec
-from .replay import ReplayClock, ReplaySession, ReplaySource
+from .replay import ReplayClock, ReplayPacer, ReplaySession, ReplaySource
 from .subscriptions import SubscriptionRegistry
+from .visuals import VisualHistory, grouped_ladder, proposal_risk
 
 
 CaptureIdentity: TypeAlias = tuple[int, int, int, int, int, int]
 LiveDelivery: TypeAlias = tuple[tuple[EventEnvelope, ...], tuple[Book, ...], int, int]
 P = ParamSpec("P")
 R = TypeVar("R")
+FRAME_BOOK_LEVELS = 100
+FRAME_PROFILE_LEVELS = 200
+FRAME_DISPLAY_EVIDENCE = 100
 
 
 class ClientTelemetry(TypedDict):
@@ -93,6 +97,47 @@ def dto(value):
     raise TypeError(f"unsupported terminal DTO: {type(value).__name__}")
 
 
+def _book_presentation(book: Book | None):
+    if book is None:
+        return None
+    result = {
+        field.name: dto(getattr(book, field.name))
+        for field in fields(book)
+        if field.name not in ("bids", "asks")
+    }
+    result["bids"] = dto(book.bids[:FRAME_BOOK_LEVELS])
+    result["asks"] = dto(book.asks[:FRAME_BOOK_LEVELS])
+    result["presentation"] = {
+        "depth_limit": FRAME_BOOK_LEVELS,
+        "bids_omitted": max(0, len(book.bids) - FRAME_BOOK_LEVELS),
+        "asks_omitted": max(0, len(book.asks) - FRAME_BOOK_LEVELS),
+    }
+    return result
+
+
+def _analytics_presentation(analytics: AnalyticsSnapshot | None):
+    if analytics is None:
+        return None
+    result = {
+        field.name: dto(getattr(analytics, field.name))
+        for field in fields(analytics)
+        if field.name not in ("profile", "display_evidence")
+    }
+    result["profile"] = dto(analytics.profile[:FRAME_PROFILE_LEVELS])
+    result["display_evidence"] = dto(
+        analytics.display_evidence[:FRAME_DISPLAY_EVIDENCE]
+    )
+    result["presentation"] = {
+        "profile_limit": FRAME_PROFILE_LEVELS,
+        "profile_omitted": max(0, len(analytics.profile) - FRAME_PROFILE_LEVELS),
+        "evidence_limit": FRAME_DISPLAY_EVIDENCE,
+        "evidence_omitted": max(
+            0, len(analytics.display_evidence) - FRAME_DISPLAY_EVIDENCE
+        ),
+    }
+    return result
+
+
 class RuntimeFailure(Exception):
     def __init__(self, status: int, detail: str):
         self.status, self.detail = status, detail
@@ -135,6 +180,7 @@ class ClientSession:
         self.replay: ReplaySession | None = None
         self.reader: RecordingReader | ReplaySource | None = None
         self.engine: AnalyticsEngine | None = None
+        self.visuals: VisualHistory | None = None
         self.streams: tuple[StreamSpec, ...] = ()
         self.live_books: tuple[Book, ...] = ()
         self.live_clock = ReplayClock()
@@ -155,8 +201,17 @@ class ClientSession:
         self.closed = False
         self.last_access = time.monotonic()
         self.pending_acks: OrderedDict[str, int] = OrderedDict()
+        self.pending_views: OrderedDict[str, tuple[int, int]] = OrderedDict()
         self.frame_sequence = 0
         self.last_presentation: tuple[tuple[int, str | None, str], int] | None = None
+        self.completed_view: (
+            tuple[
+                int,
+                str | None,
+                tuple[dict | None, dict | None, dict | None, SessionHealth],
+            ]
+            | None
+        ) = None
         self.telemetry: ClientTelemetry = {
             "queue_depth": 0,
             "queue_highwater": 0,
@@ -275,7 +330,8 @@ class ClientSession:
         )
         self.streams = streams
         self.engine = AnalyticsEngine(streams)
-        self.replay = ReplaySession(self.reader, observers=(self.engine,))
+        self.visuals = VisualHistory(self.engine)
+        self.replay = ReplaySession(self.reader, observers=(self.visuals,))
         # Deliver the entire bootstrap and first scenario second, not a reduced
         # fixture. No data later than this cursor can enter analytics/history.
         first = None
@@ -303,7 +359,8 @@ class ClientSession:
         self.streams = streams
         self.choose(instrument_id)
         self.engine = AnalyticsEngine(streams)
-        self.engine.initialize_books(baseline)
+        self.visuals = VisualHistory(self.engine, self.key)
+        self.visuals.initialize_books(baseline)
         self.live_books = baseline
         self.live_clock = ReplayClock()
         self.live_clock.reading = ClockReading(
@@ -328,6 +385,13 @@ class ClientSession:
             )
         self.instrument_id = instrument_id
         self.key = books[0].key
+        if self.replay is not None and self.visuals is not None:
+            # Reuse the owned reader and actual replay machinery; selection must
+            # rebuild prior observations, not pretend the current book is history.
+            cursor = self.replay.cursor.delivery_index
+            self.visuals.select(self.key)
+            self.replay.seek_delivery(cursor)
+        self.pending_views.clear()
 
     def _view(self):
         books = self.replay.books() if self.replay is not None else self.live_books
@@ -364,8 +428,8 @@ class ClientSession:
                 "total_deliveries": str(total),
             }
         return (
-            dto(selected),
-            dto(analytics),
+            _book_presentation(selected),
+            _analytics_presentation(analytics),
             replay,
             {"ready": ready, "reasons": reasons},
         )
@@ -401,6 +465,20 @@ class ClientSession:
                     None,
                     {"ready": False, "reasons": [self.error or "owner_busy"]},
                 )
+                cached = self.completed_view
+                if (
+                    self.status not in ("loading", "seeking", "unavailable", "error")
+                    and cached is not None
+                    and cached[:2] == (self.generation, self.instrument_id)
+                ):
+                    # One completed DTO, never a partially advancing observer.
+                    # Retained evidence is diagnostic until ownership is free.
+                    book, analytics, replay, _ = cached[2]
+                    presentation_status = self.status
+                    health = {
+                        "ready": False,
+                        "reasons": ["owner_busy", "last_completed_presentation"],
+                    }
             else:
                 try:
                     if self.closed:
@@ -414,6 +492,11 @@ class ClientSession:
                         )
                     else:
                         book, analytics, replay, health = await self.work(self._view)
+                        self.completed_view = (
+                            self.generation,
+                            self.instrument_id,
+                            (book, analytics, replay, health),
+                        )
                 finally:
                     self.lock.release()
         self.frame_sequence += 1
@@ -478,18 +561,19 @@ class ClientSession:
         replay = self.replay
         if replay is None:
             raise RuntimeError("replay playback requires a replay session")
+        loop = asyncio.get_running_loop()
+        pacer = ReplayPacer(loop.time(), replay.clock.speed)
         try:
             while not self.closed and self.status == "playing":
                 async with self.lock:
                     delay = await self.work(replay.next_delay_ns)
-                    speed = replay.clock.speed
                 if delay is None:
                     self.status = "ended"
                     break
-                if delay:
-                    await asyncio.sleep(
-                        float(Decimal(delay) / Decimal(1_000_000_000) / speed)
-                    )
+                pacer.advance(delay)
+                remaining = pacer.remaining(loop.time())
+                if remaining:
+                    await asyncio.sleep(remaining)
                 async with self.lock:
                     started = time.monotonic_ns()
                     await self.work(replay.step)
@@ -527,6 +611,7 @@ class ClientSession:
                 self.status = "seeking"
                 self.generation += 1
                 self.pending_acks.clear()
+                self.pending_views.clear()
                 try:
                     await self.work(
                         self.replay.seek_delivery,
@@ -614,7 +699,9 @@ class ClientSession:
                 current.pop(key, None)
         current.update((book.key, book) for book in books)
         self.live_books = tuple(current.values())
-        self.engine.on_batch(batch, self.live_books, self.live_clock)
+        if self.visuals is None:
+            raise RuntimeError("live visualization observer has not been initialized")
+        self.visuals.on_batch(batch, self.live_books, self.live_clock)
         size = len(repr(events))
         while self.history and (
             len(self.history) >= 4096 or self.history_bytes + size > 8 * 1024 * 1024
@@ -700,6 +787,61 @@ class ClientSession:
             "events": events,
             "truncated": truncated or range_truncated,
         }
+
+    def _visualization(self, request):
+        if self.visuals is None:
+            raise RuntimeFailure(409, "visualization observer unavailable")
+        result = self.visuals.query(request, str(self.generation))
+        published = time.monotonic_ns()
+        view_id = uuid4().hex
+        while self.pending_views and (
+            len(self.pending_views) >= 64
+            or published - next(iter(self.pending_views.values()))[1] > 60_000_000_000
+        ):
+            self.pending_views.popitem(last=False)
+        self.pending_views[view_id] = (self.generation, published)
+        result.update(view_id=view_id, published_mono_ns=str(published))
+        return result
+
+    def _visual_ack(self, request):
+        pending = self.pending_views.pop(request.view_id, None)
+        now = time.monotonic_ns()
+        if pending is None or pending[0] != self.generation:
+            raise RuntimeFailure(409, "unknown or obsolete visualization publication")
+        elapsed = now - pending[1]
+        if elapsed > 60_000_000_000:
+            raise RuntimeFailure(409, "visualization publication expired")
+        return {
+            "publish_to_ack_upper_bound_ms": elapsed / 1_000_000,
+            "browser_receive_to_paint_ms": request.browser_receive_to_paint_ms,
+        }
+
+    def _visual_evidence(self):
+        books = self.replay.books() if self.replay else self.live_books
+        book = next((item for item in books if item.key == self.key), None)
+        instrument = next(
+            spec.instrument for spec in self.streams if spec.key == self.key
+        )
+        now = self.replay.clock.reading if self.replay else self.live_clock.reading
+        if self.mode == "live" and now is not None:
+            now = ClockReading(now.clock_id, time.monotonic_ns(), time.time_ns())
+        elif (
+            self.replay
+            and self.replay.clock.source_reading is not None
+            and now is not None
+        ):
+            now = ClockReading(
+                now.clock_id, now.mono_ns, self.replay.clock.source_reading.wall_ns
+            )
+        return book, instrument, now
+
+    def _ladder(self, request):
+        book, instrument, now = self._visual_evidence()
+        return grouped_ladder(book, instrument, now, request, str(self.generation))
+
+    def _proposal_risk(self, request):
+        _, instrument, now = self._visual_evidence()
+        return proposal_risk(instrument, now, request, str(self.generation))
 
     def _costs(self, request):
         from .costs import (
@@ -840,6 +982,10 @@ class ClientSession:
             self.replay.close()
         if isinstance(self.reader, RecordingReader):
             self.reader.close()
+        self.pending_views.clear()
+        if self.visuals is not None:
+            self.visuals.reset()
+            self.visuals = None
 
     async def close(self) -> None:
         if self.closed:
@@ -1261,6 +1407,7 @@ class TerminalRuntime:
         async with session.lock:
             session.generation += 1
             session.pending_acks.clear()
+            session.pending_views.clear()
             if session.mode == "live":
                 session.live_queue = asyncio.Queue(maxsize=256)
                 session.live_bytes = 0

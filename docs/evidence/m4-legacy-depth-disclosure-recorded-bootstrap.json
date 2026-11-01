@@ -1,0 +1,51 @@
+{
+  "scenario": "actual Streamlit real-capture frame omission disclosure",
+  "checks_passed": true,
+  "screenshots": [
+    "docs/evidence/m4-legacy-depth-disclosure-recorded-bootstrap-1440.png",
+    "docs/evidence/m4-legacy-depth-disclosure-recorded-bootstrap-1280.png"
+  ],
+  "errors": [],
+  "source_hashes": {
+    "crypto_lob.py": "7ba46607852584afd60b77ac56e5b1b4b4b538b3014fb5290d073fd0cd4b0488",
+    "src/ui/components.py": "85c32b262206c518e0c8d21c3897d3564cfbdf2173563c2f737c2cab8d809a5b",
+    "src/ui/api_client.py": "9e96be7d9e13d16f44343d04d970f461aa2e145399e954384eb2731b08fba2b5",
+    "src/workstation/runtime.py": "0485bad6d4e572b2c9d2ac70fd82e9287a9baaa2ed31a1197c6b6c37c44a0e20",
+    "src/workstation/analytics.py": "8d84eb15e1518c7f117fbe4e28289c48eacef1e35d54f1a1c09453d1e776b507"
+  },
+  "browser": "145.0.7632.6",
+  "selected_source": "4498db3b-f4a2-4fff-a32e-a97221fa21ee · replay · ready",
+  "replay_cursor": {
+    "delivery_index": "300",
+    "ordinal": "300",
+    "event_index": "0"
+  },
+  "source": {
+    "id": "c80446bb40004c2badb31298469a20b3",
+    "mode": "replay",
+    "label": "4498db3b-f4a2-4fff-a32e-a97221fa21ee",
+    "status": "ready",
+    "synthetic": false,
+    "recording": true,
+    "duration_ns": null,
+    "streams": 12,
+    "reasons": []
+  },
+  "native_coverage": {
+    "subscribed_depth": "5000",
+    "retained_bid_levels": "4995",
+    "retained_ask_levels": "4998",
+    "worst_bid": "77055.49",
+    "worst_ask": "78993.79",
+    "full_depth": false,
+    "source_aggregation": [],
+    "expected_cadence_ns": null
+  },
+  "presentation": {
+    "depth_limit": 100,
+    "bids_omitted": 4895,
+    "asks_omitted": 4898
+  },
+  "disclosure": "Frame presentation: first 100 levels per side; 4895 bids / 4898 asks omitted. Native reconstruction, grouped ladder and costs still use full retained depth.",
+  "browser_reaped": true
+}

@@ -1,0 +1,14 @@
+{
+  "scenario": "actual_streamlit_recenter_after_pan",
+  "before": {
+    "offset": "10",
+    "frame": "20"
+  },
+  "after": {
+    "offset": "0",
+    "frame": "84",
+    "exactPriceAxis": true,
+    "errors": []
+  },
+  "checks_passed": true
+}

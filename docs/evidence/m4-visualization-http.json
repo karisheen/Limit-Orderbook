@@ -1,0 +1,276 @@
+{
+  "success": true,
+  "command": [
+    "data/m4-smoke/visualization_smoke.py"
+  ],
+  "requests": [
+    {
+      "path": "sessions",
+      "payload": {
+        "mode": "demo"
+      },
+      "status": 201,
+      "response_sha256": "7d4fa34e559348eae7bb8c57c120262e572eb7c74e22b81b0d73ab861deef2b9"
+    },
+    {
+      "path": "replay",
+      "payload": {
+        "session_id": "bc13ff195f164bf0887d98e7a082f3a1",
+        "generation": "1",
+        "action": "seek",
+        "delivery_index": "2000"
+      },
+      "status": 200,
+      "response_sha256": "aa92068b4713d030614b06b89d7f7e50f33833aa39af73028ff0da8d0f876a93"
+    },
+    {
+      "path": "visualization",
+      "payload": {
+        "session_id": "bc13ff195f164bf0887d98e7a082f3a1",
+        "generation": "2",
+        "rows": 64,
+        "max_columns": 180,
+        "bucket_ns": "1000000000"
+      },
+      "status": 200,
+      "response_sha256": "767a33fadcaae49c6d3bd51bf9f577729eda8347dd848b909a58c2356fa67ec6"
+    },
+    {
+      "path": "replay",
+      "payload": {
+        "session_id": "bc13ff195f164bf0887d98e7a082f3a1",
+        "generation": "2",
+        "action": "step",
+        "count": 200
+      },
+      "status": 200,
+      "response_sha256": "0759ecdf42da05465504f0f85461f52eba5ea52726717051092aa75218cc4fa7"
+    },
+    {
+      "path": "visualization",
+      "payload": {
+        "session_id": "bc13ff195f164bf0887d98e7a082f3a1",
+        "generation": "2",
+        "rows": 64,
+        "max_columns": 180,
+        "bucket_ns": "1000000000",
+        "price_step": "0.01"
+      },
+      "status": 200,
+      "response_sha256": "a0aed6f4da42923cec9331b5f86359fc61435a4b9945a1382d3ccb2586f70f62"
+    },
+    {
+      "path": "visualization",
+      "payload": {
+        "session_id": "bc13ff195f164bf0887d98e7a082f3a1",
+        "generation": "2",
+        "rows": 64,
+        "max_columns": 180,
+        "bucket_ns": "1000000000",
+        "price_step": "0.05"
+      },
+      "status": 200,
+      "response_sha256": "5559c797340e6f6403c3518e7752df903eaab645b51a57e73b8de5c10a6e1c92"
+    },
+    {
+      "path": "visualization",
+      "payload": {
+        "session_id": "bc13ff195f164bf0887d98e7a082f3a1",
+        "generation": "2",
+        "rows": 64,
+        "max_columns": 180,
+        "bucket_ns": "1000000000",
+        "price_step": "0.01"
+      },
+      "status": 200,
+      "response_sha256": "961c71bbe00a637b627dc74b44699f509ba0616186d393dd7040817c75f9f971"
+    },
+    {
+      "path": "replay",
+      "payload": {
+        "session_id": "bc13ff195f164bf0887d98e7a082f3a1",
+        "generation": "2",
+        "action": "seek",
+        "delivery_index": "2000"
+      },
+      "status": 200,
+      "response_sha256": "5553377c388c4908ff0bd1fcca3d29c13376f0c334250f356a449af8df0544d8"
+    },
+    {
+      "path": "visualization",
+      "payload": {
+        "session_id": "bc13ff195f164bf0887d98e7a082f3a1",
+        "generation": "3",
+        "rows": 64,
+        "max_columns": 180,
+        "bucket_ns": "1000000000",
+        "price_step": "0.01"
+      },
+      "status": 200,
+      "response_sha256": "56254f45e3d3e754a83896d9aaf6503bb5a2b604ee0a5edaea086235500b5809"
+    },
+    {
+      "path": "visualization",
+      "payload": {
+        "session_id": "bc13ff195f164bf0887d98e7a082f3a1",
+        "generation": "2",
+        "rows": 64,
+        "max_columns": 180,
+        "bucket_ns": "1000000000"
+      },
+      "status": 409,
+      "response_sha256": "23874a61641dc7c6d005c7ad00c5bfea9df4a9bc0c59cd63d53f84452edb0e3b"
+    },
+    {
+      "path": "ladder",
+      "payload": {
+        "session_id": "bc13ff195f164bf0887d98e7a082f3a1",
+        "generation": "3",
+        "price_step": "0.05",
+        "rows": 20
+      },
+      "status": 200,
+      "response_sha256": "8b4cbf06d458920f17f54f92ec5475be2aa15b4f03d2fb919a34f403999ceff3"
+    },
+    {
+      "path": "proposal-risk",
+      "payload": {
+        "session_id": "bc13ff195f164bf0887d98e7a082f3a1",
+        "generation": "3",
+        "side": "buy",
+        "entry_price": "60001",
+        "stop_price": "60000",
+        "base_quantity": "0.01"
+      },
+      "status": 200,
+      "response_sha256": "ddecfca8b8125fa6c29468a8f582d5eec2dbfe50202e0cbbd66969ceebce82a1"
+    },
+    {
+      "path": "proposal-risk",
+      "payload": {
+        "session_id": "bc13ff195f164bf0887d98e7a082f3a1",
+        "generation": "3",
+        "side": "buy",
+        "entry_price": "60001",
+        "stop_price": "60000",
+        "base_quantity": "0.01",
+        "fee_bps": "10",
+        "fee_provenance": "explicit smoke scenario, not exchange schedule",
+        "fee_date": "2025-01-01"
+      },
+      "status": 200,
+      "response_sha256": "97f6d1cce34729deec357d1cf0764f500aa4a01c01142082a2b310227f718990"
+    },
+    {
+      "path": "replay",
+      "payload": {
+        "session_id": "bc13ff195f164bf0887d98e7a082f3a1",
+        "generation": "3",
+        "action": "reset"
+      },
+      "status": 200,
+      "response_sha256": "c8f8302ccd88cfc7a90c301e61362b76a77a74e07a70f066bf92ddcef1bd6f11"
+    },
+    {
+      "path": "visualization",
+      "payload": {
+        "session_id": "bc13ff195f164bf0887d98e7a082f3a1",
+        "generation": "4",
+        "rows": 64,
+        "max_columns": 180,
+        "bucket_ns": "1000000000"
+      },
+      "status": 200,
+      "response_sha256": "cae58666b717ac1bc0106d5315e629de9012cca17e14cb401570fb56bfda3749"
+    }
+  ],
+  "assertions": [
+    "Streaming preserves closed liquidity/metric coordinates and exact column content",
+    "Explicit aggregation reprojects retained evidence; restoring original quantum restores exact historical cells",
+    "Backward seek reconstructs exact historical state without future columns and rejects obsolete generation",
+    "Backend grouped ladder preserves conservative sides and exact cumulative base quantities",
+    "Hypothetical entry/stop loss uses exact quantity and two-leg assumed fees; unknown fees never become0",
+    "Reset removes all future trade/profile/footprint/usable liquidity history"
+  ],
+  "limitations": [
+    "Synthetic full-scope offline HTTP source; actual browser paints and recorded-source rendering are separate checks."
+  ],
+  "source": {
+    "id": "synthetic-demo-v2-180s",
+    "mode": "demo",
+    "label": "Synthetic 180s / 24 streams (memory, not recording)",
+    "status": "ready",
+    "synthetic": true,
+    "recording": false,
+    "duration_ns": "180000000000",
+    "streams": 24,
+    "reasons": []
+  },
+  "initial": {
+    "grid_id": "b0c39a46bf056ddbfad4a07226ee3fc6",
+    "price_min": "59999.68",
+    "price_step": "0.01",
+    "closed_columns": 79,
+    "closed_sha256": "e4e140bf4734f264787dede6c7ab194f1c8dee209bf9a145fce8faf76369c389",
+    "reasons": [
+      "initial_partial_history",
+      "requested_history_unavailable",
+      "history_retention_truncated",
+      "trade_history_truncated",
+      "trailing_partial_history"
+    ]
+  },
+  "risk": {
+    "unknown": {
+      "version": "1",
+      "generation": "3",
+      "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+      "quote_asset_id": "USD",
+      "base_quantity": "0.01",
+      "suggested_base_quantity": null,
+      "gross_loss": "0.01",
+      "fee_cost": null,
+      "estimated_loss": null,
+      "eligible": false,
+      "reasons": [
+        "unknown_fees"
+      ],
+      "assumptions": [
+        "hypothetical_entry_and_stop_not_fills",
+        "stop_liquidity_unknown",
+        "gaps_and_slippage_can_exceed_estimate",
+        "not_a_guaranteed_loss_bound",
+        "fees_assumed_quote_denomination_both_legs"
+      ]
+    },
+    "known": {
+      "version": "1",
+      "generation": "3",
+      "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+      "quote_asset_id": "USD",
+      "base_quantity": "0.01",
+      "suggested_base_quantity": null,
+      "gross_loss": "0.01",
+      "fee_cost": "1.20001",
+      "estimated_loss": "1.21001",
+      "eligible": true,
+      "reasons": [],
+      "assumptions": [
+        "hypothetical_entry_and_stop_not_fills",
+        "stop_liquidity_unknown",
+        "gaps_and_slippage_can_exceed_estimate",
+        "not_a_guaranteed_loss_bound",
+        "fees_assumed_quote_denomination_both_legs",
+        "user_assumed_fees:explicit smoke scenario, not exchange schedule:2025-01-01"
+      ]
+    }
+  },
+  "cleanup_status": 200,
+  "elapsed_seconds": 9.54936931899283,
+  "code_sha256": {
+    "src/workstation/visuals.py": "13c40bd953bcd4a670301e42b864d674d56a7890653012c4cf7f11b82fca3af4",
+    "src/workstation/runtime.py": "44a4054476b810a23d9ab8c3fedac759936bb3dabfc6602b4e823ed6bcf4bb14",
+    "src/workstation/analytics.py": "73d49aa6bbace28b96dee5890e599d5fb71a9dec262051293b301875b4d82432",
+    "src/workstation/api.py": "4d48dfccb8235d1ba73dfc2a9ffbb71da2fdf2a502c1e527ee8bd361bb2497db"
+  }
+}

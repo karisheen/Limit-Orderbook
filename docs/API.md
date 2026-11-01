@@ -1,4 +1,4 @@
-# Local terminal API (M3, version 1)
+# Local terminal API (M3–M4, version 1)
 
 ## Start
 
@@ -26,7 +26,7 @@ Each managed ID pins the verified immutable manifest plus directory/manifest fil
 
 `--host` permits only `127.0.0.1` (default), `localhost`, or `::1`; `--port` defaults to 8000. `--max-sessions` defaults to 8 (maximum 32). Exactly one backend worker is required, including offline mode; conflicting `WEB_CONCURRENCY`/`UVICORN_WORKERS` fail explicitly. Live registry acquisition retains its independent OS singleton fence. Do not run a second live collector beside an active recorder process.
 
-The existing Streamlit entrypoint remains unchanged. The FastAPI root serves `frontend/dist/index.html` and a traversal-safe `/assets` mount when built; otherwise root returns an explicit 503 directing the operator to build or use Vite. No arbitrary filesystem/static catch-all is exposed. Vite development origins on local port 5173 are allowed; production origins match the configured loopback port. Host validation rejects DNS rebinding names. Cross-site/unknown-origin requests are rejected, including WebSocket handshakes. This is a local trusted-user service, not an authenticated public deployment.
+The supported Streamlit entrypoint is a thin loopback client of these same APIs; see [LEGACY](LEGACY.md). It owns no independent collector or analytics engine. The FastAPI root serves `frontend/dist/index.html` and a traversal-safe `/assets` mount when built; otherwise root returns an explicit 503 directing the operator to build or use Vite. No arbitrary filesystem/static catch-all is exposed. Vite development origins on local port 5173 are allowed; production origins match the configured loopback port. Host validation rejects DNS rebinding names. Cross-site/unknown-origin requests are rejected, including WebSocket handshakes. This is a local trusted-user service, not an authenticated public deployment.
 
 ## Exact JSON boundary
 
@@ -53,6 +53,10 @@ Requests reject unknown fields, numeric JSON economics, nonfinite decimals, exce
 | POST | `/replay` | `{session_id,generation,action,count?,speed?,delivery_index?}` → Frame. Actions `play`, `pause`, `step`, `speed`, `seek`, `reset`. Step 1–1000; speed exact string 0.01–100. Seek targets delivery index string. |
 | GET | `/history` | Query `session_id,generation,start_delivery?,end_delivery?,limit?` → `{generation,cursor,events,truncated}`. End is clamped to current cursor. Limit 1–1000 events, at most 10,000 inspected deliveries and 4 MiB estimated result per request. Live history retains at most 4096 batches and 8 MiB accounted event representation; missing retained prefixes are marked truncated. |
 | POST | `/costs` | Shared-core depth walk and directed comparison matrix; see below. |
+| POST | `/visualization` | Exact bounded historical liquidity, trades, candles, footprints, profile and shared flow metrics; session/generation and explicit price/time grid. Half-open visible window, quality/retention reasons, incremental column token and chart publication ID. See [VISUALIZATION](VISUALIZATION.md). |
+| POST | `/visualization/ack` | Chart-specific finite browser receive-to-paint timing for an issued view ID; returns server publication-to-ACK upper bound. Not an exchange latency or GPU-completion claim. |
+| POST | `/ladder` | Current eligible native book grouped with explicit price quantum; exact side and cumulative base quantities. Presentation freezing does not alter collection. |
+| POST | `/proposal-risk` | Hypothetical entry/stop, side and quantity or risk budget; explicit fee assumptions, native constraints and unavailable reasons. Neither an order nor guaranteed maximum loss. |
 | WS | `/stream?session_id=...` | One socket per session. Full Frames at up to 5 Hz. Disconnect destroys the session; reconnection creates an independent session, never steals another tab's state. |
 
 No alerts/paper/journal stub endpoints are exposed; those are M5 additions.
@@ -72,9 +76,13 @@ Every Frame has:
 - `health:{ready,reasons}` using centralized book eligibility, not transport activity.
 - `telemetry` described below; `error` string or null.
 
-Native `Book` includes exact key, segment/epoch/revision, bids/asks, as-of and Quality/Coverage. Analytics includes `metrics`, `tape`, `profile`, `display_evidence` and unavailable reasons as defined in [ANALYTICS](ANALYTICS.md). Trade subscription history remains labeled in the core tape. Selection never reconstructs a second browser financial model.
+Read-worker contention may retain one last completed book/analytics/replay presentation from the same session generation and instrument. It is explicitly diagnostic (`health.ready=false`, reasons `owner_busy` and `last_completed_presentation`), not newly validated market evidence. This keeps a slow historical query from erasing the tape/cursor or relabeling replay as live. Loading, seek, unavailable/error and generation changes never reuse that cache. Action ownership and fresh execution/analytics eligibility remain authoritative; the cache is not an execution input.
+
+Frame `book` includes exact key, segment/epoch/revision, as-of and native Quality/Coverage, but carries only the first **100 levels per side**. Its `presentation:{depth_limit,bids_omitted,asks_omitted}` discloses transport truncation; native coverage counts still describe reconstruction, not displayed rows. Grouped ladder, costs, recording and analytics continue to use the full native book. Frame analytics retains every metric and its bounded supporting references, and carries the first **200 profile rows / 100 display-evidence records**, matching the observation surface's bounds. `analytics.presentation:{profile_limit,profile_omitted,evidence_limit,evidence_omitted}` makes omitted detail explicit; the full eligible native window still drives metric values. Tape remains core-bounded and subscription history labeled. Neither presentation prefix changes financial inputs or creates a second browser financial model.
 
 Seek/reset first stop and join pacing, mark seeking, increment generation, and run complete observer reconstruction on the client's dedicated worker. While seeking, book/analytics/actions are unavailable rather than exposing partially rebuilt windows. Backward seek clears future observer/dedup state using `ReplaySession.seek`; no future history is returned. Speed changes preserve playing state; pause/step stop playback. Every API mutation is serialized by a client action fence and every reader/observer operation by its owner fence. Cancellation joins outstanding worker work before releasing ownership.
+
+Rewind/reset clears the book-derived price anchor and reconstructs it from the available prefix. User-selected aggregation/time quantum remains a display setting; a later book's midpoint cannot leak into an empty or earlier replay viewport.
 
 ### Costs and explicit assumptions
 

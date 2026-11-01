@@ -227,3 +227,149 @@ Exit zero means the baseline and 2x loads completed with the required evidence/s
 For an explicit checkpoint storage/seek tradeoff experiment, append `--checkpoint-interval-batches 100` or `--checkpoint-interval-batches 1000` and use distinct fresh output roots. Omitting the flag uses the production default of **1000 batches**; this tool never changes that default. The report records the optional override, actual output limits, source interval, effective writer interval, and whether those intervals match. The comparison uses the **effective output cadence**, whether selected by the production default or an explicit override. If it differs from the source (including older 100-batch captures), checkpoint byte/position identity is still reported truthfully but is not an acceptance requirement. Matching cadence still requires exact regenerated checkpoint evidence. Raw/normalized evidence, final book/state parity, and strict output checkpoint-to-linear state parity remain mandatory in both cases. Compare file bytes/checkpoint counts and seek time as well as worker throughput when evaluating the tradeoff. Recovery-boundary checkpoints remain governed by production code.
 
 No tests, builds, linters, formatters, live collection, or benchmark acceptance runs were executed as part of implementing this tool. Integration owns those gates and the corrected live soak.
+
+## Terminal rendering benchmark
+
+Build the frontend first, then run the owned-server benchmark while other local
+collectors, test suites and verification browsers are stopped:
+
+```sh
+.tools/node/bin/node tools/benchmark_terminal.mjs \
+  --url http://127.0.0.1:8010 --seconds 30 --speeds 1,2 \
+  --instrument binance-global:spot-v3:spot:BTCUSDT \
+  --viewport 1440x900 --output data/render-demo-1440.json
+```
+
+Repeat at `--viewport 1280x800` with a fresh output path. For an actual managed
+capture, add `--manifest /absolute/path/to/manifest.json` and an appropriate
+`--start-delivery`; the finite source must contain the entire measured interval
+at the requested speed. The demo is explicitly synthetic, not captured traffic.
+The selected viewport, full source catalog/identity, native depth, visible
+liquidity/trade coverage and exact display controls are retained in the report.
+
+The tool rejects occupied ports, starts and reaps its own Python API child,
+disables inherited Python paths and stale bytecode reuse, and verifies the
+served frontend bytes against the declared build. `benchmark_runtime.py` hashes
+the resolved Python executable, shared Python library, loaded module files and
+installed distribution versions before each cohort and at shutdown. Hashing is
+outside measured cohorts. Runtime/module, project, dependency-manifest, built
+asset or dataset drift prevents certification. Evidence files and screenshots
+are exclusive-create, not overwritten by a later attempt.
+
+ACK samples are selected by **request issue time**, not response arrival.
+Responses drain for up to 15 seconds after the interval; failed, missing,
+duplicate or malformed ACK evidence is not silently discarded. The only
+permitted obsolete-generation HTTP rejection is a canonical older generation
+of the pinned session, issued strictly before the cohort. Post-cohort HTTP
+errors do not become setup exceptions. A canceled preparation ACK is retained
+separately and accepted only with that same strictly older canonical generation
+and pre-cohort issue fence; no measured ACK cancellation is excused.
+
+The cohort pins session, generation, source, native instrument and playing
+speed. It requires advancing replay delivery, selected-book receive-monotonic
+time and chart windows across the interval, with no observed progress stall
+over three seconds at 1x or faster (scaled inversely for slower playback).
+The selected-book source-time rate must be within 10% of
+the requested speed; its sampled achieved rate is reported, not inferred from
+the speed selector. Minimum evidence counts, API errors, queue/evidence
+overflows, frame ACK eviction and early source exhaustion remain separate
+acceptance checks.
+
+Pan (`ArrowLeft`) and zoom (wheel) must change their respective declared
+geometry and reach an observed painted view. Control-to-paint and subsequent
+Follow recovery are measured separately before the steady-streaming cohort.
+Cursor responsiveness is sampled during streaming. Browser paint opportunity,
+Canvas draw time, renderer CPU/heap observations and server publication-to-ACK
+round-trip upper bounds are distinct; none is a GPU presentation timestamp.
+The original 250 ms p95 publication-to-render budget is retained as a
+conservative publication-to-ACK upper-bound check. A failed upper-bound check
+does not prove one-way/GPU latency exceeded 250 ms.
+
+Reports from earlier tool revisions remain evidence for their declared
+measurement scope, not certification under these stronger lifecycle and runtime
+checks. Current acceptance results belong in the milestone handoff alongside
+failed/inconclusive attempts; implementing this tool alone is not a benchmark
+pass.
+
+### M4 measured acceptance and retained limits
+
+The corrected absolute-deadline replay passed the declared synthetic180-second,
+24-stream workload at both laptop sizes. Each speed had a30-second measured
+cohort; all four cohorts passed lifecycle, achieved-rate, evidence, API and
+provenance checks.
+
+| Viewport | Requested speed | Achieved source seconds / wall second | Publish-to-ACK p95 ms |
+| --- | ---: | ---: | ---: |
+| 1440×900 | 1× | 1.0046 | 150.971301 |
+| 1440×900 | 2× | 2.0350 | 203.463948 |
+| 1280×800 | 1× | 1.0040 | 158.288256 |
+| 1280×800 | 2× | 1.9909 | 196.094903 |
+
+This is **not** full-depth recorded-load acceptance. The90-second real
+Binance-global/Hyperliquid BTC/ETH/SOL capture (12 book/trade streams, manifest
+`d12553c14ee31de1e66db3d2e9247000b81a976826f4f3da8ae072d4622ee5f5`)
+retained functional/provenance correctness but measured only0.7685×/0.7320×
+under requested1×/2×, with publication-to-ACK p95
+438.695485ms/381.673751ms. Both cohorts are **inconclusive for the requested
+rate and fail the original upper-bound budget**. The250ms threshold and10%
+rate tolerance are unchanged. No depth or source events were removed.
+
+`evidence/m4-real-replay-profile.json` separates production projection/reader
+work from visualization/analytics on the same600 deliveries spanning9.176036
+source seconds. Under cProfile these took2.958s/6.126s. The added observation
+work is measurable, but this isolated profile does not explain all the
+HTTP/browser workload slowdown; frame serialization, queries and owner
+contention remain separate profiling targets. Full-depth performance and
+sustained-capture acceptance remain open for M6, not silently replaced by the
+passing synthetic result.
+
+## Measured checkpoint serialization correction
+
+`evidence/m4-wire-capacity-comparison.json` compares the pinned pre-correction
+converter with the current converter on the same restored real checkpoints
+from the retained incomplete30-minute capture. Three interleaved forced-cold
+rounds per variant retained identical serialized and compressed hashes.
+
+| Delivery | Baseline median total ms | Corrected median total ms | Corrected traced Python peak bytes |
+| --- | ---: | ---: | ---: |
+| 1000 | 601.81 | 601.26 | 18,785,098 |
+| 65000 | 762.64 | 718.55 | 30,635,688 |
+| 78000 | 763.56 | 715.89 | 34,972,222 |
+
+The bounded per-call Decimal memo now accommodates more native checkpoint
+values, and lexical encoding avoids a redundant conversion after validation.
+Native-depth, queue and capture-fidelity limits are unchanged. These are
+checkpoint construction/serialization/gzip diagnostics, not receive-to-valid
+latency, disk/fsync capacity or a successful sustained-capture claim. Three
+samples do not establish latency percentiles; the separate tracemalloc pass
+perturbs timing and measures Python allocations rather than process RSS.
+The original queue-overflow evidence remains failed. Full pipeline/soak
+acceptance remains required in M6.
+
+### Full-depth frame transport and observer correction
+
+The production-frame profile `evidence/m4-real-presentation-profile.json` shows DTO conversion dominating frames carrying roughly10,000 native levels and growing display-evidence detail. The terminal already uses separate bounded ladder/history endpoints. Frame transport now publishes100 levels/side,200 profile rows and100 evidence records with explicit omitted counts; metrics, cost walks, native coverage and recording remain full-fidelity. Exact trade-evidence matching is indexed by price/taker side, preserving order and `(start,end]` matching.
+
+| Same real12-stream capture, bounded frame | Requested speed | Achieved source/wall rate | Publish→ACK p95 ms | Workload certification |
+| --- | ---: | ---: | ---: | --- |
+| 1440×900 | 1× | 1.043115× | 122.492967 | Passed |
+| 1440×900 | 2× | 1.521061× | 113.046112 | Inconclusive: under requested rate |
+
+These30-second cohorts keep the original250ms budget and ±10% requested-rate tolerance. Functional, sample, runtime/assets/source and API checks passed, but the2× rate still fails certification; a responsive browser is not proof of sufficient native playback throughput. Raw local evidence: `data/m4-benchmark/bounded-presentation-real-1440.json`.
+
+The subsequent2500-delivery profile covers44.476source seconds. Projection/reader took12.853profiled seconds; adding visualization/analytics took30.456. `_book_event` accounted for11.670cumulative seconds, including236,382 persistence-record constructions. `evidence/m4-real-replay-bounded-profile.json` retains the complete source hashes and call attribution. This motivates binary membership lookup over already validated sorted native levels and private mutable standing-evidence state, frozen only at public snapshot/checkpoint boundaries. Profiling overhead is material; actual browser rate and exact state-hash parity must verify the correction.
+
+The same2500-delivery profile after the observer correction took19.437seconds with visualization/analytics; projection-only stayed12.929seconds. Both modes retained identical native book hashes, exact complete observer/state hashes and final delivery2800 against the before profile. `evidence/m4-real-replay-indexed-profile.json` retains the after code hashes and attribution. This is actual deterministic parity, not inferred from tests; browser-rate certification remains a separate gate.
+
+### Certified real-capture render cohorts
+
+After that correction, both laptop sizes passed actual1×/2× source-rate, functional, sample, API, lifecycle, loaded-runtime and served-asset checks on the same12-stream capture. All30-second cohorts retained the original250ms budget and ±10% rate tolerance.
+
+| Viewport | Requested speed | Achieved source/wall rate | Publication→ACK p95 ms |
+| --- | ---: | ---: | ---: |
+| 1440×900 | 1× | 1.024933× | 221.510819 |
+| 1440×900 | 2× | 2.065725× | 124.768204 |
+| 1280×800 | 1× | 1.004050× | 102.686728 |
+| 1280×800 | 2× | 2.046775× | 127.937354 |
+
+`evidence/m4-render-attempts.json` retains these results beside every earlier failed/inconclusive attempt, exact commands/hashes/hardware, distributions and controls. Both `m4-real-render-{1440,1280}-2x.png` surfaces were visually inspected. The conservative historical32MiB budget truncates deep-book history well before some requested windows; missing regions remain hatched and disclosed. A busy owner can temporarily publish labeled last-completed diagnostic evidence. Neither condition is hidden by the benchmark. These results close finite playback/render acceptance, not sustained recorder or live-execution readiness.

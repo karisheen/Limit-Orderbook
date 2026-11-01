@@ -1,0 +1,582 @@
+{
+  "scenario": "actual_terminal_replay_partial_empty_disconnect_recovery",
+  "browser": "145.0.7632.6",
+  "views": [
+    {
+      "width": 1440,
+      "label": "streaming-replay",
+      "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/docs/evidence/m4-terminal-browser-1440-streaming-replay.png",
+      "status": "Connected",
+      "banner": "SYNTHETIC DEMO\nSynthetic 180s / 24 streams (memory, not recording)\nNot recording\nRequired data ready\nplaying\nWatchlist\nDOM / tape\nCosts / analytics",
+      "chart_status": "Following observed time · Partial / unavailable history · retained history truncated",
+      "cursor": "2010 / 4410 · 1×",
+      "selected": {
+        "instrument_id": "coinbase:advanced-trade:spot:BTC-USD"
+      },
+      "source": {
+        "id": "synthetic-demo-v2-180s",
+        "mode": "demo",
+        "label": "Synthetic 180s / 24 streams (memory, not recording)",
+        "status": "ready",
+        "synthetic": true,
+        "recording": false,
+        "duration_ns": "180000000000",
+        "streams": 24,
+        "reasons": []
+      },
+      "quality": {
+        "lifecycle": "live",
+        "integrity": "valid",
+        "transport_alive": true,
+        "source_mode": "ws_delta",
+        "recorded_source_mode": null,
+        "last_transport_mono_ns": "81000012000",
+        "last_book_observation_mono_ns": "81000012000",
+        "last_book_change_mono_ns": "81000012000",
+        "last_healthy_observation_mono_ns": "81000012000",
+        "clock_id": "synthetic-clock-v2",
+        "coverage": {
+          "subscribed_depth": null,
+          "retained_bid_levels": "1",
+          "retained_ask_levels": "1",
+          "worst_bid": "59999",
+          "worst_ask": "60001",
+          "full_depth": true,
+          "source_aggregation": [],
+          "expected_cadence_ns": null
+        },
+        "capabilities": {
+          "snapshot": true,
+          "deltas": true,
+          "trades": false,
+          "sequence_scope": "connection",
+          "checksum_scope": null,
+          "exact_event_flow": true,
+          "reference_prices": [],
+          "asset_context": []
+        },
+        "continuous_since_ordinal": "68",
+        "reason_codes": [],
+        "capture_complete": true
+      },
+      "session_id": "9f794d1688ec4fa4a3ef78311c7fa132",
+      "generation": "2",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 1440,
+      "label": "hyperliquid-partial",
+      "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/docs/evidence/m4-terminal-browser-1440-hyperliquid-partial.png",
+      "status": "Connected",
+      "banner": "SYNTHETIC DEMO\nSynthetic 180s / 24 streams (memory, not recording)\nNot recording\nRequired data ready\npaused\nWatchlist\nDOM / tape\nCosts / analytics",
+      "chart_status": "Following observed time · Partial / unavailable history · retained history truncated",
+      "cursor": "2034 / 4410 · 1×",
+      "selected": {
+        "instrument_id": "hyperliquid:info:perpetual:BTC"
+      },
+      "source": {
+        "id": "synthetic-demo-v2-180s",
+        "mode": "demo",
+        "label": "Synthetic 180s / 24 streams (memory, not recording)",
+        "status": "ready",
+        "synthetic": true,
+        "recording": false,
+        "duration_ns": "180000000000",
+        "streams": 24,
+        "reasons": []
+      },
+      "quality": {
+        "lifecycle": "live",
+        "integrity": "valid",
+        "transport_alive": true,
+        "source_mode": "ws_snapshot",
+        "recorded_source_mode": null,
+        "last_transport_mono_ns": "82000006000",
+        "last_book_observation_mono_ns": "82000006000",
+        "last_book_change_mono_ns": "82000006000",
+        "last_healthy_observation_mono_ns": "82000006000",
+        "clock_id": "synthetic-clock-v2",
+        "coverage": {
+          "subscribed_depth": "20",
+          "retained_bid_levels": "2",
+          "retained_ask_levels": "2",
+          "worst_bid": "59998",
+          "worst_ask": "60002",
+          "full_depth": false,
+          "source_aggregation": [
+            [
+              "fast",
+              "false"
+            ]
+          ],
+          "expected_cadence_ns": "500000000"
+        },
+        "capabilities": {
+          "snapshot": true,
+          "deltas": false,
+          "trades": false,
+          "sequence_scope": null,
+          "checksum_scope": null,
+          "exact_event_flow": false,
+          "reference_prices": [],
+          "asset_context": []
+        },
+        "continuous_since_ordinal": "2017",
+        "reason_codes": [],
+        "capture_complete": true
+      },
+      "session_id": "9f794d1688ec4fa4a3ef78311c7fa132",
+      "generation": "3",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 1440,
+      "label": "empty-after-reset",
+      "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/docs/evidence/m4-terminal-browser-1440-empty-after-reset.png",
+      "status": "Connected",
+      "banner": "SYNTHETIC DEMO\nSynthetic 180s / 24 streams (memory, not recording)\nNot recording\nNot ready / diagnostic\npaused\nWatchlist\nDOM / tape\nCosts / analytics",
+      "chart_status": "Following observed time · Partial / unavailable history",
+      "cursor": "0 / 4410 · 1×",
+      "selected": {
+        "instrument_id": "hyperliquid:info:perpetual:BTC"
+      },
+      "source": {
+        "id": "synthetic-demo-v2-180s",
+        "mode": "demo",
+        "label": "Synthetic 180s / 24 streams (memory, not recording)",
+        "status": "ready",
+        "synthetic": true,
+        "recording": false,
+        "duration_ns": "180000000000",
+        "streams": 24,
+        "reasons": []
+      },
+      "session_id": "9f794d1688ec4fa4a3ef78311c7fa132",
+      "generation": "4",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 1440,
+      "label": "disconnected",
+      "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/docs/evidence/m4-terminal-browser-1440-disconnected.png",
+      "status": "Disconnected · reconnecting",
+      "banner": "SYNTHETIC DEMO\nSynthetic 180s / 24 streams (memory, not recording)\nNot recording\nNot ready / diagnostic\npaused\nWatchlist\nDOM / tape\nCosts / analytics",
+      "chart_status": "Following observed time · Partial / unavailable history · connection evidence unavailable",
+      "cursor": "2000 / 4410 · 1×",
+      "selected": {
+        "instrument_id": "hyperliquid:info:perpetual:BTC"
+      },
+      "source": {
+        "id": "synthetic-demo-v2-180s",
+        "mode": "demo",
+        "label": "Synthetic 180s / 24 streams (memory, not recording)",
+        "status": "ready",
+        "synthetic": true,
+        "recording": false,
+        "duration_ns": "180000000000",
+        "streams": 24,
+        "reasons": []
+      },
+      "quality": {
+        "lifecycle": "live",
+        "integrity": "valid",
+        "transport_alive": true,
+        "source_mode": "ws_snapshot",
+        "recorded_source_mode": null,
+        "last_transport_mono_ns": "81000006000",
+        "last_book_observation_mono_ns": "81000006000",
+        "last_book_change_mono_ns": "81000006000",
+        "last_healthy_observation_mono_ns": "81000006000",
+        "clock_id": "synthetic-clock-v2",
+        "coverage": {
+          "subscribed_depth": "20",
+          "retained_bid_levels": "2",
+          "retained_ask_levels": "2",
+          "worst_bid": "59998",
+          "worst_ask": "60002",
+          "full_depth": false,
+          "source_aggregation": [
+            [
+              "fast",
+              "false"
+            ]
+          ],
+          "expected_cadence_ns": "500000000"
+        },
+        "capabilities": {
+          "snapshot": true,
+          "deltas": false,
+          "trades": false,
+          "sequence_scope": null,
+          "checksum_scope": null,
+          "exact_event_flow": false,
+          "reference_prices": [],
+          "asset_context": []
+        },
+        "continuous_since_ordinal": "1993",
+        "reason_codes": [],
+        "capture_complete": true
+      },
+      "session_id": "9f794d1688ec4fa4a3ef78311c7fa132",
+      "generation": "5",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 1440,
+      "label": "recovered",
+      "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/docs/evidence/m4-terminal-browser-1440-recovered.png",
+      "status": "Connected",
+      "banner": "SYNTHETIC DEMO\nSynthetic 180s / 24 streams (memory, not recording)\nNot recording\nRequired data ready\npaused\nWatchlist\nDOM / tape\nCosts / analytics",
+      "chart_status": "Following observed time · Partial / unavailable history · retained history truncated",
+      "cursor": "115 / 4410 · 1×",
+      "selected": {
+        "instrument_id": "hyperliquid:info:perpetual:BTC"
+      },
+      "source": {
+        "id": "synthetic-demo-v2-180s",
+        "mode": "demo",
+        "label": "Synthetic 180s / 24 streams (memory, not recording)",
+        "status": "ready",
+        "synthetic": true,
+        "recording": false,
+        "duration_ns": "180000000000",
+        "streams": 24,
+        "reasons": []
+      },
+      "quality": {
+        "lifecycle": "live",
+        "integrity": "valid",
+        "transport_alive": true,
+        "source_mode": "ws_snapshot",
+        "recorded_source_mode": null,
+        "last_transport_mono_ns": "2000006000",
+        "last_book_observation_mono_ns": "2000006000",
+        "last_book_change_mono_ns": "2000006000",
+        "last_healthy_observation_mono_ns": "2000006000",
+        "clock_id": "synthetic-clock-v2",
+        "coverage": {
+          "subscribed_depth": "20",
+          "retained_bid_levels": "2",
+          "retained_ask_levels": "2",
+          "worst_bid": "59998",
+          "worst_ask": "60002",
+          "full_depth": false,
+          "source_aggregation": [
+            [
+              "fast",
+              "false"
+            ]
+          ],
+          "expected_cadence_ns": "500000000"
+        },
+        "capabilities": {
+          "snapshot": true,
+          "deltas": false,
+          "trades": false,
+          "sequence_scope": null,
+          "checksum_scope": null,
+          "exact_event_flow": false,
+          "reference_prices": [],
+          "asset_context": []
+        },
+        "continuous_since_ordinal": "97",
+        "reason_codes": [],
+        "capture_complete": true
+      },
+      "session_id": "944297d615e84f2cbc0c772f2f6a87f4",
+      "generation": "1",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 1280,
+      "label": "streaming-replay",
+      "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/docs/evidence/m4-terminal-browser-1280-streaming-replay.png",
+      "status": "Connected",
+      "banner": "SYNTHETIC DEMO\nSynthetic 180s / 24 streams (memory, not recording)\nNot recording\nRequired data ready\nplaying\nWatchlist\nDOM / tape\nCosts / analytics",
+      "chart_status": "Following observed time · Partial / unavailable history · retained history truncated",
+      "cursor": "2010 / 4410 · 1×",
+      "selected": {
+        "instrument_id": "coinbase:advanced-trade:spot:BTC-USD"
+      },
+      "source": {
+        "id": "synthetic-demo-v2-180s",
+        "mode": "demo",
+        "label": "Synthetic 180s / 24 streams (memory, not recording)",
+        "status": "ready",
+        "synthetic": true,
+        "recording": false,
+        "duration_ns": "180000000000",
+        "streams": 24,
+        "reasons": []
+      },
+      "quality": {
+        "lifecycle": "live",
+        "integrity": "valid",
+        "transport_alive": true,
+        "source_mode": "ws_delta",
+        "recorded_source_mode": null,
+        "last_transport_mono_ns": "81000012000",
+        "last_book_observation_mono_ns": "81000012000",
+        "last_book_change_mono_ns": "81000012000",
+        "last_healthy_observation_mono_ns": "81000012000",
+        "clock_id": "synthetic-clock-v2",
+        "coverage": {
+          "subscribed_depth": null,
+          "retained_bid_levels": "1",
+          "retained_ask_levels": "1",
+          "worst_bid": "59999",
+          "worst_ask": "60001",
+          "full_depth": true,
+          "source_aggregation": [],
+          "expected_cadence_ns": null
+        },
+        "capabilities": {
+          "snapshot": true,
+          "deltas": true,
+          "trades": false,
+          "sequence_scope": "connection",
+          "checksum_scope": null,
+          "exact_event_flow": true,
+          "reference_prices": [],
+          "asset_context": []
+        },
+        "continuous_since_ordinal": "68",
+        "reason_codes": [],
+        "capture_complete": true
+      },
+      "session_id": "27fd9155c7924e108543e2de89f130bd",
+      "generation": "2",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 1280,
+      "label": "hyperliquid-partial",
+      "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/docs/evidence/m4-terminal-browser-1280-hyperliquid-partial.png",
+      "status": "Connected",
+      "banner": "SYNTHETIC DEMO\nSynthetic 180s / 24 streams (memory, not recording)\nNot recording\nRequired data ready\npaused\nWatchlist\nDOM / tape\nCosts / analytics",
+      "chart_status": "Following observed time · Partial / unavailable history · retained history truncated",
+      "cursor": "2016 / 4410 · 1×",
+      "selected": {
+        "instrument_id": "hyperliquid:info:perpetual:BTC"
+      },
+      "source": {
+        "id": "synthetic-demo-v2-180s",
+        "mode": "demo",
+        "label": "Synthetic 180s / 24 streams (memory, not recording)",
+        "status": "ready",
+        "synthetic": true,
+        "recording": false,
+        "duration_ns": "180000000000",
+        "streams": 24,
+        "reasons": []
+      },
+      "quality": {
+        "lifecycle": "live",
+        "integrity": "valid",
+        "transport_alive": true,
+        "source_mode": "ws_snapshot",
+        "recorded_source_mode": null,
+        "last_transport_mono_ns": "81000006000",
+        "last_book_observation_mono_ns": "81000006000",
+        "last_book_change_mono_ns": "81000006000",
+        "last_healthy_observation_mono_ns": "81000006000",
+        "clock_id": "synthetic-clock-v2",
+        "coverage": {
+          "subscribed_depth": "20",
+          "retained_bid_levels": "2",
+          "retained_ask_levels": "2",
+          "worst_bid": "59998",
+          "worst_ask": "60002",
+          "full_depth": false,
+          "source_aggregation": [
+            [
+              "fast",
+              "false"
+            ]
+          ],
+          "expected_cadence_ns": "500000000"
+        },
+        "capabilities": {
+          "snapshot": true,
+          "deltas": false,
+          "trades": false,
+          "sequence_scope": null,
+          "checksum_scope": null,
+          "exact_event_flow": false,
+          "reference_prices": [],
+          "asset_context": []
+        },
+        "continuous_since_ordinal": "1993",
+        "reason_codes": [],
+        "capture_complete": true
+      },
+      "session_id": "27fd9155c7924e108543e2de89f130bd",
+      "generation": "3",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 1280,
+      "label": "empty-after-reset",
+      "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/docs/evidence/m4-terminal-browser-1280-empty-after-reset.png",
+      "status": "Connected",
+      "banner": "SYNTHETIC DEMO\nSynthetic 180s / 24 streams (memory, not recording)\nNot recording\nNot ready / diagnostic\npaused\nWatchlist\nDOM / tape\nCosts / analytics",
+      "chart_status": "Following observed time · Partial / unavailable history",
+      "cursor": "0 / 4410 · 1×",
+      "selected": {
+        "instrument_id": "hyperliquid:info:perpetual:BTC"
+      },
+      "source": {
+        "id": "synthetic-demo-v2-180s",
+        "mode": "demo",
+        "label": "Synthetic 180s / 24 streams (memory, not recording)",
+        "status": "ready",
+        "synthetic": true,
+        "recording": false,
+        "duration_ns": "180000000000",
+        "streams": 24,
+        "reasons": []
+      },
+      "session_id": "27fd9155c7924e108543e2de89f130bd",
+      "generation": "4",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 1280,
+      "label": "disconnected",
+      "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/docs/evidence/m4-terminal-browser-1280-disconnected.png",
+      "status": "Connecting",
+      "banner": "CONNECTING\nOpening an independent session for this document\nNot recording\nNot ready / diagnostic\nloading\nWatchlist\nDOM / tape\nCosts / analytics",
+      "chart_status": "Following observed time · Partial / unavailable history · connection evidence unavailable",
+      "cursor": "Replay state unavailable",
+      "selected": {
+        "instrument_id": "hyperliquid:info:perpetual:BTC"
+      },
+      "source": {
+        "id": "synthetic-demo-v2-180s",
+        "mode": "demo",
+        "label": "Synthetic 180s / 24 streams (memory, not recording)",
+        "status": "ready",
+        "synthetic": true,
+        "recording": false,
+        "duration_ns": "180000000000",
+        "streams": 24,
+        "reasons": []
+      },
+      "quality": {
+        "lifecycle": "live",
+        "integrity": "valid",
+        "transport_alive": true,
+        "source_mode": "ws_snapshot",
+        "recorded_source_mode": null,
+        "last_transport_mono_ns": "81000006000",
+        "last_book_observation_mono_ns": "81000006000",
+        "last_book_change_mono_ns": "81000006000",
+        "last_healthy_observation_mono_ns": "81000006000",
+        "clock_id": "synthetic-clock-v2",
+        "coverage": {
+          "subscribed_depth": "20",
+          "retained_bid_levels": "2",
+          "retained_ask_levels": "2",
+          "worst_bid": "59998",
+          "worst_ask": "60002",
+          "full_depth": false,
+          "source_aggregation": [
+            [
+              "fast",
+              "false"
+            ]
+          ],
+          "expected_cadence_ns": "500000000"
+        },
+        "capabilities": {
+          "snapshot": true,
+          "deltas": false,
+          "trades": false,
+          "sequence_scope": null,
+          "checksum_scope": null,
+          "exact_event_flow": false,
+          "reference_prices": [],
+          "asset_context": []
+        },
+        "continuous_since_ordinal": "1993",
+        "reason_codes": [],
+        "capture_complete": true
+      },
+      "session_id": "27fd9155c7924e108543e2de89f130bd",
+      "generation": "5",
+      "horizontal_overflow": false
+    },
+    {
+      "width": 1280,
+      "label": "recovered",
+      "path": "/Users/dakariantoine/Developer/personal/limit-orderbook/docs/evidence/m4-terminal-browser-1280-recovered.png",
+      "status": "Connected",
+      "banner": "SYNTHETIC DEMO\nSynthetic 180s / 24 streams (memory, not recording)\nNot recording\nRequired data ready\npaused\nWatchlist\nDOM / tape\nCosts / analytics",
+      "chart_status": "Following observed time · Partial / unavailable history · retained history truncated",
+      "cursor": "115 / 4410 · 1×",
+      "selected": {
+        "instrument_id": "hyperliquid:info:perpetual:BTC"
+      },
+      "source": {
+        "id": "synthetic-demo-v2-180s",
+        "mode": "demo",
+        "label": "Synthetic 180s / 24 streams (memory, not recording)",
+        "status": "ready",
+        "synthetic": true,
+        "recording": false,
+        "duration_ns": "180000000000",
+        "streams": 24,
+        "reasons": []
+      },
+      "quality": {
+        "lifecycle": "live",
+        "integrity": "valid",
+        "transport_alive": true,
+        "source_mode": "ws_snapshot",
+        "recorded_source_mode": null,
+        "last_transport_mono_ns": "2000006000",
+        "last_book_observation_mono_ns": "2000006000",
+        "last_book_change_mono_ns": "2000006000",
+        "last_healthy_observation_mono_ns": "2000006000",
+        "clock_id": "synthetic-clock-v2",
+        "coverage": {
+          "subscribed_depth": "20",
+          "retained_bid_levels": "2",
+          "retained_ask_levels": "2",
+          "worst_bid": "59998",
+          "worst_ask": "60002",
+          "full_depth": false,
+          "source_aggregation": [
+            [
+              "fast",
+              "false"
+            ]
+          ],
+          "expected_cadence_ns": "500000000"
+        },
+        "capabilities": {
+          "snapshot": true,
+          "deltas": false,
+          "trades": false,
+          "sequence_scope": null,
+          "checksum_scope": null,
+          "exact_event_flow": false,
+          "reference_prices": [],
+          "asset_context": []
+        },
+        "continuous_since_ordinal": "97",
+        "reason_codes": [],
+        "capture_complete": true
+      },
+      "session_id": "8af204b22bbd41f49af616e12d3945dd",
+      "generation": "1",
+      "horizontal_overflow": false
+    }
+  ],
+  "page_errors": [],
+  "checks_passed": true,
+  "limitations": [
+    "Explicitly synthetic demo. Transport failure drops actual backend frames; no substituted market data. Screenshots are visual evidence, not latency measurements."
+  ],
+  "browser_reaped": true
+}

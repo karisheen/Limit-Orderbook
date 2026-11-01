@@ -25,6 +25,7 @@ export interface Level { price: DecimalText; quantity: DecimalText }
 export interface Book {
   instrument_id: string; bids: Level[]; asks: Level[]; quality: Quality;
   asof: Reference; revision: string;
+  presentation: { depth_limit: number; bids_omitted: number; asks_omitted: number };
 }
 export interface Metric {
   name: string; value: DecimalText | null; unit: string; instrument_id: string; venue: string;
@@ -41,6 +42,7 @@ export interface DisplayEvidence { side: string; price: string; kind: string; qu
 export interface Analytics {
   instrument_id: string; metrics: Metric[]; tape: TapePrint[];
   profile: ProfileLevel[]; display_evidence: DisplayEvidence[]; reasons: string[];
+  presentation: { profile_limit: number; profile_omitted: number; evidence_limit: number; evidence_omitted: number };
 }
 export interface ProcessingObservation {
   clock_id: string; ingest_ordinal: string; receive_mono_ns: string; queue_exit_mono_ns: string;
@@ -94,16 +96,63 @@ export interface CostInput {
 export interface Catalog { version: '1'; instruments: Instrument[]; sources: Source[] }
 export type ReplayAction = 'play' | 'pause' | 'step' | 'speed' | 'seek' | 'reset';
 
+export interface Candle {
+  open: string; high: string; low: string; close: string; volume: string;
+  eligible: boolean; reasons: string[];
+}
+export interface VisualColumn {
+  id: string; time_ns: string; end_ns: string; segment_id: string; asof: Reference | null;
+  eligible: boolean; reasons: string[]; liquidity_hash: string; cells: [string | null, string | null][];
+  best_bid: string | null; best_ask: string | null; cvd: Metric | null; ofi: Metric | null; candle: Candle | null;
+}
+export interface PlotTrade {
+  id: string; time_ns: string; price: string; base_quantity: string | null; taker_side: string;
+  asof: Reference; segment_id: string; is_subscription_history: boolean;
+}
+export interface PlotProfile { price: string; buy_base: string; sell_base: string; unknown_base: string }
+export interface FootprintCell extends PlotProfile { time_ns: string }
+export interface VisualGrid {
+  version: '1'; generation: string; grid_id: string; instrument_id: string; clock_id: string;
+  view_id: string; published_mono_ns: string;
+  quantity_unit: string; sampling: string; price_step: string; price_min: string; prices: string[]; rows: number;
+  bucket_ns: string; start_ns: string; end_ns: string; now_ns: string; retained_start_ns: string | null;
+  step_options: string[]; columns: VisualColumn[]; trades: PlotTrade[]; profile: PlotProfile[]; footprints: FootprintCell[];
+  reasons: string[]; truncated: boolean; complete_window: boolean; replace: boolean; next_after: string | null;
+}
+export interface VisualizationInput {
+  start_ns?: string; end_ns?: string; price_step?: string; price_offset_rows?: number; recenter?: boolean;
+  bucket_ns?: string; rows?: number; max_columns?: number; after_column?: string;
+}
+export interface VisualizationAck {
+  publish_to_ack_upper_bound_ms: number; browser_receive_to_paint_ms: number;
+}
+export interface GroupedLevel { side: 'bid' | 'ask'; price: string; base_quantity: string; cumulative_base: string }
+export interface GroupedLadder {
+  version: '1'; generation: string; instrument_id: string; asof: Reference | null; step: string; unit: string;
+  eligible: boolean; reasons: string[]; rows: GroupedLevel[];
+}
+export interface LadderInput { price_step?: string; rows?: number }
+export interface ProposalRiskInput {
+  side: 'buy' | 'sell'; entry_price: string; stop_price: string; base_quantity?: string; risk_budget?: string;
+  fee_bps?: string; fee_provenance?: string; fee_date?: string;
+}
+export interface ProposalRisk {
+  version: '1'; generation: string; instrument_id: string; quote_asset_id: string;
+  base_quantity: string | null; suggested_base_quantity: string | null; gross_loss: string | null;
+  fee_cost: string | null; estimated_loss: string | null; eligible: boolean; reasons: string[]; assumptions: string[];
+}
+
 export class ApiError extends Error {
   constructor(message: string, readonly status: number) { super(message); this.name = 'ApiError'; }
 }
 
-export async function request<T>(path: string, body?: unknown, signal?: AbortSignal, method?: string): Promise<T> {
+export async function request<T>(path: string, body?: unknown, signal?: AbortSignal, method?: string, onReceive?: (receivedAtMs: number) => void): Promise<T> {
   const response = await fetch(`/api/v1${path}`, {
     method: method ?? (body === undefined ? 'GET' : 'POST'), signal,
     headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
+  onReceive?.(performance.now());
   const text = await response.text();
   let data: unknown;
   try { data = text ? JSON.parse(text) as unknown : null; }

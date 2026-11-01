@@ -1,0 +1,863 @@
+{
+  "scope": "Unpaced normalized production replay with all native streams and selected BTC visualization/analytics; reader verification already passed in actual benchmark. Profiling perturbs timing. No network, API serialization, rendering or live-capacity claim.",
+  "source": "/private/tmp/limit-orderbook-m3-soak-dbf20bd/data/m4-live/run-xiwz5_0o/store/4498db3b-f4a2-4fff-a32e-a97221fa21ee",
+  "manifest_sha256": "d12553c14ee31de1e66db3d2e9247000b81a976826f4f3da8ae072d4622ee5f5",
+  "python": "3.13.5 (main, Jul 23 2025, 00:30:58) [Clang 20.1.4 ]",
+  "platform": "macOS-13.7.8-x86_64-i386-64bit-Mach-O",
+  "source_sha256": {
+    "src/workstation/ingestion.py": "ff78eed5adccb8f888fbf1bbcd2dcea81d7e232d5a4d4579793db61965fdce3a",
+    "src/workstation/transport.py": "3b706b8140f456a9a7f8b54b13ed69be0d01d29b744704e65614cfe79502b530",
+    "src/workstation/recording.py": "d8eb36135b80e64008641881e9138f332222006ceaa10a8c8c60ccfc9cea73aa",
+    "src/workstation/events.py": "63edc89a304a2272e2999708a30153aef2e99dfd10b22c718933f8722a18727d",
+    "src/workstation/subscriptions.py": "2e67ef00d3e46d2795267f0c933131f1a84d75188f325e6e5d4161b91071e542",
+    "src/workstation/__init__.py": "d32a38cc280c6e747e68e7e64e27ebbe9aef3e3ac4e19fca2e7d8f7fb54f9ac8",
+    "src/workstation/runtime.py": "0485bad6d4e572b2c9d2ac70fd82e9287a9baaa2ed31a1197c6b6c37c44a0e20",
+    "src/workstation/adapter_catalog.py": "82d22123e418ebbb5f56da499805b4fef7671bcf29039124355431855519dba2",
+    "src/workstation/wire.py": "45f09374e4ef4afdf9c3278992b17e5ebc433eaf11ac9835de4dfc2fee7f05e0",
+    "src/workstation/api.py": "4d48dfccb8235d1ba73dfc2a9ffbb71da2fdf2a502c1e527ee8bd361bb2497db",
+    "src/workstation/instruments.py": "188e11494cd470414cff1ec3fd96024c528f0a6ae51289a2d2dcab77bf3a27a9",
+    "src/workstation/precision.py": "abee27115d3d86d88cb32e99627e9b7ec48bdaa13c453b5be30331463ad25edc",
+    "src/workstation/replay.py": "c0114cb4c10d87307d1b675300163491b05be1ced2ea38f2492fd19753809889",
+    "src/workstation/cli.py": "cb757cf18a5a6adda591f764dead00c5bf68249cfd33c565347d5f8ad5c3d401",
+    "src/workstation/costs.py": "1b249341e6e0373e84c9f2c4077d60354950fd96a9a482e26fdcb8d69779a40a",
+    "src/workstation/book.py": "f908201f41719b1d7726af4a38df0a3a166660c7312d21c4e9428e63053e4a74",
+    "src/workstation/analytics.py": "8d84eb15e1518c7f117fbe4e28289c48eacef1e35d54f1a1c09453d1e776b507",
+    "src/workstation/visuals.py": "d2624a1ad8e72db61b61fc47d4e2c692081f01702def2eae82ea6771f00b360a",
+    "src/workstation/projection.py": "f36753759de852eea545932a1723b749257e74b013f01c057be447de6bb101b8",
+    "src/workstation/demo.py": "6ab77137f9ce17b11ba61c60db1e1e42121bed5544f18af734a3e11fd9813870",
+    "src/workstation/quality.py": "e49ea4fd531d2e42c9baf31133876610df8ec205e7f62770dca254ad9b279071",
+    "src/workstation/demo_memory.py": "d70167e4dc9ad2b498e3c49f73867e5d3fc5e8ad646c6f011c30ca5dd4334aa4",
+    "src/workstation/adapters/hyperliquid.py": "c1f3a558c73f9c9f5831c401bb8f978ba3d8f7bee931de3aed59232ad088b7c3",
+    "src/workstation/adapters/bybit.py": "3d27a2d2a93ba0dc721aa57b26acf6e02c31507dbb1110a1aeafdf03610cc659",
+    "src/workstation/adapters/kraken.py": "b5c6723630bbc9612d743d5c8b9f57ba2d7372c447d3b30e300c63641232743f",
+    "src/workstation/adapters/__init__.py": "ebfb09d028b47872e3ede6cdaea00ff7903029c37ed000f5308741abc23665e8",
+    "src/workstation/adapters/coinbase.py": "d09d51a3c7d64a694188d7534e674df1be3ed5939aeb4e0cbeccb39119f2a2f8",
+    "src/workstation/adapters/kucoin.py": "d59cd9c8319ec883aef211c851eb0db438b0d657032b1c8a7103f4428cb8bddd",
+    "src/workstation/adapters/base.py": "078cc7da780e21c11b065a62436986b48664ae244c4a38326a5e9f3ad4e12d45",
+    "src/workstation/adapters/binance.py": "ce02eb26c3ab8b4cebe975240201f9d1fc7403391cffdaab947cc3758d8853ca"
+  },
+  "cases": [
+    {
+      "mode": "projection_only",
+      "deliveries": 2500,
+      "final_cursor": 2800,
+      "source_span_seconds": 44.475994952,
+      "profiled_wall_seconds": 12.929220354999416,
+      "book_hash": "8762ab5cccf3aae429cfe6325b4e339991254235664b8394878c0b3cde0e4695",
+      "state_hash": "ea1f4ae0acd77b28e0ee39b699bef7c478c19efa852806cf93c8366312643eb9",
+      "top": [
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/replay.py",
+          "line": 327,
+          "function": "step",
+          "calls": 1,
+          "self_seconds": 0.006439108000000001,
+          "cumulative_seconds": 12.928578544
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/replay.py",
+          "line": 287,
+          "function": "_apply",
+          "calls": 2500,
+          "self_seconds": 0.015200092,
+          "cumulative_seconds": 7.2644463870000004
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/projection.py",
+          "line": 145,
+          "function": "apply_batch",
+          "calls": 2500,
+          "self_seconds": 0.0034369310000000003,
+          "cumulative_seconds": 7.087363511
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/projection.py",
+          "line": 148,
+          "function": "apply_events",
+          "calls": 2500,
+          "self_seconds": 0.058987667,
+          "cumulative_seconds": 7.083926580000001
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/adapters/binance.py",
+          "line": 230,
+          "function": "apply",
+          "calls": 1161,
+          "self_seconds": 0.050268267000000005,
+          "cumulative_seconds": 6.819856419000001
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/book.py",
+          "line": 442,
+          "function": "apply",
+          "calls": 3655,
+          "self_seconds": 0.504622894,
+          "cumulative_seconds": 6.650828141000001
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/replay.py",
+          "line": 282,
+          "function": "_peek",
+          "calls": 2500,
+          "self_seconds": 0.0022771220000000003,
+          "cumulative_seconds": 5.656683646
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.next>",
+          "calls": 7581,
+          "self_seconds": 0.0035667610000000003,
+          "cumulative_seconds": 5.655656812
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/recording.py",
+          "line": 1692,
+          "function": "iter_batches",
+          "calls": 2500,
+          "self_seconds": 0.070837101,
+          "cumulative_seconds": 5.652090051
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/recording.py",
+          "line": 1618,
+          "function": "_batch",
+          "calls": 2500,
+          "self_seconds": 0.07459022600000001,
+          "cumulative_seconds": 5.5812529500000005
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/adapters/binance.py",
+          "line": 180,
+          "function": "_levels",
+          "calls": 1155,
+          "self_seconds": 0.594161416,
+          "cumulative_seconds": 4.8704833270000005
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/wire.py",
+          "line": 220,
+          "function": "loads",
+          "calls": 2500,
+          "self_seconds": 0.012715466000000002,
+          "cumulative_seconds": 4.190847144
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/wire.py",
+          "line": 189,
+          "function": "from_wire",
+          "calls": 2500,
+          "self_seconds": 0.0028160890000000004,
+          "cumulative_seconds": 3.949465598
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/wire.py",
+          "line": 111,
+          "function": "_decode",
+          "calls": 249425,
+          "self_seconds": 1.114566986,
+          "cumulative_seconds": 3.9466495090000002
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/wire.py",
+          "line": 137,
+          "function": "<genexpr>",
+          "calls": 21223,
+          "self_seconds": 0.019011564,
+          "cumulative_seconds": 3.9094181430000003
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/book.py",
+          "line": 404,
+          "function": "_levels",
+          "calls": 1179,
+          "self_seconds": 0.07070875700000001,
+          "cumulative_seconds": 3.4994914660000003
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.sorted>",
+          "calls": 7062,
+          "self_seconds": 2.235459911,
+          "cumulative_seconds": 3.4333419870000004
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/precision.py",
+          "line": 111,
+          "function": "text",
+          "calls": 70381,
+          "self_seconds": 0.09674440100000001,
+          "cumulative_seconds": 1.498683161
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.any>",
+          "calls": 88767,
+          "self_seconds": 0.47283231400000003,
+          "cumulative_seconds": 1.469523178
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/precision.py",
+          "line": 42,
+          "function": "decimal",
+          "calls": 141533,
+          "self_seconds": 0.5604575930000001,
+          "cumulative_seconds": 1.103084989
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/precision.py",
+          "line": 116,
+          "function": "<genexpr>",
+          "calls": 2410933,
+          "self_seconds": 0.6716709550000001,
+          "cumulative_seconds": 0.9528629030000001
+        },
+        {
+          "file": "<string>",
+          "line": 2,
+          "function": "__init__",
+          "calls": 3736,
+          "self_seconds": 0.028423426,
+          "cumulative_seconds": 0.77124473
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/recording.py",
+          "line": 1588,
+          "function": "_group_rows",
+          "calls": 2500,
+          "self_seconds": 0.022729683,
+          "cumulative_seconds": 0.76693095
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/events.py",
+          "line": 422,
+          "function": "__post_init__",
+          "calls": 3736,
+          "self_seconds": 0.061016936,
+          "cumulative_seconds": 0.742821304
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/book.py",
+          "line": 411,
+          "function": "<lambda>",
+          "calls": 5428096,
+          "self_seconds": 0.6778872300000001,
+          "cumulative_seconds": 0.6778872300000001
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/instruments.py",
+          "line": 13,
+          "function": "__new__",
+          "calls": 25292,
+          "self_seconds": 0.036558049,
+          "cumulative_seconds": 0.632198276
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/recording.py",
+          "line": 1520,
+          "function": "_file",
+          "calls": 2500,
+          "self_seconds": 0.005630551,
+          "cumulative_seconds": 0.617377858
+        },
+        {
+          "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/dataclasses.py",
+          "line": 1580,
+          "function": "replace",
+          "calls": 7174,
+          "self_seconds": 0.021240364,
+          "cumulative_seconds": 0.611915171
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/recording.py",
+          "line": 407,
+          "function": "_safe",
+          "calls": 2500,
+          "self_seconds": 0.040008208,
+          "cumulative_seconds": 0.609999167
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.isinstance>",
+          "calls": 3213789,
+          "self_seconds": 0.585964691,
+          "cumulative_seconds": 0.585964691
+        },
+        {
+          "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/dataclasses.py",
+          "line": 1599,
+          "function": "_replace",
+          "calls": 7174,
+          "self_seconds": 0.07635386000000001,
+          "cumulative_seconds": 0.581739792
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/recording.py",
+          "line": 458,
+          "function": "_size",
+          "calls": 222599,
+          "self_seconds": 0.370421657,
+          "cumulative_seconds": 0.5596022230000001
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/adapters/binance.py",
+          "line": 184,
+          "function": "<genexpr>",
+          "calls": 3229945,
+          "self_seconds": 0.5375561360000001,
+          "cumulative_seconds": 0.5375561360000001
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/book.py",
+          "line": 417,
+          "function": "<lambda>",
+          "calls": 4184564,
+          "self_seconds": 0.519994846,
+          "cumulative_seconds": 0.519994846
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/precision.py",
+          "line": 87,
+          "function": "validate_increment",
+          "calls": 25831,
+          "self_seconds": 0.07782098600000001,
+          "cumulative_seconds": 0.429095532
+        },
+        {
+          "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/pathlib/_abc.py",
+          "line": 513,
+          "function": "is_symlink",
+          "calls": 7500,
+          "self_seconds": 0.011339652,
+          "cumulative_seconds": 0.40018181700000005
+        },
+        {
+          "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/pathlib/_abc.py",
+          "line": 432,
+          "function": "lstat",
+          "calls": 7500,
+          "self_seconds": 0.006219721,
+          "cumulative_seconds": 0.38619859300000003
+        },
+        {
+          "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/pathlib/_local.py",
+          "line": 510,
+          "function": "stat",
+          "calls": 7500,
+          "self_seconds": 0.004897895,
+          "cumulative_seconds": 0.379978872
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method posix.stat>",
+          "calls": 7500,
+          "self_seconds": 0.14637517700000002,
+          "cumulative_seconds": 0.37508097700000004
+        },
+        {
+          "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/typing.py",
+          "line": 2528,
+          "function": "get_origin",
+          "calls": 249425,
+          "self_seconds": 0.217307205,
+          "cumulative_seconds": 0.367238049
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/instruments.py",
+          "line": 191,
+          "function": "validate_price",
+          "calls": 13449,
+          "self_seconds": 0.017659670000000002,
+          "cumulative_seconds": 0.34870126500000004
+        },
+        {
+          "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/typing.py",
+          "line": 2558,
+          "function": "get_args",
+          "calls": 249425,
+          "self_seconds": 0.21112625100000001,
+          "cumulative_seconds": 0.348615206
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/precision.py",
+          "line": 127,
+          "function": "exact_json_loads",
+          "calls": 3655,
+          "self_seconds": 0.015697176,
+          "cumulative_seconds": 0.31056165700000005
+        },
+        {
+          "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/json/__init__.py",
+          "line": 299,
+          "function": "loads",
+          "calls": 3655,
+          "self_seconds": 0.028528922,
+          "cumulative_seconds": 0.292607787
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/instruments.py",
+          "line": 198,
+          "function": "validate_quantity",
+          "calls": 12382,
+          "self_seconds": 0.013361239,
+          "cumulative_seconds": 0.291062286
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.ord>",
+          "calls": 2340552,
+          "self_seconds": 0.281191948,
+          "cumulative_seconds": 0.281191948
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<method 'as_tuple' of 'decimal.Decimal' objects>",
+          "calls": 143100,
+          "self_seconds": 0.14651092000000002,
+          "cumulative_seconds": 0.246433479
+        },
+        {
+          "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/pathlib/_local.py",
+          "line": 166,
+          "function": "__fspath__",
+          "calls": 7518,
+          "self_seconds": 0.006610433000000001,
+          "cumulative_seconds": 0.228719465
+        },
+        {
+          "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/pathlib/_local.py",
+          "line": 289,
+          "function": "drive",
+          "calls": 15000,
+          "self_seconds": 0.038236280000000004,
+          "cumulative_seconds": 0.22723125000000002
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/events.py",
+          "line": 200,
+          "function": "__post_init__",
+          "calls": 12382,
+          "self_seconds": 0.039077494000000004,
+          "cumulative_seconds": 0.22443018
+        }
+      ]
+    },
+    {
+      "mode": "visualization_and_analytics",
+      "deliveries": 2500,
+      "final_cursor": 2800,
+      "source_span_seconds": 44.475994952,
+      "profiled_wall_seconds": 19.43724780798948,
+      "book_hash": "8762ab5cccf3aae429cfe6325b4e339991254235664b8394878c0b3cde0e4695",
+      "state_hash": "52e97d89fa18847a082f38a99346409962dcfe1b7fae245963a709e74749cfe5",
+      "top": [
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/replay.py",
+          "line": 327,
+          "function": "step",
+          "calls": 1,
+          "self_seconds": 0.007445620000000001,
+          "cumulative_seconds": 19.436561337
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/replay.py",
+          "line": 287,
+          "function": "_apply",
+          "calls": 2500,
+          "self_seconds": 0.025528411,
+          "cumulative_seconds": 13.367252859
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/projection.py",
+          "line": 145,
+          "function": "apply_batch",
+          "calls": 2500,
+          "self_seconds": 0.0041030120000000005,
+          "cumulative_seconds": 7.897913949
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/projection.py",
+          "line": 148,
+          "function": "apply_events",
+          "calls": 2500,
+          "self_seconds": 0.019019574,
+          "cumulative_seconds": 7.8938109370000005
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/adapters/binance.py",
+          "line": 230,
+          "function": "apply",
+          "calls": 1161,
+          "self_seconds": 0.055442895000000006,
+          "cumulative_seconds": 7.65580975
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/book.py",
+          "line": 442,
+          "function": "apply",
+          "calls": 3655,
+          "self_seconds": 0.574840195,
+          "cumulative_seconds": 7.454119981000001
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.next>",
+          "calls": 10081,
+          "self_seconds": 0.005965183000000001,
+          "cumulative_seconds": 6.063865001000001
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/replay.py",
+          "line": 282,
+          "function": "_peek",
+          "calls": 2500,
+          "self_seconds": 0.0025467180000000003,
+          "cumulative_seconds": 6.060662136
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/recording.py",
+          "line": 1692,
+          "function": "iter_batches",
+          "calls": 2500,
+          "self_seconds": 0.056823584,
+          "cumulative_seconds": 6.055349641
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/recording.py",
+          "line": 1618,
+          "function": "_batch",
+          "calls": 2500,
+          "self_seconds": 0.07998996300000001,
+          "cumulative_seconds": 5.998526057
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/adapters/binance.py",
+          "line": 180,
+          "function": "_levels",
+          "calls": 1155,
+          "self_seconds": 0.641333264,
+          "cumulative_seconds": 5.484690817000001
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/visuals.py",
+          "line": 420,
+          "function": "on_batch",
+          "calls": 2500,
+          "self_seconds": 0.06541814600000001,
+          "cumulative_seconds": 5.237792263
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/wire.py",
+          "line": 220,
+          "function": "loads",
+          "calls": 2500,
+          "self_seconds": 0.013404773,
+          "cumulative_seconds": 4.5019041280000005
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/wire.py",
+          "line": 189,
+          "function": "from_wire",
+          "calls": 2500,
+          "self_seconds": 0.0032922740000000004,
+          "cumulative_seconds": 4.244384432
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/wire.py",
+          "line": 111,
+          "function": "_decode",
+          "calls": 249425,
+          "self_seconds": 1.1786044420000001,
+          "cumulative_seconds": 4.241092158
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/wire.py",
+          "line": 137,
+          "function": "<genexpr>",
+          "calls": 21223,
+          "self_seconds": 0.023471651000000003,
+          "cumulative_seconds": 4.2028912620000005
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/book.py",
+          "line": 404,
+          "function": "_levels",
+          "calls": 1179,
+          "self_seconds": 0.08017060100000001,
+          "cumulative_seconds": 3.9306500310000003
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.sorted>",
+          "calls": 12178,
+          "self_seconds": 2.50166589,
+          "cumulative_seconds": 3.870718763
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/precision.py",
+          "line": 111,
+          "function": "text",
+          "calls": 140964,
+          "self_seconds": 0.198344714,
+          "cumulative_seconds": 3.133250206
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.any>",
+          "calls": 163118,
+          "self_seconds": 0.9615076570000001,
+          "cumulative_seconds": 3.004596154
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/precision.py",
+          "line": 116,
+          "function": "<genexpr>",
+          "calls": 4868786,
+          "self_seconds": 1.398767016,
+          "cumulative_seconds": 1.9857953190000002
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/instruments.py",
+          "line": 13,
+          "function": "__new__",
+          "calls": 70366,
+          "self_seconds": 0.26368028400000004,
+          "cumulative_seconds": 1.952971191
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/analytics.py",
+          "line": 551,
+          "function": "on_batch",
+          "calls": 2500,
+          "self_seconds": 0.16055723800000002,
+          "cumulative_seconds": 1.6290180550000002
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/visuals.py",
+          "line": 384,
+          "function": "_sample",
+          "calls": 45,
+          "self_seconds": 0.001161114,
+          "cumulative_seconds": 1.522847904
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/analytics.py",
+          "line": 896,
+          "function": "snapshot",
+          "calls": 45,
+          "self_seconds": 0.0026054150000000002,
+          "cumulative_seconds": 1.516864585
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/analytics.py",
+          "line": 908,
+          "function": "_snapshot",
+          "calls": 45,
+          "self_seconds": 0.5933683310000001,
+          "cumulative_seconds": 1.5140245440000002
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/analytics.py",
+          "line": 877,
+          "function": "trade_evidence",
+          "calls": 5994,
+          "self_seconds": 0.011054143,
+          "cumulative_seconds": 1.486194127
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/analytics.py",
+          "line": 856,
+          "function": "_trade_source",
+          "calls": 6039,
+          "self_seconds": 0.07076878,
+          "cumulative_seconds": 1.484701936
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/precision.py",
+          "line": 42,
+          "function": "decimal",
+          "calls": 177167,
+          "self_seconds": 0.7661067570000001,
+          "cumulative_seconds": 1.4705457240000002
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/visuals.py",
+          "line": 345,
+          "function": "_close_flow",
+          "calls": 2500,
+          "self_seconds": 0.040960883000000003,
+          "cumulative_seconds": 1.1384856190000001
+        },
+        {
+          "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/dataclasses.py",
+          "line": 1580,
+          "function": "replace",
+          "calls": 8785,
+          "self_seconds": 0.030341947,
+          "cumulative_seconds": 0.9451192
+        },
+        {
+          "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/dataclasses.py",
+          "line": 1599,
+          "function": "_replace",
+          "calls": 8785,
+          "self_seconds": 0.10004729100000001,
+          "cumulative_seconds": 0.9033803960000001
+        },
+        {
+          "file": "<string>",
+          "line": 2,
+          "function": "__init__",
+          "calls": 3736,
+          "self_seconds": 0.031776756,
+          "cumulative_seconds": 0.8408662920000001
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/recording.py",
+          "line": 1588,
+          "function": "_group_rows",
+          "calls": 2500,
+          "self_seconds": 0.021748124,
+          "cumulative_seconds": 0.8396378010000001
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/analytics.py",
+          "line": 741,
+          "function": "_book_event",
+          "calls": 1191,
+          "self_seconds": 0.37907080600000004,
+          "cumulative_seconds": 0.818046644
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/events.py",
+          "line": 422,
+          "function": "__post_init__",
+          "calls": 3736,
+          "self_seconds": 0.06410579400000001,
+          "cumulative_seconds": 0.809089536
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/book.py",
+          "line": 411,
+          "function": "<lambda>",
+          "calls": 5428096,
+          "self_seconds": 0.7832319390000001,
+          "cumulative_seconds": 0.7832319390000001
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.isinstance>",
+          "calls": 3803895,
+          "self_seconds": 0.739612351,
+          "cumulative_seconds": 0.739612351
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/recording.py",
+          "line": 1520,
+          "function": "_file",
+          "calls": 2500,
+          "self_seconds": 0.006204605,
+          "cumulative_seconds": 0.6880136330000001
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/recording.py",
+          "line": 407,
+          "function": "_safe",
+          "calls": 2500,
+          "self_seconds": 0.039427371,
+          "cumulative_seconds": 0.679815593
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/adapters/binance.py",
+          "line": 184,
+          "function": "<genexpr>",
+          "calls": 3229945,
+          "self_seconds": 0.631658277,
+          "cumulative_seconds": 0.631658277
+        },
+        {
+          "file": "~",
+          "line": 0,
+          "function": "<built-in method builtins.ord>",
+          "calls": 4727822,
+          "self_seconds": 0.5870283030000001,
+          "cumulative_seconds": 0.5870283030000001
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/book.py",
+          "line": 417,
+          "function": "<lambda>",
+          "calls": 4184564,
+          "self_seconds": 0.585820934,
+          "cumulative_seconds": 0.585820934
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/recording.py",
+          "line": 458,
+          "function": "_size",
+          "calls": 222599,
+          "self_seconds": 0.39111454500000004,
+          "cumulative_seconds": 0.585292914
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/analytics.py",
+          "line": 635,
+          "function": "_trade_event",
+          "calls": 1390,
+          "self_seconds": 0.018845446000000002,
+          "cumulative_seconds": 0.47616878700000004
+        },
+        {
+          "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/typing.py",
+          "line": 2528,
+          "function": "get_origin",
+          "calls": 249425,
+          "self_seconds": 0.313873359,
+          "cumulative_seconds": 0.47141310100000006
+        },
+        {
+          "file": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/precision.py",
+          "line": 87,
+          "function": "validate_increment",
+          "calls": 25831,
+          "self_seconds": 0.100663467,
+          "cumulative_seconds": 0.46790284400000004
+        },
+        {
+          "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/pathlib/_abc.py",
+          "line": 513,
+          "function": "is_symlink",
+          "calls": 7500,
+          "self_seconds": 0.011623413,
+          "cumulative_seconds": 0.45767494300000006
+        },
+        {
+          "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/pathlib/_abc.py",
+          "line": 432,
+          "function": "lstat",
+          "calls": 7500,
+          "self_seconds": 0.006333297000000001,
+          "cumulative_seconds": 0.44331561900000005
+        },
+        {
+          "file": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/pathlib/_local.py",
+          "line": 510,
+          "function": "stat",
+          "calls": 7500,
+          "self_seconds": 0.00501755,
+          "cumulative_seconds": 0.43698232200000003
+        }
+      ]
+    }
+  ]
+}

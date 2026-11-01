@@ -19,7 +19,7 @@ test('a silent open socket loses current status and recovers with a new session'
   await expect(page.locator('.status')).toHaveText('Disconnected · reconnecting', { timeout: 8000 });
   await expect(page.getByTestId('estimate')).toBeDisabled();
   await expect(page.locator('.ladder tbody tr')).toHaveCount(0);
-  await expect(page.getByRole('alert')).toContainText('No stream frame received');
+  await expect(page.locator('.error-banner[role="alert"]')).toContainText('No stream frame received');
   suppress = false;
   await expect(page.locator('.status')).toHaveText('Connected');
   expect(socketCount).toBeGreaterThan(1);

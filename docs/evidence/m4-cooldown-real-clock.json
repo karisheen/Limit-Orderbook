@@ -1,0 +1,31 @@
+{
+  "schema": "1",
+  "scenario": "native_supervisor_real_clock_injected_http_429",
+  "public_network_used": false,
+  "ingestion_sha256": "ff78eed5adccb8f888fbf1bbcd2dcea81d7e232d5a4d4579793db61965fdce3a",
+  "cases": [
+    {
+      "case": "recover_after_cooldowns",
+      "retry_after_seconds": 0.15,
+      "request_intervals_seconds": [
+        0.15362482900673058,
+        0.15143003399134614
+      ],
+      "recovered_integrity": "valid",
+      "recovered_lifecycle": "degraded",
+      "stop_elapsed_seconds": 0.0004833100101677701,
+      "request_count": 3,
+      "owner_joined": true,
+      "final_lifecycle": "disconnected"
+    },
+    {
+      "case": "cancel_during_cooldown",
+      "retry_after_seconds": 2.0,
+      "stop_elapsed_seconds": 0.000948915010667406,
+      "request_count": 1,
+      "owner_joined": true,
+      "final_lifecycle": "disconnected"
+    }
+  ],
+  "checks_passed": true
+}

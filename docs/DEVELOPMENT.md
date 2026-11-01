@@ -62,7 +62,8 @@ resolve a different environment silently.
 1. Python 3.13 runtime guard and the complete pytest suite, excluding the
    `network` marker. Additional script arguments are forwarded to pytest.
 2. Ruff's conservative `E4`, `E7`, `E9`, and `F` rules plus `ruff format --check`
-   on `src/workstation`, `tests/test_workstation*.py`,
+   on `src/workstation`, `src/ui`, `crypto_lob.py`,
+   `tests/test_legacy_api_client.py`, `tests/test_workstation*.py`,
    `tests/test_recording*.py`, `tests/test_replay*.py`, and Python tools other
    than the pre-existing `tools/connector_spike.py`.
 3. mypy on `src/workstation`, including bodies of untyped functions. Untyped
@@ -71,10 +72,11 @@ resolve a different environment silently.
 4. The frontend production build if `frontend/package.json` exists; otherwise
    an explicit not-applicable message, not a claimed frontend pass.
 
-Legacy sources and tests remain pytest-covered; this scope avoids an unrelated
-whole-repository formatting migration. Add any new test naming family to
-`tools/check.sh` when introducing it. Format changed in-scope files before
-running the check script. Equivalent native commands for the current core are:
+The thin Streamlit client shares the native API/core; the duplicate legacy
+collectors, reducers and analytics have been removed. Its protocol and exact
+presentation regressions run with the native suite. Add any new test naming
+family to `tools/check.sh`. Format changed in-scope files before the check.
+Equivalent native commands for the current core are:
 
 ```sh
 uv run --locked --offline --no-sync python -m pytest
@@ -95,9 +97,10 @@ default and from CI; running them is a deliberate separate action:
 uv run --locked --offline --no-sync python -m pytest -m network
 ```
 
-The pre-existing `tests/smoke_live.py` is a manual script, not a pytest test;
-it contacts real public services and is not part of offline checks. Do not
-interpret offline fixture success as live-feed validation.
+Use the explicit `python -m src.workstation.cli probe --network` and
+`record --network` commands for real public-service checks; see the README for
+venue/asset selection and capture replay. The old `tests/smoke_live.py` and its
+separate collectors were retired. Offline fixture success is not live-feed validation.
 
 ## Frontend and legacy UI
 
@@ -115,13 +118,15 @@ exists; a package without its lock must fail rather than perform an unpinned
 install. Python and Node dependency installation may access package registries;
 no live-market probe belongs in the offline CI job.
 
-The current compatibility UI remains runnable natively, bound to loopback:
+The supported thin Streamlit client requires a separately running loopback API:
 
 ```sh
+uv run --locked --offline --no-sync python -m src.workstation.cli serve
+# In another terminal:
 uv run --locked --offline --no-sync python -m streamlit run crypto_lob.py --server.address 127.0.0.1
 ```
 
-This starts the legacy live-data UI, **not an offline demo**, and can contact
-public exchange endpoints. Later backend/demo/replay launch commands must be
-documented with their implementation; installing FastAPI and recording
-libraries alone does not establish those runtime capabilities.
+The default backend is an offline synthetic demo. Streamlit does not contact
+exchanges or start collectors; public live data requires an explicitly started
+`serve --network` backend. See [LEGACY](LEGACY.md) for exact selection, source
+labels, document ownership, request bounds and unavailable-state recovery.

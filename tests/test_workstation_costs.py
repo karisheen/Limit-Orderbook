@@ -20,6 +20,7 @@ from src.workstation.costs import (
 )
 from src.workstation.events import (
     BookUpdate,
+    Control,
     LevelChange,
     SubscriptionKey,
     synthetic_envelope,
@@ -30,7 +31,7 @@ from src.workstation.instruments import (
     synthetic_instrument,
 )
 from src.workstation.precision import DECIMAL_CONTEXT, DERIVED_DECIMAL_POLICY
-from src.workstation.quality import ClockReading, EligibilityPolicy
+from src.workstation.quality import Capabilities, ClockReading, EligibilityPolicy
 from src.workstation.wire import dumps, loads
 
 D = Decimal
@@ -592,6 +593,178 @@ def test_matrix_preserves_quote_and_market_cohorts_exclusions_and_full_direction
     )
     assert all("ambiguous_book_key" in item.reasons for item in duplicate.pairs)
     assert duplicate.best_observed[0].bid is None
+
+
+@pytest.mark.parametrize("state", ["stale", "disconnected"])
+def test_best_observed_selects_healthy_survivor_over_more_attractive_book(state):
+    healthy_instrument, healthy_book, clock = fixture(mono=1100)
+    instrument, book, _ = fixture(
+        "b",
+        bids=(("99.50", "1"),),
+        asks=(("99.75", "1"),),
+        mono=1 if state == "stale" else 1100,
+    )
+    if state == "disconnected":
+        book = replace(
+            book,
+            quality=replace(
+                book.quality, lifecycle="disconnected", transport_alive=False
+            ),
+        )
+    (observed,) = best_observed(
+        (
+            ComparisonEntry(book, instrument, FREE),
+            ComparisonEntry(healthy_book, healthy_instrument, FREE),
+        ),
+        now=replace(clock, mono_ns=1100),
+        policy=POLICY,
+    )
+    assert observed.members == (healthy_instrument.instrument_id,)
+    assert observed.bid == D("99") and observed.ask == D("100")
+    assert observed.bid_instrument_id == healthy_instrument.instrument_id
+    assert observed.ask_instrument_id == healthy_instrument.instrument_id
+    assert observed.bid_asof == observed.ask_asof == healthy_book.asof
+    (exclusion,) = observed.exclusions
+    assert exclusion.instrument_id == instrument.instrument_id
+    assert ("stale" if state == "stale" else "lifecycle_disconnected") in (
+        exclusion.reasons
+    )
+
+
+def test_best_observed_keeps_btc_and_eth_in_separate_native_cohorts():
+    btc = fixture(base="BTC")
+    eth = fixture("b", base="ETH", bids=(("199", "1"),), asks=(("200", "1"),))
+    observed = best_observed(
+        tuple(
+            ComparisonEntry(book, instrument, FREE)
+            for instrument, book, _ in (btc, eth)
+        ),
+        now=btc[2],
+        policy=POLICY,
+    )
+    assert len(observed) == 2
+    cohorts = {item.base_asset_id: item for item in observed}
+    assert set(cohorts) == {"BTC", "ETH"}
+    for base, (instrument, book, _) in (("BTC", btc), ("ETH", eth)):
+        cohort = cohorts[base]
+        assert cohort.quote_asset_id == "USD" and cohort.market_type == "spot"
+        assert cohort.members == (instrument.instrument_id,)
+        assert cohort.bid == book.bids[0].price
+        assert cohort.ask == book.asks[0].price
+        assert (
+            cohort.bid_instrument_id
+            == cohort.ask_instrument_id
+            == (instrument.instrument_id)
+        )
+        assert not cohort.exclusions
+
+
+@pytest.mark.parametrize("max_skew", [0, 37, 50])
+@pytest.mark.parametrize("beyond_boundary", [False, True])
+def test_best_observed_accepts_exact_configured_skew_boundary(
+    max_skew, beyond_boundary
+):
+    healthy_instrument, healthy_book, now = fixture()
+    instrument, book, _ = fixture(
+        "b",
+        bids=(("99.50", "1"),),
+        asks=(("99.75", "1"),),
+        mono=100 - max_skew - int(beyond_boundary),
+    )
+    (observed,) = best_observed(
+        (
+            ComparisonEntry(healthy_book, healthy_instrument, FREE),
+            ComparisonEntry(book, instrument, FREE),
+        ),
+        now=now,
+        policy=replace(POLICY, max_asof_skew_ns=max_skew),
+    )
+    selected_instrument = healthy_instrument if beyond_boundary else instrument
+    selected_book = healthy_book if beyond_boundary else book
+    assert (
+        observed.bid_instrument_id
+        == observed.ask_instrument_id
+        == (selected_instrument.instrument_id)
+    )
+    assert observed.bid == selected_book.bids[0].price
+    assert observed.ask == selected_book.asks[0].price
+    if beyond_boundary:
+        assert observed.members == (healthy_instrument.instrument_id,)
+        (exclusion,) = observed.exclusions
+        assert exclusion.instrument_id == instrument.instrument_id
+        assert exclusion.reasons == ("asof_skew",)
+    else:
+        assert observed.members == (
+            healthy_instrument.instrument_id,
+            instrument.instrument_id,
+        )
+        assert not observed.exclusions
+
+
+@pytest.mark.parametrize("source_mode", ["rest_snapshot", "ws_delta"])
+def test_best_observed_accepts_valid_rest_and_continuous_heartbeat_evidence(
+    source_mode,
+):
+    instrument = synthetic_instrument()
+    key = SubscriptionKey.for_instrument(instrument)
+    reducer = BookReducer(
+        instrument,
+        key,
+        segment_id="synthetic-segment",
+        capabilities=Capabilities(
+            deltas=source_mode == "ws_delta",
+            exact_event_flow=source_mode == "ws_delta",
+        ),
+    )
+    snapshot = synthetic_envelope(
+        instrument,
+        BookUpdate(
+            "snapshot",
+            (
+                LevelChange("bid", D("99"), D("1")),
+                LevelChange("ask", D("100"), D("1")),
+            ),
+        ),
+        key=key,
+        mono_ns=1,
+        source_mode=source_mode,
+    )
+    book = reducer.apply((snapshot,)).book
+    assert book is not None
+    now = ClockReading(snapshot.clock_id, 1)
+    if source_mode == "rest_snapshot":
+        assert book.quality.lifecycle == "degraded"
+        assert book.quality.integrity == "valid"
+    else:
+        now = replace(now, mono_ns=POLICY.max_age_ns + 2)
+        (stale,) = best_observed(
+            (ComparisonEntry(book, instrument, FREE),), now=now, policy=POLICY
+        )
+        assert stale.bid is stale.ask is None
+        assert stale.exclusions[0].reasons == ("stale",)
+        heartbeat = synthetic_envelope(
+            instrument,
+            Control("heartbeat"),
+            key=key,
+            ordinal=2,
+            mono_ns=now.mono_ns,
+            source_mode=source_mode,
+        )
+        book = reducer.apply((heartbeat,)).book
+        assert book is not None and book.asof == snapshot.ref()
+        assert book.quality.last_book_observation_mono_ns == 1
+        assert book.quality.last_healthy_observation_mono_ns == now.mono_ns
+    (observed,) = best_observed(
+        (ComparisonEntry(book, instrument, FREE),), now=now, policy=POLICY
+    )
+    assert observed.members == (instrument.instrument_id,)
+    assert observed.bid == D("99") and observed.ask == D("100")
+    assert (
+        observed.bid_instrument_id
+        == observed.ask_instrument_id
+        == (instrument.instrument_id)
+    )
+    assert not observed.exclusions
 
 
 def test_spot_perpetual_and_quanto_are_not_executable_arbitrage_or_fx():

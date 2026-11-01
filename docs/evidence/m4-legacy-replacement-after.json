@@ -1,0 +1,13 @@
+{
+  "scenario": "actual Streamlit script preserves a working native session when a replacement loopback backend refuses connection",
+  "checks_passed": true,
+  "source_sha256": "7ba46607852584afd60b77ac56e5b1b4b4b538b3014fb5290d073fd0cd4b0488",
+  "original_session": "d14cd3da27b34f3d8eed1e4d9053816d",
+  "current_session": "d14cd3da27b34f3d8eed1e4d9053816d",
+  "same_client": true,
+  "original_session_http_status": 200,
+  "errors": [
+    "Backend unavailable at http://127.0.0.1:56114: timed out. Start `python -m src.workstation.cli serve`, then reconnect."
+  ],
+  "exceptions": []
+}

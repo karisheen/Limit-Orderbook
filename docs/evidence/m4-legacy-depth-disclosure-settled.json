@@ -1,0 +1,21 @@
+{
+  "scenario": "actual Streamlit real-capture frame omission disclosure",
+  "checks_passed": false,
+  "screenshots": [
+    "docs/evidence/m4-legacy-depth-disclosure-settled-failure.png"
+  ],
+  "errors": [
+    "Error: expect(locator).toBeVisible() failed\n\nLocator: getByText(/Frame presentation: first 100 levels per side;/)\nExpected: visible\nTimeout: 60000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 60000ms\n  - waiting for getByText(/Frame presentation: first 100 levels per side;/)\n\n    at Proxy.<anonymous> (/Users/dakariantoine/Developer/personal/limit-orderbook/frontend/node_modules/playwright/lib/matchers/expect.js:213:24)\n    at file:///Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/legacy_depth_disclosure.mjs:34:28"
+  ],
+  "source_hashes": {
+    "crypto_lob.py": "7ba46607852584afd60b77ac56e5b1b4b4b538b3014fb5290d073fd0cd4b0488",
+    "src/ui/components.py": "85c32b262206c518e0c8d21c3897d3564cfbdf2173563c2f737c2cab8d809a5b",
+    "src/ui/api_client.py": "692bd52dd707ae4a48b8d7730d5ddb58bdcffaf4429a0beb8cb728d47e3ca1af",
+    "src/workstation/runtime.py": "0485bad6d4e572b2c9d2ac70fd82e9287a9baaa2ed31a1197c6b6c37c44a0e20",
+    "src/workstation/analytics.py": "8d84eb15e1518c7f117fbe4e28289c48eacef1e35d54f1a1c09453d1e776b507"
+  },
+  "browser": "145.0.7632.6",
+  "selected_source": "4498db3b-f4a2-4fff-a32e-a97221fa21ee · replay · ready",
+  "failed_body": "Skip to main content\nkeyboard_double_arrow_left\nLocal backend\n\nLoopback API origin\n\nConnect / reconnect\n\nOpen full React terminal\n\nClose this document's API session\n\nEach Streamlit document owns its own API session. Closed/vanished documents are reaped after 60 idle seconds; reconnect after expiry.\n\nRefresh source catalog\n\nNative source\n\nSynthetic: False · Recorded source: True\n\nExact native instrument\n\nOpen / apply native selection\n\nBackend unavailable at http://127.0.0.1:8015: timed out. Start python -m src.workstation.cli serve, then reconnect.\n\nRun python -m src.workstation.cli serve in another terminal from the repository root. The default source is an offline synthetic scenario. For an operator-managed capture use --capture PATH; live public data requires explicit --network. Then use Connect / reconnect. This client never starts a collector.\n\nDeploy\nNative Order Book — Legacy Client\n\nObservation only · one shared native backend · no exchange execution or private credentials",
+  "browser_reaped": true
+}

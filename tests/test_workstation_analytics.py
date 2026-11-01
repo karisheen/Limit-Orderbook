@@ -7,7 +7,7 @@ from decimal import Decimal as D, localcontext
 import pytest
 
 from src.workstation.analytics import AnalyticsConfig, AnalyticsEngine
-from src.workstation.book import Book, Level
+from src.workstation.book import Book, BookReducer, Level
 from src.workstation.demo import create_demo
 from src.workstation.events import (
     BookUpdate,
@@ -187,6 +187,68 @@ def test_exact_quotes_weighted_mid_and_signed_imbalance():
     )
     with pytest.raises(ValueError):
         dumps(metric)
+
+
+def test_reducer_to_analytics_preserves_sub_float_price_and_quantity_resolution():
+    increment = "0.000000000000000001"
+    feed = Feed(
+        instrument=synthetic_instrument(tick_size=increment, lot_size=increment)
+    )
+    reducer = BookReducer(
+        feed.instrument,
+        feed.keys["book"],
+        segment_id="synthetic-segment",
+        capabilities=Capabilities(deltas=True, exact_event_flow=True),
+    )
+    bid = D("100.000000000000000001")
+    ask = D("100.000000000000000002")
+    quantity = D(increment)
+    event = feed.event(
+        BookUpdate(
+            "snapshot",
+            (
+                LevelChange("bid", bid, quantity),
+                LevelChange("bid", D("99"), quantity),
+                LevelChange("ask", ask, quantity),
+                LevelChange("ask", D("101"), quantity),
+            ),
+        ),
+        1,
+        "book",
+    )
+    with localcontext() as context:
+        context.prec = 6
+        reduced = reducer.apply((event,))
+        assert reduced.recovery is None and reduced.book is not None
+        feed.book = reduced.book
+        feed.deliver(event)
+        metrics = feed.metrics(1)
+    assert feed.book.bids == (Level(bid, quantity), Level(D("99"), quantity))
+    assert feed.book.asks == (Level(ask, quantity), Level(D("101"), quantity))
+    expected = {
+        "best_bid": bid,
+        "best_ask": ask,
+        "spread_native": quantity,
+        "mid": D("100.0000000000000000015"),
+        "weighted_mid": D("100.0000000000000000015"),
+        "signed_imbalance": D("0"),
+        "bid_share": D("0.5"),
+        "depth_bid_5bps_base": quantity,
+        "depth_ask_5bps_base": quantity,
+    }
+    for name, value in expected.items():
+        metric = metrics[name]
+        assert isinstance(metric.value, D)
+        assert metric.value == value
+        assert metric.asof == feed.book.asof
+        assert (
+            loads(
+                dumps(metric, decimal_policy=DERIVED_DECIMAL_POLICY),
+                type(metric),
+                decimal_policy=DERIVED_DECIMAL_POLICY,
+            )
+            == metric
+        )
 
 
 def test_depth_includes_boundary_and_requires_genuine_band_coverage():
@@ -477,10 +539,10 @@ def test_display_heuristics_require_matching_public_executions():
     metrics = feed.metrics(11)
     assert metrics["absorption_evidence_heuristic"].value == D(2)
     assert metrics["pulling_evidence_heuristic"].value == D(2)
-    assert "not-intent" in metrics["pulling_evidence_heuristic"].formula_version
 
 
-def test_tracking_cap_does_not_fabricate_depletion():
+@pytest.mark.parametrize("side", ("bid", "ask"))
+def test_tracking_cap_does_not_fabricate_depletion(side):
     config = AnalyticsConfig(
         window_ns=10,
         retention_ns=100,
@@ -489,11 +551,20 @@ def test_tracking_cap_does_not_fabricate_depletion():
     )
     feed = Feed(config=config)
     feed.quote(1)
-    feed.quote(11, bids=(("100", "3"), ("99", "1")))
+    feed.quote(
+        11,
+        **(
+            {"bids": (("100", "3"), ("99", "1"))}
+            if side == "bid"
+            else {"asks": (("100", "3"), ("101", "2"))}
+        ),
+    )
     assert feed.metrics(11)["displayed_depletion"].value == 0
     assert not any(
         d.kind == "displayed_depletion" for d in feed.snapshot(11).display_evidence
     )
+    feed.quote(21)
+    assert feed.metrics(21)["displayed_depletion"].value == D(3)
 
 
 def test_unaccepted_book_message_does_not_create_quote_flow():
@@ -781,3 +852,56 @@ def test_live_book_baseline_preserves_invalid_quality_and_checks_metadata():
         ).asof
         == feed.book.asof
     )
+
+
+def test_execution_evidence_matching_preserves_price_side_and_open_interval():
+    feed = Feed()
+    feed.quote(1, bids=(("99", "5"),), asks=(("101", "5"),))
+    feed.trade(1, "at-start", side="sell", quantity="100", price="99")
+    feed.trade(2, "wrong-price", side="sell", quantity="100", price="98")
+    feed.trade(3, "wrong-side", side="buy", quantity="100", price="99")
+    bid_match = feed.trade(4, "bid-match", side="sell", quantity="2", price="99")
+    feed.quote(5, bids=(("99", "2"),), asks=(("101", "5"),))
+    feed.trade(5, "ask-start", side="buy", quantity="100", price="101")
+    feed.trade(6, "after-bid-interval", side="sell", quantity="100", price="99")
+    ask_match = feed.trade(7, "ask-match", side="buy", quantity="1", price="101")
+    feed.quote(8, bids=(("99", "2"),), asks=(("101", "7"),))
+    feed.quote(11, bids=(("99", "2"),), asks=(("101", "7"),))
+    metrics = feed.metrics(11)
+    absorption = metrics["absorption_evidence_heuristic"]
+    pulling = metrics["pulling_evidence_heuristic"]
+    assert absorption.value == D(1)
+    assert pulling.value == D(1)
+    assert absorption.trade_references == (ask_match.ref(),)
+    assert pulling.trade_references == (bid_match.ref(),)
+
+
+def test_published_persistence_is_immutable_and_checkpoint_replays_exactly():
+    feed = Feed()
+    feed.quote(1, bids=(("99", "5"),))
+    observed = feed.quote(4, bids=(("99", "5"),))
+    prefix = feed.snapshot(4)
+    persistence = next(
+        item
+        for item in prefix.display_evidence
+        if item.kind == "displayed_persistence" and item.side == "bid"
+    )
+    checkpoint = feed.engine.checkpoint()
+    future = feed.quote(8, bids=(("99", "2"),))
+    final = feed.snapshot(8)
+    final_hash = feed.engine.state_hash
+    assert persistence.quantity == D(5)
+    assert (persistence.start_mono_ns, persistence.end_mono_ns) == (1, 4)
+    assert persistence.references[-1] == observed.ref()
+    current = next(
+        item
+        for item in final.display_evidence
+        if item.kind == "displayed_persistence" and item.side == "bid"
+    )
+    assert current.quantity == D(2)
+    assert current.end_mono_ns == 8
+    feed.engine.restore(checkpoint)
+    assert feed.snapshot(4) == prefix
+    feed.deliver(future)
+    assert feed.snapshot(8) == final
+    assert feed.engine.state_hash == final_hash

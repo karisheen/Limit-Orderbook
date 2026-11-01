@@ -10,7 +10,8 @@ from src.workstation.adapters.base import wrap_decoded
 from src.workstation.adapters.binance import BinanceGlobalAdapter, BinanceUSAdapter
 from src.workstation.adapters.bybit import BybitAdapter
 from src.workstation.adapters.kucoin import KuCoinAdapter
-from src.workstation.events import RawFrame, SegmentId, SubscriptionKey, Trade
+from src.workstation.events import Control, RawFrame, SegmentId, SubscriptionKey, Trade
+from src.workstation.ingestion import make_snapshot_reducer
 from src.workstation.quality import ClockReading, EligibilityPolicy, evaluate_cohort
 
 
@@ -423,6 +424,110 @@ def test_global_epoch_reset_and_buffer_overflow():
     )
 
 
+@pytest.mark.parametrize(
+    "factory,endpoint",
+    [
+        (
+            BinanceUSAdapter,
+            "https://api.binance.us/api/v3/depth?symbol=BTCUSDT&limit=20",
+        ),
+        (
+            BybitAdapter,
+            "https://api.bybit.com/v5/market/orderbook?category=spot&symbol=BTCUSDT&limit=50",
+        ),
+    ],
+)
+def test_native_rest_snapshot_request_decode_and_replacement(factory, endpoint):
+    adapter = factory()
+    instrument, key = setup(adapter)
+    request = adapter.snapshot_request(instrument, key)
+    assert request.method == "GET"
+    assert request.endpoint_id == endpoint
+    reducer = make_snapshot_reducer(adapter, instrument, key, poll_interval=2)
+    for ordinal, bids, asks in (
+        (1, [["99.00", "1.234"], ["98.00", "2.000"]], [["101.00", "3.456"]]),
+        (2, [["97.00", "4.567"]], [["103.00", "5.678"]]),
+    ):
+        update_id = 9007199254740992 + ordinal
+        cross_sequence = update_id + 100
+        if isinstance(adapter, BinanceUSAdapter):
+            payload = snapshot(update_id, bids=bids, asks=asks)
+        else:
+            payload = {
+                "retCode": 0,
+                "result": bybook(update_id, cross_sequence, bids=bids, asks=asks)[
+                    "data"
+                ],
+            }
+        raw = frame(adapter, instrument, key, payload, ordinal, rest=True)
+        decoded = adapter.decode(raw, instrument, key)
+        assert decoded.error is None and not decoded.controls
+        assert len(decoded.events) == 1
+        event = decoded.events[0]
+        assert event.payload.kind == "snapshot"
+        assert event.payload.subscribed_depth == key.depth
+        assert event.sequence.last == str(update_id)
+        assert event.sequence.first == (
+            str(cross_sequence) if isinstance(adapter, BybitAdapter) else None
+        )
+        assert event.sequence.scope == (
+            "orderbook.50.BTCUSDT"
+            if isinstance(adapter, BybitAdapter)
+            else f"{instrument.instrument_id}:depth"
+        )
+        envelopes = wrap_decoded(
+            raw, instrument, key, decoded, SegmentId("initial"), "rest_snapshot"
+        )
+        result = reducer.apply(envelopes)
+        assert result.recovery is None and result.changed
+        book = result.book
+        assert book.instrument_id == instrument.instrument_id
+        assert book.key == key
+        assert [(level.price, level.quantity) for level in book.bids] == [
+            (Decimal(price), Decimal(quantity)) for price, quantity in bids
+        ]
+        assert [(level.price, level.quantity) for level in book.asks] == [
+            (Decimal(price), Decimal(quantity)) for price, quantity in asks
+        ]
+        assert reducer.sequence == event.sequence
+        quality = book.quality
+        assert quality.integrity == "valid" and quality.lifecycle == "degraded"
+        assert quality.source_mode == "rest_snapshot"
+        assert quality.coverage.subscribed_depth == key.depth
+        assert quality.coverage.retained_bid_levels == len(bids)
+        assert quality.coverage.retained_ask_levels == len(asks)
+        assert quality.coverage.expected_cadence_ns == 2_000_000_000
+        assert not quality.coverage.full_depth
+        assert not quality.capabilities.deltas
+        assert not quality.capabilities.exact_event_flow
+        # Native IDs are retained as evidence, not advertised as REST continuity.
+        assert quality.capabilities.sequence_scope is None
+
+
+@pytest.mark.parametrize("factory", [BinanceGlobalAdapter, BinanceUSAdapter])
+def test_binance_native_ack_cannot_publish_book(factory):
+    adapter = factory()
+    instrument, key = setup(adapter)
+    reducer = adapter.new_reducer(instrument, key)
+    raw = frame(adapter, instrument, key, {"result": None, "id": 1})
+    decoded = adapter.decode(raw, instrument, key)
+    assert decoded.error is None and not decoded.events
+    assert decoded.controls == (Control("ack"),)
+    envelopes = wrap_decoded(
+        raw,
+        instrument,
+        key,
+        decoded,
+        SegmentId("initial"),
+        "ws_snapshot" if isinstance(adapter, BinanceUSAdapter) else "ws_delta",
+    )
+    result = reducer.apply(envelopes)
+    assert result.recovery is None and not result.changed
+    assert result.book is None and reducer.book is None
+    assert not reducer.initialized and not reducer.synchronized
+    assert reducer.sequence is None
+
+
 def test_us_partial_snapshots_replace_instead_of_merge():
     adapter = BinanceUSAdapter()
     instrument, key = setup(adapter)
@@ -517,6 +622,30 @@ def test_bybit_delta_without_snapshot_and_exact_topic():
         ).error
 
 
+@pytest.mark.parametrize(
+    "topic,symbol,reason",
+    [
+        ("orderbook.50.BTCUSDT.extra", "BTCUSDT", "wrong_topic"),
+        ("orderbook.50.ETHUSDT", "BTCUSDT", "wrong_topic"),
+        ("orderbook.1.BTCUSDT", "BTCUSDT", "wrong_topic"),
+        ("orderbook.50.BTCUSDT", "ETHUSDT", "wrong_symbol"),
+        ("orderbook.50.BTCUSDT", "BTCUSDT.extra", "wrong_symbol"),
+    ],
+)
+def test_bybit_topic_and_payload_identity_must_match_exactly(topic, symbol, reason):
+    adapter = BybitAdapter()
+    instrument, key = setup(adapter)
+    payload = bybook()
+    payload["topic"] = topic
+    payload["data"]["s"] = symbol
+    raw = frame(adapter, instrument, key, payload)
+    decoded = adapter.decode(raw, instrument, key)
+    assert decoded.error is not None
+    assert reason in decoded.error.detail
+    assert not decoded.events and not decoded.controls
+    assert decoded.error.raw_hash == raw.payload_sha256
+
+
 def test_bybit_level1_snapshot_only_and_depth_bound():
     adapter = BybitAdapter()
     instrument, key = setup(adapter)
@@ -560,6 +689,25 @@ def test_kucoin_no_invented_ws_or_continuity():
     result = reducer.apply(events(adapter, instrument, key, payload, 2, rest=True))
     assert result.book.bids[0].price == Decimal("98")
     assert result.recovery is None
+
+
+def test_kucoin_valid_shape_malformed_sequence_emits_no_events():
+    adapter = KuCoinAdapter()
+    instrument, key = setup(adapter)
+    payload = {
+        "code": "200000",
+        "data": {
+            "sequence": "bad",
+            "time": 1234567890123,
+            "bids": [["99", "1"]],
+            "asks": [["101", "1"]],
+        },
+    }
+    raw = frame(adapter, instrument, key, payload, rest=True)
+    decoded = adapter.decode(raw, instrument, key)
+    assert decoded.error is not None
+    assert not decoded.events and not decoded.controls
+    assert decoded.error.raw_hash == raw.payload_sha256
 
 
 @pytest.mark.parametrize(

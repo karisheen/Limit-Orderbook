@@ -122,6 +122,75 @@ class CostRequest(SessionAction):
         return self
 
 
+class VisualizationRequest(SessionAction):
+    start_ns: str | None = Field(default=None, max_length=24, pattern=r"^[0-9]+$")
+    end_ns: str | None = Field(default=None, max_length=24, pattern=r"^[0-9]+$")
+    price_step: str | None = Field(default=None, max_length=128)
+    price_offset_rows: int = Field(default=0, ge=-100000, le=100000)
+    recenter: bool = False
+    bucket_ns: Literal["1000000000", "5000000000", "10000000000"] | None = None
+    rows: int = Field(default=128, ge=32, le=256)
+    max_columns: int = Field(default=180, ge=1, le=600)
+    after_column: str | None = Field(default=None, min_length=1, max_length=128)
+
+    @field_validator("price_step")
+    @classmethod
+    def valid_step(cls, value):
+        if value is not None:
+            decimal(value, positive=True)
+        return value
+
+
+class LadderRequest(SessionAction):
+    price_step: str | None = Field(default=None, max_length=128)
+    rows: int = Field(default=20, ge=1, le=100)
+
+    @field_validator("price_step")
+    @classmethod
+    def valid_step(cls, value):
+        if value is not None:
+            decimal(value, positive=True)
+        return value
+
+
+class ProposalRiskRequest(SessionAction):
+    side: Literal["buy", "sell"]
+    entry_price: str = Field(max_length=128)
+    stop_price: str = Field(max_length=128)
+    base_quantity: str | None = Field(default=None, max_length=128)
+    risk_budget: str | None = Field(default=None, max_length=128)
+    fee_bps: str | None = Field(default=None, max_length=128)
+    fee_provenance: str | None = Field(default=None, min_length=1, max_length=256)
+    fee_date: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}-\d{2}$")
+
+    @model_validator(mode="after")
+    def validate_proposal(self):
+        if (self.base_quantity is None) == (self.risk_budget is None):
+            raise ValueError("exactly one base quantity or risk budget is required")
+        for name in ("entry_price", "stop_price", "base_quantity", "risk_budget"):
+            value = getattr(self, name)
+            if value is not None:
+                decimal(value, positive=True)
+        fee_fields = (self.fee_bps, self.fee_provenance, self.fee_date)
+        if any(value is not None for value in fee_fields) and not all(
+            value is not None for value in fee_fields
+        ):
+            raise ValueError("fee rate, provenance and date must be supplied together")
+        if self.fee_bps is not None:
+            if not 0 <= decimal(self.fee_bps) < 10000:
+                raise ValueError("fee bps must be nonnegative and below 10000")
+            from datetime import date
+
+            assert self.fee_date is not None
+            date.fromisoformat(self.fee_date)
+        return self
+
+
+class VisualAck(SessionAction):
+    view_id: str = Field(min_length=1, max_length=64, pattern=r"^[a-f0-9]+$")
+    browser_receive_to_paint_ms: float = Field(ge=0, le=60000, allow_inf_nan=False)
+
+
 class RenderAck(StrictInput):
     type: Literal["ack"]
     frame_id: str = Field(max_length=24, pattern=r"^[0-9]+$")
@@ -333,6 +402,38 @@ def create_app(
         async with session.activity(), session.lock:
             session.check(request.generation)
             return await session.work(session._costs, request)
+
+    @app.post("/api/v1/visualization")
+    async def visualization(request: VisualizationRequest):
+        session = runtime.get(request.session_id)
+        session.check(request.generation)
+        async with session.activity(), session.actions, session.lock:
+            session.check(request.generation)
+            return await session.work(session._visualization, request)
+
+    @app.post("/api/v1/ladder")
+    async def ladder(request: LadderRequest):
+        session = runtime.get(request.session_id)
+        session.check(request.generation)
+        async with session.activity(), session.actions, session.lock:
+            session.check(request.generation)
+            return await session.work(session._ladder, request)
+
+    @app.post("/api/v1/proposal-risk")
+    async def proposal(request: ProposalRiskRequest):
+        session = runtime.get(request.session_id)
+        session.check(request.generation)
+        async with session.activity(), session.actions, session.lock:
+            session.check(request.generation)
+            return await session.work(session._proposal_risk, request)
+
+    @app.post("/api/v1/visualization/ack")
+    async def visual_ack(request: VisualAck):
+        session = runtime.get(request.session_id)
+        session.check(request.generation)
+        async with session.activity(), session.actions, session.lock:
+            session.check(request.generation)
+            return await session.work(session._visual_ack, request)
 
     @app.websocket("/api/v1/stream")
     async def stream(websocket: WebSocket, session_id: str = Query(max_length=64)):

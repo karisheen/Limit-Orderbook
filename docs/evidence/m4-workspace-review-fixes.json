@@ -1,0 +1,89 @@
+{
+  "before": {
+    "observation_ms": 3200,
+    "collapsed": {
+      "visualization": 2,
+      "ladder": 3
+    },
+    "hidden": {
+      "visualization": 3,
+      "ladder": 4
+    },
+    "hidden_method": "Explicit document.visibilityState visibilitychange fault injection; actual backend requests",
+    "linked": {
+      "start": "0",
+      "end": "81000013000",
+      "readout": "Linked cursor · source monotonic ns 81000013000 · exact price 60001 Keyboard shortcuts: / Space R D 1–6",
+      "tooltip": "81000013000 nsPrice cell 60001Resting B 0 · A 0 BTCBook sample eligible · 362db431c9ac0ed57aa218b6b7709a24"
+    }
+  },
+  "layoutBefore": {
+    "root": {
+      "top": 249,
+      "bottom": 471,
+      "height": 222
+    },
+    "summary": null,
+    "quality": {
+      "top": 512.390625,
+      "bottom": 525.390625,
+      "height": 13
+    },
+    "overflow_y": "hidden",
+    "client_height": 222,
+    "scroll_height": 298
+  },
+  "after": {
+    "linked": "Linked cursor · source monotonic ns 81000000000 · exact price 60001 Keyboard shortcuts: / Space R D 1–6",
+    "range": {
+      "testid": "market-charts",
+      "mode": "heatmap",
+      "viewId": "ea1ca56ea5ef48949b074450099a7faf",
+      "paintedViewId": "ea1ca56ea5ef48949b074450099a7faf",
+      "startNs": "0",
+      "endNs": "81000013000",
+      "priceMin": "59936",
+      "priceStep": "1",
+      "drawMs": "0.800",
+      "tileCount": "80",
+      "tileAllocations": "161",
+      "dirtyColumns": "0",
+      "overlayPoints": "79",
+      "pixelWidth": "902",
+      "pixelHeight": "225",
+      "receiveToPaintMs": "40.000"
+    },
+    "layoutBefore": {
+      "height": 222,
+      "scrollHeight": 336,
+      "scrollTop": 0,
+      "overflowY": "auto"
+    },
+    "layoutAfter": {
+      "scrollTop": 114,
+      "root": {
+        "x": 233,
+        "y": 249,
+        "width": 722,
+        "height": 222,
+        "top": 249,
+        "right": 955,
+        "bottom": 471,
+        "left": 233
+      },
+      "quality": {
+        "x": 233,
+        "y": 398.390625,
+        "width": 722,
+        "height": 13,
+        "top": 398.390625,
+        "right": 955,
+        "bottom": 411.390625,
+        "left": 233
+      },
+      "horizontalOverflow": false
+    },
+    "exactReadoutAccessible": true
+  },
+  "scope": "Actual loopback demo at1280x800. Hidden visibility is explicit DOM fault injection, not a natural OS background-tab claim."
+}

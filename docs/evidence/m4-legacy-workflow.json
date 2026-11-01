@@ -1,0 +1,327 @@
+{
+  "scenario": "actual_streamlit_shared_native_api_two_documents",
+  "browser": "145.0.7632.6",
+  "steps": [
+    {
+      "action": "open_exact_native_demo",
+      "state": {
+        "session": [
+          "027f9352c8064d5ca1d3726473bd770a",
+          "1"
+        ],
+        "delivery": "115",
+        "status": "paused",
+        "instrument": "binance-global \u00b7 spot-v3 \u00b7 BTCUSDT \u00b7 spot \u00b7 binance-global:spot-v3:spot:BTCUSDT",
+        "exceptions": []
+      }
+    },
+    {
+      "action": "shared_costs_unknown_fees_visible"
+    },
+    {
+      "action": "seek_clears_prior_generation_comparison",
+      "state": {
+        "session": [
+          "027f9352c8064d5ca1d3726473bd770a",
+          "2"
+        ],
+        "delivery": "2000",
+        "status": "paused",
+        "instrument": "binance-global \u00b7 spot-v3 \u00b7 BTCUSDT \u00b7 spot \u00b7 binance-global:spot-v3:spot:BTCUSDT",
+        "exceptions": []
+      }
+    },
+    {
+      "action": "play_pause_single_step",
+      "paused": {
+        "session": [
+          "027f9352c8064d5ca1d3726473bd770a",
+          "2"
+        ],
+        "delivery": "2010",
+        "status": "paused",
+        "instrument": "binance-global \u00b7 spot-v3 \u00b7 BTCUSDT \u00b7 spot \u00b7 binance-global:spot-v3:spot:BTCUSDT",
+        "exceptions": []
+      },
+      "stepped": {
+        "session": [
+          "027f9352c8064d5ca1d3726473bd770a",
+          "2"
+        ],
+        "delivery": "2011",
+        "status": "paused",
+        "instrument": "binance-global \u00b7 spot-v3 \u00b7 BTCUSDT \u00b7 spot \u00b7 binance-global:spot-v3:spot:BTCUSDT",
+        "exceptions": []
+      }
+    },
+    {
+      "action": "explicit_quantum_pan_recenter",
+      "offset": "0"
+    },
+    {
+      "action": "explicit_source_dated_fee_assumption",
+      "fee_bps": "10",
+      "fee_date": "2025-01-01"
+    },
+    {
+      "action": "independent_document_step_and_close",
+      "first": {
+        "session": [
+          "027f9352c8064d5ca1d3726473bd770a",
+          "2"
+        ],
+        "delivery": "2011",
+        "status": "paused",
+        "instrument": "binance-global \u00b7 spot-v3 \u00b7 BTCUSDT \u00b7 spot \u00b7 binance-global:spot-v3:spot:BTCUSDT",
+        "exceptions": []
+      },
+      "second": {
+        "session": [
+          "ca0a781171074527a7187caa308a46ef",
+          "1"
+        ],
+        "delivery": "115",
+        "status": "paused",
+        "instrument": "binance-global \u00b7 spot-v3 \u00b7 ETHUSDT \u00b7 spot \u00b7 binance-global:spot-v3:spot:ETHUSDT",
+        "exceptions": []
+      }
+    },
+    {
+      "action": "laptop_layouts",
+      "viewports": [
+        "1440x900",
+        "1280x800"
+      ],
+      "horizontal_overflow": false
+    },
+    {
+      "action": "explicit_replay_speed",
+      "speed": "2"
+    },
+    {
+      "action": "reset_clears_cursor",
+      "state": {
+        "session": [
+          "027f9352c8064d5ca1d3726473bd770a",
+          "3"
+        ],
+        "delivery": "0",
+        "status": "paused",
+        "instrument": "binance-global \u00b7 spot-v3 \u00b7 BTCUSDT \u00b7 spot \u00b7 binance-global:spot-v3:spot:BTCUSDT",
+        "exceptions": []
+      }
+    },
+    {
+      "action": "generation_and_reconnect_reset_replay_parameters",
+      "state": {
+        "session": [
+          "e880ab7c96e24b8588f45321ef8458a2",
+          "1"
+        ],
+        "delivery": "115",
+        "status": "paused",
+        "instrument": "binance-global \u00b7 spot-v3 \u00b7 BTCUSDT \u00b7 spot \u00b7 binance-global:spot-v3:spot:BTCUSDT",
+        "exceptions": []
+      }
+    },
+    {
+      "action": "explicit_owner_close"
+    }
+  ],
+  "screenshots": [
+    "docs/evidence/m4-legacy-callbacks-1440.png",
+    "docs/evidence/m4-legacy-callbacks-1280.png"
+  ],
+  "checks_passed": true,
+  "browser_reaped": true,
+  "command": ".tools/node/bin/node data/m4-smoke/legacy_workflow.mjs data/m4-smoke/legacy-workflow-11-callbacks.json",
+  "source_sha256": {
+    "crypto_lob.py": "ac102af353df92d816ea7c4aa0ada5b416bd381f626f512dde627c4ca3bdca6d",
+    "src/ui/api_client.py": "692bd52dd707ae4a48b8d7730d5ddb58bdcffaf4429a0beb8cb728d47e3ca1af",
+    "src/ui/components.py": "0e69548276164e25144be71291e654a320f079ab14cc798034a98eed34f02796",
+    "data/m4-smoke/legacy_workflow.mjs": "79cdd3519974fb3ba6dc7731e0fbbc04e3fd252661c3be920eddd5cf6487e17e"
+  },
+  "earlier_attempts": [
+    {
+      "path": "data/m4-smoke/legacy-workflow-01.json",
+      "sha256": "b1a06b5ab42c2351a4451fc87e00a6e8a27a9936ea8e0659c5573e144c97582f",
+      "checks_passed": false,
+      "completed_actions": [
+        "open_exact_native_demo",
+        "shared_costs_unknown_fees_visible"
+      ],
+      "error": "Error: expect(locator).toHaveCount(expected) failed\n\nLocator:  getByText('Native size-cost estimate and directed comparison', { exact: true })\nExpected: 0\nReceived: 1\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.have.count\" with timeout 5000ms\n  - waiting for getByText('Native size-cost estimate and directed comparison', { exact: true })\n    2 \u00d7 locator resolved to 1 element\n      - unexpected value \"1\"\n\n    at Proxy.<anonymous> (/Users/dakariantoine/Developer/personal/limit-orderbook/frontend/node_modules/playwright/lib/matchers/expect.js:213:24)\n    at file:///Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/legacy_workflow.mjs:33:97"
+    },
+    {
+      "path": "data/m4-smoke/legacy-workflow-02.json",
+      "sha256": "dbf2dcf5acfab2148cd841e74efffd9f1693b3a04f4e5b9c1d16604073872e9a",
+      "checks_passed": false,
+      "completed_actions": [
+        "open_exact_native_demo"
+      ],
+      "error": "Error: expect(locator).toBeVisible() failed\n\nLocator: getByText('Estimate: unknown_fees', { exact: true })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for getByText('Estimate: unknown_fees', { exact: true })\n\n    at Proxy.<anonymous> (/Users/dakariantoine/Developer/personal/limit-orderbook/frontend/node_modules/playwright/lib/matchers/expect.js:213:24)\n    at file:///Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/legacy_workflow.mjs:27:70"
+    },
+    {
+      "path": "data/m4-smoke/legacy-workflow-03.json",
+      "sha256": "dc94c2f1becc0e8c2d75badb421a059b46e62400d07caa4d5cd35cdf0717eb62",
+      "checks_passed": false,
+      "completed_actions": [
+        "open_exact_native_demo",
+        "shared_costs_unknown_fees_visible"
+      ],
+      "error": "Error: expect(locator).toHaveCount(expected) failed\n\nLocator:  getByText('Native size-cost estimate and directed comparison', { exact: true })\nExpected: 0\nReceived: 1\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.have.count\" with timeout 5000ms\n  - waiting for getByText('Native size-cost estimate and directed comparison', { exact: true })\n    2 \u00d7 locator resolved to 1 element\n      - unexpected value \"1\"\n\n    at Proxy.<anonymous> (/Users/dakariantoine/Developer/personal/limit-orderbook/frontend/node_modules/playwright/lib/matchers/expect.js:213:24)\n    at file:///Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/legacy_workflow.mjs:33:97"
+    },
+    {
+      "path": "data/m4-smoke/legacy-workflow-04.json",
+      "sha256": "beaa269c828342ed3ac361f9a2945c7a8b6af142163b339182f5ba0c39bc2336",
+      "checks_passed": false,
+      "completed_actions": [
+        "open_exact_native_demo",
+        "shared_costs_unknown_fees_visible"
+      ],
+      "error": "Error: expect(locator).toHaveCount(expected) failed\n\nLocator:  getByText('Native size-cost estimate and directed comparison', { exact: true })\nExpected: 0\nReceived: 1\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.have.count\" with timeout 5000ms\n  - waiting for getByText('Native size-cost estimate and directed comparison', { exact: true })\n    2 \u00d7 locator resolved to 1 element\n      - unexpected value \"1\"\n\n    at Proxy.<anonymous> (/Users/dakariantoine/Developer/personal/limit-orderbook/frontend/node_modules/playwright/lib/matchers/expect.js:213:24)\n    at file:///Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/legacy_workflow.mjs:33:97"
+    },
+    {
+      "path": "data/m4-smoke/legacy-workflow-05.json",
+      "sha256": "b9fb1ee5c26bd72149d13e395eef29e0d4b6a89fd9893d7ff859a13229eb4227",
+      "checks_passed": false,
+      "completed_actions": [
+        "open_exact_native_demo",
+        "shared_costs_unknown_fees_visible"
+      ],
+      "error": "Error: expect(locator).toHaveCount(expected) failed\n\nLocator:  getByRole('button', { name: 'Stop', exact: true })\nExpected: 0\nReceived: 1\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.have.count\" with timeout 5000ms\n  - waiting for getByRole('button', { name: 'Stop', exact: true })\n    2 \u00d7 locator resolved to 1 element\n      - unexpected value \"1\"\n\n    at Proxy.<anonymous> (/Users/dakariantoine/Developer/personal/limit-orderbook/frontend/node_modules/playwright/lib/matchers/expect.js:213:24)\n    at rendered (file:///Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/legacy_workflow.mjs:15:174)\n    at async file:///Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/legacy_workflow.mjs:34:2"
+    },
+    {
+      "path": "data/m4-smoke/legacy-workflow-06.json",
+      "sha256": "2218432d14489557d9735170871682f86d30738e7eb0ea4ef8871610fc028cd3",
+      "checks_passed": false,
+      "completed_actions": [
+        "open_exact_native_demo",
+        "shared_costs_unknown_fees_visible",
+        "seek_clears_prior_generation_comparison",
+        "play_pause_single_step",
+        "explicit_quantum_pan_recenter"
+      ],
+      "error": "locator.check: Timeout 15000ms exceeded.\nCall log:\n  - waiting for getByRole('checkbox', { name: 'Use an explicit assumed fee for both comparison legs', exact: true })\n    - locator resolved to <input title=\"\" tabindex=\"0\" type=\"checkbox\" data-react-aria-pressable=\"true\" aria-label=\"Use an explicit assumed fee for both comparison legs\"/>\n  - attempting click action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <label data-rac=\"\" data-react-aria-pressable=\"true\" class=\"st-emotion-cache-7tv5ne e1ap2qgk4\">\u2026</label> intercepts pointer events\n  - retrying click action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <div overflow=\"visible\" data-testid=\"stForm\" class=\"stForm st-emotion-cache-1bcyifm evzffe01\">\u2026</div> intercepts pointer events\n  - retrying click action\n    - waiting 20ms\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <label data-rac=\"\" data-react-aria-pressable=\"true\" class=\"st-emotion-cache-7tv5ne e1ap2qgk4\">\u2026</label> intercepts pointer events\n  2 \u00d7 retrying click action\n      - waiting 100ms\n      - waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div data-testid=\"stToolbar\" class=\"stAppToolbar st-emotion-cache-14vh5up e149qiiz2\">\u2026</div> from <header data-testid=\"stHeader\" class=\"stAppHeader st-emotion-cache-n9s8az e149qiiz1\">\u2026</header> subtree intercepts pointer events\n  6 \u00d7 retrying click action\n      - waiting 500ms\n      - waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div overflow=\"visible\" data-testid=\"stForm\" class=\"stForm st-emotion-cache-1bcyifm evzffe01\">\u2026</div> intercepts pointer events\n    - retrying click action\n      - waiting 500ms\n      - waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <label data-rac=\"\" data-react-aria-pressable=\"true\" class=\"st-emotion-cache-7tv5ne e1ap2qgk4\">\u2026</label> intercepts pointer events\n    - retrying click action\n      - waiting 500ms\n      - waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div data-testid=\"stToolbar\" class=\"stAppToolbar st-emotion-cache-14vh5up e149qiiz2\">\u2026</div> from <header data-testid=\"stHeader\" class=\"stAppHeader st-emotion-cache-n9s8az e149qiiz1\">\u2026</header> subtree intercepts pointer events\n    - retrying click action\n      - waiting 500ms\n      - waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div data-testid=\"stToolbar\" class=\"stAppToolbar st-emotion-cache-14vh5up e149qiiz2\">\u2026</div> from <header data-testid=\"stHeader\" class=\"stAppHeader st-emotion-cache-n9s8az e149qiiz1\">\u2026</header> subtree intercepts pointer events\n  - retrying click action\n    - waiting 500ms\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <div overflow=\"visible\" data-testid=\"stForm\" class=\"stForm st-emotion-cache-1bcyifm evzffe01\">\u2026</div> intercepts pointer events\n  - retrying click action\n    - waiting 500ms\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <label data-rac=\"\" data-react-aria-pressable=\"true\" class=\"st-emotion-cache-7tv5ne e1ap2qgk4\">\u2026</label> intercepts pointer events\n  - retrying click action\n    - waiting 500ms\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <div data-testid=\"stToolbar\" class=\"stAppToolbar st-emotion-cache-14vh5up e149qiiz2\">\u2026</div> from <header data-testid=\"stHeader\" class=\"stAppHeader st-emotion-cache-n9s8az e149qiiz1\">\u2026</header> subtree intercepts pointer events\n  - retrying click action\n    - waiting 500ms\n\n    at /Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/legacy_workflow.mjs:55:108"
+    },
+    {
+      "path": "data/m4-smoke/legacy-workflow-07.json",
+      "sha256": "54de4d3ff93b7dff5c2eb7fd090a4b45bef3c9184e9dfdbaf65b184f5be5ea42",
+      "checks_passed": true,
+      "completed_actions": [
+        "open_exact_native_demo",
+        "shared_costs_unknown_fees_visible",
+        "seek_clears_prior_generation_comparison",
+        "play_pause_single_step",
+        "explicit_quantum_pan_recenter",
+        "explicit_source_dated_fee_assumption",
+        "independent_document_step_and_close",
+        "laptop_layouts",
+        "reset_clears_cursor",
+        "explicit_owner_close"
+      ],
+      "error": null
+    },
+    {
+      "path": "data/m4-smoke/legacy-workflow-08-before-keys.json",
+      "sha256": "4b3aa15b57b2d7ec5467187d50e2f38d7b79ac01d45fcd4c1402cda7d543a34c",
+      "checks_passed": false,
+      "completed_actions": [],
+      "error": "Error: expect(locator).toBeVisible() failed\n\nLocator: getByText('Native metrics and public tape', { exact: true })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for getByText('Native metrics and public tape', { exact: true })\n\n    at Proxy.<anonymous> (/Users/dakariantoine/Developer/personal/limit-orderbook/frontend/node_modules/playwright/lib/matchers/expect.js:213:24)\n    at rendered (file:///Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/legacy_workflow.mjs:15:99)\n    at file:///Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/legacy_workflow.mjs:22:8"
+    },
+    {
+      "path": "data/m4-smoke/legacy-workflow-09-before-keys.json",
+      "sha256": "288581a5de73b8f4b81b3ac118db43dcd548beb2e23081118ea34c82c8094197",
+      "checks_passed": false,
+      "completed_actions": [
+        "open_exact_native_demo",
+        "shared_costs_unknown_fees_visible",
+        "seek_clears_prior_generation_comparison",
+        "play_pause_single_step",
+        "explicit_quantum_pan_recenter",
+        "explicit_source_dated_fee_assumption",
+        "independent_document_step_and_close",
+        "laptop_layouts"
+      ],
+      "error": "locator.click: Timeout 15000ms exceeded.\nCall log:\n  - waiting for getByRole('option', { name: 'speed', exact: true })\n\n    at /Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/legacy_workflow.mjs:81:59"
+    },
+    {
+      "path": "data/m4-smoke/legacy-workflow-10-final.json",
+      "sha256": "4436bc68701a573cfa29ff6bc850b3ce0e26cad06c9fde18b6fb5fb2e6baaa21",
+      "checks_passed": false,
+      "completed_actions": [
+        "open_exact_native_demo"
+      ],
+      "error": "Error: expect(locator).toBeVisible() failed\n\nLocator: getByText('Estimate: unknown_fees', { exact: true })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for getByText('Estimate: unknown_fees', { exact: true })\n\n    at Proxy.<anonymous> (/Users/dakariantoine/Developer/personal/limit-orderbook/frontend/node_modules/playwright/lib/matchers/expect.js:213:24)\n    at file:///Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/legacy_workflow.mjs:27:70"
+    }
+  ],
+  "replay_parameter_boundary": {
+    "before": {
+      "scenario": "actual_legacy_generation_and_reconnect_parameters",
+      "checks_passed": false,
+      "steps": [
+        {
+          "action": "seek_generation",
+          "state": {
+            "identity": [
+              "8da3b14a596f452eb6f8be5083b3f896",
+              "2"
+            ],
+            "delivery": "115"
+          },
+          "step_count": "999"
+        }
+      ],
+      "error": "Error: expect(locator).toHaveValue(expected) failed\n\nLocator:  getByRole('spinbutton', { name: 'Deliveries to step', exact: true })\nExpected: \"10\"\nReceived: \"999\"\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.have.value\" with timeout 5000ms\n  - waiting for getByRole('spinbutton', { name: 'Deliveries to step', exact: true })\n    9 \u00d7 locator resolved to <input min=\"1\" step=\"1\" id=\":r66:\" max=\"1000\" data-rac=\"\" value=\"999\" tabindex=\"0\" type=\"number\" placeholder=\"\" aria-label=\"Deliveries to step\" data-testid=\"stNumberInputField\" class=\"st-emotion-cache-wgvg94 e1gm8nhx3\"/>\n      - unexpected value \"999\"\n\n    at Proxy.<anonymous> (/Users/dakariantoine/Developer/personal/limit-orderbook/frontend/node_modules/playwright/lib/matchers/expect.js:213:24)\n    at file:///Users/dakariantoine/Developer/personal/limit-orderbook/data/m4-smoke/legacy_replay_boundaries.mjs:18:22",
+      "state": {
+        "identity": [
+          "8da3b14a596f452eb6f8be5083b3f896",
+          "2"
+        ],
+        "delivery": "115"
+      },
+      "browser_reaped": true
+    },
+    "after": {
+      "scenario": "actual_legacy_generation_and_reconnect_parameters",
+      "checks_passed": true,
+      "steps": [
+        {
+          "action": "seek_generation",
+          "state": {
+            "identity": [
+              "eb3f63d026e24ae59a9b6078b3232233",
+              "2"
+            ],
+            "delivery": "115"
+          },
+          "step_count": "10"
+        },
+        {
+          "action": "reset_generation",
+          "state": {
+            "identity": [
+              "eb3f63d026e24ae59a9b6078b3232233",
+              "3"
+            ],
+            "delivery": "0"
+          },
+          "step_count": "10"
+        },
+        {
+          "action": "reconnect_identity",
+          "state": {
+            "identity": [
+              "2bab109b64624b059006d0bd75c70ded",
+              "1"
+            ],
+            "delivery": "115"
+          },
+          "step_count": "10"
+        }
+      ],
+      "browser_reaped": true
+    }
+  },
+  "visual_review": "Both laptop widths inspected: exact categorical native prices, visible partial/truncated history reasons, no horizontal overflow. This is the supported legacy observation surface, not the React terminal render-budget measurement."
+}

@@ -301,6 +301,59 @@ class AnalyticsCheckpoint:
             raise ValueError("duplicate analytics checkpoint streams")
 
 
+class _StandingEvidence:
+    """Owner-only evolving evidence; public snapshots/checkpoints remain immutable."""
+
+    __slots__ = (
+        "side",
+        "price",
+        "quantity",
+        "start_mono_ns",
+        "end_mono_ns",
+        "references",
+    )
+
+    def __init__(
+        self,
+        side: str,
+        price: Decimal,
+        quantity: Decimal,
+        start_mono_ns: int,
+        end_mono_ns: int,
+        references: tuple[EventEnvelopeRef, ...],
+    ):
+        self.side, self.price, self.quantity = side, price, quantity
+        self.start_mono_ns, self.end_mono_ns = start_mono_ns, end_mono_ns
+        self.references = references
+
+    def freeze(self) -> DisplayEvidence:
+        return DisplayEvidence(
+            self.side,
+            self.price,
+            "displayed_persistence",
+            self.quantity,
+            self.start_mono_ns,
+            self.end_mono_ns,
+            self.references,
+        )
+
+
+def _contains_price(book: Book, side: str, price: Decimal) -> bool:
+    """Search validated sorted native levels without copying full-depth keys."""
+    levels = book.bids if side == "bid" else book.asks
+    low, high = 0, len(levels)
+    while low < high:
+        middle = (low + high) // 2
+        candidate = levels[middle].price
+        if candidate == price:
+            return True
+        if (candidate > price) == (side == "bid"):
+            low = middle + 1
+        else:
+            high = middle
+    return False
+
+
 class _BookWindow:
     def __init__(self, key: SubscriptionKey) -> None:
         self.key = key
@@ -308,7 +361,7 @@ class _BookWindow:
         self.anchor: int | None = None
         self.samples: deque[BookSample] = deque()
         self.display: deque[DisplayEvidence] = deque()
-        self.standing: dict[tuple[str, Decimal], DisplayEvidence] = {}
+        self.standing: dict[tuple[str, Decimal], _StandingEvidence] = {}
         self.overflow_until = self.display_overflow_until = 0
 
 
@@ -407,6 +460,24 @@ class AnalyticsEngine:
             if s.key.channel in ("trade", "trades")
         }
         self.delivery_index = 0
+        self._admitted_batch: RecordedBatch | None = None
+        self._admitted: deque[TapePrint] = deque(maxlen=self.config.max_trades)
+        self._admitted_complete = True
+
+    def admitted_tape(self, batch: RecordedBatch) -> tuple[TapePrint, ...]:
+        """Already normalized/deduplicated prints admitted by this exact batch.
+
+        This ephemeral owner-only view never reruns normalization and cannot
+        return a previous delivery's prints after seek, restore, or replacement.
+        The bound is the existing per-stream tape bound; consumers must inspect
+        admitted_tape_complete before claiming full batch coverage.
+        """
+        if batch is not self._admitted_batch:
+            return ()
+        return tuple(self._admitted)
+
+    def admitted_tape_complete(self, batch: RecordedBatch) -> bool:
+        return batch is self._admitted_batch and self._admitted_complete
 
     def initialize_books(self, books: tuple[Book, ...]) -> None:
         """Install a live subscription baseline without inventing observed history.
@@ -482,6 +553,9 @@ class AnalyticsEngine:
     ) -> None:
         if batch.delivery_index <= self.delivery_index:
             raise ValueError("analytics delivery must advance; reset before seek")
+        self._admitted_batch = batch
+        self._admitted.clear()
+        self._admitted_complete = True
         with localcontext(DECIMAL_CONTEXT):
             present_book_keys = {book.key for book in books}
             for event in batch.events:
@@ -645,9 +719,13 @@ class AnalyticsEngine:
                 base, quote = _valuation(
                     spec.instrument, payload.price, payload.quantity
                 )
-                state.tape.append(
-                    TapePrint(payload, event.ref(), str(event.stream_id), base, quote)
+                item = TapePrint(
+                    payload, event.ref(), str(event.stream_id), base, quote
                 )
+                state.tape.append(item)
+                if len(self._admitted) == self.config.max_trades:
+                    self._admitted_complete = False
+                self._admitted.append(item)
                 state.seen.add(payload.dedup_key)
         elif (
             isinstance(payload, Control)
@@ -721,17 +799,12 @@ class AnalyticsEngine:
                 for side, values in (("bid", book.bids), ("ask", book.asks))
                 for level in values[: self.config.max_display_levels]
             }
-            visible_prices = {
-                (side, level.price)
-                for side, values in (("bid", book.bids), ("ask", book.asks))
-                for level in values
-            }
             for identity, prior in tuple(state.standing.items()):
                 current = levels.get(identity)
                 # Only infer removal inside retained observed coverage, not a truncation edge.
                 visible = (
                     current is not None
-                    or identity not in visible_prices
+                    or not _contains_price(book, identity[0], identity[1])
                     and (
                         book.quality.coverage.full_depth
                         or identity[0] == "bid"
@@ -761,21 +834,64 @@ class AnalyticsEngine:
                     del state.standing[identity]
             for identity, level in levels.items():
                 standing_prior = state.standing.get(identity)
-                state.standing[identity] = DisplayEvidence(
-                    identity[0],
-                    identity[1],
-                    "displayed_persistence",
-                    level.quantity,
-                    standing_prior.start_mono_ns
-                    if standing_prior
-                    else book.asof.receive_mono_ns,
-                    book.asof.receive_mono_ns,
-                    (standing_prior.references[0], book.asof)
-                    if standing_prior
-                    else (book.asof,),
-                )
+                if standing_prior is not None:
+                    standing_prior.quantity = level.quantity
+                    standing_prior.end_mono_ns = book.asof.receive_mono_ns
+                    standing_prior.references = (
+                        standing_prior.references[0],
+                        book.asof,
+                    )
+                else:
+                    state.standing[identity] = _StandingEvidence(
+                        identity[0],
+                        identity[1],
+                        level.quantity,
+                        book.asof.receive_mono_ns,
+                        book.asof.receive_mono_ns,
+                        (book.asof,),
+                    )
         state.book = book
         self._trim(state, now.mono_ns)
+
+    def _trade_source(
+        self, instrument_id: str, now: ClockReading
+    ) -> tuple[_TradeWindow | None, Eligibility]:
+        instrument = self._instruments[InstrumentId(instrument_id)]
+        candidates = [
+            state
+            for sid, state in self._trades.items()
+            if self._specs[StreamId(sid)].instrument.instrument_id == instrument_id
+        ]
+        state = candidates[0] if len(candidates) == 1 else None
+        eligibility = evaluate_trades(
+            state.evidence if state else None, instrument, now, self.config.policy
+        )
+        if len(candidates) > 1:
+            eligibility = replace(
+                eligibility,
+                eligible=False,
+                reasons=(*eligibility.reasons, "ambiguous_trade_stream"),
+            )
+        return state, eligibility
+
+    def trade_evidence(
+        self,
+        instrument_id: str,
+        now: ClockReading,
+        *,
+        key: SubscriptionKey | None = None,
+    ) -> tuple[TradeEvidence | None, Eligibility]:
+        """Current public-channel quality, independent of book and rolling windows.
+
+        A selected book key cannot disambiguate multiple matching trade streams.
+        This read-only gate does not establish evidence or compute metric totals.
+        """
+        if instrument_id not in self._instruments:
+            raise ValueError("unknown analytics instrument")
+        if key is not None and key.instrument_id != instrument_id:
+            raise ValueError("analytics key/instrument mismatch")
+        state, eligibility = self._trade_source(instrument_id, now)
+        return state.evidence if state else None, eligibility
 
     def snapshot(
         self,
@@ -1025,22 +1141,8 @@ class AnalyticsEngine:
                 if kind == "event_ofi"
                 else "snapshot-best-quote-difference-v1",
             )
-        trade_candidates = [
-            s
-            for sid, s in self._trades.items()
-            if self._specs[StreamId(sid)].instrument.instrument_id == instrument_id
-        ]
-        trade_state = trade_candidates[0] if len(trade_candidates) == 1 else None
-        trade_reasons = list(
-            evaluate_trades(
-                trade_state.evidence if trade_state else None,
-                instrument,
-                now,
-                self.config.policy,
-            ).reasons
-        )
-        if len(trade_candidates) > 1:
-            trade_reasons.append("ambiguous_trade_stream")
+        trade_state, trade_eligibility = self._trade_source(instrument_id, now)
+        trade_reasons = list(trade_eligibility.reasons)
         tape = (
             tuple(
                 t
@@ -1178,7 +1280,7 @@ class AnalyticsEngine:
         )
         standing = (
             tuple(
-                d
+                d.freeze()
                 for d in state.standing.values()
                 if d.end_mono_ns <= now.mono_ns
                 and d.end_mono_ns - d.start_mono_ns >= self.config.persistence_ns
@@ -1225,14 +1327,19 @@ class AnalyticsEngine:
         pulling_book_refs: deque[EventEnvelopeRef] = deque(
             maxlen=self.config.max_references
         )
+        flow_by_price_side: dict[tuple[Decimal, str], list[TapePrint]] = {}
+        for trade in flow:
+            if trade.base_quantity is not None:
+                flow_by_price_side.setdefault(
+                    (trade.trade.price, trade.trade.taker_side), []
+                ).append(trade)
         for item in display:
             matched = tuple(
                 t
-                for t in flow
-                if t.base_quantity is not None
-                and t.trade.price == item.price
-                and t.trade.taker_side == ("sell" if item.side == "bid" else "buy")
-                and item.start_mono_ns < t.asof.receive_mono_ns <= item.end_mono_ns
+                for t in flow_by_price_side.get(
+                    (item.price, "sell" if item.side == "bid" else "buy"), ()
+                )
+                if item.start_mono_ns < t.asof.receive_mono_ns <= item.end_mono_ns
             )
             executed = sum(
                 (t.base_quantity for t in matched if t.base_quantity is not None), ZERO
@@ -1299,7 +1406,7 @@ class AnalyticsEngine:
                 s.anchor,
                 tuple(s.samples),
                 tuple(s.display),
-                tuple(s.standing.values()),
+                tuple(d.freeze() for d in s.standing.values()),
                 s.overflow_until,
                 s.display_overflow_until,
             )
@@ -1360,7 +1467,17 @@ class AnalyticsEngine:
                 deque(saved.samples),
                 deque(saved.display),
             )
-            current.standing = {(d.side, d.price): d for d in saved.standing}
+            current.standing = {
+                (d.side, d.price): _StandingEvidence(
+                    d.side,
+                    d.price,
+                    d.quantity,
+                    d.start_mono_ns,
+                    d.end_mono_ns,
+                    d.references,
+                )
+                for d in saved.standing
+            }
             current.overflow_until, current.display_overflow_until = (
                 saved.overflow_until,
                 saved.display_overflow_until,
