@@ -23,10 +23,10 @@ _DECIMAL_MEMO_LIMIT = 8192
 
 @lru_cache(maxsize=1)
 def _registry() -> dict[str, type]:
-    from . import book, events, instruments, precision, quality
+    from . import analytics, book, costs, events, instruments, precision, quality
 
     result: dict[str, type] = {}
-    for module in (book, events, instruments, precision, quality):
+    for module in (book, events, instruments, precision, quality, analytics, costs):
         for name, cls in vars(module).items():
             if (
                 isinstance(cls, type)

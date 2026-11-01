@@ -5,6 +5,9 @@ description = "Local public-market-data and market microstructure workstation"
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "fastapi==0.162.0",
+    "pydantic==2.14.2",
+    "starlette==1.10.0",
+    "anyio==4.15.1",
     "uvicorn==0.54.0",
     "httpx==0.28.1",
     "websockets==17.4",

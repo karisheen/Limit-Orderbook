@@ -25,7 +25,7 @@ from .adapters.base import (
     validate_public_endpoint,
     wrap_decoded,
 )
-from .book import Book, BookReducer
+from .book import Book, BookReducer, Reduction
 from .events import (
     BookUpdate,
     Control,
@@ -152,12 +152,28 @@ class ReceiveBoundary:
         )
 
 
+@dataclass(frozen=True)
+class ProcessingObservation:
+    """Actual local stages for one source frame, all in the named clock origin."""
+
+    clock_id: str
+    ingest_ordinal: int
+    receive_mono_ns: int
+    queue_exit_mono_ns: int
+    decode_start_mono_ns: int
+    decode_end_mono_ns: int
+    validation_end_mono_ns: int
+    normalized_mono_ns: int
+    publish_mono_ns: int
+
+
 @dataclass
 class FeedCallbacks:
     raw: Callable[[RawFrame], None] | None = None
     events: Callable[[tuple[EventEnvelope, ...]], None] | None = None
     book: Callable[[Book], None] | None = None
     diagnostic: Callable[[str], None] | None = None
+    processed: Callable[[tuple[EventEnvelope, ...], Book | None], None] | None = None
 
 
 def make_snapshot_reducer(
@@ -318,6 +334,10 @@ class FeedSupervisor:
         self.capture_complete = True
         self.queue: asyncio.Queue[RawFrame] = asyncio.Queue(self.config.queue_count)
         self.queued_bytes = 0
+        self.queue_highwater_count = 0
+        self.queue_highwater_bytes = 0
+        self.processed_frames = 0
+        self.last_processing: ProcessingObservation | None = None
         self._fault = asyncio.Event()
         self._fault_reason = ""
         self._first_missing_ordinal: int | None = None
@@ -401,7 +421,11 @@ class FeedSupervisor:
                         except Exception as exc:
                             reason = _failure_reason(exc)
                             self.diagnostic_detail = _failure_detail(exc)
-                            self.capture_complete = False
+                            if (
+                                self._pending_ordinal is not None
+                                or not self.queue.empty()
+                            ):
+                                self.capture_complete = False
             elif self._fault.is_set():
                 reason = self._fault_reason
         finally:
@@ -459,11 +483,58 @@ class FeedSupervisor:
                 self.diagnostic_detail = _failure_detail(exc)
                 raise FeedFault("book_sink_failed") from exc
 
+    def _deliver(
+        self,
+        events: tuple[EventEnvelope, ...],
+        book: Book | None,
+        *,
+        process_start_ns: int | None = None,
+        process_end_ns: int | None = None,
+    ) -> int:
+        """Publish one completed transaction to every consumer before propagating faults."""
+        end_ns = time.monotonic_ns() if process_end_ns is None else process_end_ns
+        published_ns = time.monotonic_ns()
+        delivered = tuple(
+            replace(
+                event,
+                process_start_mono_ns=(
+                    event.process_start_mono_ns
+                    if process_start_ns is None
+                    else process_start_ns
+                ),
+                process_end_mono_ns=end_ns,
+                publish_mono_ns=published_ns,
+            )
+            for event in events
+        )
+        failure: FeedFault | None = None
+        try:
+            self._emit_events(delivered)
+        except FeedFault as exc:
+            failure = exc
+        try:
+            self._publish(book)
+        except FeedFault as exc:
+            if failure is None:
+                failure = exc
+        if delivered and self.callbacks.processed:
+            try:
+                self.callbacks.processed(delivered, self.book)
+            except Exception as exc:
+                self.diagnostic_detail = _failure_detail(exc)
+                if failure is None:
+                    failure = FeedFault("processed_sink_failed")
+        if failure is not None:
+            self._set_fault(str(failure))
+            raise failure
+        return published_ns
+
     def _local(self, payload: Control | Gap) -> EventEnvelope:
         frame = self.boundary.frame(
             self.stream_id, self.connection_id, self.epoch, "local", "supervisor", b""
         )
-        return wrap_decoded(
+        started_ns = time.monotonic_ns()
+        event = wrap_decoded(
             frame,
             self.instrument,
             self.key,
@@ -471,8 +542,10 @@ class FeedSupervisor:
             self.segment_id,
             self.source_mode,
         )[0]
+        return replace(event, process_start_mono_ns=started_ns)
 
     def _record_loss(self, ordinal: int) -> None:
+        self.capture_complete = False
         if self._first_missing_ordinal is None:
             self._first_missing_ordinal = self._last_missing_ordinal = ordinal
         else:
@@ -505,11 +578,7 @@ class FeedSupervisor:
         self.lifecycle = "resynchronizing"
         # No failed callback may interrupt owner cleanup or the next recovery.
         try:
-            self._emit_events((event,))
-        except FeedFault:
-            self.capture_complete = False
-        try:
-            self._publish(reduction.book)
+            self._deliver((event,), reduction.book)
         except FeedFault:
             pass
         self._diagnostic(reason)
@@ -536,6 +605,7 @@ class FeedSupervisor:
         else:
             self.reducer = self.adapter.new_reducer(self.instrument, self.key)
             self.reducer.reset(self.epoch, self.segment_id)
+        self.book = None
         self.reducer.quality = replace(
             self.reducer.quality, capture_complete=self.capture_complete
         )
@@ -546,7 +616,7 @@ class FeedSupervisor:
         self.last_transport = self.last_valid = time.monotonic()
         self._acked = self._valid = False
         self.lifecycle = "waiting_snapshot"
-        self._emit_events(
+        self._deliver(
             (
                 self._local(
                     Control(
@@ -555,7 +625,8 @@ class FeedSupervisor:
                         "capture_incomplete" if not self.capture_complete else "",
                     )
                 ),
-            )
+            ),
+            None,
         )
 
     def _receive(
@@ -588,29 +659,41 @@ class FeedSupervisor:
             return
         self.queued_bytes += len(payload)
         self.queue.put_nowait(frame)
+        self.queue_highwater_count = max(self.queue_highwater_count, self.queue.qsize())
+        self.queue_highwater_bytes = max(self.queue_highwater_bytes, self.queued_bytes)
 
     def _set_fault(self, reason: str) -> None:
         if not self._fault.is_set():
             self._fault_reason = reason
             self._fault.set()
             self.lifecycle = "resynchronizing"
-            if self.book is not None:
-                try:
-                    self._publish(
-                        replace(
-                            self.book,
-                            quality=replace(
-                                self.book.quality,
-                                integrity="invalid",
-                                lifecycle="resynchronizing",
-                                continuous_since_ordinal=None,
-                                reason_codes=(reason,),
-                                capture_complete=self.capture_complete,
-                            ),
-                        )
-                    )
-                except FeedFault:
-                    pass
+            invalid = self.book
+            if invalid is not None:
+                invalid = replace(
+                    invalid,
+                    quality=replace(
+                        invalid.quality,
+                        integrity="invalid",
+                        lifecycle="resynchronizing",
+                        continuous_since_ordinal=None,
+                        reason_codes=(reason,),
+                        capture_complete=self.capture_complete,
+                    ),
+                )
+            # Publish operational loss immediately, without racing the reducer's
+            # in-flight worker. Final cleanup still joins it and records the full
+            # missing-ordinal range in a separate gap boundary.
+            event = self._local(
+                Gap(
+                    reason,
+                    capture_lost=not self.capture_complete,
+                    affected_streams=(self.stream_id,),
+                )
+            )
+            try:
+                self._deliver((event,), invalid)
+            except FeedFault:
+                pass
 
     async def _reader(self, ws, endpoint: str, epoch: int) -> None:
         try:
@@ -662,7 +745,10 @@ class FeedSupervisor:
                 self._set_fault("heartbeat_send_failed")
                 return
 
-    def _decode_reduce(self, frame: RawFrame):
+    def _decode_reduce(
+        self, frame: RawFrame
+    ) -> tuple[tuple[EventEnvelope, ...], Reduction, tuple[int, int, int]]:
+        started_ns = time.monotonic_ns()
         events = decode_frame(
             self.adapter,
             self.instrument,
@@ -671,17 +757,20 @@ class FeedSupervisor:
             self.segment_id,
             self.source_mode,
         )
-        return events, self.reducer.apply(events)
+        decoded_ns = time.monotonic_ns()
+        reduction = self.reducer.apply(events)
+        return events, reduction, (started_ns, decoded_ns, time.monotonic_ns())
 
     async def _process(self, frame: RawFrame) -> None:
         if frame.connection_epoch != self.epoch:
             self._diagnostic("obsolete_epoch")
             return
         self._pending_ordinal = frame.ingest_ordinal
+        queue_exit_ns = time.monotonic_ns()
         work = asyncio.create_task(asyncio.to_thread(self._decode_reduce, frame))
         interrupted = False
         try:
-            events, reduction = await asyncio.shield(work)
+            events, reduction, stages = await asyncio.shield(work)
         except asyncio.CancelledError:
             # Thread work cannot be forcibly stopped. Even repeated cancellation
             # must join it before releasing reducer ownership to another epoch.
@@ -697,7 +786,7 @@ class FeedSupervisor:
                 if not work.cancelled():
                     work.exception()
                 raise
-            events, reduction = work.result()
+            events, reduction, stages = work.result()
             interrupted = True
         if self._fault.is_set():
             raise FeedFault(self._fault_reason)
@@ -713,9 +802,26 @@ class FeedSupervisor:
                     self._acked = True
                 if payload.reason_code == "duplicate_trade":
                     self.duplicate_trades += 1
-        self._emit_events(normalized)
+        normalized_ns = time.monotonic_ns()
+        # Source normalization is complete. Required sink failures record their
+        # own loss; a later presentation failure is not abandoned raw input.
         self._pending_ordinal = None
-        self._publish(reduction.book)
+        published_ns = self._deliver(
+            normalized,
+            reduction.book,
+            process_start_ns=stages[0],
+            process_end_ns=normalized_ns,
+        )
+        self.processed_frames += 1
+        self.last_processing = ProcessingObservation(
+            frame.clock_id,
+            frame.ingest_ordinal,
+            frame.receive_mono_ns,
+            queue_exit_ns,
+            *stages,
+            normalized_ns,
+            published_ns,
+        )
         if reduction.recovery:
             raise FeedFault(reduction.recovery.reason)
         valid_book = (
@@ -740,7 +846,18 @@ class FeedSupervisor:
                 for event in reduction.events
             )
         )
-        if valid_book or valid_other or healthy_heartbeat:
+        # A successfully established, event-driven trade subscription has no
+        # promised inter-trade cadence. Pong evidence can keep its transport
+        # operational; it never establishes fresh/complete analytical trade flow.
+        quiet_trade_transport = (
+            self._valid
+            and self.key.channel == "trades"
+            and any(
+                isinstance(event.payload, Control) and event.payload.kind == "heartbeat"
+                for event in events
+            )
+        )
+        if valid_book or valid_other or healthy_heartbeat or quiet_trade_transport:
             self._valid = self._acked = True
             self.last_valid = time.monotonic()
             self.lifecycle = (

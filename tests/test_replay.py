@@ -1310,3 +1310,45 @@ def test_maximum_stream_identity_preserves_public_and_local_evidence(
         (stopped_book,) = session.books()
         assert stopped_book.quality.lifecycle == "disconnected"
         assert session.reader.raw_frame(spec.stream_id, 1) == frame
+
+
+def test_original_processing_observations_survive_raw_buffering_and_checkpoint_seek(
+    tmp_path, source_boundaries
+):
+    with RecordingReader(source_boundaries.path) as reader:
+        inputs, observed = [], []
+        for batch in reader.iter_batches():
+            first = batch.events[0]
+            frame = reader.raw_frame(first.stream_id, first.ingest_ordinal)
+            inputs.append(frame if frame is not None else batch.events)
+            observed.append(
+                tuple(
+                    replace(
+                        event,
+                        process_start_mono_ns=event.receive_mono_ns + 10,
+                        process_end_mono_ns=event.receive_mono_ns + 20,
+                        publish_mono_ns=event.receive_mono_ns + 30,
+                    )
+                    for event in batch.events
+                )
+            )
+        timed = record(
+            tmp_path / "timed",
+            reader.manifest.streams,
+            tuple(inputs),
+            delivered_events=tuple(observed),
+            checkpoint_interval=1,
+        )
+    trajectories = []
+    for mode in ("raw", "normalized"):
+        with replay(timed, mode=mode) as session:
+            trajectory = []
+            while batches := session.step():
+                trajectory.append(
+                    (batches[0].events, session.cursor, fingerprint(session))
+                )
+            for events, cursor, expected in reversed(trajectory):
+                session.seek(cursor.ordinal, cursor.event_index)
+                assert fingerprint(session) == expected
+            trajectories.append(trajectory)
+    assert trajectories[0] == trajectories[1]

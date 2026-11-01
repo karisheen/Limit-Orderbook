@@ -1,0 +1,61 @@
+{
+  "command": [
+    "/Users/dakariantoine/Developer/personal/limit-orderbook/.venv-upgrade/bin/python",
+    "-m",
+    "src.workstation.cli",
+    "serve",
+    "--port",
+    "8010"
+  ],
+  "platform": "macOS-13.7.8-x86_64-i386-64bit-Mach-O",
+  "python": "3.13.5 (main, Jul 23 2025, 00:30:58) [Clang 20.1.4 ]",
+  "cold_process_to_http_liveness_seconds": 1.0403035060007824,
+  "cold_process_to_first_usable_full_scope_demo_seconds": 2.6419867380027426,
+  "source": {
+    "id": "synthetic-demo-v2-180s",
+    "mode": "demo",
+    "label": "Synthetic 180s / 24 streams (memory, not recording)",
+    "status": "ready",
+    "synthetic": true,
+    "recording": false,
+    "duration_ns": "180000000000",
+    "streams": 24,
+    "reasons": []
+  },
+  "first_cursor": {
+    "delivery_index": "115",
+    "ordinal": "115",
+    "event_index": "0"
+  },
+  "total_deliveries": "4410",
+  "selected_instrument": "coinbase:advanced-trade:spot:BTC-USD",
+  "bid": {
+    "price": "59999",
+    "quantity": "3"
+  },
+  "ask": {
+    "price": "60001",
+    "quantity": "3"
+  },
+  "readiness_before_during_after_session": [
+    503,
+    200,
+    503
+  ],
+  "served_built_frontend": true,
+  "session_cleanup": "passed",
+  "code_sha256": {
+    "src/workstation/runtime.py": "80a1d2cefde06a2ed5289ccf5d69e58f767779efed821e8f6d2d04824c99a1aa",
+    "src/workstation/api.py": "70689e78a119bfca5ecd63d364f4b49b14c9e8a2185adb11362781ca6f50f976",
+    "src/workstation/demo_memory.py": "d70167e4dc9ad2b498e3c49f73867e5d3fc5e8ad646c6f011c30ca5dd4334aa4",
+    "src/workstation/cli.py": "cb757cf18a5a6adda591f764dead00c5bf68249cfd33c565347d5f8ad5c3d401"
+  },
+  "limitations": [
+    "Single cold-process sample; not a startup percentile or browser paint measurement.",
+    "No network, durable recording generation or exchange execution."
+  ],
+  "server_exit_code": 2,
+  "shutdown": "SIGINT; bounded graceful shutdown; documented CLI interrupted exit2",
+  "harness_correction": "Initial run exercised the HTTP assertions but incorrectly expected exit0 after SIGINT; corrected to the released CLI exit2 contract.",
+  "server_log": "INFO:     Started server process [85933]\nINFO:     Waiting for application startup.\nINFO:     Application startup complete.\nINFO:     Uvicorn running on http://127.0.0.1:8010 (Press CTRL+C to quit)\nINFO:     127.0.0.1:61948 - \"GET /health/live HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:61948 - \"GET /health/ready HTTP/1.1\" 503 Service Unavailable\nINFO:     127.0.0.1:61948 - \"GET / HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:61948 - \"POST /api/v1/sessions HTTP/1.1\" 201 Created\nINFO:     127.0.0.1:61948 - \"GET /health/ready HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:61948 - \"DELETE /api/v1/sessions/f78eb7dc13bc4cf6b0a393e5e3f4a6c3 HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:61948 - \"GET /api/v1/sessions HTTP/1.1\" 200 OK\nINFO:     127.0.0.1:61948 - \"GET /health/ready HTTP/1.1\" 503 Service Unavailable\nINFO:     Shutting down\nINFO:     Waiting for application shutdown.\nINFO:     Application shutdown complete.\nINFO:     Finished server process [85933]\n{\"complete\": false, \"status\": \"interrupted\"}\n"
+}

@@ -33,6 +33,8 @@ if [[ -f frontend/package.json ]]; then
     if [[ -x "$ROOT/.tools/node/bin/node" ]]; then
         export PATH="$ROOT/.tools/node/bin:$PATH"
     fi
+    npm --prefix frontend run lint
+    npm --prefix frontend test
     npm --prefix frontend run build
 else
     printf '%s\n' 'Frontend build not applicable: frontend/package.json does not exist.'

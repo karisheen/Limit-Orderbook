@@ -8,8 +8,10 @@ from __future__ import annotations
 
 import asyncio
 from collections import OrderedDict, deque
+from collections.abc import Hashable
 from dataclasses import dataclass, fields, is_dataclass
 import fcntl
+from functools import lru_cache
 import gzip
 from hashlib import sha256
 import io
@@ -22,7 +24,7 @@ import sqlite3
 import sys
 import threading
 import time
-from typing import BinaryIO, Generic, Iterator, TypeVar
+from typing import BinaryIO, Generic, Iterator, TypeVar, cast
 
 from . import wire
 from .book import BookCheckpoint
@@ -40,6 +42,7 @@ from .instruments import Instrument
 STORAGE_SCHEMA_VERSION = 2
 _MANIFEST_LIMIT = 16 * 1024 * 1024
 _CONFIG_KEYS = frozenset({"poll_interval", "dedup_capacity", "max_levels", "dex"})
+_TERMINAL_FAILURE_PREFIXES = ("writer_failed", "queue_overflow", "finalize_timeout")
 
 
 class RecordingError(RuntimeError):
@@ -180,7 +183,7 @@ class RecorderLimits:
     managed_budget_bytes: int = 10 * 1024 * 1024 * 1024
     retention_max_sessions: int = 100
     finalize_timeout: float = 30.0
-    checkpoint_interval_batches: int = 100
+    checkpoint_interval_batches: int = 1000
     max_query_rows: int = 10_000
     parquet_buffer_count: int = 4096
     reader_cache_bytes: int = 32 * 1024 * 1024
@@ -281,6 +284,14 @@ class RecorderHealth:
     high_water_bytes: int
     incomplete_reasons: tuple[str, ...]
     written_bytes: int
+
+    @property
+    def terminal_failure(self) -> bool:
+        """Whether the required sink is unusable, rather than merely incomplete."""
+        return any(
+            reason.startswith(_TERMINAL_FAILURE_PREFIXES)
+            for reason in self.incomplete_reasons
+        )
 
 
 @dataclass(frozen=True)
@@ -433,15 +444,23 @@ def _sync_dir(path: Path) -> None:
         os.close(fd)
 
 
-def _size(value) -> int:
+@lru_cache(maxsize=128)
+def _size_fields(kind: type[object]) -> tuple[str, ...]:
+    # Cache schema descriptors, never instances or their resident byte totals.
+    return tuple(field.name for field in fields(kind)) if is_dataclass(kind) else ()
+
+
+def _size(value: object) -> int:
     """Conservative resident-byte accounting; no JSON, compression or I/O."""
-    if is_dataclass(value):
-        return sys.getsizeof(value) + sum(
-            _size(getattr(value, f.name)) for f in fields(value)
-        )
+    size = sys.getsizeof(value)
     if isinstance(value, (tuple, frozenset)):
-        return sys.getsizeof(value) + sum(_size(item) for item in value)
-    return sys.getsizeof(value)
+        for item in value:
+            size += _size(item)
+    else:
+        # The cache keys are class objects, not potentially unhashable instances.
+        for name in _size_fields(cast(Hashable, type(value))):
+            size += _size(getattr(value, name))
+    return size
 
 
 def _managed_bytes(root: Path) -> int:
@@ -752,6 +771,11 @@ class Recorder:
         with self._condition:
             if reason not in self._reasons and len(self._reasons) < 64:
                 self._reasons.append(reason)
+            elif reason.startswith(_TERMINAL_FAILURE_PREFIXES) and not any(
+                r.startswith(_TERMINAL_FAILURE_PREFIXES) for r in self._reasons
+            ):
+                # A full diagnostic list must not conceal a dead required sink.
+                self._reasons[-1] = reason
 
     def _register(self, spec: StreamSpec):
         if not isinstance(spec, StreamSpec):
@@ -829,10 +853,7 @@ class Recorder:
             if self._closing or self._done:
                 raise RecordingError("recorder is closed")
             # Source gaps are truthful capture status, not a dead writer.
-            if any(
-                r.startswith(("writer_failed", "queue_overflow", "finalize_timeout"))
-                for r in self._reasons
-            ):
+            if any(r.startswith(_TERMINAL_FAILURE_PREFIXES) for r in self._reasons):
                 raise RecordingError("required recorder sink failed")
             count = len(self._queue) + self._inflight_count + 1
             total = self._queue_bytes + self._inflight_bytes + size
@@ -1015,6 +1036,14 @@ class Recorder:
         self._pending.setdefault(first.stream_id, []).append((batch, payload))
         self._pending_count += 1
         self._pending_bytes += len(payload)
+        if any(
+            isinstance(event.payload, Control) and event.payload.kind == "source_change"
+            for event in batch.events
+        ):
+            # A source reset may leave every reducer pristine, with no native
+            # event identity to index a post-reset checkpoint. Retain the complete
+            # preceding state; replay then applies the captured reset itself.
+            self._save_projection(batch.delivery_index - 1)
         self._projection.apply_batch(batch)
         for event in batch.events:
             if isinstance(event.payload, Gap):

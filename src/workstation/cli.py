@@ -64,6 +64,26 @@ def _nonnegative(text: str) -> int:
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description=__doc__)
     commands = result.add_subparsers(dest="command", required=True)
+    serve = commands.add_parser(
+        "serve", help="serve the local FastAPI/React terminal; offline demo by default"
+    )
+    serve.add_argument(
+        "--host", default="127.0.0.1", choices=("127.0.0.1", "localhost", "::1")
+    )
+    serve.add_argument("--port", type=int, default=8000)
+    serve.add_argument(
+        "--capture",
+        type=Path,
+        action="append",
+        default=[],
+        help="operator-managed verified recording; HTTP clients receive only opaque IDs",
+    )
+    serve.add_argument(
+        "--network",
+        action="store_true",
+        help="explicitly enable shared public live discovery/collection",
+    )
+    serve.add_argument("--max-sessions", type=int, default=8)
     demo = commands.add_parser(
         "demo", help="generate and replay explicitly synthetic BTC/ETH/SOL; no network"
     )
@@ -415,7 +435,37 @@ async def _record(args) -> int:
             },
             error=True,
         )
-        await asyncio.sleep(float(args.duration))
+        loop = asyncio.get_running_loop()
+        started = loop.time()
+        deadline = started + float(args.duration)
+        next_report = started + 5
+        while True:
+            health = recorder.health
+            now = loop.time()
+            if health.terminal_failure or now >= deadline:
+                break
+            if now >= next_report:
+                _emit(
+                    {
+                        "event": "recording_health",
+                        "elapsed_seconds": format(now - started, ".3f"),
+                        "recorder": health,
+                        "terminal_failure": False,
+                    },
+                    error=True,
+                )
+                next_report = now + 5
+            await asyncio.sleep(min(0.25, deadline - now))
+        if health.terminal_failure:
+            _emit(
+                {
+                    "event": "recording_failed",
+                    "elapsed_seconds": format(now - started, ".3f"),
+                    "recorder": health,
+                    "terminal_failure": True,
+                },
+                error=True,
+            )
         statuses = registry.snapshot()
         usable_books = {
             book.key for book in registry.books() if book.quality.integrity == "valid"
@@ -464,6 +514,8 @@ async def _record(args) -> int:
             "manifest": manifest.to_dict(),
             "dependency_evidence": probes,
             "source_statuses": statuses,
+            "recorder_health": recorder.health,
+            "terminal_recorder_failure": recorder.health.terminal_failure,
             "error": str(capture_error)[:4096] if capture_error is not None else None,
         }
     )
@@ -472,7 +524,39 @@ async def _record(args) -> int:
     return COMPLETE if manifest.complete and not interrupted else INCOMPLETE
 
 
+async def _serve(args) -> int:
+    import uvicorn
+    from .api import create_app
+    from .runtime import TerminalRuntime
+
+    if not 1 <= args.port <= 65535:
+        raise ValueError("port must be 1..65535")
+    runtime = TerminalRuntime(
+        captures=args.capture, enable_live=args.network, max_sessions=args.max_sessions
+    )
+    origins = tuple(
+        f"http://{host}:{port}"
+        for host in ("127.0.0.1", "localhost", "[::1]")
+        for port in (args.port, 5173)
+    )
+    app = create_app(runtime, allowed_origins=origins)
+    config = uvicorn.Config(
+        app,
+        host=args.host,
+        port=args.port,
+        workers=1,
+        ws_max_size=4096,
+        ws_max_queue=16,
+        limit_concurrency=128,
+        timeout_keep_alive=5,
+    )
+    await uvicorn.Server(config).serve()
+    return COMPLETE
+
+
 async def _dispatch(args) -> int:
+    if args.command == "serve":
+        return await _serve(args)
     if args.command == "record" and not args.network:
         raise ValueError(
             "record requires --network; demo/replay/inspect never use network"
