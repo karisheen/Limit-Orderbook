@@ -1,0 +1,20 @@
+{
+  "kind": "synthetic-regression-smoke",
+  "scenario": "5000 bids from10000 descending0.01 and5000 asks from10001 ascending0.01; synchronized Binance diff then new bid8000 beyond initial coverage",
+  "before": {
+    "initial_known_bid_boundary": "9950.01",
+    "after_sparse_deeper_update_boundary": "8000",
+    "retained_levels": 5001,
+    "unobserved_unchanged_levels_between_boundaries": "unknown, not zero",
+    "integrity": "valid"
+  },
+  "after": {
+    "initial_known_bid_boundary": "9950.01",
+    "after_sparse_deeper_update_boundary": "9950.01",
+    "retained_levels": 5000,
+    "unobserved_unchanged_levels_between_boundaries": "unknown, not zero",
+    "integrity": "valid"
+  },
+  "regression": "tests/test_workstation_asian.py::test_global_deep_changes_do_not_invent_bootstrap_coverage",
+  "limitation": "Synthetic protocol scenario, not historical exchange liquidity."
+}

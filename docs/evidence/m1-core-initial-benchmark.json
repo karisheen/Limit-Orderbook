@@ -1,0 +1,14 @@
+{
+  "scope": "synthetic core-only transaction, not ingest/UI benchmark",
+  "platform": "macOS-13.7.8-x86_64-i386-64bit-Mach-O",
+  "python": "3.13.5",
+  "levels_per_side": 20000,
+  "updates": 30,
+  "snapshot_ms": 2229.482293,
+  "delta_ms": {
+    "p50": 39.861841,
+    "p95": 75.126779,
+    "p99": 95.285309
+  },
+  "dataset_sha256": "24a7a27e39a718517ddc7449010266ac52c016dba82b286112b4a381b1f7e131"
+}

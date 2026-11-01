@@ -3,12 +3,14 @@
 KuCoin's websocket requires a token bootstrap handshake; the public REST
 level2_100 endpoint is used instead for simplicity and reliability.
 """
+
 from __future__ import annotations
 
 from src.data.clients import FeedError, HttpClient
 from src.data.adapters.base import ExchangeAdapter
 from src.domain.models import OrderBookSnapshot, make_snapshot
 from src.domain.symbols import pair_for
+from src.workstation.precision import nonnegative_int
 
 
 class KucoinAdapter(ExchangeAdapter):
@@ -21,23 +23,33 @@ class KucoinAdapter(ExchangeAdapter):
     def pair(self, base: str) -> str:
         return pair_for("kucoin", base)
 
-    def fetch_snapshot(self, http: HttpClient, base: str, limit: int = 100) -> OrderBookSnapshot:
+    def fetch_snapshot(
+        self, http: HttpClient, base: str, limit: int = 100
+    ) -> OrderBookSnapshot:
         symbol = self.pair(base)
         data = http.get_json(self.REST_URL, {"symbol": symbol})
         if data.get("code") != "200000":
-            raise FeedError(f"KuCoin API error: code={data.get('code')} msg={data.get('msg')}")
+            raise FeedError(
+                f"KuCoin API error: code={data.get('code')} msg={data.get('msg')}"
+            )
         book = data.get("data") or {}
         return make_snapshot(
             self.name,
             symbol,
             book.get("bids", []),
             book.get("asks", []),
-            sequence=_safe_int(book.get("sequence")),
+            sequence=_sequence(book.get("sequence")),
         )
 
 
-def _safe_int(value) -> int:
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return 0
+def _sequence(value) -> int | None:
+    if value is None:
+        return None
+    if (
+        isinstance(value, str)
+        and value.isascii()
+        and value.isdigit()
+        and len(value) <= 38
+    ):
+        value = int(value)
+    return nonnegative_int(value, "KuCoin sequence")

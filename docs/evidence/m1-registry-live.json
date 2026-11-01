@@ -1,0 +1,37 @@
+{
+  "before_access_resolution": {
+    "two_clients": {
+      "owners": 1,
+      "references": 2,
+      "same_stream": true,
+      "eligible": false,
+      "reasons": [
+        "data_access_unknown"
+      ]
+    },
+    "after_tab_close": {
+      "owners": 1,
+      "references": 1,
+      "headless_book_integrity": "valid"
+    },
+    "after_all_released_owners": 0,
+    "note": "headless lease only; durable recorder is M2"
+  },
+  "after": {
+    "two_clients": {
+      "owners": 1,
+      "references": 2,
+      "same_stream": true,
+      "eligible": true,
+      "reasons": []
+    },
+    "after_tab_close": {
+      "owners": 1,
+      "references": 1,
+      "headless_book_integrity": "valid"
+    },
+    "after_all_released_owners": 0,
+    "note": "headless lease only; durable recorder is M2"
+  },
+  "source": "Actual public Binance global BTCUSDT; two logical clients; no durable capture yet"
+}

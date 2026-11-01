@@ -1,0 +1,36 @@
+name: Offline checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  offline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13.5"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.8.4"
+          enable-cache: true
+      - name: Install locked Python dependencies
+        run: uv sync --locked --python 3.13.5 --group dev
+      - name: Set up frontend runtime
+        if: ${{ hashFiles('frontend/package.json') != '' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked frontend dependencies
+        if: ${{ hashFiles('frontend/package.json') != '' }}
+        run: npm --prefix frontend ci
+      - name: Run offline tests, scoped lint, format, types and frontend build
+        run: ./tools/check.sh
