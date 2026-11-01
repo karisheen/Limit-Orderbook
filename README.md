@@ -23,8 +23,10 @@ dashboard is a thin native-API observation client, not a second market-data engi
 - **M5:** native alerts/evidence, Hyperliquid context, paper/journal persistence
   and research CLI/report tabs are implemented. These workflows are simulations
   and analysis, not exchange execution or evidence of profitable signals.
-- **M6 / operational acceptance:** implementation alone does not establish final
-  acceptance, sustained capture readiness or latency compliance.
+- **M6:** local-only defaults, locked setup, multi-client/restart/fault recovery,
+  a complete30-minute Binance-global/Hyperliquid capture with full replay parity,
+  and measured native/rendering behavior. Evidence includes failed attempts,
+  bootstrap/tail-latency limits and the explicitly unrun24-hour soak.
 
 For current acceptance status and executed evidence, see the
 [operational readiness and recovery](docs/READINESS.md),

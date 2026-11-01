@@ -10,13 +10,13 @@ rendering establish different properties; none establishes a profitable signal.
 | --- | --- | --- |
 | Native correctness | M5 final gate:1,166 tests; exact raw/normalized/checkpoint contracts, source/quote identity, causal analytics, alerts, paper ledger and journal | Fixtures do not establish current exchange availability or complete upstream data |
 | UI and local operations |23 actual-backend browser scenarios; actual independent clients,12 repeated switches, stale-generation/input rejection, slow-socket eviction and process restart | Finite observed behavior, not a no-crash or unlimited-client guarantee |
-| Sustained recording | Requested1,800 seconds,18 Binance-global/Hyperliquid channels, complete native manifest and unchanged source; full replay verification is a separate gate |24 hours has **not run**; previous failed soaks remain failed evidence |
+| Sustained recording | Requested1,800 seconds,18 Binance-global/Hyperliquid channels; all846 files verified, all83,344 events replayed with raw/normalized/context parity and strict native checkpoint restore |24 hours has **not run**; previous failed soaks remain failed evidence |
 | Research | Chronological purged/embargoed experiments, baselines, costs/latency stress and multiple-experiment accounting; retained900-second synthetic experiment reports `insufficient_evidence` | No predictive edge or profitability claim; unknown fees are not zero |
 | Execution | Unsupported by design | No private APIs, exchange orders, wallets, signing, withdrawals or unattended trading |
 
-The normal-load processing, rendering and operational fault observations below
-passed their declared checks. Full fresh-capture replay and finite storage/replay
-verification remain separate entries in [the acceptance ledger](UPGRADE_BACKLOG.md).
+Normal-load processing, rendering, full fresh-capture replay and operational
+fault observations passed their declared checks. Finite replay/writer capacity
+and the deliberately incomplete saturation result are documented separately below.
 [The handoff](OMP_UPGRADE_HANDOFF.md) records exact commits, remote gates and merges.
 
 ## Start locally
@@ -142,6 +142,26 @@ Evidence: [1440x900](evidence/m6-render-1440.json),
 [1280x800 burst surface](evidence/m6-render-1280-2x.png).
 Reproduction and provenance contracts: [performance](CORE_PERFORMANCE.md).
 
+## Finite replay and recorder capacity
+
+The complete12-stream Binance-global/Hyperliquid BTC/ETH/SOL source was replayed
+at1x and2x with every native transaction and final state preserved. Independent
+production-writer loads at both rates preserved raw, normalized and regenerated
+checkpoint bytes, with no rejection or accepted-but-unwritten records.
+The highest tested complete paced input was89.998083 batches/s over47.512123
+producer seconds; this is not an absolute sustainable maximum.
+
+The unpaced attempt reached the actual4,096-item queue bound, rejected one offer,
+drained accepted records and sealed **incomplete**. It is overload evidence,
+not a throughput pass. Synthetic replay queues and writer dispatch tails reached
+seconds; they are not substituted for live receive-to-valid measurements.
+Historical timestamps and failed results remain unchanged.
+
+[Full performance tables, provenance, reproduction and report-disclosure correction](CORE_PERFORMANCE.md#m6-complete-source-finite-replay)
+include p50/p95/p99, event mix/depth, queue highwaters, CPU/RSS, exact source hashes
+and explicit limits. Large raw sources remain local/git-ignored; the complete
+benchmark input has a verified byte-exact retained copy outside temporary storage.
+
 ## Recording and the unrun24-hour command
 
 The fresh30-minute recording exited0 and was reaped. Its manifest has81,095 raw
@@ -163,6 +183,20 @@ verification is not inferred from these status snapshots.
 [Complete capture/process evidence](evidence/m6-sustained-capture-20261101T180952Z.json).
 Earlier queue-overflow and incomplete soaks remain in the handoff/evidence;
 they are not reclassified as passes after the later correction.
+
+Full verification subsequently passed all12 checks without sampling:
+81,131 deliveries and83,344 events through both raw and normalized native replay,
+matching book, projection, context-inclusive and context hashes. All three spot
+assets had eligible reference-basis observations during replay; these are not
+executable arbitrage. Strict stored-checkpoint restore matched the native
+projection. Context observers without persisted matching state recompute history.
+[Complete replay evidence and embedded harness](evidence/m6-sustained-replay-integrity-complete.json).
+
+This proof took821.123014 wall seconds,766.445242 CPU seconds and326,868,992 bytes
+peak RSS. Raw replay took335.776005s; normalized replay203.852244s. The strict
+final-delivery checkpoint seek took **65.135486s**: no instant/subsecond seek claim
+for this30-minute source. Manifest SHA256:
+`cf671ec3b6e629c0c213e210858bffd104a1dc2a6a0a84abcde02dc1965ef95a`.
 
 This runnable command requests24 hours, **not executed during this upgrade**:
 
