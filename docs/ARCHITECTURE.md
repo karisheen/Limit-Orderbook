@@ -1,6 +1,6 @@
 # Workstation architecture and decisions
 
-Status: **living architecture through the M4 integration; not certification of M5–M6 or operational readiness.** The authoritative product brief is `LIMIT_ORDERBOOK_OMP_UPGRADE_PROMPT.md`. The baseline audit below is retained historical evidence; M4 replaces the duplicate legacy engine with a thin native-API client. Acceptance work is tracked in [UPGRADE_BACKLOG.md](UPGRADE_BACKLOG.md); shared interfaces are in [CONTRACTS.md](CONTRACTS.md). Commands, actual checks and Git delivery belong in [OMP_UPGRADE_HANDOFF.md](OMP_UPGRADE_HANDOFF.md). The baseline inspection found no applicable `AGENTS.md` in this checkout or its ancestors.
+Status: **living architecture through native M5 workflows; not certification of milestone acceptance or operational readiness.** The authoritative product brief is `LIMIT_ORDERBOOK_OMP_UPGRADE_PROMPT.md`. The baseline audit below remains historical evidence; the M4 cutover replaced the duplicate legacy engine with a thin native-API client. Acceptance is tracked in [UPGRADE_BACKLOG.md](UPGRADE_BACKLOG.md); implemented interfaces are in [CONTRACTS.md](CONTRACTS.md) and [API.md](API.md). Commands, actual checks and Git delivery belong in [OMP_UPGRADE_HANDOFF.md](OMP_UPGRADE_HANDOFF.md). The baseline inspection found no applicable `AGENTS.md` in this checkout or its ancestors.
 
 ## Actual baseline audit
 
@@ -129,6 +129,66 @@ Writer batches to temporary files, flushes/fsyncs as appropriate, closes/verifie
 Replay from checkpoint restores complete reducer state, dedup/window anchors and virtual clock, then executes the same normalization/book/analytics rules. Seek clears all future information; speed affects pacing only. Raw replay verifies decoder behavior, normalized replay verifies downstream parity. No current REST request reconstructs missing past depth. Ship small legally redistributable recordings where allowed and explicitly synthetic edge fixtures; offline demo must start without network and remain visibly labeled.
 
 Alternatives rejected: SQLite per-message event store (avoidable ingestion contention/poor analytical layout), in-memory-only history (not research/replay evidence), mandatory server databases/message brokers (unnecessary local operations).
+
+### M5 implementation: durable consumers, not a second feed engine
+
+The runtime owns analytics, visualization, context, alerts and paper observers
+on each client's dedicated worker. All consume admitted atomic source deliveries
+or the same replay projection; the frontend never computes a competing ledger,
+signal, reference basis or research report. UI requests are bounded and
+session/generation-fenced. Reference context has independent channel eligibility:
+Hyperliquid mids/mark/oracle/funding/open interest do not repair an invalid book.
+Cross-quote reference basis preserves USD/USDT/USDC and underlying identities,
+requires explicit fresh side-aware FX, and is not executable arbitrage.
+
+Alerts retain bounded rule intent and prefix-projected evaluations, latches,
+cooldowns and fires, with heavy supporting evidence fetched explicitly. They
+are local analytical rules, not external notification delivery or predictions.
+Seek/reset clears future observer state; historical archives/manual notes/reports
+are labeled separately rather than admitted as earlier causal evidence.
+
+`serve --state-dir` defaults to `data/workstation-state`. `paper.sqlite3` holds
+run configuration/metadata, ordered commands and separate accounting archives;
+`journal.sqlite3` holds manual notes with immutable source/session/delivery/
+instrument and optional run/order provenance. Owner-thread-local connections
+keep persistence outside ingestion ownership. Embedded `TerminalRuntime` without
+an explicit directory uses temporary state; operator CLI state is durable.
+
+Paper deliberately models only funded spot market/marketable-limit IOC against
+qualified native depth. Feed delay controls available books; decision plus order
+delay fixes arrival. Arrival competes for balances and conservative per-price
+consumed-liquidity reservations. Partial remainder cancels; unchanged snapshots
+do not replenish consumed depth. Unknown fees/basis stay unknown; there is no
+passive fill, market impact, derivative margin/funding or live order submission.
+
+Archives preserve historical accounting without becoming current replay state.
+Explicit same-source demo/replay resume stages a separate prefix reconstruction,
+publishes durable state before swapping the active paper observer, pauses replay
+and increments generation. Failure leaves the old projection untouched. Source
+fences bind recordings to session/manifest, demos to descriptor and live histories
+to clock/client ownership. A live archive is auditable, not resumable in a new
+session. Journal edits preserve authored provenance even when viewed after rewind.
+
+`research.sqlite3` holds begun attempts, source/config evidence, observations,
+labels and all candidate trial outcomes, including failures and nonwinning
+results. The offline CLI executes verified capture/synthetic-source experiments;
+the terminal only reads bounded pages on the catalog worker, without taking the
+replay delivery lock. See [DEMO](DEMO.md) for CLI/configuration.
+
+Research uses causal prefix features and exact receive-clock outcome deadlines,
+chronological train/validation/test splits, purged overlapping outcome intervals
+and embargoed later partitions. Selection uses train/validation, not test labels.
+Unknown fees exclude net results. Independent directional markouts are not funded
+portfolio returns: turnover/drawdown remain unavailable and synthetic outcomes
+cannot establish edge. Persisted hashes/exclusions/limitations are provenance,
+not certification of scientific validity or trading readiness.
+
+The thin-client Alerts/Context/Paper/Journal/Research tabs abort inactive,
+hidden, disconnected or superseded work and discard obsolete responses.
+Mutations serialize with lifecycle actions; abort may occur after commit, so no
+automatic mutation retry is allowed. Refresh and inspect native state before
+repeating an ambiguous action. Socket reconnect and read polling are separate
+recovery mechanisms, not mutation retries.
 
 ## ADR-006 — Native code only for a measured pure hotspot
 

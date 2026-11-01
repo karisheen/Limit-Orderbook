@@ -1,0 +1,251 @@
+{
+  "scope": "Single-thread native analytics; original synthetic5000 bid/5000 ask levels;100 distinct clock frontiers. Unprofiled timing, then separate profile. No source events skipped.",
+  "wall_seconds": 0.0943678860203363,
+  "cpu_seconds": 0.09131900000000004,
+  "snapshot_sha256": "d500b09b8b93c6ff8ebac290dbfc79644bb760bc554fafbf03dc248270af5957",
+  "state_sha256": "45f1baad1bf2dd28ac1e48a79545fb6d06abbd500a4fb6d0d59bb94656322c42",
+  "source_sha256": "bdb6c4f5f0c2b6d5d3aaada63a93de8a78b40f28337665f935768827d72d279d",
+  "script": "\"\"\"Native full-depth observer service/parity measurement; synthetic activity.\"\"\"\nimport cProfile\nimport hashlib\nimport json\nfrom pathlib import Path\nimport runpy\nimport sys\nimport time\nfrom src.workstation.wire import dumps\nfrom src.workstation.precision import DERIVED_DECIMAL_POLICY\nfrom decimal import Decimal\n\nFeed = runpy.run_path('tests/test_workstation_analytics.py')['Feed']\nfeed = Feed()\nbids = tuple((str(Decimal('100000')-Decimal(i)/100), '1') for i in range(5000))\nasks = tuple((str(Decimal('100000.01')+Decimal(i)/100), '1') for i in range(5000))\nfeed.quote(1, bids=bids, asks=asks)\nfeed.quote(4, bids=((bids[0][0], '2'), *bids[1:]), asks=asks)\ndef exercise():\n    return [feed.snapshot(4+i) for i in range(100)]\nstart, cpu = time.perf_counter(), time.process_time()\nresults = exercise()\nwall, cpu = time.perf_counter()-start, time.process_time()-cpu\npayload = dumps(tuple(results), canonical=True, decimal_policy=DERIVED_DECIMAL_POLICY)\nprofile = cProfile.Profile()\nprofile.runcall(exercise)\nrows = [{'code': str(r.code) if isinstance(r.code,str) else f'{r.code.co_filename}:{r.code.co_firstlineno}:{r.code.co_name}', 'calls':r.callcount, 'total_seconds':r.totaltime, 'inline_seconds':r.inlinetime} for r in sorted(profile.getstats(),key=lambda r:-r.totaltime)[:40]]\nresult = {'scope':'Single-thread native analytics; original synthetic5000 bid/5000 ask levels;100 distinct clock frontiers. Unprofiled timing, then separate profile. No source events skipped.', 'wall_seconds':wall,'cpu_seconds':cpu,'snapshot_sha256':hashlib.sha256(payload).hexdigest(),'state_sha256':feed.engine.state_hash,'source_sha256':hashlib.sha256(Path('src/workstation/analytics.py').read_bytes()).hexdigest(),'script':Path(__file__).read_text(),'profile':rows}\npath=Path('docs/evidence/m5-depth-service-'+sys.argv[1]+'.json')\npath.write_text(json.dumps(result,indent=2)+'\\n')\nprint(json.dumps({k:v for k,v in result.items() if k not in ('script','profile')},indent=2))\nprint(path)\n",
+  "profile": [
+    {
+      "code": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m5-smoke/depth_service.py:19:exercise",
+      "calls": 1,
+      "total_seconds": 0.255097081,
+      "inline_seconds": 0.00014001900000000002
+    },
+    {
+      "code": "tests/test_workstation_analytics.py:156:snapshot",
+      "calls": 100,
+      "total_seconds": 0.254957062,
+      "inline_seconds": 0.00027208500000000004
+    },
+    {
+      "code": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/analytics.py:906:snapshot",
+      "calls": 100,
+      "total_seconds": 0.25299672700000003,
+      "inline_seconds": 0.000969952
+    },
+    {
+      "code": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/analytics.py:918:_snapshot",
+      "calls": 100,
+      "total_seconds": 0.251647265,
+      "inline_seconds": 0.023103716
+    },
+    {
+      "code": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/analytics.py:945:metric",
+      "calls": 4100,
+      "total_seconds": 0.19422871500000002,
+      "inline_seconds": 0.033102235
+    },
+    {
+      "code": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/precision.py:111:text",
+      "calls": 6000,
+      "total_seconds": 0.08188675100000001,
+      "inline_seconds": 0.008582147
+    },
+    {
+      "code": "<string>:2:__init__",
+      "calls": 4500,
+      "total_seconds": 0.072799641,
+      "inline_seconds": 0.007609398000000001
+    },
+    {
+      "code": "<built-in method builtins.any>",
+      "calls": 6200,
+      "total_seconds": 0.071546066,
+      "inline_seconds": 0.023377122
+    },
+    {
+      "code": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/quality.py:180:__post_init__",
+      "calls": 4500,
+      "total_seconds": 0.06519024300000001,
+      "inline_seconds": 0.008224704000000001
+    },
+    {
+      "code": "<string>:2:__init__",
+      "calls": 4100,
+      "total_seconds": 0.053341131,
+      "inline_seconds": 0.018329003
+    },
+    {
+      "code": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/precision.py:116:<genexpr>",
+      "calls": 112200,
+      "total_seconds": 0.048119430000000005,
+      "inline_seconds": 0.034342557
+    },
+    {
+      "code": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/analytics.py:128:__post_init__",
+      "calls": 4100,
+      "total_seconds": 0.035012128,
+      "inline_seconds": 0.009001562000000001
+    },
+    {
+      "code": "<string>:2:__init__",
+      "calls": 700,
+      "total_seconds": 0.032624307000000005,
+      "inline_seconds": 0.001196468
+    },
+    {
+      "code": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/analytics.py:101:__post_init__",
+      "calls": 700,
+      "total_seconds": 0.031427839,
+      "inline_seconds": 0.001406078
+    },
+    {
+      "code": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/dataclasses.py:1580:replace",
+      "calls": 500,
+      "total_seconds": 0.031295932,
+      "inline_seconds": 0.001124112
+    },
+    {
+      "code": "/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/dataclasses.py:1599:_replace",
+      "calls": 500,
+      "total_seconds": 0.029611339,
+      "inline_seconds": 0.002373233
+    },
+    {
+      "code": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/precision.py:42:decimal",
+      "calls": 2772,
+      "total_seconds": 0.026010566000000002,
+      "inline_seconds": 0.012904171
+    },
+    {
+      "code": "<built-in method builtins.ord>",
+      "calls": 106200,
+      "total_seconds": 0.013776873,
+      "inline_seconds": 0.013776873
+    },
+    {
+      "code": "<built-in method builtins.sum>",
+      "calls": 1010,
+      "total_seconds": 0.009295463,
+      "inline_seconds": 0.0064823450000000005
+    },
+    {
+      "code": "<method 'as_tuple' of 'decimal.Decimal' objects>",
+      "calls": 2772,
+      "total_seconds": 0.007396004,
+      "inline_seconds": 0.004463564000000001
+    },
+    {
+      "code": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/analytics.py:1334:<genexpr>",
+      "calls": 40320,
+      "total_seconds": 0.006571475,
+      "inline_seconds": 0.006571475
+    },
+    {
+      "code": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/precision.py:105:nonnegative_int",
+      "calls": 6000,
+      "total_seconds": 0.006463158,
+      "inline_seconds": 0.00397164
+    },
+    {
+      "code": "<built-in method builtins.isinstance>",
+      "calls": 29088,
+      "total_seconds": 0.0058325980000000005,
+      "inline_seconds": 0.0058325980000000005
+    },
+    {
+      "code": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/quality.py:188:evaluate",
+      "calls": 200,
+      "total_seconds": 0.005695138000000001,
+      "inline_seconds": 0.0020618200000000002
+    },
+    {
+      "code": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/analytics.py:1304:<genexpr>",
+      "calls": 20100,
+      "total_seconds": 0.004214610000000001,
+      "inline_seconds": 0.004214610000000001
+    },
+    {
+      "code": "<string>:1:<lambda>",
+      "calls": 2772,
+      "total_seconds": 0.00293244,
+      "inline_seconds": 0.0016474670000000001
+    },
+    {
+      "code": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/analytics.py:1330:<genexpr>",
+      "calls": 20310,
+      "total_seconds": 0.002671938,
+      "inline_seconds": 0.002671938
+    },
+    {
+      "code": "<built-in method fromkeys>",
+      "calls": 4700,
+      "total_seconds": 0.002574344,
+      "inline_seconds": 0.002574344
+    },
+    {
+      "code": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/analytics.py:870:_trade_source",
+      "calls": 100,
+      "total_seconds": 0.00247319,
+      "inline_seconds": 0.000306819
+    },
+    {
+      "code": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/quality.py:372:evaluate_trades",
+      "calls": 100,
+      "total_seconds": 0.002069994,
+      "inline_seconds": 0.000382123
+    },
+    {
+      "code": "<built-in method builtins.len>",
+      "calls": 9172,
+      "total_seconds": 0.001901965,
+      "inline_seconds": 0.001901965
+    },
+    {
+      "code": "<string>:2:__init__",
+      "calls": 100,
+      "total_seconds": 0.00168825,
+      "inline_seconds": 0.00017972300000000001
+    },
+    {
+      "code": "<method 'append' of 'list' objects>",
+      "calls": 4607,
+      "total_seconds": 0.0016294590000000002,
+      "inline_seconds": 0.0016294590000000002
+    },
+    {
+      "code": "/Users/dakariantoine/Developer/personal/limit-orderbook/src/workstation/quality.py:35:__post_init__",
+      "calls": 100,
+      "total_seconds": 0.0015085270000000002,
+      "inline_seconds": 0.000145918
+    },
+    {
+      "code": "<built-in method builtins.format>",
+      "calls": 1600,
+      "total_seconds": 0.0013704720000000002,
+      "inline_seconds": 0.0013704720000000002
+    },
+    {
+      "code": "<built-in method __new__ of type object at 0x1113ae8c0>",
+      "calls": 2772,
+      "total_seconds": 0.001284973,
+      "inline_seconds": 0.001284973
+    },
+    {
+      "code": "<method 'copy_abs' of 'decimal.Decimal' objects>",
+      "calls": 2772,
+      "total_seconds": 0.0010906450000000001,
+      "inline_seconds": 0.0010906450000000001
+    },
+    {
+      "code": "<method 'is_finite' of 'decimal.Decimal' objects>",
+      "calls": 2772,
+      "total_seconds": 0.0008374830000000001,
+      "inline_seconds": 0.0008374830000000001
+    },
+    {
+      "code": "<string>:2:__init__",
+      "calls": 100,
+      "total_seconds": 0.000814053,
+      "inline_seconds": 0.00032320300000000004
+    },
+    {
+      "code": "<built-in method builtins.getattr>",
+      "calls": 2600,
+      "total_seconds": 0.0007720540000000001,
+      "inline_seconds": 0.0007720540000000001
+    }
+  ]
+}

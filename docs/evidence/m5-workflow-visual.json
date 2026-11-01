@@ -1,0 +1,3740 @@
+{
+  "scope": "Actual managed Chromium against native loopback backend and production frontend; no mocked market/API responses. Manual backend launched before final lifecycle-fairness/observer optimizations. This is functional/visual evidence, not live-feed or sustained-load certification.",
+  "frontend_asset": [
+    "http://127.0.0.1:8000/assets/index-DjcEpben.js"
+  ],
+  "viewport": {
+    "width": 1280,
+    "height": 800,
+    "deviceScaleFactor": 1.25
+  },
+  "alert_rule": {
+    "version": "1",
+    "session_id": "0415447caa4449dcb3354a782e2b9078",
+    "generation": "2",
+    "source_identity": "demo:f1869e494adc9d62cf2e0e2d7cab351e6020b2b3f6e7f3826d84dfc60b0a56e8",
+    "delivery_index": "169",
+    "snapshot": {
+      "rules": [
+        {
+          "rule_id": "c56316f2b108402b898cc93ac70d2664",
+          "key": {
+            "venue": "binance-global",
+            "api_family": "spot-v3",
+            "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+            "channel": "book",
+            "depth": "5000",
+            "aggregation": []
+          },
+          "kind": "spread_shock",
+          "direction": "above",
+          "threshold": "1",
+          "rearm_threshold": "0.5",
+          "unit": "bps",
+          "window_ns": "0",
+          "cooldown_ns": "1000000000",
+          "depth_side": "bid",
+          "depth_bps": "10",
+          "sell_key": null,
+          "base_quantity": null,
+          "buy_fees": {
+            "rate": null,
+            "asset_id": null,
+            "provenance": "unknown",
+            "asof_wall_ns": null,
+            "assumed": true
+          },
+          "sell_fees": {
+            "rate": null,
+            "asset_id": null,
+            "provenance": "unknown",
+            "asof_wall_ns": null,
+            "assumed": true
+          },
+          "stress": {
+            "latency_bps": "0",
+            "rebalance_cost": "0",
+            "provenance": "user assumption"
+          }
+        }
+      ],
+      "evaluations": [
+        {
+          "rule": {
+            "rule_id": "c56316f2b108402b898cc93ac70d2664",
+            "key": {
+              "venue": "binance-global",
+              "api_family": "spot-v3",
+              "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+              "channel": "book",
+              "depth": "5000",
+              "aggregation": []
+            },
+            "kind": "spread_shock",
+            "direction": "above",
+            "threshold": "1",
+            "rearm_threshold": "0.5",
+            "unit": "bps",
+            "window_ns": "0",
+            "cooldown_ns": "1000000000",
+            "depth_side": "bid",
+            "depth_bps": "10",
+            "sell_key": null,
+            "base_quantity": null,
+            "buy_fees": {
+              "rate": null,
+              "asset_id": null,
+              "provenance": "unknown",
+              "asof_wall_ns": null,
+              "assumed": true
+            },
+            "sell_fees": {
+              "rate": null,
+              "asset_id": null,
+              "provenance": "unknown",
+              "asof_wall_ns": null,
+              "assumed": true
+            },
+            "stress": {
+              "latency_bps": "0",
+              "rebalance_cost": "0",
+              "provenance": "user assumption"
+            }
+          },
+          "delivery_index": "169",
+          "now": {
+            "clock_id": "synthetic-clock-v3",
+            "mono_ns": "3000000000",
+            "wall_ns": null
+          },
+          "value": null,
+          "eligibility": {
+            "eligible": false,
+            "reasons": [
+              "awaiting_observation"
+            ],
+            "evaluated_at_mono_ns": "3000000000",
+            "policy_version": "eligibility-v1"
+          },
+          "window": null,
+          "armed": true,
+          "cooldown_remaining_ns": "0",
+          "condition_met": false,
+          "reasons": [],
+          "persistence_ns": "0",
+          "evidence_available": false
+        }
+      ],
+      "events": [],
+      "delivery_index": "169",
+      "now": {
+        "clock_id": "synthetic-clock-v3",
+        "mono_ns": "3000000000",
+        "wall_ns": null
+      },
+      "dropped_events": "0",
+      "reasons": []
+    },
+    "kinds": [
+      {
+        "kind": "spread_shock",
+        "unit": "bps"
+      },
+      {
+        "kind": "depth_shock",
+        "unit": "ETH"
+      },
+      {
+        "kind": "large_executed_print",
+        "unit": "base:binance-global:spot-v3:spot:ETHUSDT"
+      },
+      {
+        "kind": "event_ofi",
+        "unit": "base:binance-global:spot-v3:spot:ETHUSDT"
+      },
+      {
+        "kind": "best_quote_imbalance",
+        "unit": "ratio"
+      },
+      {
+        "kind": "persistent_displayed_liquidity",
+        "unit": "base:binance-global:spot-v3:spot:ETHUSDT"
+      },
+      {
+        "kind": "net_cost",
+        "unit": "USDT"
+      }
+    ],
+    "evaluation_scope": "last_delivered_batch",
+    "presentation": {
+      "event_limit": 100,
+      "events_omitted": 0
+    }
+  },
+  "alert_evidence": {
+    "version": "1",
+    "session_id": "0415447caa4449dcb3354a782e2b9078",
+    "generation": "2",
+    "source_identity": "demo:f1869e494adc9d62cf2e0e2d7cab351e6020b2b3f6e7f3826d84dfc60b0a56e8",
+    "delivery_index": "170",
+    "evaluation": {
+      "rule": {
+        "rule_id": "c56316f2b108402b898cc93ac70d2664",
+        "key": {
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+          "channel": "book",
+          "depth": "5000",
+          "aggregation": []
+        },
+        "kind": "spread_shock",
+        "direction": "above",
+        "threshold": "1",
+        "rearm_threshold": "0.5",
+        "unit": "bps",
+        "window_ns": "0",
+        "cooldown_ns": "1000000000",
+        "depth_side": "bid",
+        "depth_bps": "10",
+        "sell_key": null,
+        "base_quantity": null,
+        "buy_fees": {
+          "rate": null,
+          "asset_id": null,
+          "provenance": "unknown",
+          "asof_wall_ns": null,
+          "assumed": true
+        },
+        "sell_fees": {
+          "rate": null,
+          "asset_id": null,
+          "provenance": "unknown",
+          "asof_wall_ns": null,
+          "assumed": true
+        },
+        "stress": {
+          "latency_bps": "0",
+          "rebalance_cost": "0",
+          "provenance": "user assumption"
+        }
+      },
+      "delivery_index": "170",
+      "now": {
+        "clock_id": "synthetic-clock-v3",
+        "mono_ns": "3000001000",
+        "wall_ns": null
+      },
+      "value": "6.6666666666666666666666666666666666666666666666666666666666666666666666666666667",
+      "eligibility": {
+        "eligible": true,
+        "reasons": [],
+        "evaluated_at_mono_ns": "3000001000",
+        "policy_version": "eligibility-v1"
+      },
+      "window": {
+        "start_mono_ns": "3000001000",
+        "end_mono_ns": "3000001000",
+        "clock_id": "synthetic-clock-v3",
+        "definition": "latest_observation"
+      },
+      "armed": true,
+      "cooldown_remaining_ns": "0",
+      "condition_met": true,
+      "reasons": [],
+      "references": [
+        {
+          "session_id": "synthetic-demo-v3-180s",
+          "ingest_ordinal": "133",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793545280085000000",
+          "receive_wall_ns": "1793545280085002000",
+          "receive_mono_ns": "2000002000",
+          "clock_id": "synthetic-clock-v3"
+        }
+      ],
+      "metric": {
+        "name": "spread_bps",
+        "value": "6.6666666666666666666666666666666666666666666666666666666666666666666666666666667",
+        "unit": "bps",
+        "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+        "venue": "binance-global",
+        "asof": {
+          "session_id": "synthetic-demo-v3-180s",
+          "ingest_ordinal": "133",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793545280085000000",
+          "receive_wall_ns": "1793545280085002000",
+          "receive_mono_ns": "2000002000",
+          "clock_id": "synthetic-clock-v3"
+        },
+        "window": {
+          "start_mono_ns": "3000001000",
+          "end_mono_ns": "3000001000",
+          "clock_id": "synthetic-clock-v3",
+          "definition": "latest_observation"
+        },
+        "quality": {
+          "lifecycle": "live",
+          "integrity": "valid",
+          "transport_alive": true,
+          "source_mode": "ws_delta",
+          "recorded_source_mode": null,
+          "last_transport_mono_ns": "2000002000",
+          "last_book_observation_mono_ns": "2000002000",
+          "last_book_change_mono_ns": "2000002000",
+          "last_healthy_observation_mono_ns": "2000002000",
+          "clock_id": "synthetic-clock-v3",
+          "coverage": {
+            "subscribed_depth": "5000",
+            "retained_bid_levels": "2",
+            "retained_ask_levels": "2",
+            "worst_bid": "2998",
+            "worst_ask": "3002",
+            "full_depth": true,
+            "source_aggregation": [],
+            "expected_cadence_ns": null
+          },
+          "capabilities": {
+            "snapshot": true,
+            "deltas": true,
+            "trades": false,
+            "sequence_scope": "binance-global:spot-v3:spot:ETHUSDT:depth",
+            "checksum_scope": null,
+            "exact_event_flow": true,
+            "reference_prices": [],
+            "asset_context": []
+          },
+          "continuous_since_ordinal": "21",
+          "reason_codes": [],
+          "capture_complete": true
+        },
+        "eligibility": {
+          "eligible": true,
+          "reasons": [],
+          "evaluated_at_mono_ns": "3000001000",
+          "policy_version": "eligibility-v1"
+        },
+        "formula_version": "analytics-v1",
+        "config_hash": "a26bdaacc511d714f60185dbd01b52f1f567f3b35bc9a376ff8f8b86e6ed1010",
+        "references": [
+          {
+            "session_id": "synthetic-demo-v3-180s",
+            "ingest_ordinal": "133",
+            "event_index": "0",
+            "exchange_event_wall_ns": "1793545280085000000",
+            "receive_wall_ns": "1793545280085002000",
+            "receive_mono_ns": "2000002000",
+            "clock_id": "synthetic-clock-v3"
+          }
+        ],
+        "trade_evidence": null,
+        "trade_eligibility": null,
+        "trade_references": []
+      },
+      "prints": [],
+      "displayed": [],
+      "pair": null,
+      "trade_evidence": null,
+      "persistence_ns": "0",
+      "book_evidence": {
+        "key": {
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+          "channel": "book",
+          "depth": "5000",
+          "aggregation": []
+        },
+        "metadata_version": "04ab32d44ea51bec5d654074e982bc08d2dced5a9b0710ee9755c6d717f95839:1793545279085000000",
+        "asof": {
+          "session_id": "synthetic-demo-v3-180s",
+          "ingest_ordinal": "133",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793545280085000000",
+          "receive_wall_ns": "1793545280085002000",
+          "receive_mono_ns": "2000002000",
+          "clock_id": "synthetic-clock-v3"
+        },
+        "best_bid": {
+          "price": "2999",
+          "quantity": "3"
+        },
+        "best_ask": {
+          "price": "3001",
+          "quantity": "2"
+        },
+        "quality": {
+          "lifecycle": "live",
+          "integrity": "valid",
+          "transport_alive": true,
+          "source_mode": "ws_delta",
+          "recorded_source_mode": null,
+          "last_transport_mono_ns": "2000002000",
+          "last_book_observation_mono_ns": "2000002000",
+          "last_book_change_mono_ns": "2000002000",
+          "last_healthy_observation_mono_ns": "2000002000",
+          "clock_id": "synthetic-clock-v3",
+          "coverage": {
+            "subscribed_depth": "5000",
+            "retained_bid_levels": "2",
+            "retained_ask_levels": "2",
+            "worst_bid": "2998",
+            "worst_ask": "3002",
+            "full_depth": true,
+            "source_aggregation": [],
+            "expected_cadence_ns": null
+          },
+          "capabilities": {
+            "snapshot": true,
+            "deltas": true,
+            "trades": false,
+            "sequence_scope": "binance-global:spot-v3:spot:ETHUSDT:depth",
+            "checksum_scope": null,
+            "exact_event_flow": true,
+            "reference_prices": [],
+            "asset_context": []
+          },
+          "continuous_since_ordinal": "21",
+          "reason_codes": [],
+          "capture_complete": true
+        }
+      }
+    }
+  },
+  "paper_configure": {
+    "version": "1",
+    "session_id": "0415447caa4449dcb3354a782e2b9078",
+    "generation": "2",
+    "source_identity": "demo:f1869e494adc9d62cf2e0e2d7cab351e6020b2b3f6e7f3826d84dfc60b0a56e8",
+    "delivery_index": "170",
+    "snapshot": {
+      "delivery_index": "170",
+      "at": {
+        "clock_id": "synthetic-clock-v3",
+        "mono_ns": "3000001000",
+        "wall_ns": null
+      },
+      "balances": [
+        {
+          "venue": "binance-global",
+          "asset_id": "USDT",
+          "available": "1000"
+        }
+      ],
+      "positions": [],
+      "reasons": [],
+      "assumptions": [
+        "spot_only",
+        "immediate_or_cancel",
+        "no_market_impact",
+        "no_passive_fills",
+        "conservative_per_price_reservations",
+        "average_cost_basis",
+        "initial_inventory_basis_unknown",
+        "marks_are_gross_best_bid_not_liquidation_proceeds"
+      ],
+      "run": {
+        "run_id": "4fee4edffc114574a32bc6e86993d7ac",
+        "source_id": "demo:f1869e494adc9d62cf2e0e2d7cab351e6020b2b3f6e7f3826d84dfc60b0a56e8",
+        "config": {
+          "balances": [
+            {
+              "venue": "binance-global",
+              "asset_id": "USDT",
+              "available": "1000",
+              "provenance": "Explicit visual-smoke simulation allocation, not real account funds",
+              "asof": null
+            }
+          ],
+          "fees": [
+            {
+              "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+              "schedule": {
+                "rate": "0.0005",
+                "asset_id": "USDT",
+                "provenance": "Explicit visual-smoke 5 bps assumption, not venue fee discovery",
+                "asof_wall_ns": "1793491200000000000",
+                "assumed": true
+              }
+            }
+          ],
+          "feed_latency_ns": "0",
+          "decision_latency_ns": "0",
+          "order_latency_ns": "0",
+          "policy": {
+            "max_age_ns": "5000000000",
+            "max_asof_skew_ns": "1000000000",
+            "allow_snapshot_quotes": true,
+            "require_execution_access": false,
+            "required_capabilities": [],
+            "version": "eligibility-v1"
+          }
+        },
+        "created_at": {
+          "clock_id": "synthetic-clock-v3",
+          "mono_ns": "3000001000",
+          "wall_ns": "1793545281085001000"
+        },
+        "delivery_index": "170",
+        "revision": "0",
+        "parent_run_id": null,
+        "instrument_metadata": [
+          {
+            "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+            "metadata_version": "04ab32d44ea51bec5d654074e982bc08d2dced5a9b0710ee9755c6d717f95839:1793545279085000000"
+          },
+          {
+            "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+            "metadata_version": "04ab32d44ea51bec5d654074e982bc08d2dced5a9b0710ee9755c6d717f95839:1793545279085000000"
+          },
+          {
+            "instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+            "metadata_version": "04ab32d44ea51bec5d654074e982bc08d2dced5a9b0710ee9755c6d717f95839:1793545279085000000"
+          },
+          {
+            "instrument_id": "hyperliquid:info:perpetual:BTC",
+            "metadata_version": "097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2:1793545279085000000:hyperliquid-denomination-v2"
+          },
+          {
+            "instrument_id": "hyperliquid:info:perpetual:ETH",
+            "metadata_version": "097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2:1793545279085000000:hyperliquid-denomination-v2"
+          },
+          {
+            "instrument_id": "hyperliquid:info:perpetual:SOL",
+            "metadata_version": "097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2:1793545279085000000:hyperliquid-denomination-v2"
+          },
+          {
+            "instrument_id": "hyperliquid:info:perpetual:HYPE",
+            "metadata_version": "097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2:1793545279085000000:hyperliquid-denomination-v2"
+          },
+          {
+            "instrument_id": "hyperliquid:info:spot:@107",
+            "metadata_version": "097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2:1793545279085000000:hyperliquid-denomination-v2"
+          },
+          {
+            "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+            "metadata_version": "synthetic-v3:097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2"
+          },
+          {
+            "instrument_id": "coinbase:advanced-trade:spot:ETH-USD",
+            "metadata_version": "synthetic-v3:097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2"
+          },
+          {
+            "instrument_id": "coinbase:advanced-trade:spot:SOL-USD",
+            "metadata_version": "synthetic-v3:097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2"
+          },
+          {
+            "instrument_id": "kraken:spot-v2:spot:BTC/USD",
+            "metadata_version": "synthetic-v3:097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2"
+          },
+          {
+            "instrument_id": "kraken:spot-v2:spot:ETH/USD",
+            "metadata_version": "synthetic-v3:097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2"
+          },
+          {
+            "instrument_id": "kraken:spot-v2:spot:SOL/USD",
+            "metadata_version": "synthetic-v3:097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2"
+          }
+        ]
+      },
+      "orders": [],
+      "fills": [],
+      "presentation": {
+        "orders_limit": 20,
+        "orders_omitted": 0,
+        "fills_limit": 20,
+        "fills_omitted": 0,
+        "fill_levels_limit": 20
+      }
+    }
+  },
+  "paper_order": {
+    "version": "1",
+    "session_id": "0415447caa4449dcb3354a782e2b9078",
+    "generation": "2",
+    "source_identity": "demo:f1869e494adc9d62cf2e0e2d7cab351e6020b2b3f6e7f3826d84dfc60b0a56e8",
+    "delivery_index": "170",
+    "snapshot": {
+      "delivery_index": "170",
+      "at": {
+        "clock_id": "synthetic-clock-v3",
+        "mono_ns": "3000001000",
+        "wall_ns": null
+      },
+      "balances": [
+        {
+          "venue": "binance-global",
+          "asset_id": "ETH",
+          "available": "0.01"
+        },
+        {
+          "venue": "binance-global",
+          "asset_id": "USDT",
+          "available": "969.974995"
+        }
+      ],
+      "positions": [
+        {
+          "venue": "binance-global",
+          "asset_id": "ETH",
+          "quote_asset_id": "USDT",
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+          "quantity": "0.01",
+          "cost_basis_quote": "30.025005",
+          "realized_pnl_quote": "0",
+          "unrealized_pnl_quote": "-0.035005",
+          "mark_price": "2999",
+          "reasons": []
+        }
+      ],
+      "reasons": [],
+      "assumptions": [
+        "spot_only",
+        "immediate_or_cancel",
+        "no_market_impact",
+        "no_passive_fills",
+        "conservative_per_price_reservations",
+        "average_cost_basis",
+        "initial_inventory_basis_unknown",
+        "marks_are_gross_best_bid_not_liquidation_proceeds"
+      ],
+      "run": {
+        "run_id": "4fee4edffc114574a32bc6e86993d7ac",
+        "source_id": "demo:f1869e494adc9d62cf2e0e2d7cab351e6020b2b3f6e7f3826d84dfc60b0a56e8",
+        "config": {
+          "balances": [
+            {
+              "venue": "binance-global",
+              "asset_id": "USDT",
+              "available": "1000",
+              "provenance": "Explicit visual-smoke simulation allocation, not real account funds",
+              "asof": null
+            }
+          ],
+          "fees": [
+            {
+              "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+              "schedule": {
+                "rate": "0.0005",
+                "asset_id": "USDT",
+                "provenance": "Explicit visual-smoke 5 bps assumption, not venue fee discovery",
+                "asof_wall_ns": "1793491200000000000",
+                "assumed": true
+              }
+            }
+          ],
+          "feed_latency_ns": "0",
+          "decision_latency_ns": "0",
+          "order_latency_ns": "0",
+          "policy": {
+            "max_age_ns": "5000000000",
+            "max_asof_skew_ns": "1000000000",
+            "allow_snapshot_quotes": true,
+            "require_execution_access": false,
+            "required_capabilities": [],
+            "version": "eligibility-v1"
+          }
+        },
+        "created_at": {
+          "clock_id": "synthetic-clock-v3",
+          "mono_ns": "3000001000",
+          "wall_ns": "1793545281085001000"
+        },
+        "delivery_index": "170",
+        "revision": "1",
+        "parent_run_id": null,
+        "instrument_metadata": [
+          {
+            "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+            "metadata_version": "04ab32d44ea51bec5d654074e982bc08d2dced5a9b0710ee9755c6d717f95839:1793545279085000000"
+          },
+          {
+            "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+            "metadata_version": "04ab32d44ea51bec5d654074e982bc08d2dced5a9b0710ee9755c6d717f95839:1793545279085000000"
+          },
+          {
+            "instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+            "metadata_version": "04ab32d44ea51bec5d654074e982bc08d2dced5a9b0710ee9755c6d717f95839:1793545279085000000"
+          },
+          {
+            "instrument_id": "hyperliquid:info:perpetual:BTC",
+            "metadata_version": "097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2:1793545279085000000:hyperliquid-denomination-v2"
+          },
+          {
+            "instrument_id": "hyperliquid:info:perpetual:ETH",
+            "metadata_version": "097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2:1793545279085000000:hyperliquid-denomination-v2"
+          },
+          {
+            "instrument_id": "hyperliquid:info:perpetual:SOL",
+            "metadata_version": "097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2:1793545279085000000:hyperliquid-denomination-v2"
+          },
+          {
+            "instrument_id": "hyperliquid:info:perpetual:HYPE",
+            "metadata_version": "097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2:1793545279085000000:hyperliquid-denomination-v2"
+          },
+          {
+            "instrument_id": "hyperliquid:info:spot:@107",
+            "metadata_version": "097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2:1793545279085000000:hyperliquid-denomination-v2"
+          },
+          {
+            "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+            "metadata_version": "synthetic-v3:097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2"
+          },
+          {
+            "instrument_id": "coinbase:advanced-trade:spot:ETH-USD",
+            "metadata_version": "synthetic-v3:097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2"
+          },
+          {
+            "instrument_id": "coinbase:advanced-trade:spot:SOL-USD",
+            "metadata_version": "synthetic-v3:097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2"
+          },
+          {
+            "instrument_id": "kraken:spot-v2:spot:BTC/USD",
+            "metadata_version": "synthetic-v3:097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2"
+          },
+          {
+            "instrument_id": "kraken:spot-v2:spot:ETH/USD",
+            "metadata_version": "synthetic-v3:097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2"
+          },
+          {
+            "instrument_id": "kraken:spot-v2:spot:SOL/USD",
+            "metadata_version": "synthetic-v3:097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2"
+          }
+        ]
+      },
+      "orders": [
+        {
+          "order_id": "c9b37d3156e44f5f8871230f88af76a2",
+          "run_id": "4fee4edffc114574a32bc6e86993d7ac",
+          "request": {
+            "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+            "side": "buy",
+            "quantity": "0.01",
+            "order_type": "market",
+            "limit_price": null
+          },
+          "submitted_at": {
+            "clock_id": "synthetic-clock-v3",
+            "mono_ns": "3000001000",
+            "wall_ns": "1793545281085001000"
+          },
+          "delivery_index": "170",
+          "arrival_at": {
+            "clock_id": "synthetic-clock-v3",
+            "mono_ns": "3000001000",
+            "wall_ns": "1793545281085001000"
+          },
+          "status": "filled",
+          "filled_quantity": "0.01",
+          "remaining_quantity": "0",
+          "reasons": []
+        }
+      ],
+      "fills": [
+        {
+          "fill_id": "c9b37d3156e44f5f8871230f88af76a2:fill",
+          "run_id": "4fee4edffc114574a32bc6e86993d7ac",
+          "order_id": "c9b37d3156e44f5f8871230f88af76a2",
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+          "venue": "binance-global",
+          "side": "buy",
+          "at": {
+            "clock_id": "synthetic-clock-v3",
+            "mono_ns": "3000001000",
+            "wall_ns": "1793545281085001000"
+          },
+          "delivery_index": "170",
+          "quantity": "0.01",
+          "notional_quote": "30.01",
+          "quote_asset_id": "USDT",
+          "fee_amount": "0.015005",
+          "fee_asset_id": "USDT",
+          "fees": {
+            "rate": "0.0005",
+            "asset_id": "USDT",
+            "provenance": "Explicit visual-smoke 5 bps assumption, not venue fee discovery",
+            "asof_wall_ns": "1793491200000000000",
+            "assumed": true
+          },
+          "book_asof": {
+            "session_id": "synthetic-demo-v3-180s",
+            "ingest_ordinal": "133",
+            "event_index": "0",
+            "exchange_event_wall_ns": "1793545280085000000",
+            "receive_wall_ns": "1793545280085002000",
+            "receive_mono_ns": "2000002000",
+            "clock_id": "synthetic-clock-v3"
+          },
+          "book_key": {
+            "venue": "binance-global",
+            "api_family": "spot-v3",
+            "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+            "channel": "book",
+            "depth": "5000",
+            "aggregation": []
+          },
+          "book_revision": "3",
+          "consumed_levels": [
+            {
+              "price": "3001",
+              "native_quantity": "0.01",
+              "base_quantity": "0.01",
+              "notional_quote": "30.01"
+            }
+          ],
+          "consumed_levels_omitted": 0
+        }
+      ],
+      "presentation": {
+        "orders_limit": 20,
+        "orders_omitted": 0,
+        "fills_limit": 20,
+        "fills_omitted": 0,
+        "fill_levels_limit": 20
+      }
+    }
+  },
+  "journal_put": {
+    "version": "1",
+    "session_id": "0415447caa4449dcb3354a782e2b9078",
+    "generation": "2",
+    "source_identity": "demo:f1869e494adc9d62cf2e0e2d7cab351e6020b2b3f6e7f3826d84dfc60b0a56e8",
+    "delivery_index": "170",
+    "entry": {
+      "entry_id": "75d397275fb44707b0872c083bf99145",
+      "source_id": "demo:f1869e494adc9d62cf2e0e2d7cab351e6020b2b3f6e7f3826d84dfc60b0a56e8",
+      "session_id": "0415447caa4449dcb3354a782e2b9078",
+      "delivery_index": "170",
+      "at": {
+        "clock_id": "synthetic-clock-v3",
+        "mono_ns": "3000001000",
+        "wall_ns": null
+      },
+      "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+      "venue": "binance-global",
+      "rationale": "Observed native spread alert at delivery170; explicitly funded simulated IOC; no claim of profitable edge.",
+      "entry": "3001",
+      "stop": "2900",
+      "context": "Synthetic-v3 ETH/USDT. Native 5 bps assumed fee, zero explicitly configured latencies. Stop is a manual journal intention, not an order or guaranteed loss bound.",
+      "run_id": "4fee4edffc114574a32bc6e86993d7ac",
+      "order_id": "c9b37d3156e44f5f8871230f88af76a2"
+    }
+  },
+  "journal_exact_run_query": {
+    "version": "1",
+    "session_id": "0415447caa4449dcb3354a782e2b9078",
+    "generation": "2",
+    "source_identity": "demo:f1869e494adc9d62cf2e0e2d7cab351e6020b2b3f6e7f3826d84dfc60b0a56e8",
+    "delivery_index": "170",
+    "entries": [
+      {
+        "entry_id": "75d397275fb44707b0872c083bf99145",
+        "source_id": "demo:f1869e494adc9d62cf2e0e2d7cab351e6020b2b3f6e7f3826d84dfc60b0a56e8",
+        "session_id": "0415447caa4449dcb3354a782e2b9078",
+        "delivery_index": "170",
+        "at": {
+          "clock_id": "synthetic-clock-v3",
+          "mono_ns": "3000001000",
+          "wall_ns": null
+        },
+        "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+        "venue": "binance-global",
+        "rationale": "Observed native spread alert at delivery170; explicitly funded simulated IOC; no claim of profitable edge.",
+        "entry": "3001",
+        "stop": "2900",
+        "context": "Synthetic-v3 ETH/USDT. Native 5 bps assumed fee, zero explicitly configured latencies. Stop is a manual journal intention, not an order or guaranteed loss bound.",
+        "run_id": "4fee4edffc114574a32bc6e86993d7ac",
+        "order_id": "c9b37d3156e44f5f8871230f88af76a2"
+      }
+    ],
+    "scope": "current_source",
+    "limit": 100
+  },
+  "context": {
+    "version": "1",
+    "session_id": "0415447caa4449dcb3354a782e2b9078",
+    "generation": "2",
+    "source_identity": "demo:f1869e494adc9d62cf2e0e2d7cab351e6020b2b3f6e7f3826d84dfc60b0a56e8",
+    "delivery_index": "170",
+    "snapshot": {
+      "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+      "now": {
+        "clock_id": "synthetic-clock-v3",
+        "mono_ns": "3000001000",
+        "wall_ns": null
+      },
+      "watchlist": [
+        {
+          "instrument": {
+            "instrument_id": "hyperliquid:info:perpetual:BTC",
+            "metadata_version": "097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2:1793545279085000000:hyperliquid-denomination-v2",
+            "venue": "hyperliquid",
+            "api_family": "info",
+            "native_symbol": "BTC",
+            "base": {
+              "asset_id": "BTC",
+              "ticker": "BTC",
+              "native_token_id": null,
+              "network": null,
+              "contract_address": null,
+              "reference_asset_id": null
+            },
+            "quote": {
+              "asset_id": "USDT",
+              "ticker": "USDT",
+              "native_token_id": null,
+              "network": null,
+              "contract_address": null,
+              "reference_asset_id": null
+            },
+            "tick_size": null,
+            "lot_size": "0.00001",
+            "native_asset_id": "0",
+            "dex_namespace": "default",
+            "settlement": {
+              "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+              "ticker": "USDC",
+              "native_token_id": "0",
+              "network": "hypercore",
+              "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+              "reference_asset_id": null
+            },
+            "market_type": "perpetual",
+            "expiry_wall_ns": null,
+            "constraints": {
+              "min_base": "0.00001",
+              "max_base": null,
+              "min_notional": null,
+              "max_notional": null,
+              "min_notional_currency": null,
+              "price_rule": "hyperliquid_significant_digits",
+              "size_rule": "fixed_lot",
+              "max_limit_base": null,
+              "max_market_base": null
+            },
+            "contract_multiplier": "1",
+            "quantity_unit": "base",
+            "contract_value_currency": "BTC",
+            "inverse": false,
+            "status": "active",
+            "data_access": "unknown",
+            "execution_access": "unknown",
+            "metadata_asof_wall_ns": "1793545279085000000",
+            "metadata_source": "https://api.hyperliquid.xyz/info",
+            "reference_multiplier": null,
+            "settlement_conversion": "quanto_no_fx",
+            "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+          },
+          "stream_id": "demo-hyperliquid:info:perpetual:BTC-reference",
+          "value": {
+            "kind": "mid",
+            "price": "60000",
+            "currency": "USDT",
+            "interval_ns": null
+          },
+          "asof": {
+            "session_id": "synthetic-demo-v3-180s",
+            "ingest_ordinal": "139",
+            "event_index": "0",
+            "exchange_event_wall_ns": null,
+            "receive_wall_ns": "1793545280085008000",
+            "receive_mono_ns": "2000008000",
+            "clock_id": "synthetic-clock-v3"
+          },
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "3000001000",
+            "policy_version": "eligibility-v1"
+          },
+          "label": "reference_only_not_executable"
+        },
+        {
+          "instrument": {
+            "instrument_id": "hyperliquid:info:perpetual:ETH",
+            "metadata_version": "097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2:1793545279085000000:hyperliquid-denomination-v2",
+            "venue": "hyperliquid",
+            "api_family": "info",
+            "native_symbol": "ETH",
+            "base": {
+              "asset_id": "ETH",
+              "ticker": "ETH",
+              "native_token_id": null,
+              "network": null,
+              "contract_address": null,
+              "reference_asset_id": null
+            },
+            "quote": {
+              "asset_id": "USDT",
+              "ticker": "USDT",
+              "native_token_id": null,
+              "network": null,
+              "contract_address": null,
+              "reference_asset_id": null
+            },
+            "tick_size": null,
+            "lot_size": "0.0001",
+            "native_asset_id": "1",
+            "dex_namespace": "default",
+            "settlement": {
+              "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+              "ticker": "USDC",
+              "native_token_id": "0",
+              "network": "hypercore",
+              "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+              "reference_asset_id": null
+            },
+            "market_type": "perpetual",
+            "expiry_wall_ns": null,
+            "constraints": {
+              "min_base": "0.0001",
+              "max_base": null,
+              "min_notional": null,
+              "max_notional": null,
+              "min_notional_currency": null,
+              "price_rule": "hyperliquid_significant_digits",
+              "size_rule": "fixed_lot",
+              "max_limit_base": null,
+              "max_market_base": null
+            },
+            "contract_multiplier": "1",
+            "quantity_unit": "base",
+            "contract_value_currency": "ETH",
+            "inverse": false,
+            "status": "active",
+            "data_access": "unknown",
+            "execution_access": "unknown",
+            "metadata_asof_wall_ns": "1793545279085000000",
+            "metadata_source": "https://api.hyperliquid.xyz/info",
+            "reference_multiplier": null,
+            "settlement_conversion": "quanto_no_fx",
+            "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+          },
+          "stream_id": "demo-hyperliquid:info:perpetual:ETH-reference",
+          "value": {
+            "kind": "mid",
+            "price": "3000",
+            "currency": "USDT",
+            "interval_ns": null
+          },
+          "asof": {
+            "session_id": "synthetic-demo-v3-180s",
+            "ingest_ordinal": "143",
+            "event_index": "0",
+            "exchange_event_wall_ns": null,
+            "receive_wall_ns": "1793545280085012000",
+            "receive_mono_ns": "2000012000",
+            "clock_id": "synthetic-clock-v3"
+          },
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "3000001000",
+            "policy_version": "eligibility-v1"
+          },
+          "label": "reference_only_not_executable"
+        },
+        {
+          "instrument": {
+            "instrument_id": "hyperliquid:info:perpetual:SOL",
+            "metadata_version": "097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2:1793545279085000000:hyperliquid-denomination-v2",
+            "venue": "hyperliquid",
+            "api_family": "info",
+            "native_symbol": "SOL",
+            "base": {
+              "asset_id": "SOL",
+              "ticker": "SOL",
+              "native_token_id": null,
+              "network": null,
+              "contract_address": null,
+              "reference_asset_id": null
+            },
+            "quote": {
+              "asset_id": "USDT",
+              "ticker": "USDT",
+              "native_token_id": null,
+              "network": null,
+              "contract_address": null,
+              "reference_asset_id": null
+            },
+            "tick_size": null,
+            "lot_size": "0.01",
+            "native_asset_id": "5",
+            "dex_namespace": "default",
+            "settlement": {
+              "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+              "ticker": "USDC",
+              "native_token_id": "0",
+              "network": "hypercore",
+              "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+              "reference_asset_id": null
+            },
+            "market_type": "perpetual",
+            "expiry_wall_ns": null,
+            "constraints": {
+              "min_base": "0.01",
+              "max_base": null,
+              "min_notional": null,
+              "max_notional": null,
+              "min_notional_currency": null,
+              "price_rule": "hyperliquid_significant_digits",
+              "size_rule": "fixed_lot",
+              "max_limit_base": null,
+              "max_market_base": null
+            },
+            "contract_multiplier": "1",
+            "quantity_unit": "base",
+            "contract_value_currency": "SOL",
+            "inverse": false,
+            "status": "active",
+            "data_access": "unknown",
+            "execution_access": "unknown",
+            "metadata_asof_wall_ns": "1793545279085000000",
+            "metadata_source": "https://api.hyperliquid.xyz/info",
+            "reference_multiplier": null,
+            "settlement_conversion": "quanto_no_fx",
+            "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+          },
+          "stream_id": "demo-hyperliquid:info:perpetual:SOL-reference",
+          "value": {
+            "kind": "mid",
+            "price": "150",
+            "currency": "USDT",
+            "interval_ns": null
+          },
+          "asof": {
+            "session_id": "synthetic-demo-v3-180s",
+            "ingest_ordinal": "147",
+            "event_index": "0",
+            "exchange_event_wall_ns": null,
+            "receive_wall_ns": "1793545280085016000",
+            "receive_mono_ns": "2000016000",
+            "clock_id": "synthetic-clock-v3"
+          },
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "3000001000",
+            "policy_version": "eligibility-v1"
+          },
+          "label": "reference_only_not_executable"
+        },
+        {
+          "instrument": {
+            "instrument_id": "hyperliquid:info:perpetual:HYPE",
+            "metadata_version": "097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2:1793545279085000000:hyperliquid-denomination-v2",
+            "venue": "hyperliquid",
+            "api_family": "info",
+            "native_symbol": "HYPE",
+            "base": {
+              "asset_id": "HYPE",
+              "ticker": "HYPE",
+              "native_token_id": null,
+              "network": null,
+              "contract_address": null,
+              "reference_asset_id": null
+            },
+            "quote": {
+              "asset_id": "USDC",
+              "ticker": "USDC",
+              "native_token_id": null,
+              "network": null,
+              "contract_address": null,
+              "reference_asset_id": null
+            },
+            "tick_size": null,
+            "lot_size": "0.01",
+            "native_asset_id": "159",
+            "dex_namespace": "default",
+            "settlement": {
+              "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+              "ticker": "USDC",
+              "native_token_id": "0",
+              "network": "hypercore",
+              "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+              "reference_asset_id": null
+            },
+            "market_type": "perpetual",
+            "expiry_wall_ns": null,
+            "constraints": {
+              "min_base": "0.01",
+              "max_base": null,
+              "min_notional": null,
+              "max_notional": null,
+              "min_notional_currency": null,
+              "price_rule": "hyperliquid_significant_digits",
+              "size_rule": "fixed_lot",
+              "max_limit_base": null,
+              "max_market_base": null
+            },
+            "contract_multiplier": "1",
+            "quantity_unit": "base",
+            "contract_value_currency": "HYPE",
+            "inverse": false,
+            "status": "active",
+            "data_access": "unknown",
+            "execution_access": "unknown",
+            "metadata_asof_wall_ns": "1793545279085000000",
+            "metadata_source": "https://api.hyperliquid.xyz/info",
+            "reference_multiplier": null,
+            "settlement_conversion": "none",
+            "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+          },
+          "stream_id": "demo-hyperliquid:info:perpetual:HYPE-reference",
+          "value": {
+            "kind": "mid",
+            "price": "25",
+            "currency": "USDC",
+            "interval_ns": null
+          },
+          "asof": {
+            "session_id": "synthetic-demo-v3-180s",
+            "ingest_ordinal": "151",
+            "event_index": "0",
+            "exchange_event_wall_ns": null,
+            "receive_wall_ns": "1793545280085020000",
+            "receive_mono_ns": "2000020000",
+            "clock_id": "synthetic-clock-v3"
+          },
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "3000001000",
+            "policy_version": "eligibility-v1"
+          },
+          "label": "reference_only_not_executable"
+        },
+        {
+          "instrument": {
+            "instrument_id": "hyperliquid:info:spot:@107",
+            "metadata_version": "097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2:1793545279085000000:hyperliquid-denomination-v2",
+            "venue": "hyperliquid",
+            "api_family": "info",
+            "native_symbol": "@107",
+            "base": {
+              "asset_id": "hyperliquid:hypercore:token:0x0d01dc56dcaaca66ad901c959b4011ec",
+              "ticker": "HYPE",
+              "native_token_id": "150",
+              "network": "hypercore",
+              "contract_address": null,
+              "reference_asset_id": null
+            },
+            "quote": {
+              "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+              "ticker": "USDC",
+              "native_token_id": "0",
+              "network": "hypercore",
+              "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+              "reference_asset_id": null
+            },
+            "tick_size": null,
+            "lot_size": "0.01",
+            "native_asset_id": "10107",
+            "dex_namespace": "spot",
+            "settlement": null,
+            "market_type": "spot",
+            "expiry_wall_ns": null,
+            "constraints": {
+              "min_base": "0.01",
+              "max_base": null,
+              "min_notional": "10",
+              "max_notional": null,
+              "min_notional_currency": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+              "price_rule": "hyperliquid_significant_digits",
+              "size_rule": "fixed_lot",
+              "max_limit_base": null,
+              "max_market_base": null
+            },
+            "contract_multiplier": "1",
+            "quantity_unit": "base",
+            "contract_value_currency": null,
+            "inverse": false,
+            "status": "active",
+            "data_access": "unknown",
+            "execution_access": "unknown",
+            "metadata_asof_wall_ns": "1793545279085000000",
+            "metadata_source": "https://api.hyperliquid.xyz/info",
+            "reference_multiplier": null,
+            "settlement_conversion": "unknown",
+            "contract_specification_source": null
+          },
+          "stream_id": "demo-hyperliquid:info:spot:@107-reference",
+          "value": {
+            "kind": "mid",
+            "price": "25",
+            "currency": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+            "interval_ns": null
+          },
+          "asof": {
+            "session_id": "synthetic-demo-v3-180s",
+            "ingest_ordinal": "155",
+            "event_index": "0",
+            "exchange_event_wall_ns": null,
+            "receive_wall_ns": "1793545280085024000",
+            "receive_mono_ns": "2000024000",
+            "clock_id": "synthetic-clock-v3"
+          },
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "3000001000",
+            "policy_version": "eligibility-v1"
+          },
+          "label": "reference_only_not_executable"
+        }
+      ],
+      "contexts": [
+        {
+          "instrument": {
+            "instrument_id": "hyperliquid:info:perpetual:ETH",
+            "metadata_version": "097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2:1793545279085000000:hyperliquid-denomination-v2",
+            "venue": "hyperliquid",
+            "api_family": "info",
+            "native_symbol": "ETH",
+            "base": {
+              "asset_id": "ETH",
+              "ticker": "ETH",
+              "native_token_id": null,
+              "network": null,
+              "contract_address": null,
+              "reference_asset_id": null
+            },
+            "quote": {
+              "asset_id": "USDT",
+              "ticker": "USDT",
+              "native_token_id": null,
+              "network": null,
+              "contract_address": null,
+              "reference_asset_id": null
+            },
+            "tick_size": null,
+            "lot_size": "0.0001",
+            "native_asset_id": "1",
+            "dex_namespace": "default",
+            "settlement": {
+              "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+              "ticker": "USDC",
+              "native_token_id": "0",
+              "network": "hypercore",
+              "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+              "reference_asset_id": null
+            },
+            "market_type": "perpetual",
+            "expiry_wall_ns": null,
+            "constraints": {
+              "min_base": "0.0001",
+              "max_base": null,
+              "min_notional": null,
+              "max_notional": null,
+              "min_notional_currency": null,
+              "price_rule": "hyperliquid_significant_digits",
+              "size_rule": "fixed_lot",
+              "max_limit_base": null,
+              "max_market_base": null
+            },
+            "contract_multiplier": "1",
+            "quantity_unit": "base",
+            "contract_value_currency": "ETH",
+            "inverse": false,
+            "status": "active",
+            "data_access": "unknown",
+            "execution_access": "unknown",
+            "metadata_asof_wall_ns": "1793545279085000000",
+            "metadata_source": "https://api.hyperliquid.xyz/info",
+            "reference_multiplier": null,
+            "settlement_conversion": "quanto_no_fx",
+            "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+          },
+          "stream_id": "demo-hyperliquid:info:perpetual:ETH-context",
+          "value": {
+            "mark": "3000",
+            "oracle": "3000",
+            "funding_rate": "0.00001",
+            "funding_interval_ns": "3600000000000",
+            "open_interest": "1000",
+            "open_interest_unit": "base"
+          },
+          "asof": {
+            "session_id": "synthetic-demo-v3-180s",
+            "ingest_ordinal": "144",
+            "event_index": "0",
+            "exchange_event_wall_ns": null,
+            "receive_wall_ns": "1793545280085013000",
+            "receive_mono_ns": "2000013000",
+            "clock_id": "synthetic-clock-v3"
+          },
+          "eligibility": {
+            "eligible": true,
+            "reasons": [],
+            "evaluated_at_mono_ns": "3000001000",
+            "policy_version": "eligibility-v1"
+          },
+          "field_reasons": [
+            [
+              "mark",
+              []
+            ],
+            [
+              "oracle",
+              []
+            ],
+            [
+              "funding_rate",
+              []
+            ],
+            [
+              "funding_interval_ns",
+              []
+            ],
+            [
+              "open_interest",
+              []
+            ]
+          ],
+          "funding_rate_unit": "fraction_per_funding_interval",
+          "open_interest_unit_provenance": "adapter_declared_not_independently_verified",
+          "label": "reference_only_not_executable"
+        }
+      ],
+      "basis": [
+        {
+          "spot_instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+          "perpetual_instrument_id": "hyperliquid:info:perpetual:ETH",
+          "reference_kind": "mark",
+          "quote_asset_id": "USDT",
+          "spot_mid": "3000",
+          "perpetual_reference": "3000",
+          "perpetual_quote_asset_id": "USDT",
+          "proceeds_in_spot_quote": "3000",
+          "funding_cost_in_spot_quote": "3000",
+          "proceeds_basis_bps": "0",
+          "funding_basis_bps": "0",
+          "proceeds_conversion": {
+            "source_asset_id": "USDT",
+            "target_asset_id": "USDT",
+            "source_amount": "3000",
+            "target_amount": "3000",
+            "mid_equivalent": "3000",
+            "cost": "0",
+            "required_input": false,
+            "rate": null,
+            "reasons": []
+          },
+          "funding_conversion": {
+            "source_asset_id": "USDT",
+            "target_asset_id": "USDT",
+            "source_amount": "3000",
+            "target_amount": "3000",
+            "mid_equivalent": "3000",
+            "cost": "0",
+            "required_input": true,
+            "rate": null,
+            "reasons": []
+          },
+          "spot_asof": {
+            "session_id": "synthetic-demo-v3-180s",
+            "ingest_ordinal": "133",
+            "event_index": "0",
+            "exchange_event_wall_ns": "1793545280085000000",
+            "receive_wall_ns": "1793545280085002000",
+            "receive_mono_ns": "2000002000",
+            "clock_id": "synthetic-clock-v3"
+          },
+          "perpetual_asof": {
+            "session_id": "synthetic-demo-v3-180s",
+            "ingest_ordinal": "144",
+            "event_index": "0",
+            "exchange_event_wall_ns": null,
+            "receive_wall_ns": "1793545280085013000",
+            "receive_mono_ns": "2000013000",
+            "clock_id": "synthetic-clock-v3"
+          },
+          "reasons": [],
+          "label": "reference_basis_not_executable_arbitrage",
+          "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+        },
+        {
+          "spot_instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+          "perpetual_instrument_id": "hyperliquid:info:perpetual:ETH",
+          "reference_kind": "oracle",
+          "quote_asset_id": "USDT",
+          "spot_mid": "3000",
+          "perpetual_reference": "3000",
+          "perpetual_quote_asset_id": "USDT",
+          "proceeds_in_spot_quote": "3000",
+          "funding_cost_in_spot_quote": "3000",
+          "proceeds_basis_bps": "0",
+          "funding_basis_bps": "0",
+          "proceeds_conversion": {
+            "source_asset_id": "USDT",
+            "target_asset_id": "USDT",
+            "source_amount": "3000",
+            "target_amount": "3000",
+            "mid_equivalent": "3000",
+            "cost": "0",
+            "required_input": false,
+            "rate": null,
+            "reasons": []
+          },
+          "funding_conversion": {
+            "source_asset_id": "USDT",
+            "target_asset_id": "USDT",
+            "source_amount": "3000",
+            "target_amount": "3000",
+            "mid_equivalent": "3000",
+            "cost": "0",
+            "required_input": true,
+            "rate": null,
+            "reasons": []
+          },
+          "spot_asof": {
+            "session_id": "synthetic-demo-v3-180s",
+            "ingest_ordinal": "133",
+            "event_index": "0",
+            "exchange_event_wall_ns": "1793545280085000000",
+            "receive_wall_ns": "1793545280085002000",
+            "receive_mono_ns": "2000002000",
+            "clock_id": "synthetic-clock-v3"
+          },
+          "perpetual_asof": {
+            "session_id": "synthetic-demo-v3-180s",
+            "ingest_ordinal": "144",
+            "event_index": "0",
+            "exchange_event_wall_ns": null,
+            "receive_wall_ns": "1793545280085013000",
+            "receive_mono_ns": "2000013000",
+            "clock_id": "synthetic-clock-v3"
+          },
+          "reasons": [],
+          "label": "reference_basis_not_executable_arbitrage",
+          "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+        },
+        {
+          "spot_instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+          "perpetual_instrument_id": "hyperliquid:info:perpetual:ETH",
+          "reference_kind": "mid",
+          "quote_asset_id": "USDT",
+          "spot_mid": "3000",
+          "perpetual_reference": "3000",
+          "perpetual_quote_asset_id": "USDT",
+          "proceeds_in_spot_quote": "3000",
+          "funding_cost_in_spot_quote": "3000",
+          "proceeds_basis_bps": "0",
+          "funding_basis_bps": "0",
+          "proceeds_conversion": {
+            "source_asset_id": "USDT",
+            "target_asset_id": "USDT",
+            "source_amount": "3000",
+            "target_amount": "3000",
+            "mid_equivalent": "3000",
+            "cost": "0",
+            "required_input": false,
+            "rate": null,
+            "reasons": []
+          },
+          "funding_conversion": {
+            "source_asset_id": "USDT",
+            "target_asset_id": "USDT",
+            "source_amount": "3000",
+            "target_amount": "3000",
+            "mid_equivalent": "3000",
+            "cost": "0",
+            "required_input": true,
+            "rate": null,
+            "reasons": []
+          },
+          "spot_asof": {
+            "session_id": "synthetic-demo-v3-180s",
+            "ingest_ordinal": "133",
+            "event_index": "0",
+            "exchange_event_wall_ns": "1793545280085000000",
+            "receive_wall_ns": "1793545280085002000",
+            "receive_mono_ns": "2000002000",
+            "clock_id": "synthetic-clock-v3"
+          },
+          "perpetual_asof": {
+            "session_id": "synthetic-demo-v3-180s",
+            "ingest_ordinal": "143",
+            "event_index": "0",
+            "exchange_event_wall_ns": null,
+            "receive_wall_ns": "1793545280085012000",
+            "receive_mono_ns": "2000012000",
+            "clock_id": "synthetic-clock-v3"
+          },
+          "reasons": [],
+          "label": "reference_basis_not_executable_arbitrage",
+          "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+        }
+      ],
+      "reasons": [
+        "reference_channel_not_subscribed",
+        "context_channel_not_subscribed"
+      ]
+    }
+  },
+  "research": {
+    "version": "1",
+    "attempts": [
+      {
+        "attempt_id": "3e41fc4916f84642827febad25cd733d",
+        "started_wall_ns": "1793545732253694000",
+        "finished_wall_ns": "1793545845948427000",
+        "status": "completed",
+        "source": "synthetic-demo-v3-900s",
+        "config_hash": "a43062ff8c1e6a4525ac6ae2fbefb2ef50bc8f2744265fecd23c1003f5bc4de5",
+        "report_hash": "391f557c0dbe2310751cf1e4287ae17d11c0d72e1d5ee64cf813236b370821ee",
+        "failure": null
+      }
+    ],
+    "attempt": {
+      "attempt_id": "3e41fc4916f84642827febad25cd733d",
+      "started_wall_ns": "1793545732253694000",
+      "finished_wall_ns": "1793545845948427000",
+      "status": "completed",
+      "source": "synthetic-demo-v3-900s",
+      "config_hash": "a43062ff8c1e6a4525ac6ae2fbefb2ef50bc8f2744265fecd23c1003f5bc4de5",
+      "report_hash": "391f557c0dbe2310751cf1e4287ae17d11c0d72e1d5ee64cf813236b370821ee",
+      "failure": null
+    },
+    "report": {
+      "attempt_id": "3e41fc4916f84642827febad25cd733d",
+      "version": "research-v1",
+      "source_id": "synthetic-demo-v3-900s",
+      "source_hash": "e536fd803d78449e7312a0c9839825621446357b5926ed581a750b29528d93fb",
+      "provenance": "Original deterministic synthetic source-schema examples, dedicated to the public domain under CC0-1.0. Not recorded market activity: all prices, sizes, timestamps, sequence IDs, funding and open interest are invented. Hyperliquid metadata is a pinned public Info subset, not current discovery or execution permission. fixture_sha256=097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2",
+      "synthetic": true,
+      "config": {
+        "stream_ids": [],
+        "sample_interval_ns": "1000000000",
+        "feature_window_ns": "60000000000",
+        "depth_band_bps": "25",
+        "thresholds": [
+          "0",
+          "0.25",
+          "0.5"
+        ],
+        "horizons_ns": [
+          "1000000000",
+          "5000000000",
+          "30000000000",
+          "60000000000"
+        ],
+        "train_fraction": "0.5",
+        "validation_fraction": "0.25",
+        "embargo_ns": "60000000000",
+        "min_samples": "30",
+        "base_quantity": "0.001",
+        "fees": [],
+        "scenarios": [
+          {
+            "name": "base",
+            "latency_ns": "0",
+            "extra_fee_bps": "0",
+            "extra_slippage_bps": "0"
+          },
+          {
+            "name": "fee_slippage",
+            "latency_ns": "0",
+            "extra_fee_bps": "2",
+            "extra_slippage_bps": "2"
+          },
+          {
+            "name": "latency_1s",
+            "latency_ns": "1000000000",
+            "extra_fee_bps": "0",
+            "extra_slippage_bps": "0"
+          }
+        ],
+        "max_observations": "20000",
+        "policy": {
+          "max_age_ns": "5000000000",
+          "max_asof_skew_ns": "1000000000",
+          "allow_snapshot_quotes": true,
+          "require_execution_access": false,
+          "required_capabilities": [],
+          "version": "eligibility-v1"
+        }
+      },
+      "config_hash": "a43062ff8c1e6a4525ac6ae2fbefb2ef50bc8f2744265fecd23c1003f5bc4de5",
+      "observation_hash": "7e8b28434c2ac7abd1fd322c9d29563c1d21aac4c1b5a1f2fd5f4b77636f765b",
+      "label_hash": "cfedafd4aad6461e978032f1f1b00a77316e5719dc3f59df94ea9e4a04e39f98",
+      "duration_ns": "899999037000",
+      "train_end_ns": "449999518500",
+      "validation_end_ns": "674999277750",
+      "observation_count": "12600",
+      "label_count": "151200",
+      "split_counts": [
+        [
+          "embargoed",
+          "1680"
+        ],
+        [
+          "purged",
+          "1708"
+        ],
+        [
+          "test",
+          "2310"
+        ],
+        [
+          "train",
+          "5446"
+        ],
+        [
+          "validation",
+          "1456"
+        ]
+      ],
+      "exclusions": [
+        [
+          "book_continuity_or_quality_break",
+          "53976"
+        ],
+        [
+          "book_window_warming",
+          "5040"
+        ],
+        [
+          "continuity_changed",
+          "72"
+        ],
+        [
+          "data_access_unknown",
+          "14"
+        ],
+        [
+          "empty_depth_band",
+          "5394"
+        ],
+        [
+          "end_of_source",
+          "2688"
+        ],
+        [
+          "incomplete_depth_band",
+          "3596"
+        ],
+        [
+          "lot_remainder",
+          "31488"
+        ],
+        [
+          "missing_exact_event_flow",
+          "4495"
+        ],
+        [
+          "no_book",
+          "28"
+        ],
+        [
+          "no_book_at_arrival",
+          "48"
+        ],
+        [
+          "no_event_continuity",
+          "4495"
+        ],
+        [
+          "no_trade_evidence",
+          "14"
+        ],
+        [
+          "partial_or_unfilled_order",
+          "31488"
+        ],
+        [
+          "quiet_trade_interval_unproven",
+          "14"
+        ],
+        [
+          "trade_window_warming",
+          "840"
+        ],
+        [
+          "unavailable_effective_price",
+          "94464"
+        ],
+        [
+          "unknown_fees",
+          "94464"
+        ]
+      ],
+      "selections": [
+        {
+          "hypothesis": "depth_band_imbalance",
+          "horizon_ns": "1000000000",
+          "threshold": null,
+          "reason": "insufficient_support_or_no_positive_train_payoff"
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "horizon_ns": "5000000000",
+          "threshold": null,
+          "reason": "insufficient_support_or_no_positive_train_payoff"
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "horizon_ns": "30000000000",
+          "threshold": null,
+          "reason": "insufficient_support_or_no_positive_train_payoff"
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "horizon_ns": "60000000000",
+          "threshold": null,
+          "reason": "insufficient_support_or_no_positive_train_payoff"
+        },
+        {
+          "hypothesis": "event_ofi",
+          "horizon_ns": "1000000000",
+          "threshold": null,
+          "reason": "insufficient_support_or_no_positive_train_payoff"
+        },
+        {
+          "hypothesis": "event_ofi",
+          "horizon_ns": "5000000000",
+          "threshold": null,
+          "reason": "insufficient_support_or_no_positive_train_payoff"
+        },
+        {
+          "hypothesis": "event_ofi",
+          "horizon_ns": "30000000000",
+          "threshold": null,
+          "reason": "insufficient_support_or_no_positive_train_payoff"
+        },
+        {
+          "hypothesis": "event_ofi",
+          "horizon_ns": "60000000000",
+          "threshold": null,
+          "reason": "insufficient_support_or_no_positive_train_payoff"
+        },
+        {
+          "hypothesis": "executed_trade_flow",
+          "horizon_ns": "1000000000",
+          "threshold": null,
+          "reason": "insufficient_support_or_no_positive_train_payoff"
+        },
+        {
+          "hypothesis": "executed_trade_flow",
+          "horizon_ns": "5000000000",
+          "threshold": null,
+          "reason": "insufficient_support_or_no_positive_train_payoff"
+        },
+        {
+          "hypothesis": "executed_trade_flow",
+          "horizon_ns": "30000000000",
+          "threshold": null,
+          "reason": "insufficient_support_or_no_positive_train_payoff"
+        },
+        {
+          "hypothesis": "executed_trade_flow",
+          "horizon_ns": "60000000000",
+          "threshold": null,
+          "reason": "insufficient_support_or_no_positive_train_payoff"
+        }
+      ],
+      "outcome": "insufficient_evidence",
+      "limitations": [
+        "unfunded_directional_markouts_not_realizable_portfolio_returns",
+        "independent_taker_roundtrips_no_shared_inventory_or_market_impact",
+        "short_direction_does_not_establish_borrow_or_margin_access",
+        "fees_are_sourced_assumptions_unknown_fees_exclude_net",
+        "exact_deadline_last_available_book_no_future_arrival_book",
+        "closed_outcome_intervals_purged_and_later_partition_embargoed",
+        "all_candidate_tests_reported_once_selection_uses_train_validation_only",
+        "fixed_spread_regimes_no_full_sample_fitting",
+        "synthetic_data_cannot_establish_edge"
+      ],
+      "turnover": null,
+      "drawdown": null,
+      "portfolio_unavailable_reasons": [
+        "no_sequential_funded_portfolio_model"
+      ],
+      "report_hash": "391f557c0dbe2310751cf1e4287ae17d11c0d72e1d5ee64cf813236b370821ee",
+      "trials": [
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "base",
+          "split": "train",
+          "group": "all",
+          "statistics": {
+            "eligible_samples": "1552",
+            "selected_samples": "1244",
+            "labeled_samples": "1244",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": "0",
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "2328"
+              ],
+              [
+                "incomplete_depth_band",
+                "1552"
+              ],
+              [
+                "no_book",
+                "14"
+              ],
+              [
+                "unavailable_effective_price",
+                "1244"
+              ],
+              [
+                "unknown_fees",
+                "1244"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "base",
+          "split": "train",
+          "group": "venue:binance-global",
+          "statistics": {
+            "eligible_samples": "776",
+            "selected_samples": "622",
+            "labeled_samples": "622",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": "0",
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "388"
+              ],
+              [
+                "no_book",
+                "3"
+              ],
+              [
+                "unavailable_effective_price",
+                "622"
+              ],
+              [
+                "unknown_fees",
+                "622"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "base",
+          "split": "train",
+          "group": "venue:coinbase",
+          "statistics": {
+            "eligible_samples": "776",
+            "selected_samples": "622",
+            "labeled_samples": "622",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": "0",
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "388"
+              ],
+              [
+                "no_book",
+                "3"
+              ],
+              [
+                "unavailable_effective_price",
+                "622"
+              ],
+              [
+                "unknown_fees",
+                "622"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "base",
+          "split": "train",
+          "group": "venue:hyperliquid",
+          "statistics": {
+            "eligible_samples": "0",
+            "selected_samples": "0",
+            "labeled_samples": "0",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": null,
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "1164"
+              ],
+              [
+                "incomplete_depth_band",
+                "776"
+              ],
+              [
+                "no_book",
+                "5"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "base",
+          "split": "train",
+          "group": "venue:kraken",
+          "statistics": {
+            "eligible_samples": "0",
+            "selected_samples": "0",
+            "labeled_samples": "0",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": null,
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "388"
+              ],
+              [
+                "incomplete_depth_band",
+                "776"
+              ],
+              [
+                "no_book",
+                "3"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "base",
+          "split": "train",
+          "group": "regime:spread_gt_10bps",
+          "statistics": {
+            "eligible_samples": "0",
+            "selected_samples": "0",
+            "labeled_samples": "0",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": null,
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "2328"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "base",
+          "split": "train",
+          "group": "regime:spread_le_10bps",
+          "statistics": {
+            "eligible_samples": "1552",
+            "selected_samples": "1244",
+            "labeled_samples": "1244",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": "0",
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "incomplete_depth_band",
+                "1552"
+              ],
+              [
+                "unavailable_effective_price",
+                "1244"
+              ],
+              [
+                "unknown_fees",
+                "1244"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "base",
+          "split": "train",
+          "group": "regime:unknown",
+          "statistics": {
+            "eligible_samples": "0",
+            "selected_samples": "0",
+            "labeled_samples": "0",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": null,
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "no_book",
+                "14"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "base",
+          "split": "validation",
+          "group": "all",
+          "statistics": {
+            "eligible_samples": "416",
+            "selected_samples": "334",
+            "labeled_samples": "334",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": "0",
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "624"
+              ],
+              [
+                "incomplete_depth_band",
+                "416"
+              ],
+              [
+                "unavailable_effective_price",
+                "334"
+              ],
+              [
+                "unknown_fees",
+                "334"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "base",
+          "split": "validation",
+          "group": "venue:binance-global",
+          "statistics": {
+            "eligible_samples": "208",
+            "selected_samples": "168",
+            "labeled_samples": "168",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": "0",
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "104"
+              ],
+              [
+                "unavailable_effective_price",
+                "168"
+              ],
+              [
+                "unknown_fees",
+                "168"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "base",
+          "split": "validation",
+          "group": "venue:coinbase",
+          "statistics": {
+            "eligible_samples": "208",
+            "selected_samples": "166",
+            "labeled_samples": "166",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": "0",
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "104"
+              ],
+              [
+                "unavailable_effective_price",
+                "166"
+              ],
+              [
+                "unknown_fees",
+                "166"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "base",
+          "split": "validation",
+          "group": "venue:hyperliquid",
+          "statistics": {
+            "eligible_samples": "0",
+            "selected_samples": "0",
+            "labeled_samples": "0",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": null,
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "312"
+              ],
+              [
+                "incomplete_depth_band",
+                "208"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "base",
+          "split": "validation",
+          "group": "venue:kraken",
+          "statistics": {
+            "eligible_samples": "0",
+            "selected_samples": "0",
+            "labeled_samples": "0",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": null,
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "104"
+              ],
+              [
+                "incomplete_depth_band",
+                "208"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "base",
+          "split": "validation",
+          "group": "regime:spread_gt_10bps",
+          "statistics": {
+            "eligible_samples": "0",
+            "selected_samples": "0",
+            "labeled_samples": "0",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": null,
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "624"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "base",
+          "split": "validation",
+          "group": "regime:spread_le_10bps",
+          "statistics": {
+            "eligible_samples": "416",
+            "selected_samples": "334",
+            "labeled_samples": "334",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": "0",
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "incomplete_depth_band",
+                "416"
+              ],
+              [
+                "unavailable_effective_price",
+                "334"
+              ],
+              [
+                "unknown_fees",
+                "334"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "base",
+          "split": "validation",
+          "group": "regime:unknown",
+          "statistics": {
+            "eligible_samples": "0",
+            "selected_samples": "0",
+            "labeled_samples": "0",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": null,
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": []
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "base",
+          "split": "test",
+          "group": "all",
+          "statistics": {
+            "eligible_samples": "660",
+            "selected_samples": "528",
+            "labeled_samples": "526",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": "0",
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "990"
+              ],
+              [
+                "end_of_source",
+                "2"
+              ],
+              [
+                "incomplete_depth_band",
+                "660"
+              ],
+              [
+                "unavailable_effective_price",
+                "526"
+              ],
+              [
+                "unknown_fees",
+                "526"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "base",
+          "split": "test",
+          "group": "venue:binance-global",
+          "statistics": {
+            "eligible_samples": "330",
+            "selected_samples": "264",
+            "labeled_samples": "264",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": "0",
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "165"
+              ],
+              [
+                "unavailable_effective_price",
+                "264"
+              ],
+              [
+                "unknown_fees",
+                "264"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "base",
+          "split": "test",
+          "group": "venue:coinbase",
+          "statistics": {
+            "eligible_samples": "330",
+            "selected_samples": "264",
+            "labeled_samples": "262",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": "0",
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "165"
+              ],
+              [
+                "end_of_source",
+                "2"
+              ],
+              [
+                "unavailable_effective_price",
+                "262"
+              ],
+              [
+                "unknown_fees",
+                "262"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "base",
+          "split": "test",
+          "group": "venue:hyperliquid",
+          "statistics": {
+            "eligible_samples": "0",
+            "selected_samples": "0",
+            "labeled_samples": "0",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": null,
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "495"
+              ],
+              [
+                "incomplete_depth_band",
+                "330"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "base",
+          "split": "test",
+          "group": "venue:kraken",
+          "statistics": {
+            "eligible_samples": "0",
+            "selected_samples": "0",
+            "labeled_samples": "0",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": null,
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "165"
+              ],
+              [
+                "incomplete_depth_band",
+                "330"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "base",
+          "split": "test",
+          "group": "regime:spread_gt_10bps",
+          "statistics": {
+            "eligible_samples": "0",
+            "selected_samples": "0",
+            "labeled_samples": "0",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": null,
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "990"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "base",
+          "split": "test",
+          "group": "regime:spread_le_10bps",
+          "statistics": {
+            "eligible_samples": "660",
+            "selected_samples": "528",
+            "labeled_samples": "526",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": "0",
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "end_of_source",
+                "2"
+              ],
+              [
+                "incomplete_depth_band",
+                "660"
+              ],
+              [
+                "unavailable_effective_price",
+                "526"
+              ],
+              [
+                "unknown_fees",
+                "526"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "base",
+          "split": "test",
+          "group": "regime:unknown",
+          "statistics": {
+            "eligible_samples": "0",
+            "selected_samples": "0",
+            "labeled_samples": "0",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": null,
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": []
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "fee_slippage",
+          "split": "train",
+          "group": "all",
+          "statistics": {
+            "eligible_samples": "1552",
+            "selected_samples": "1244",
+            "labeled_samples": "1244",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": "0",
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "2328"
+              ],
+              [
+                "incomplete_depth_band",
+                "1552"
+              ],
+              [
+                "no_book",
+                "14"
+              ],
+              [
+                "unavailable_effective_price",
+                "1244"
+              ],
+              [
+                "unknown_fees",
+                "1244"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "fee_slippage",
+          "split": "train",
+          "group": "venue:binance-global",
+          "statistics": {
+            "eligible_samples": "776",
+            "selected_samples": "622",
+            "labeled_samples": "622",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": "0",
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "388"
+              ],
+              [
+                "no_book",
+                "3"
+              ],
+              [
+                "unavailable_effective_price",
+                "622"
+              ],
+              [
+                "unknown_fees",
+                "622"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "fee_slippage",
+          "split": "train",
+          "group": "venue:coinbase",
+          "statistics": {
+            "eligible_samples": "776",
+            "selected_samples": "622",
+            "labeled_samples": "622",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": "0",
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "388"
+              ],
+              [
+                "no_book",
+                "3"
+              ],
+              [
+                "unavailable_effective_price",
+                "622"
+              ],
+              [
+                "unknown_fees",
+                "622"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "fee_slippage",
+          "split": "train",
+          "group": "venue:hyperliquid",
+          "statistics": {
+            "eligible_samples": "0",
+            "selected_samples": "0",
+            "labeled_samples": "0",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": null,
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "1164"
+              ],
+              [
+                "incomplete_depth_band",
+                "776"
+              ],
+              [
+                "no_book",
+                "5"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "fee_slippage",
+          "split": "train",
+          "group": "venue:kraken",
+          "statistics": {
+            "eligible_samples": "0",
+            "selected_samples": "0",
+            "labeled_samples": "0",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": null,
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "388"
+              ],
+              [
+                "incomplete_depth_band",
+                "776"
+              ],
+              [
+                "no_book",
+                "3"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "fee_slippage",
+          "split": "train",
+          "group": "regime:spread_gt_10bps",
+          "statistics": {
+            "eligible_samples": "0",
+            "selected_samples": "0",
+            "labeled_samples": "0",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": null,
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "2328"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "fee_slippage",
+          "split": "train",
+          "group": "regime:spread_le_10bps",
+          "statistics": {
+            "eligible_samples": "1552",
+            "selected_samples": "1244",
+            "labeled_samples": "1244",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": "0",
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "incomplete_depth_band",
+                "1552"
+              ],
+              [
+                "unavailable_effective_price",
+                "1244"
+              ],
+              [
+                "unknown_fees",
+                "1244"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "fee_slippage",
+          "split": "train",
+          "group": "regime:unknown",
+          "statistics": {
+            "eligible_samples": "0",
+            "selected_samples": "0",
+            "labeled_samples": "0",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": null,
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "no_book",
+                "14"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "fee_slippage",
+          "split": "validation",
+          "group": "all",
+          "statistics": {
+            "eligible_samples": "416",
+            "selected_samples": "334",
+            "labeled_samples": "334",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": "0",
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "624"
+              ],
+              [
+                "incomplete_depth_band",
+                "416"
+              ],
+              [
+                "unavailable_effective_price",
+                "334"
+              ],
+              [
+                "unknown_fees",
+                "334"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "fee_slippage",
+          "split": "validation",
+          "group": "venue:binance-global",
+          "statistics": {
+            "eligible_samples": "208",
+            "selected_samples": "168",
+            "labeled_samples": "168",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": "0",
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "104"
+              ],
+              [
+                "unavailable_effective_price",
+                "168"
+              ],
+              [
+                "unknown_fees",
+                "168"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "fee_slippage",
+          "split": "validation",
+          "group": "venue:coinbase",
+          "statistics": {
+            "eligible_samples": "208",
+            "selected_samples": "166",
+            "labeled_samples": "166",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": "0",
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "104"
+              ],
+              [
+                "unavailable_effective_price",
+                "166"
+              ],
+              [
+                "unknown_fees",
+                "166"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "fee_slippage",
+          "split": "validation",
+          "group": "venue:hyperliquid",
+          "statistics": {
+            "eligible_samples": "0",
+            "selected_samples": "0",
+            "labeled_samples": "0",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": null,
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "312"
+              ],
+              [
+                "incomplete_depth_band",
+                "208"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "fee_slippage",
+          "split": "validation",
+          "group": "venue:kraken",
+          "statistics": {
+            "eligible_samples": "0",
+            "selected_samples": "0",
+            "labeled_samples": "0",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": null,
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "104"
+              ],
+              [
+                "incomplete_depth_band",
+                "208"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "fee_slippage",
+          "split": "validation",
+          "group": "regime:spread_gt_10bps",
+          "statistics": {
+            "eligible_samples": "0",
+            "selected_samples": "0",
+            "labeled_samples": "0",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": null,
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "624"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "fee_slippage",
+          "split": "validation",
+          "group": "regime:spread_le_10bps",
+          "statistics": {
+            "eligible_samples": "416",
+            "selected_samples": "334",
+            "labeled_samples": "334",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": "0",
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "incomplete_depth_band",
+                "416"
+              ],
+              [
+                "unavailable_effective_price",
+                "334"
+              ],
+              [
+                "unknown_fees",
+                "334"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "fee_slippage",
+          "split": "validation",
+          "group": "regime:unknown",
+          "statistics": {
+            "eligible_samples": "0",
+            "selected_samples": "0",
+            "labeled_samples": "0",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": null,
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": []
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "fee_slippage",
+          "split": "test",
+          "group": "all",
+          "statistics": {
+            "eligible_samples": "660",
+            "selected_samples": "528",
+            "labeled_samples": "526",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": "0",
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "990"
+              ],
+              [
+                "end_of_source",
+                "2"
+              ],
+              [
+                "incomplete_depth_band",
+                "660"
+              ],
+              [
+                "unavailable_effective_price",
+                "526"
+              ],
+              [
+                "unknown_fees",
+                "526"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "fee_slippage",
+          "split": "test",
+          "group": "venue:binance-global",
+          "statistics": {
+            "eligible_samples": "330",
+            "selected_samples": "264",
+            "labeled_samples": "264",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": "0",
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "165"
+              ],
+              [
+                "unavailable_effective_price",
+                "264"
+              ],
+              [
+                "unknown_fees",
+                "264"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "fee_slippage",
+          "split": "test",
+          "group": "venue:coinbase",
+          "statistics": {
+            "eligible_samples": "330",
+            "selected_samples": "264",
+            "labeled_samples": "262",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": "0",
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "165"
+              ],
+              [
+                "end_of_source",
+                "2"
+              ],
+              [
+                "unavailable_effective_price",
+                "262"
+              ],
+              [
+                "unknown_fees",
+                "262"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "fee_slippage",
+          "split": "test",
+          "group": "venue:hyperliquid",
+          "statistics": {
+            "eligible_samples": "0",
+            "selected_samples": "0",
+            "labeled_samples": "0",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": null,
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "495"
+              ],
+              [
+                "incomplete_depth_band",
+                "330"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "fee_slippage",
+          "split": "test",
+          "group": "venue:kraken",
+          "statistics": {
+            "eligible_samples": "0",
+            "selected_samples": "0",
+            "labeled_samples": "0",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": null,
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "165"
+              ],
+              [
+                "incomplete_depth_band",
+                "330"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "fee_slippage",
+          "split": "test",
+          "group": "regime:spread_gt_10bps",
+          "statistics": {
+            "eligible_samples": "0",
+            "selected_samples": "0",
+            "labeled_samples": "0",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": null,
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "990"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "fee_slippage",
+          "split": "test",
+          "group": "regime:spread_le_10bps",
+          "statistics": {
+            "eligible_samples": "660",
+            "selected_samples": "528",
+            "labeled_samples": "526",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": "0",
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "end_of_source",
+                "2"
+              ],
+              [
+                "incomplete_depth_band",
+                "660"
+              ],
+              [
+                "unavailable_effective_price",
+                "526"
+              ],
+              [
+                "unknown_fees",
+                "526"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "fee_slippage",
+          "split": "test",
+          "group": "regime:unknown",
+          "statistics": {
+            "eligible_samples": "0",
+            "selected_samples": "0",
+            "labeled_samples": "0",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": null,
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": []
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "latency_1s",
+          "split": "train",
+          "group": "all",
+          "statistics": {
+            "eligible_samples": "1552",
+            "selected_samples": "1244",
+            "labeled_samples": "1244",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": "0",
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "2328"
+              ],
+              [
+                "incomplete_depth_band",
+                "1552"
+              ],
+              [
+                "no_book",
+                "14"
+              ],
+              [
+                "unavailable_effective_price",
+                "1244"
+              ],
+              [
+                "unknown_fees",
+                "1244"
+              ]
+            ]
+          }
+        },
+        {
+          "hypothesis": "depth_band_imbalance",
+          "threshold": "0",
+          "horizon_ns": "1000000000",
+          "scenario": "latency_1s",
+          "split": "train",
+          "group": "venue:binance-global",
+          "statistics": {
+            "eligible_samples": "776",
+            "selected_samples": "622",
+            "labeled_samples": "622",
+            "net_samples": "0",
+            "nonoverlapping_samples": "0",
+            "mean_gross_bps": "0",
+            "expected_net_payoff_bps": null,
+            "hit_rate": null,
+            "average_win_bps": null,
+            "average_loss_bps": null,
+            "no_trade_bps": "0",
+            "matched_long_bps": null,
+            "matched_short_bps": null,
+            "exclusions": [
+              [
+                "empty_depth_band",
+                "388"
+              ],
+              [
+                "no_book",
+                "3"
+              ],
+              [
+                "unavailable_effective_price",
+                "622"
+              ],
+              [
+                "unknown_fees",
+                "622"
+              ]
+            ]
+          }
+        }
+      ],
+      "presentation": {
+        "trial_offset": 0,
+        "trial_limit": 50,
+        "trial_total": 2592
+      }
+    },
+    "config": {
+      "stream_ids": [],
+      "sample_interval_ns": "1000000000",
+      "feature_window_ns": "60000000000",
+      "depth_band_bps": "25",
+      "thresholds": [
+        "0",
+        "0.25",
+        "0.5"
+      ],
+      "horizons_ns": [
+        "1000000000",
+        "5000000000",
+        "30000000000",
+        "60000000000"
+      ],
+      "train_fraction": "0.5",
+      "validation_fraction": "0.25",
+      "embargo_ns": "60000000000",
+      "min_samples": "30",
+      "base_quantity": "0.001",
+      "fees": [],
+      "scenarios": [
+        {
+          "name": "base",
+          "latency_ns": "0",
+          "extra_fee_bps": "0",
+          "extra_slippage_bps": "0"
+        },
+        {
+          "name": "fee_slippage",
+          "latency_ns": "0",
+          "extra_fee_bps": "2",
+          "extra_slippage_bps": "2"
+        },
+        {
+          "name": "latency_1s",
+          "latency_ns": "1000000000",
+          "extra_fee_bps": "0",
+          "extra_slippage_bps": "0"
+        }
+      ],
+      "max_observations": "20000",
+      "policy": {
+        "max_age_ns": "5000000000",
+        "max_asof_skew_ns": "1000000000",
+        "allow_snapshot_quotes": true,
+        "require_execution_access": false,
+        "required_capabilities": [],
+        "version": "eligibility-v1"
+      }
+    },
+    "source": [
+      [
+        "source_id",
+        "synthetic-demo-v3-900s"
+      ],
+      [
+        "provenance",
+        "Original deterministic synthetic source-schema examples, dedicated to the public domain under CC0-1.0. Not recorded market activity: all prices, sizes, timestamps, sequence IDs, funding and open interest are invented. Hyperliquid metadata is a pinned public Info subset, not current discovery or execution permission. fixture_sha256=097e8104612d450ee491e470d235a9cef1e7456be13449384efd80f730d6d8f2"
+      ],
+      [
+        "synthetic",
+        "True"
+      ],
+      [
+        "source_hash",
+        "e536fd803d78449e7312a0c9839825621446357b5926ed581a750b29528d93fb"
+      ],
+      [
+        "streams_hash",
+        "b96ca65272cadce3eba2bbaf7447f61247a53a50c26dc7684209595fe82f4cd6"
+      ]
+    ],
+    "session_id": "0415447caa4449dcb3354a782e2b9078",
+    "generation": "2"
+  },
+  "screenshots": [
+    "m5-alerts-1440.png",
+    "m5-paper-1440.png",
+    "m5-paper-1280.png",
+    "m5-journal-1280.png",
+    "m5-context-1280.png",
+    "m5-research-1280.png"
+  ],
+  "limitations": [
+    "Synthetic demo does not establish predictive edge.",
+    "No real orders or private credentials.",
+    "Configured fees and latency are explicit simulation assumptions.",
+    "Hyperliquid open-interest units retain adapter-declared, not independently verified provenance."
+  ]
+}

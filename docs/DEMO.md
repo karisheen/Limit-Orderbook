@@ -1,41 +1,45 @@
 # Headless capture and offline demo
 
-The M2 entry point is `python -m src.workstation.cli`. Use the project's locked
-Python environment (including PyArrow and DuckDB). No command requires a browser.
-`demo`, `inspect`, and `replay` do not perform network discovery or exchange I/O.
-Only `record --network` opts into public network access; no credentials or private
-exchange channels are used.
+The entry point is `python -m src.workstation.cli`. Use the project's locked
+Python environment (including PyArrow and DuckDB). Headless commands require no browser.
+`demo`, `inspect`, `replay`, and `research` perform no network discovery or exchange I/O.
+`record --network` and `serve --network` explicitly opt into public network access;
+no credentials or private exchange channels are used.
 
 ## Immediate offline start
 
 ```sh
 python -m src.workstation.cli demo
-python -m src.workstation.cli inspect data/workstation/synthetic-demo-v2-180s --limit 10
-python -m src.workstation.cli replay data/workstation/synthetic-demo-v2-180s --mode raw
-python -m src.workstation.cli replay data/workstation/synthetic-demo-v2-180s --mode normalized --speed 10
+python -m src.workstation.cli inspect data/workstation/synthetic-demo-v3-180s --limit 10
+python -m src.workstation.cli replay data/workstation/synthetic-demo-v3-180s --mode raw
+python -m src.workstation.cli replay data/workstation/synthetic-demo-v3-180s --mode normalized --speed 10
 ```
 
 The demo creates a versioned capture from the small committed
-`tests/fixtures/workstation/demo-v2.json` template and compact generator. It passes
+`tests/fixtures/workstation/demo-v3.json` template and compact generator. It passes
 source-schema bytes through production Binance-global, Hyperliquid, Coinbase and Kraken adapters and the shared
 recording/replay projection, not a separate toy book implementation. The command
 compares its final source-projection state and book hashes with actual replay.
-The output includes exact-wire Books, quality, cursor and hashes for a future M3
-terminal consumer. There is no frontend in M2.
+The output includes exact-wire Books, quality, cursor and hashes. The React
+terminal starts directly from the same bounded in-memory generator with `serve`;
+it does not wait for a durable demo capture to be written.
 
 The default generates **180 virtual seconds at 1 Hz**, without waiting 180 wall
 seconds. `demo --duration 2` makes a small smoke capture; `--duration 1800` creates
-longer synthetic research input (maximum 86,400 virtual seconds). All 24 book/trade
-streams are interleaved under one receive clock, keeping their latest observations
+longer synthetic research input (maximum 86,400 virtual seconds). Native book,
+trade and supported Hyperliquid reference/context streams are interleaved under
+one receive clock, keeping their latest observations
 close without claiming exchange-time simultaneity. Offline generation can await
 writer capacity; live registry callbacks never block to write capture files.
 
 The fixture is original synthetic material dedicated under **CC0-1.0**. All
-prices, sizes, times, update IDs and prints are invented. Its metadata is an
-illustrative fixed source-schema subset, not current discovery, current trading
-constraints, permission to execute, or a historical market-data sample. Source
-schema documentation links and fixture provenance are included in the template;
-the template's SHA256 and provenance are retained in the capture manifest.
+prices, sizes, times, update IDs, prints, funding and open interest are invented.
+Hyperliquid metadata is pinned from public Info: the perpetual universe prefix
+preserves native indices, and the HYPE/USDC spot subset preserves `@107`, asset
+`10107`, token `150` and the actual native token identity. Other venue metadata
+remains illustrative. Neither is current discovery, execution permission or
+historical market activity. Source documentation, metadata snapshot time and
+provenance are included; the complete fixture SHA256 is retained in manifests.
 
 BTC, ETH and SOL each have separate Binance-global spot-USDT and Hyperliquid
 perpetual streams, with independent book and trade subscriptions. Hyperliquid
@@ -43,6 +47,13 @@ BTC/ETH/SOL are **USDT-denominated**, settled in the separately identified
 HyperCore USDC asset with `quanto_no_fx`. This is the contract classification, not
 an FX conversion or permission to merge the spot and perpetual books. Native
 symbols/IDs and immutable metadata versions remain attached to all events.
+
+HYPE is included only on Hyperliquid: a perpetual and the discovered native
+HYPE/USDC spot identity, not invented listings on other venues. Hyperliquid
+streams additionally carry `allMids` and asset context; spot context uses the
+observed `activeSpotAssetCtx` data channel. References are not executable quotes.
+Native token USDC, USD and USDT are not interchangeable, and the fixture supplies
+no invented FX rate.
 
 The comparable cohort is **Coinbase + Kraken USD spot** for BTC/ETH/SOL. Those
 six books retain real native routing symbols and explicitly synthetic instrument
@@ -104,13 +115,64 @@ lifetime, close its replay sessions first, then leave the context or call
 decoded caches and shared retention lock. Failed generation, verification or
 compatibility checks close any acquired reader before propagating the error.
 
+## Offline causal research
+
+```sh
+python -m src.workstation.cli research run --demo --duration 900 --state-dir data/workstation-state
+python -m src.workstation.cli research list --state-dir data/workstation-state
+python -m src.workstation.cli research show ATTEMPT_ID --state-dir data/workstation-state --limit 50 --offset 0
+python -m src.workstation.cli research run --capture /absolute/path/to/capture --config research.json --state-dir data/workstation-state
+```
+
+The terminal's Research pane reads this same `research.sqlite3`; HTTP does not
+start experiments. `run` requires either `--demo` or `--capture`. `--duration`
+applies only to the synthetic source, defaulting to 900 virtual seconds. Memory
+replay retains at most 64 MiB raw payload and 100,000 deliveries; use a durable
+capture for longer input. Generation does not wait for virtual wall time.
+
+Configuration is optional exact JSON, limited to 64 KiB, with native
+`ResearchConfig` fields. Integer clocks accept exact integer strings; monetary
+decimals remain exact. Unknown fields and invalid bounds fail. Fees default to
+**unknown**, never zero. A native fee entry has this shape:
+
+```json
+{
+  "fees": [
+    ["coinbase:advanced-trade:spot:BTC-USD", {
+      "rate": "0.0005",
+      "asset_id": "USD",
+      "provenance": "explicit operator assumption, not an observed account tier",
+      "asof_wall_ns": "1793491200000000000",
+      "assumed": true
+    }]
+  ]
+}
+```
+
+`rate` is a fraction, so `0.0005` means 5 bps. Supply an actual sourced schedule
+or clearly identified assumption, correct native instrument/fee asset and date.
+Optional `stream_ids`, `thresholds`, `horizons_ns`, `scenarios`, split fractions,
+embargo, sampling interval/window and observation bound use the native schema.
+Scenarios declare `name`, `latency_ns`, `extra_fee_bps` and `extra_slippage_bps`.
+Do not interpret an unfunded directional markout as a realizable portfolio return.
+
+All begun attempts, including failures and negative/insufficient results, remain
+in SQLite. `list` returns the latest bounded page (no older-history offset);
+known older IDs remain addressable by `show`. Trial pages expose all candidate
+statistics, exclusions and matched baselines; the stable report hash covers the
+complete report, not just the displayed page. The 900-second default synthetic
+run was exercised with 12,600 observations, 151,200 labels and 2,592 trials:
+`insufficient_evidence`, with unknown fees explicitly excluding net results.
+This is pipeline evidence, not evidence of a trading edge.
+
+
 ## Real public capture
 
 ```sh
 # Explicit opt-in, finite duration. Discovery/probing happens before this timer.
 python -m src.workstation.cli record --network --duration 30 --assets BTC
 
-# Hyperliquid public l2Book and trades, with discovered native metadata.
+# Hyperliquid public books/trades/reference/context with discovered native metadata.
 python -m src.workstation.cli record --network --venue hyperliquid --duration 30 --assets BTC ETH SOL
 
 # Distinct sources, not venue fallback that relabels an existing stream.

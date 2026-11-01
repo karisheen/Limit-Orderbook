@@ -905,3 +905,33 @@ def test_published_persistence_is_immutable_and_checkpoint_replays_exactly():
     feed.deliver(future)
     assert feed.snapshot(8) == final
     assert feed.engine.state_hash == final_hash
+
+
+def test_depth_evidence_changes_with_book_but_not_query_freshness_or_restore():
+    config = AnalyticsConfig(
+        depth_bps=(D("200"),),
+        window_ns=10,
+        retention_ns=100,
+        persistence_ns=2,
+        policy=EligibilityPolicy(max_age_ns=1000),
+    )
+    feed = Feed(config=config)
+    asks = (("101", "3"), ("102", "4"))
+    feed.quote(1, bids=(("99", "1"), ("98", "2")), asks=asks)
+    first = feed.snapshot(1)
+    first_metrics = {metric.name: metric for metric in first.metrics}
+    assert first_metrics["depth_bid_200bps_base"].value == D(3)
+    assert first_metrics["depth_ask_200bps_quote"].value == D(711)
+    checkpoint = feed.engine.checkpoint()
+    stale = feed.metrics(1002)["depth_bid_200bps_base"]
+    assert stale.value is None
+    assert not stale.eligibility.eligible
+    assert feed.snapshot(1) == first
+    feed.quote(4, bids=(("99", "5"), ("98", "2")), asks=asks)
+    assert feed.metrics(4)["depth_bid_200bps_base"].value == D(7)
+    feed.quote(8, bids=(("99", "9"),), asks=asks, full=False)
+    partial = feed.metrics(8)["depth_bid_200bps_base"]
+    assert partial.value is None
+    assert "incomplete_depth_band" in partial.reasons
+    feed.engine.restore(checkpoint)
+    assert feed.snapshot(1) == first

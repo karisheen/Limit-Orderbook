@@ -1,0 +1,40 @@
+.paper-workflow { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.paper-workflow > .panel-heading { flex-wrap: wrap; }
+.paper-workflow h3 { margin: 10px 0 6px; font-size: 11px; }
+.paper-workflow fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.paper-workflow button { white-space: normal; max-width: 100%; font-size: 10px; }
+.paper-workflow input, .paper-workflow select, .paper-workflow textarea { width: 100%; max-width: 100%; min-width: 0; font: inherit; }
+.paper-workflow textarea { min-height: 65px; resize: vertical; padding: 6px; color: inherit; background: #1b232d; border: 1px solid #3c4857; border-radius: 3px; }
+.paper-workflow textarea:focus-visible { outline: 2px solid #91bce8; outline-offset: 2px; }
+.paper-workflow input[type="checkbox"] { width: auto; flex: 0 0 auto; }
+.paper-workflow .paper-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 10px; }
+.paper-workflow .paper-fields { display: flex; flex-wrap: wrap; align-items: end; gap: 9px; margin: 9px 0; }
+.paper-workflow .paper-fields > .paper-field { flex: 1 1 155px; }
+.paper-workflow .paper-draft-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); align-items: end; gap: 8px; padding: 9px 0; border-bottom: 1px solid var(--line); margin-bottom: 6px; }
+.paper-workflow .paper-check { display: flex; align-items: start; gap: 7px; font-size: 10px; line-height: 1.6; margin: 8px 0; }
+.paper-workflow .paper-check input { margin-top: 3px; }
+.paper-workflow .paper-section, .paper-workflow .paper-order-form, .paper-workflow .paper-journal-form, .paper-workflow .paper-accounting { padding: 8px 10px; border-top: 1px solid var(--line); }
+.paper-workflow .paper-section > summary { font-weight: 650; font-size: 11px; color: #d9e6f4; padding: 4px 0; }
+.paper-workflow .paper-provenance { color: var(--muted); font-size: 10px; line-height: 1.65; margin: 6px 10px; overflow-wrap: anywhere; }
+.paper-workflow .paper-exact { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; white-space: normal; }
+.paper-workflow .paper-notice { color: var(--warning); font-size: 10px; line-height: 1.6; padding: 7px 10px; border-left: 2px solid var(--warning); margin: 8px 10px; background: #28271f; }
+.paper-workflow .paper-table-scroll { max-width: 100%; overflow: auto; scrollbar-gutter: stable; }
+.paper-workflow .paper-table-scroll table { min-width: 570px; }
+.paper-workflow .paper-table-scroll td { max-width: 310px; overflow-wrap: anywhere; }
+.paper-workflow .paper-table-scroll th { white-space: normal; min-width: 90px; }
+.paper-workflow .paper-table-scroll .evidence { padding: 6px 0; }
+.paper-workflow .paper-table-scroll .evidence pre { min-width: 180px; }
+.paper-workflow .paper-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.paper-workflow .paper-run-list, .paper-workflow .paper-journal-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(330px, 100%), 1fr)); gap: 8px; margin-top: 8px; }
+.paper-workflow .paper-run-list article, .paper-workflow .paper-journal-list article { min-width: 0; border: 1px solid var(--line); padding: 9px; font-size: 10px; line-height: 1.6; }
+.paper-workflow .paper-journal-list article > header { display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 8px; }
+.paper-workflow .paper-journal-list dl { display: grid; grid-template-columns: minmax(75px, 1fr) minmax(0, 3fr); gap: 6px; }
+.paper-workflow .paper-journal-list dt { color: var(--muted); }
+.paper-workflow .paper-journal-list dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.paper-workflow .paper-archive { margin: 10px; padding: 10px; border: 2px solid var(--warning); background: #201f1c; min-width: 0; }
+.paper-workflow .paper-archive > h3 { color: var(--warning); }
+.paper-workflow .paper-archive .paper-accounting > h3:first-of-type::before { content: "Archived — "; color: var(--warning); }
+@media (max-width: 650px) {
+  .paper-workflow .paper-fields > .paper-field { flex-basis: 100%; }
+  .paper-workflow .paper-archive { margin: 5px; padding: 5px; }
+}

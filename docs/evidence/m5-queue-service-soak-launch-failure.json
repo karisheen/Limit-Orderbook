@@ -1,0 +1,94 @@
+{
+  "all_owned_processes_reaped": false,
+  "assets": [
+    "BTC",
+    "ETH",
+    "SOL"
+  ],
+  "checks_passed": false,
+  "commands": [
+    {
+      "argv": [
+        "/private/tmp/limit-orderbook-m5-NBWAK4/soak-service/.venv-upgrade/bin/python",
+        "-m",
+        "src.workstation.cli",
+        "record",
+        "--network",
+        "--root",
+        "/private/tmp/limit-orderbook-m5-NBWAK4/soak-service/data/m5-live-soak/run-q4sgvu_h/store",
+        "--duration",
+        "1800",
+        "--venue",
+        "binance-global",
+        "--venue",
+        "hyperliquid",
+        "--assets",
+        "BTC",
+        "ETH",
+        "SOL",
+        "--probe-timeout",
+        "25"
+      ],
+      "cleanup_signals": [],
+      "command_wall_seconds": "0.00208934",
+      "cwd": "/private/tmp/limit-orderbook-m5-NBWAK4/soak-service",
+      "exception": {
+        "message": "[Errno 2] No such file or directory: '/private/tmp/limit-orderbook-m5-NBWAK4/soak-service/.venv-upgrade/bin/python'",
+        "type": "FileNotFoundError"
+      },
+      "exit_code": null,
+      "finished_wall_ns": "1793549699064267000",
+      "name": "record",
+      "process_reaped": false,
+      "shell_command": "/private/tmp/limit-orderbook-m5-NBWAK4/soak-service/.venv-upgrade/bin/python -m src.workstation.cli record --network --root /private/tmp/limit-orderbook-m5-NBWAK4/soak-service/data/m5-live-soak/run-q4sgvu_h/store --duration 1800 --venue binance-global --venue hyperliquid --assets BTC ETH SOL --probe-timeout 25",
+      "started_wall_ns": "1793549699061297000",
+      "status": "failure",
+      "stderr": {
+        "bytes": "0",
+        "non_json_lines": [],
+        "path": "/private/tmp/limit-orderbook-m5-NBWAK4/soak-service/data/m5-live-soak/run-q4sgvu_h/record.stderr.jsonl",
+        "records": [],
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stdout": {
+        "bytes": "0",
+        "non_json_lines": [],
+        "path": "/private/tmp/limit-orderbook-m5-NBWAK4/soak-service/data/m5-live-soak/run-q4sgvu_h/record.stdout.jsonl",
+        "records": [],
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "timed_out": false,
+      "timeout_seconds": "2400"
+    }
+  ],
+  "errors": [
+    {
+      "message": "[Errno 2] No such file or directory: '/private/tmp/limit-orderbook-m5-NBWAK4/soak-service/.venv-upgrade/bin/python'",
+      "traceback": "Traceback (most recent call last):\n  File \"/private/tmp/limit-orderbook-m5-NBWAK4/soak-service/data/m5-smoke/live_capture_smoke.py\", line 241, in main\n    recorded = run_command(\"record\", command, record_timeout, run_dir, evidence, report)\n  File \"/private/tmp/limit-orderbook-m5-NBWAK4/soak-service/data/m5-smoke/live_capture_smoke.py\", line 99, in run_command\n    process = subprocess.Popen(command, cwd=ROOT, stdin=subprocess.DEVNULL,\n                               stdout=stdout, stderr=stderr, start_new_session=True)\n  File \"/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/subprocess.py\", line 1039, in __init__\n    self._execute_child(args, executable, preexec_fn, close_fds,\n    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n                        pass_fds, cwd, env,\n                        ^^^^^^^^^^^^^^^^^^^\n    ...<5 lines>...\n                        gid, gids, uid, umask,\n                        ^^^^^^^^^^^^^^^^^^^^^^\n                        start_new_session, process_group)\n                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/subprocess.py\", line 1972, in _execute_child\n    raise child_exception_type(errno_num, err_msg, err_filename)\nFileNotFoundError: [Errno 2] No such file or directory: '/private/tmp/limit-orderbook-m5-NBWAK4/soak-service/.venv-upgrade/bin/python'\n",
+      "type": "FileNotFoundError"
+    }
+  ],
+  "evidence": "/private/tmp/limit-orderbook-m5-NBWAK4/soak-service/docs/evidence/m5-queue-service-live-soak.json",
+  "finished_wall_ns": "1793549699083645000",
+  "harness_sha256": "44ee4dcd9c0f832f2e8ac92a9604104d7a06321673c273ef163d47ea1bcf9d72",
+  "limitations": [
+    "Public exchange availability is observed, never assumed; no Binance US fallback.",
+    "Command walltime includes discovery, probes, capture, shutdown and/or offline verification; it is not live latency or healthy capture duration.",
+    "Receive-clock endpoint spans do not establish uninterrupted healthy capture or latency percentiles.",
+    "Raw bytes and full CLI stdout/stderr remain under ignored data/; evidence retains hashes and structured summaries.",
+    "SIGKILL of the harness or unavailable evidence storage cannot guarantee a final report; the last atomic checkpoint remains."
+  ],
+  "platform": "macOS-13.7.8-x86_64-i386-64bit-Mach-O",
+  "private_credentials_used": false,
+  "python": "3.13.5 (main, Jul 23 2025, 00:30:58) [Clang 20.1.4 ]",
+  "queue_or_depth_overrides": false,
+  "requested_seconds": "1800",
+  "root": "/private/tmp/limit-orderbook-m5-NBWAK4/soak-service/data/m5-live-soak/run-q4sgvu_h",
+  "schema": "m3-public-cli-smoke-1",
+  "started_wall_ns": "1793549699010354000",
+  "status": "failure",
+  "venues": [
+    "binance-global",
+    "hyperliquid"
+  ]
+}

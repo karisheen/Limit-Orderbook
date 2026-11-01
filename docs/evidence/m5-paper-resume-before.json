@@ -1,0 +1,29 @@
+{
+  "workload": "actual FastAPI native demo, durable delayed run, separate zero-delay active run, 500 subsequent source batches; no source/event mocks",
+  "fault": {
+    "MAX_DELAYED_BOOKS": 32,
+    "production_default": 4096,
+    "feed_latency_ns": "86400000000000"
+  },
+  "rejected_status": 422,
+  "rejected_body": {
+    "detail": "feed_latency_queue_limit"
+  },
+  "before": {
+    "state_hash": "fba1e165ff5ea4f5546635068f754669d978a0632add79e7ae790d058d2b1a66",
+    "cursor": 669,
+    "generation": 1,
+    "status": "paused"
+  },
+  "after": {
+    "state_hash": "cfc27b52c80cfd515be5c1ee88feb26bdc8eebe59e1b4376608fa88f6639021d",
+    "cursor": 221,
+    "generation": 2,
+    "status": "error"
+  },
+  "same_active_engine": false,
+  "current_query_status": 409,
+  "active_run": "e03ad2d23eab453f867b69ba1ba69bf8",
+  "expected_failure_observed": true,
+  "causal_projection_preserved": false
+}

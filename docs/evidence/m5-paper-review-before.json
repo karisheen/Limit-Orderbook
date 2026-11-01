@@ -1,0 +1,180 @@
+{
+  "label": "before",
+  "python": "3.13.5 (main, Jul 23 2025, 00:30:58) [Clang 20.1.4 ]",
+  "platform": "macOS-13.7.8-x86_64-i386-64bit-Mach-O",
+  "cases": {
+    "metadata_rewind": {
+      "original": "filled",
+      "replayed": "cancelled",
+      "reasons": [
+        "instrument_mismatch",
+        "ioc_remainder_cancelled"
+      ],
+      "fill_count": 0
+    },
+    "metadata_restore": {
+      "version": "synthetic-v2",
+      "mark": "None"
+    },
+    "cross_clock": {
+      "mutation": "filled",
+      "snapshot_reasons": [],
+      "mark": "99.00",
+      "balances": [
+        [
+          "BTC",
+          "2"
+        ],
+        [
+          "USD",
+          "9799.99"
+        ]
+      ]
+    },
+    "hyperliquid_spot_limit": "variable price rule requires protocol price validator",
+    "limit_reasons": {
+      "status": "partial",
+      "filled": "1",
+      "reasons": [
+        "insufficient_cash",
+        "known_depth_exhausted",
+        "ioc_remainder_cancelled"
+      ]
+    },
+    "journal_origin": {
+      "outcome": "origin_overwritten",
+      "stored_session": "new-session"
+    }
+  },
+  "profile": {
+    "depth_per_side": 1000,
+    "deliveries": 200,
+    "seconds_with_profile_and_tracemalloc": 9.600142502997187,
+    "traced_retained_bytes": 244141,
+    "traced_peak_bytes": 338056,
+    "reservation_count": 2000,
+    "financial": {
+      "balances": [
+        [
+          "BTC",
+          "20"
+        ],
+        [
+          "USD",
+          "7998.10"
+        ]
+      ],
+      "positions": [
+        [
+          "20",
+          "2001.90",
+          "0",
+          "-21.90"
+        ]
+      ],
+      "fills": [
+        [
+          "10",
+          "1000.45",
+          "0.00",
+          [
+            [
+              "100.00",
+              "1"
+            ],
+            [
+              "100.01",
+              "1"
+            ],
+            [
+              "100.02",
+              "1"
+            ],
+            [
+              "100.03",
+              "1"
+            ],
+            [
+              "100.04",
+              "1"
+            ],
+            [
+              "100.05",
+              "1"
+            ],
+            [
+              "100.06",
+              "1"
+            ],
+            [
+              "100.07",
+              "1"
+            ],
+            [
+              "100.08",
+              "1"
+            ],
+            [
+              "100.09",
+              "1"
+            ]
+          ]
+        ],
+        [
+          "10",
+          "1001.45",
+          "0.00",
+          [
+            [
+              "100.10",
+              "1"
+            ],
+            [
+              "100.11",
+              "1"
+            ],
+            [
+              "100.12",
+              "1"
+            ],
+            [
+              "100.13",
+              "1"
+            ],
+            [
+              "100.14",
+              "1"
+            ],
+            [
+              "100.15",
+              "1"
+            ],
+            [
+              "100.16",
+              "1"
+            ],
+            [
+              "100.17",
+              "1"
+            ],
+            [
+              "100.18",
+              "1"
+            ],
+            [
+              "100.19",
+              "1"
+            ]
+          ]
+        ]
+      ]
+    },
+    "financial_sha256": "13989b75b57229d6abad89a134f00c9accce099b74e661e9370a3e22de3ba2c1",
+    "profile": "         1783201 function calls in 8.848 seconds\n\n   Ordered by: cumulative time\n   List reduced from 52 to 20 due to restriction <20>\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n      200    0.002    0.000    9.189    0.046 /private/tmp/limit-orderbook-m5-NBWAK4/paper/docs/evidence/m5-paper-review-smoke.py:48(advance)\n      200    0.005    0.000    9.167    0.046 /private/tmp/limit-orderbook-m5-NBWAK4/paper/src/workstation/paper.py:500(on_batch)\n      400    0.017    0.000    9.140    0.023 /private/tmp/limit-orderbook-m5-NBWAK4/paper/src/workstation/paper.py:568(_advance)\n      200    5.878    0.029    9.115    0.046 /private/tmp/limit-orderbook-m5-NBWAK4/paper/src/workstation/paper.py:545(_observe)\n   400800    1.588    0.000    1.589    0.000 {method 'get' of 'dict' objects}\n   401200    0.899    0.000    0.899    0.000 {built-in method builtins.min}\n     1000    0.005    0.000    0.412    0.000 /Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/dataclasses.py:1580(replace)\n     1000    0.030    0.000    0.406    0.000 /Users/dakariantoine/.local/share/uv/python/cpython-3.13.5-macos-x86_64-none/lib/python3.13/dataclasses.py:1599(_replace)\n      200    0.048    0.000    0.283    0.001 /private/tmp/limit-orderbook-m5-NBWAK4/paper/src/workstation/book.py:58(__post_init__)\n     4200    0.079    0.000    0.261    0.000 {built-in method builtins.any}\n   400400    0.110    0.000    0.157    0.000 /private/tmp/limit-orderbook-m5-NBWAK4/paper/src/workstation/book.py:76(<genexpr>)\n     3600    0.012    0.000    0.051    0.000 /private/tmp/limit-orderbook-m5-NBWAK4/paper/src/workstation/precision.py:111(text)\n   415400    0.051    0.000    0.051    0.000 {built-in method builtins.isinstance}\n      200    0.013    0.000    0.044    0.000 <string>:2(__init__)\n      200    0.009    0.000    0.032    0.000 /private/tmp/limit-orderbook-m5-NBWAK4/paper/src/workstation/events.py:422(__post_init__)\n    60400    0.018    0.000    0.025    0.000 /private/tmp/limit-orderbook-m5-NBWAK4/paper/src/workstation/precision.py:116(<genexpr>)\n     1200    0.003    0.000    0.024    0.000 /private/tmp/limit-orderbook-m5-NBWAK4/paper/src/workstation/instruments.py:13(__new__)\n      200    0.013    0.000    0.021    0.000 /private/tmp/limit-orderbook-m5-NBWAK4/paper/src/workstation/quality.py:188(evaluate)\n     1000    0.002    0.000    0.018    0.000 /private/tmp/limit-orderbook-m5-NBWAK4/paper/src/workstation/quality.py:35(__post_init__)\n    12400    0.015    0.000    0.015    0.000 {built-in method builtins.getattr}\n\n\n"
+  },
+  "delayed_bound": {
+    "outcome": "accepted_40_snapshots",
+    "delayed_book_count": 40,
+    "charged_bytes": null
+  }
+}

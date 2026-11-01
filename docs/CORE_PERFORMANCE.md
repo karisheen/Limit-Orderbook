@@ -373,3 +373,20 @@ After that correction, both laptop sizes passed actual1×/2× source-rate, funct
 | 1280×800 | 2× | 2.046775× | 127.937354 |
 
 `evidence/m4-render-attempts.json` retains these results beside every earlier failed/inconclusive attempt, exact commands/hashes/hardware, distributions and controls. Both `m4-real-render-{1440,1280}-2x.png` surfaces were visually inspected. The conservative historical32MiB budget truncates deep-book history well before some requested windows; missing regions remain hatched and disclosed. A busy owner can temporarily publish labeled last-completed diagnostic evidence. Neither condition is hidden by the benchmark. These results close finite playback/render acceptance, not sustained recorder or live-execution readiness.
+
+## M5 measured recorder burst capacity
+
+The merged-M4 public soak again reached the original512-item count bound;
+`evidence/m5-merged-m4-soak.json` retains the incomplete capture and verification.
+The queue was empty in41/54 sampled health observations. Retained receive-time
+bursts reached1,114 raw-plus-normalized items in0.5s and1,566 in2s. Exact live
+callback/checkpoint overlap was not measured and remains an inference.
+
+`evidence/m5-recorder-capacity.json` retains the declared hardware/source pins,
+original and2× finite schedules, writer/producer CPU, service profiles, queue
+samples, drain measurements and exact raw/native/checkpoint parity. At2×,512
+slots overflowed while2,048 retained all8,258 offered items, peaked at591 items /
+9,226,391 accounted bytes and drained/sealed in0.711s. The independent128MiB
+cap, native depth, required-event fidelity and checkpoint cadence are unchanged.
+This measured finite-burst correction does not establish a30-minute or24-hour
+soak pass. Historical512-item measurements above remain unchanged.

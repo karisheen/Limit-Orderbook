@@ -1,0 +1,342 @@
+{
+  "conclusion": "The corrected dedicated-producer topology passes the retained12-stream capture at the existing8MiB cap with complete owner parity. Same-loop raw decode starved consumer dequeue and invalidates the earlier8/32/64/128MiB failures as a production-capacity sizing argument. Those failures remain transparent stress diagnostics, not hidden. No byte-cap increase is supported by this capture alone.",
+  "diagnostic_source": "\"\"\"Consolidate authorized offline native raw-payload capacity trials, no new runs.\"\"\"\nimport hashlib\nimport json\nfrom pathlib import Path\n\nROOT = Path(__file__).resolve().parents[2]\npaths = [ROOT / 'docs/evidence/m5-lifecycle-offline-native-queue-raw.json']\npaths.extend(sorted((ROOT / 'docs/evidence').glob('m5-lifecycle-offline-native-queue-raw-*mib.json')))\npaths.extend(sorted((ROOT / 'docs/evidence').glob('m5-lifecycle-offline-threaded-raw-*mib.json')))\ntrials = []\nfor path in paths:\n    value = json.loads(path.read_text())\n    threaded = 'publication_rows' in value\n    observations = value['publication_rows'] if threaded else value['observations']\n    rejected = value['rejected_atomic_deliveries']\n    trials.append({\n        'path': str(path.relative_to(ROOT)), 'sha256': hashlib.sha256(path.read_bytes()).hexdigest(),\n        'topology': 'dedicated_raw_producer_thread' if threaded else 'raw_decoder_on_collector_event_loop',\n        'diagnostic_cap_mib': value.get('diagnostic_byte_cap_mib', 8),\n        'production_cap_mib': value.get('production_byte_cap_mib', 8),\n        'native_status': value['native_status'], 'native_error': value['native_error'],\n        'native_deliveries_applied': value['native_deliveries_applied'], 'source_deliveries': value.get('replay_deliveries', value.get('source_deliveries')),\n        'matches_serial_native_reference': value['matches_serial_native_reference'],\n        'complete_native_state_hash': value['complete_native_state_hash'], 'core_book_hash': value.get('replay_book_hash', value.get('core_book_hash')),\n        'observed_queue_bytes_highwater': max(item['queue_bytes'] for item in observations),\n        'observed_queue_count_highwater': value['telemetry']['queue_highwater'],\n        'bootstrap_completed_delivery': value.get('bootstrap_completed_delivery'),\n        'phase_highwater': value.get('phase_highwater'),\n        'source_play_wall_seconds': value.get('source_play_wall_seconds', value.get('elapsed_seconds')),\n        'drain_seconds_before_checkpoint': value.get('queue_drain_seconds_before_checkpoint'),\n        'owner_checkpoint_seconds': value.get('owner_checkpoint_seconds'),\n        'legacy_drain_seconds_including_checkpoint': value.get('drain_seconds'),\n        'owner_apply_wall_ns': value.get('owner_apply_wall_ns'), 'owner_apply_thread_cpu_ns': value.get('owner_apply_thread_cpu_ns'),\n        'producer_apply_wall_ns': value.get('producer_apply_wall_ns'), 'producer_apply_thread_cpu_ns': value.get('producer_apply_thread_cpu_ns'),\n        'rss_before_play_bytes': value.get('rss_before_play_bytes'), 'process_rss_final_highwater_bytes': value.get('process_rss_final_highwater_bytes'),\n        'rejected_atomic_deliveries': rejected,\n        'first_rejection_required_bytes': None if not rejected else sum(rejected[0][key] for key in ('prior_queued_bytes', 'atomic_event_bytes', 'atomic_book_bytes')),\n        'cleanup': value['cleanup'],\n    })\ntrials.sort(key=lambda item: (item['topology'], item['diagnostic_cap_mib']))\npassed = [item for item in trials if item['native_status'] == 'live' and item['matches_serial_native_reference'] and item['native_deliveries_applied'] == item['source_deliveries']]\nresult = {'diagnostic_source': Path(__file__).read_text(), 'trials': trials,\n    'smallest_passing_tested_capacity_mib': min((item['diagnostic_cap_mib'] for item in passed), default=None),\n    'production_changed': False,\n    'conclusion': 'The corrected dedicated-producer topology passes the retained12-stream capture at the existing8MiB cap with complete owner parity. Same-loop raw decode starved consumer dequeue and invalidates the earlier8/32/64/128MiB failures as a production-capacity sizing argument. Those failures remain transparent stress diagnostics, not hidden. No byte-cap increase is supported by this capture alone.',\n    'scope': 'Parent-authorized diagnostic-only byte-cap trials, raw retained actual Binance-global/Hyperliquid capture at native replay speed1 into actual asynchronous ClientSession queue/owner executor. Only enqueue byte-cap AST literal differs; generated method source in each trial. Source payloads/depth,256-item limit, all financial/observer code and history budget unchanged.',\n    'limitations': ['Source replay pacing is not measured live callback publication; actual offline callback wall publication stamps and queue highwaters are recorded.', 'The dedicated raw producer serializes recorded global delivery order; it does not recreate concurrent16-product live bootstrap. Original public BTC overload remains unresolved by this proof.', 'Smallest passing TESTED capacity is not a universal minimum or full16-product/live acceptance.', 'No retained actual Coinbase40k-level snapshot is available in this frozen snapshot or known to parent; formula-only book charge lower bound is20,484,096B before events.', 'Failure/overflow owner states intentionally differ from complete serial reference and must not be reported as parity.', 'Count/byte sustained-overload protections remain mandatory; parent owns any production capacity correction.'],\n}\noutput = ROOT / 'docs/evidence/m5-lifecycle-capacity-summary.json'\noutput.write_text(json.dumps(result, indent=2) + '\\n')\nprint(json.dumps({key: value for key, value in result.items() if key != 'diagnostic_source'}, indent=2))\n",
+  "limitations": [
+    "Source replay pacing is not measured live callback publication; actual offline callback wall publication stamps and queue highwaters are recorded.",
+    "The dedicated raw producer serializes recorded global delivery order; it does not recreate concurrent16-product live bootstrap. Original public BTC overload remains unresolved by this proof.",
+    "Smallest passing TESTED capacity is not a universal minimum or full16-product/live acceptance.",
+    "No retained actual Coinbase40k-level snapshot is available in this frozen snapshot or known to parent; formula-only book charge lower bound is20,484,096B before events.",
+    "Failure/overflow owner states intentionally differ from complete serial reference and must not be reported as parity.",
+    "Count/byte sustained-overload protections remain mandatory; parent owns any production capacity correction."
+  ],
+  "production_changed": false,
+  "publication": {
+    "original_bytes": 19728,
+    "original_path": "/tmp/limit-orderbook-m5-NBWAK4/lifecycle-proof/docs/evidence/m5-lifecycle-capacity-summary.json",
+    "original_sha256": "4e5b32a222eea0861537df643e8cb0e8406617d32cc8edb321b30f1ef26347d0",
+    "transformation": "Deduplicated native source texts into SHA256-addressed source bundle; all measurements, observations, diagnostic source, assertions and failure results retained. Summary input SHA256 values identify original retained reports, not these derived publication files. Full discovery catalog originals remain local; bounded public lifecycle reports label their excerpts."
+  },
+  "scope": "Parent-authorized diagnostic-only byte-cap trials, raw retained actual Binance-global/Hyperliquid capture at native replay speed1 into actual asynchronous ClientSession queue/owner executor. Only enqueue byte-cap AST literal differs; generated method source in each trial. Source payloads/depth,256-item limit, all financial/observer code and history budget unchanged.",
+  "smallest_passing_tested_capacity_mib": 8,
+  "trials": [
+    {
+      "bootstrap_completed_delivery": "68",
+      "cleanup": {
+        "consumer_done": true,
+        "producer_executor_shutdown": true,
+        "runtime_closed": true,
+        "session_closed": true
+      },
+      "complete_native_state_hash": "16908eeda193b199fd16a28241324fc5517ed4d56e3cb3eb0c7bda9c90738a67",
+      "core_book_hash": "addf0fe4ddff4ca7e4581bcaea2f010621c36d9a3e04f799bd36f1c9a0ec1a22",
+      "diagnostic_cap_mib": 8,
+      "drain_seconds_before_checkpoint": 1.3769895303994417e-06,
+      "first_rejection_required_bytes": null,
+      "legacy_drain_seconds_including_checkpoint": null,
+      "matches_serial_native_reference": true,
+      "native_deliveries_applied": 703,
+      "native_error": null,
+      "native_status": "live",
+      "observed_queue_bytes_highwater": 6626908,
+      "observed_queue_count_highwater": 1,
+      "owner_apply_thread_cpu_ns": 622386194,
+      "owner_apply_wall_ns": 655088401,
+      "owner_checkpoint_seconds": 1.2218613809964154,
+      "path": "docs/evidence/m5-lifecycle-offline-threaded-raw-8mib.json",
+      "phase_highwater": {
+        "cold_bootstrap": {
+          "process_rss_highwater_bytes": 176279552,
+          "publications": 67,
+          "queue_bytes": 6626908,
+          "queue_count": 1
+        },
+        "steady": {
+          "process_rss_highwater_bytes": 176279552,
+          "publications": 636,
+          "queue_bytes": 5131912,
+          "queue_count": 1
+        }
+      },
+      "process_rss_final_highwater_bytes": 203980800,
+      "producer_apply_thread_cpu_ns": 4288437095,
+      "producer_apply_wall_ns": 5804159019,
+      "production_cap_mib": 8,
+      "rejected_atomic_deliveries": [],
+      "rss_before_play_bytes": 176279552,
+      "sha256": "9b780a8c44e89889fc9a55ee02d65982da05da4bd630c120a5bd725998f5667d",
+      "source_deliveries": 703,
+      "source_play_wall_seconds": 25.08653480699286,
+      "topology": "dedicated_raw_producer_thread"
+    },
+    {
+      "bootstrap_completed_delivery": "68",
+      "cleanup": {
+        "consumer_done": true,
+        "producer_executor_shutdown": true,
+        "runtime_closed": true,
+        "session_closed": true
+      },
+      "complete_native_state_hash": "16908eeda193b199fd16a28241324fc5517ed4d56e3cb3eb0c7bda9c90738a67",
+      "core_book_hash": "addf0fe4ddff4ca7e4581bcaea2f010621c36d9a3e04f799bd36f1c9a0ec1a22",
+      "diagnostic_cap_mib": 256,
+      "drain_seconds_before_checkpoint": 1.6130070434883237e-06,
+      "first_rejection_required_bytes": null,
+      "legacy_drain_seconds_including_checkpoint": null,
+      "matches_serial_native_reference": true,
+      "native_deliveries_applied": 703,
+      "native_error": null,
+      "native_status": "live",
+      "observed_queue_bytes_highwater": 6626908,
+      "observed_queue_count_highwater": 1,
+      "owner_apply_thread_cpu_ns": 646103124,
+      "owner_apply_wall_ns": 702546534,
+      "owner_checkpoint_seconds": 1.3906006679899292,
+      "path": "docs/evidence/m5-lifecycle-offline-threaded-raw-256mib.json",
+      "phase_highwater": {
+        "cold_bootstrap": {
+          "process_rss_highwater_bytes": 176463872,
+          "publications": 67,
+          "queue_bytes": 6626908,
+          "queue_count": 1
+        },
+        "steady": {
+          "process_rss_highwater_bytes": 176463872,
+          "publications": 636,
+          "queue_bytes": 5131912,
+          "queue_count": 1
+        }
+      },
+      "process_rss_final_highwater_bytes": 205271040,
+      "producer_apply_thread_cpu_ns": 3972048605,
+      "producer_apply_wall_ns": 5259021407,
+      "production_cap_mib": 8,
+      "rejected_atomic_deliveries": [],
+      "rss_before_play_bytes": 176463872,
+      "sha256": "db019f427c34631275d31688b8ef1ee59900b11af517d21384059cba1db9133e",
+      "source_deliveries": 703,
+      "source_play_wall_seconds": 25.116932516000816,
+      "topology": "dedicated_raw_producer_thread"
+    },
+    {
+      "bootstrap_completed_delivery": null,
+      "cleanup": {
+        "consumer_done": true,
+        "runtime_closed": true,
+        "session_closed": true
+      },
+      "complete_native_state_hash": "5c6e5d795a472825cf59d1e34eac2868759177d01627d022333d3bb16bfef1b4",
+      "core_book_hash": "addf0fe4ddff4ca7e4581bcaea2f010621c36d9a3e04f799bd36f1c9a0ec1a22",
+      "diagnostic_cap_mib": 8,
+      "drain_seconds_before_checkpoint": null,
+      "first_rejection_required_bytes": 11634141,
+      "legacy_drain_seconds_including_checkpoint": 0.3419519540038891,
+      "matches_serial_native_reference": false,
+      "native_deliveries_applied": 56,
+      "native_error": "analytical_queue_overflow: reselect to establish fresh history",
+      "native_status": "unavailable",
+      "observed_queue_bytes_highwater": 6629714,
+      "observed_queue_count_highwater": 7,
+      "owner_apply_thread_cpu_ns": null,
+      "owner_apply_wall_ns": null,
+      "owner_checkpoint_seconds": null,
+      "path": "docs/evidence/m5-lifecycle-offline-native-queue-raw.json",
+      "phase_highwater": null,
+      "process_rss_final_highwater_bytes": null,
+      "producer_apply_thread_cpu_ns": null,
+      "producer_apply_wall_ns": null,
+      "production_cap_mib": 8,
+      "rejected_atomic_deliveries": [
+        {
+          "atomic_book_bytes": 5126144,
+          "atomic_event_bytes": 3958,
+          "books": [
+            {
+              "asks": 5003,
+              "bids": 5001,
+              "instrument_id": "binance-global:spot-v3:spot:BTCUSDT"
+            }
+          ],
+          "delivery": "60",
+          "error": "analytical_queue_overflow: reselect to establish fresh history",
+          "prior_queued_bytes": 6504039
+        }
+      ],
+      "rss_before_play_bytes": null,
+      "sha256": "7cd711f94e8be7a112ffc4905b44a77e726995ad1720ad31090d8e7593c82646",
+      "source_deliveries": 703,
+      "source_play_wall_seconds": 25.359705130991642,
+      "topology": "raw_decoder_on_collector_event_loop"
+    },
+    {
+      "bootstrap_completed_delivery": null,
+      "cleanup": {
+        "consumer_done": true,
+        "runtime_closed": true,
+        "session_closed": true
+      },
+      "complete_native_state_hash": "cf54d99f2b17a5c29e926e46a995cc5bcca70d6e788fb2438c66dfd694a6cf9f",
+      "core_book_hash": "addf0fe4ddff4ca7e4581bcaea2f010621c36d9a3e04f799bd36f1c9a0ec1a22",
+      "diagnostic_cap_mib": 32,
+      "drain_seconds_before_checkpoint": null,
+      "first_rejection_required_bytes": 37171208,
+      "legacy_drain_seconds_including_checkpoint": 0.5680176039895741,
+      "matches_serial_native_reference": false,
+      "native_deliveries_applied": 60,
+      "native_error": "analytical_queue_overflow: reselect to establish fresh history",
+      "native_status": "unavailable",
+      "observed_queue_bytes_highwater": 32130171,
+      "observed_queue_count_highwater": 11,
+      "owner_apply_thread_cpu_ns": null,
+      "owner_apply_wall_ns": null,
+      "owner_checkpoint_seconds": null,
+      "path": "docs/evidence/m5-lifecycle-offline-native-queue-raw-32mib.json",
+      "phase_highwater": {
+        "cold_bootstrap": {
+          "observed_owner_duration_ms": 951.39787,
+          "observed_publications": 72,
+          "queue_bytes": 32130171,
+          "queue_count": 11
+        }
+      },
+      "process_rss_final_highwater_bytes": null,
+      "producer_apply_thread_cpu_ns": null,
+      "producer_apply_wall_ns": null,
+      "production_cap_mib": 8,
+      "rejected_atomic_deliveries": [
+        {
+          "atomic_book_bytes": 5044224,
+          "atomic_event_bytes": 1440,
+          "books": [
+            {
+              "asks": 5000,
+              "bids": 4844,
+              "instrument_id": "binance-global:spot-v3:spot:SOLUSDT"
+            }
+          ],
+          "delivery": "72",
+          "error": "analytical_queue_overflow: reselect to establish fresh history",
+          "prior_queued_bytes": 32125544
+        }
+      ],
+      "rss_before_play_bytes": null,
+      "sha256": "4c06b1cd50f5c19c76f8c69b40d1166ffdb7e88aca872808989ac92c7be91712",
+      "source_deliveries": 703,
+      "source_play_wall_seconds": 25.585564852997777,
+      "topology": "raw_decoder_on_collector_event_loop"
+    },
+    {
+      "bootstrap_completed_delivery": null,
+      "cleanup": {
+        "consumer_done": true,
+        "runtime_closed": true,
+        "session_closed": true
+      },
+      "complete_native_state_hash": "484489a5d458bb6541f8efadae5b70920029ff9a6baf542c4049fcdd51cdaff9",
+      "core_book_hash": "addf0fe4ddff4ca7e4581bcaea2f010621c36d9a3e04f799bd36f1c9a0ec1a22",
+      "diagnostic_cap_mib": 64,
+      "drain_seconds_before_checkpoint": null,
+      "first_rejection_required_bytes": 67747106,
+      "legacy_drain_seconds_including_checkpoint": 2.932947438006522,
+      "matches_serial_native_reference": false,
+      "native_deliveries_applied": 63,
+      "native_error": "analytical_queue_overflow: reselect to establish fresh history",
+      "native_status": "unavailable",
+      "observed_queue_bytes_highwater": 62703566,
+      "observed_queue_count_highwater": 17,
+      "owner_apply_thread_cpu_ns": null,
+      "owner_apply_wall_ns": null,
+      "owner_checkpoint_seconds": null,
+      "path": "docs/evidence/m5-lifecycle-offline-native-queue-raw-64mib.json",
+      "phase_highwater": {
+        "cold_bootstrap": {
+          "observed_owner_duration_ms": 1913.1842,
+          "observed_publications": 80,
+          "queue_bytes": 62703566,
+          "queue_count": 17
+        }
+      },
+      "process_rss_final_highwater_bytes": null,
+      "producer_apply_thread_cpu_ns": null,
+      "producer_apply_wall_ns": null,
+      "production_cap_mib": 8,
+      "rejected_atomic_deliveries": [
+        {
+          "atomic_book_bytes": 5044224,
+          "atomic_event_bytes": 2184,
+          "books": [
+            {
+              "asks": 5000,
+              "bids": 4844,
+              "instrument_id": "binance-global:spot-v3:spot:SOLUSDT"
+            }
+          ],
+          "delivery": "80",
+          "error": "analytical_queue_overflow: reselect to establish fresh history",
+          "prior_queued_bytes": 62700698
+        }
+      ],
+      "rss_before_play_bytes": null,
+      "sha256": "df30b771e00547b47d04e0311f56f94d994b20240c63aa570e32976087e8f338",
+      "source_deliveries": 703,
+      "source_play_wall_seconds": 27.951353135998943,
+      "topology": "raw_decoder_on_collector_event_loop"
+    },
+    {
+      "bootstrap_completed_delivery": null,
+      "cleanup": {
+        "consumer_done": true,
+        "runtime_closed": true,
+        "session_closed": true
+      },
+      "complete_native_state_hash": "27bc3fece2bec961b26e5984fd950a9724bd9bc2b9eec7822a4e44925359421d",
+      "core_book_hash": "addf0fe4ddff4ca7e4581bcaea2f010621c36d9a3e04f799bd36f1c9a0ec1a22",
+      "diagnostic_cap_mib": 128,
+      "drain_seconds_before_checkpoint": null,
+      "first_rejection_required_bytes": 137706944,
+      "legacy_drain_seconds_including_checkpoint": 0.8105728889931925,
+      "matches_serial_native_reference": false,
+      "native_deliveries_applied": 68,
+      "native_error": "analytical_queue_overflow: reselect to establish fresh history",
+      "native_status": "unavailable",
+      "observed_queue_bytes_highwater": 132661128,
+      "observed_queue_count_highwater": 29,
+      "owner_apply_thread_cpu_ns": null,
+      "owner_apply_wall_ns": null,
+      "owner_checkpoint_seconds": null,
+      "path": "docs/evidence/m5-lifecycle-offline-native-queue-raw-128mib.json",
+      "phase_highwater": {
+        "cold_bootstrap": {
+          "observed_owner_duration_ms": 898.84461,
+          "observed_publications": 98,
+          "queue_bytes": 132661128,
+          "queue_count": 29
+        }
+      },
+      "process_rss_final_highwater_bytes": null,
+      "producer_apply_thread_cpu_ns": null,
+      "producer_apply_wall_ns": null,
+      "production_cap_mib": 8,
+      "rejected_atomic_deliveries": [
+        {
+          "atomic_book_bytes": 5044224,
+          "atomic_event_bytes": 1592,
+          "books": [
+            {
+              "asks": 5000,
+              "bids": 4844,
+              "instrument_id": "binance-global:spot-v3:spot:SOLUSDT"
+            }
+          ],
+          "delivery": "98",
+          "error": "analytical_queue_overflow: reselect to establish fresh history",
+          "prior_queued_bytes": 132661128
+        }
+      ],
+      "rss_before_play_bytes": null,
+      "sha256": "3f4eeac187fa2ec2faa634f9092d7a14967f038a71d8c2ba570a0df5984950fd",
+      "source_deliveries": 703,
+      "source_play_wall_seconds": 25.82868491100089,
+      "topology": "raw_decoder_on_collector_event_loop"
+    }
+  ]
+}

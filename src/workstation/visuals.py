@@ -188,7 +188,9 @@ class VisualHistory:
         self.selected_streams = frozenset(
             s.stream_id
             for s in engine.streams
-            if key is not None and s.key.instrument_id == key.instrument_id
+            if key is not None
+            and s.key.instrument_id == key.instrument_id
+            and s.key.channel in ("book", "trade", "trades")
         )
         self.reset()
 
@@ -231,6 +233,7 @@ class VisualHistory:
             s.stream_id
             for s in self.engine.streams
             if s.key.instrument_id == key.instrument_id
+            and s.key.channel in ("book", "trade", "trades")
         )
         self.anchor = None
         self.price_step = None
@@ -452,11 +455,7 @@ class VisualHistory:
         relevant = [
             event
             for event in batch.events
-            if event.key == self.key
-            or (
-                self.instrument is not None
-                and event.key.instrument_id == self.instrument.instrument_id
-            )
+            if event.stream_id in self.selected_streams
             or (
                 isinstance(event.payload, Gap)
                 and self.selected_streams.intersection(event.payload.affected_streams)

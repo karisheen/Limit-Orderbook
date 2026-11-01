@@ -282,6 +282,10 @@ class ControlledTime:
         return getattr(asyncio, name)
 
     async def sleep(self, delay):
+        if delay == 0:
+            # A cooperative yield is not a scheduled timer or clock advance.
+            await asyncio.sleep(0)
+            return
         release = asyncio.Event()
         self.actions.put_nowait(("sleep", delay, release))
         await release.wait()

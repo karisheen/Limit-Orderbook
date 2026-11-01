@@ -1,0 +1,32 @@
+{
+  "scope": "Built integrated M5 frontend against owned actual backend port8000; native backend loaded before subsequent live-lifecycle corrections. Final fresh-server gate remains required.",
+  "frontend": {
+    "lint": "passed",
+    "unit_tests": 15,
+    "typescript": "passed",
+    "production_build": "passed",
+    "javascript_asset": "index-B4WcsJ7E.js",
+    "css_asset": "index-DNEp5Wv-.css"
+  },
+  "chromium": {
+    "passed": 23,
+    "failed": 0,
+    "seconds_reported": "2.2m",
+    "total_gate_seconds": 153.47,
+    "new_workflows": [
+      "native alert supporting evidence after a delivered transaction; explicit funded/fee/latency IOC; linked journal; empty rewind and exact restored prefix; durable explicit resume with newer native WS generation held ahead of actual HTTP response",
+      "transport-failed and pane-aborted resume; no automatic retry or false completion; explicit retry independently confirmed by native generation/run snapshot"
+    ]
+  },
+  "retained_failures": [
+    "initial select-control tests incorrectly used full label text instead of accessible combobox name",
+    "paused rule needed real source delivery before any native observation/evidence",
+    "native WS new generation raced its successful HTTP resume reply and aborted caller; terminal now buffers one latest future-generation presentation until mutation settlement"
+  ],
+  "not_claimed": [
+    "fresh final backend lifecycle integration",
+    "sustained live capture",
+    "M6 performance budgets",
+    "profitable research"
+  ]
+}

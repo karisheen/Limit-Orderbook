@@ -80,7 +80,7 @@ class InitialSourceSupervisor(FeedSupervisor):
                 message = {
                     "channel": "l2Book",
                     "data": {
-                        "coin": "BTC",
+                        "coin": self.instrument.native_symbol,
                         "time": 1700000000000,
                         "levels": [
                             [{"px": "60000", "sz": "1", "n": 1}],
@@ -93,7 +93,7 @@ class InitialSourceSupervisor(FeedSupervisor):
                     "channel": "trades",
                     "data": [
                         {
-                            "coin": "BTC",
+                            "coin": self.instrument.native_symbol,
                             "side": "B",
                             "px": "60001",
                             "sz": "0.1",
@@ -117,17 +117,21 @@ class InitialSourceSupervisor(FeedSupervisor):
             await self._shutdown()
 
 
-def live_runtime(tmp_path):
-    instrument = next(
-        spec.instrument
-        for spec in demo_source().streams
-        if spec.instrument.venue == "hyperliquid"
-        and spec.instrument.base.ticker == "BTC"
-    )
+def live_runtime(tmp_path, *, instruments=None):
+    if instruments is None:
+        instruments = (
+            next(
+                spec.instrument
+                for spec in demo_source().streams
+                if spec.instrument.venue == "hyperliquid"
+                and spec.instrument.base.ticker == "BTC"
+            ),
+        )
+    instrument = instruments[0]
     catalog = AdapterCatalog()
     catalog.adapters["hyperliquid"] = HyperliquidAdapter()
     catalog.instruments.apply_metadata(
-        MetadataSnapshot("runtime-fixture", 1, "synthetic", (instrument,))
+        MetadataSnapshot("runtime-fixture", 1, "synthetic", instruments)
     )
     registry = SubscriptionRegistry(
         catalog,
@@ -263,7 +267,7 @@ def test_live_history_retention_evicts_oldest_and_presents_latest_without_future
 
                 def apply(events):
                     sizes.append(len(repr(events)))
-                    session._apply_live(events, session.live_books)
+                    session._apply_live(events, session.live_books, sizes[-1])
                     assert len(session.history) <= count_limit
                     assert session.history_bytes <= byte_limit
                     assert session.history[-1].delivery_index == session.delivery
@@ -836,5 +840,335 @@ def test_bounded_frames_preserve_native_depth_costs_and_complete_metrics():
             assert result["estimate"]["consumed_levels"][-1]["price"] == "60150"
         finally:
             await runtime.close()
+
+    asyncio.run(scenario())
+
+
+def test_live_suspended_peer_does_not_reject_active_selection(tmp_path):
+    from dataclasses import replace
+
+    async def scenario():
+        active = next(
+            spec.instrument
+            for spec in demo_source().streams
+            if spec.instrument.venue == "hyperliquid"
+            and spec.instrument.base.ticker == "BTC"
+        )
+        suspended = replace(
+            next(
+                spec.instrument
+                for spec in demo_source().streams
+                if spec.instrument.venue == "binance-global"
+                and spec.instrument.base.ticker == "BTC"
+            ),
+            status="suspended",
+        )
+        runtime, registry, _ = live_runtime(tmp_path, instruments=(active, suspended))
+        try:
+            session = await runtime.create("live", "live", str(active.instrument_id))
+            assert session.instrument_id == active.instrument_id
+            assert suspended.instrument_id not in {
+                status.key.instrument_id for status in registry.snapshot()
+            }
+            with pytest.raises(ValueError, match="product_suspended"):
+                await runtime.create("live", "live", str(suspended.instrument_id))
+            assert tuple(runtime.sessions) == (session.id,)
+        finally:
+            await runtime.close()
+
+    asyncio.run(scenario())
+
+
+def test_live_cohort_fills_bound_fairly_without_quote_aliasing():
+    from dataclasses import replace
+
+    from src.workstation.instruments import AssetIdentity
+    from src.workstation.runtime import _live_cohort
+
+    source = demo_source()
+    candidates = {
+        spec.instrument.instrument_id: spec.instrument
+        for spec in source.streams
+        if spec.instrument.base.asset_id == "BTC"
+    }
+    selected = candidates["binance-global:spot-v3:spot:BTCUSDT"]
+    variants = tuple(
+        replace(
+            selected,
+            instrument_id=f"binance-global:spot-v3:spot:BTCQUOTE{index:02}",
+            native_symbol=f"BTCQUOTE{index:02}",
+            quote=AssetIdentity(f"QUOTE{index:02}", f"QUOTE{index:02}"),
+        )
+        for index in range(30)
+    )
+    suspended = replace(variants[0], status="suspended")
+    inputs = (selected, suspended, *variants[1:], *candidates.values())
+    # Catalogs have unique instruments; preserve exactly that production invariant.
+    inputs = tuple({item.instrument_id: item for item in inputs}.values())
+    cohort = _live_cohort(selected, inputs)
+    assert len(cohort) == 16
+    assert cohort[0] is selected
+    assert len({item.instrument_id for item in cohort}) == 16
+    assert {"binance-global", "coinbase", "kraken", "hyperliquid"} <= {
+        item.venue for item in cohort
+    }
+    assert suspended.instrument_id not in {item.instrument_id for item in cohort}
+    assert _live_cohort(selected, tuple(reversed(inputs))) == cohort
+    for item in cohort:
+        assert item is next(
+            original
+            for original in inputs
+            if original.instrument_id == item.instrument_id
+        )
+
+
+@pytest.mark.parametrize("departed", (True, False))
+def test_pending_paper_arrival_during_live_owner_replacement(
+    tmp_path, monkeypatch, departed
+):
+    from dataclasses import replace
+
+    from src.workstation.api import PaperConfigureRequest, PaperOrderInput, PaperQuery
+
+    clock = [time.monotonic_ns(), time.time_ns()]
+    monkeypatch.setattr(time, "monotonic_ns", lambda: clock[0])
+    monkeypatch.setattr(time, "time_ns", lambda: clock[1])
+
+    async def scenario():
+        original = next(
+            spec.instrument
+            for spec in demo_source().streams
+            if spec.instrument.venue == "hyperliquid"
+            and spec.instrument.market_type == "spot"
+        )
+        other = replace(
+            original,
+            instrument_id="hyperliquid:info:spot:@999999",
+            native_symbol="@999999",
+            native_asset_id="999999",
+            base=replace(original.base, asset_id="regression:OTHER", ticker="OTHER"),
+        )
+        runtime, registry, _ = live_runtime(tmp_path, instruments=(original, other))
+        try:
+            session = await runtime.create("live", "live", str(original.instrument_id))
+            for _ in range(100):
+                frame = await session.frame()
+                if frame["health"]["ready"]:
+                    break
+                await asyncio.sleep(0.01)
+            assert frame["health"]["ready"]
+            identity = {"session_id": session.id, "generation": str(session.generation)}
+            configured = await session.work(
+                session._paper_configure,
+                PaperConfigureRequest(
+                    **identity,
+                    balances=[
+                        {
+                            "venue": original.venue,
+                            "asset_id": original.quote.asset_id,
+                            "available": "100000",
+                        }
+                    ],
+                    fees=[
+                        {
+                            "instrument_id": original.instrument_id,
+                            "fee_bps": "5",
+                            "fee_provenance": "explicit regression assumption",
+                            "fee_date": "2025-01-01",
+                            "fee_asset_id": original.quote.asset_id,
+                        }
+                    ],
+                    order_latency_ns="1000000000",
+                ),
+            )
+            submitted = await session.work(
+                session._paper_order,
+                PaperOrderInput(
+                    **identity,
+                    instrument_id=original.instrument_id,
+                    side="buy",
+                    quantity="1",
+                ),
+            )
+            assert submitted["snapshot"]["orders"][0]["status"] == "pending"
+            actual_replace = registry.replace
+
+            async def delayed_replace(client_id, keys, generation):
+                # Advance the quiet source frontier while ownership replacement
+                # is suspended, without feed events or a wall-time-dependent test.
+                await asyncio.sleep(0)
+                clock[0] += 1_050_000_000
+                clock[1] += 1_050_000_000
+                return await actual_replace(client_id, keys, generation)
+
+            monkeypatch.setattr(registry, "replace", delayed_replace)
+            selected = other if departed else original
+            await runtime.select(
+                session, str(session.generation), selected.instrument_id
+            )
+            result = await session.work(
+                session._paper_query,
+                PaperQuery(session_id=session.id, generation=str(session.generation)),
+            )
+            snapshot = result["snapshot"]
+            assert snapshot["run"]["run_id"] == configured["snapshot"]["run"]["run_id"]
+            order = snapshot["orders"][0]
+            if departed:
+                assert snapshot["balances"] == submitted["snapshot"]["balances"]
+                assert snapshot["fills"] == []
+                assert order["status"] == "cancelled"
+                assert "instrument_not_observed" in order["reasons"]
+                assert "ioc_remainder_cancelled" in order["reasons"]
+            else:
+                assert order["status"] == "filled"
+                assert len(snapshot["fills"]) == 1
+        finally:
+            await runtime.close()
+
+    asyncio.run(scenario())
+
+
+def live_trade_events(session, instrument, ordinal, mono_ns):
+    spec = next(spec for spec in session.streams if spec.key.channel == "trades")
+    adapter = HyperliquidAdapter()
+    raw = RawFrame(
+        "batch-ownership",
+        spec.stream_id,
+        "batch-trades",
+        1,
+        session.live_clock.reading.clock_id,
+        ordinal,
+        1700000000000000000 + ordinal,
+        mono_ns,
+        "ws",
+        adapter.ws_endpoint(instrument, spec.key),
+        json.dumps(
+            {
+                "channel": "trades",
+                "data": [
+                    {
+                        "coin": instrument.native_symbol,
+                        "side": "B",
+                        "px": "60001",
+                        "sz": "0.1",
+                        "time": 1700000000000 + ordinal,
+                        "tid": ordinal,
+                        "hash": f"batch-{ordinal}",
+                    }
+                ],
+            }
+        ).encode(),
+    )
+    decoded = adapter.decode(raw, instrument, spec.key)
+    assert decoded.error is None
+    return wrap_decoded(
+        raw,
+        instrument,
+        spec.key,
+        decoded,
+        SegmentId("batch-ownership"),
+        "ws_snapshot",
+    )
+
+
+@pytest.mark.parametrize("boundary", ("count", "bytes"))
+def test_live_inflight_ownership_remains_charged_until_cancelled_worker_joins(
+    tmp_path, monkeypatch, boundary
+):
+    async def scenario():
+        runtime, registry, instrument = live_runtime(tmp_path)
+        entered, release = threading.Event(), threading.Event()
+        try:
+            first = await runtime.create("live", "live", str(instrument.instrument_id))
+            async with asyncio.timeout(5):
+                while first.delivery < 4:
+                    await asyncio.sleep(0.001)
+            session = await runtime.create(
+                "live", "live", str(instrument.instrument_id)
+            )
+            session.live_task.cancel()
+            await asyncio.gather(session.live_task, return_exceptions=True)
+            events = live_trade_events(
+                session, instrument, 10, session.live_clock.reading.mono_ns + 1
+            )
+            charge = len(repr(events))
+            if boundary == "count":
+                session.live_queue = asyncio.Queue(maxsize=1)
+            else:
+                monkeypatch.setattr("src.workstation.runtime.LIVE_QUEUE_BYTES", charge)
+            original = session._apply_live_batch
+
+            def stalled(batch, bootstrap=False):
+                entered.set()
+                if not release.wait(10):
+                    raise RuntimeError("owner was not released")
+                original(batch, bootstrap)
+
+            monkeypatch.setattr(session, "_apply_live_batch", stalled)
+            session.offer(events, ())
+            session.live_task = asyncio.create_task(session.consume_live())
+            assert await asyncio.to_thread(entered.wait, 5)
+            session.offer(events, ())
+            frame = await session.frame()
+            assert frame["status"] == "unavailable"
+            assert frame["health"]["ready"] is False
+            assert "analytical_queue_overflow" in session.error
+            session.live_task.cancel()
+            await asyncio.sleep(0)
+            assert session.live_bytes == charge
+            assert session.live_inflight == 1
+            release.set()
+            await asyncio.gather(session.live_task, return_exceptions=True)
+            assert session.live_bytes == 0
+            assert session.live_inflight == 0
+        finally:
+            release.set()
+            await runtime.close()
+            await registry.close()
+
+    asyncio.run(scenario())
+
+
+def test_live_batched_owner_preserves_order_and_complete_observer_state(tmp_path):
+    async def scenario():
+        runtime, registry, instrument = live_runtime(tmp_path)
+        try:
+            first = await runtime.create("live", "live", str(instrument.instrument_id))
+            async with asyncio.timeout(5):
+                while first.delivery < 4:
+                    await asyncio.sleep(0.001)
+            owners = [
+                await runtime.create("live", "live", str(instrument.instrument_id))
+                for _ in range(2)
+            ]
+            for owner in owners:
+                owner.live_task.cancel()
+                await asyncio.gather(owner.live_task, return_exceptions=True)
+            batched, serial = owners
+            start = max(owner.live_clock.reading.mono_ns for owner in owners)
+            deliveries = [
+                live_trade_events(batched, instrument, i, start + i)
+                for i in range(1, 66)
+            ]
+            for events in deliveries:
+                batched.offer(events, ())
+                await serial.work(serial._apply_live, events, (), len(repr(events)))
+            batched.live_task = asyncio.create_task(batched.consume_live())
+            async with asyncio.timeout(5):
+                while batched.delivery < len(deliveries):
+                    await asyncio.sleep(0.001)
+
+            def checkpoint(owner):
+                return tuple(observer.checkpoint() for observer in owner._observers())
+
+            assert await batched.work(checkpoint, batched) == await serial.work(
+                checkpoint, serial
+            )
+            assert [batch.events for batch in batched.history] == deliveries
+            assert batched.status == "live"
+            assert batched.live_bytes == 0
+        finally:
+            await runtime.close()
+            await registry.close()
 
     asyncio.run(scenario())

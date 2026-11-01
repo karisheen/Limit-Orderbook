@@ -1,0 +1,232 @@
+{
+  "scenario": "Native-parser synthetic basis smoke, not public-live validation.",
+  "context_sha256": "c262791f697067e885e646292958f668ca5bc1f36eec7a177e142b31380e7e7c",
+  "rows": [
+    {
+      "asset": "BTC",
+      "spot_identity": {
+        "asset_id": "BTC",
+        "ticker": "BTC",
+        "native_token_id": "BTC",
+        "network": null,
+        "contract_address": null,
+        "reference_asset_id": null
+      },
+      "perpetual_identity": {
+        "asset_id": "BTC",
+        "ticker": "BTC",
+        "native_token_id": null,
+        "network": null,
+        "contract_address": null,
+        "reference_asset_id": null
+      },
+      "basis": {
+        "spot_instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+        "perpetual_instrument_id": "hyperliquid:info:perpetual:BTC",
+        "reference_kind": "mark",
+        "quote_asset_id": "USDT",
+        "spot_mid": "100",
+        "perpetual_reference": "102",
+        "perpetual_quote_asset_id": "USDT",
+        "proceeds_in_spot_quote": "102",
+        "funding_cost_in_spot_quote": "102",
+        "proceeds_basis_bps": "200",
+        "funding_basis_bps": "200",
+        "proceeds_conversion": {
+          "source_asset_id": "USDT",
+          "target_asset_id": "USDT",
+          "source_amount": "102",
+          "target_amount": "102",
+          "mid_equivalent": "102",
+          "cost": "0",
+          "required_input": false,
+          "rate": null,
+          "reasons": []
+        },
+        "funding_conversion": {
+          "source_asset_id": "USDT",
+          "target_asset_id": "USDT",
+          "source_amount": "102",
+          "target_amount": "102",
+          "mid_equivalent": "102",
+          "cost": "0",
+          "required_input": true,
+          "rate": null,
+          "reasons": []
+        },
+        "spot_asof": {
+          "session_id": "synthetic-session",
+          "ingest_ordinal": "1",
+          "event_index": "0",
+          "exchange_event_wall_ns": null,
+          "receive_wall_ns": "1000000000",
+          "receive_mono_ns": "1000000000",
+          "clock_id": "synthetic-clock"
+        },
+        "perpetual_asof": {
+          "session_id": "synthetic-session",
+          "ingest_ordinal": "2",
+          "event_index": "0",
+          "exchange_event_wall_ns": null,
+          "receive_wall_ns": "1000000000",
+          "receive_mono_ns": "1000000000",
+          "clock_id": "synthetic-clock"
+        },
+        "reasons": [],
+        "label": "reference_basis_not_executable_arbitrage",
+        "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+      }
+    },
+    {
+      "asset": "ETH",
+      "spot_identity": {
+        "asset_id": "ETH",
+        "ticker": "ETH",
+        "native_token_id": "ETH",
+        "network": null,
+        "contract_address": null,
+        "reference_asset_id": null
+      },
+      "perpetual_identity": {
+        "asset_id": "ETH",
+        "ticker": "ETH",
+        "native_token_id": null,
+        "network": null,
+        "contract_address": null,
+        "reference_asset_id": null
+      },
+      "basis": {
+        "spot_instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+        "perpetual_instrument_id": "hyperliquid:info:perpetual:ETH",
+        "reference_kind": "mark",
+        "quote_asset_id": "USDT",
+        "spot_mid": "100",
+        "perpetual_reference": "102",
+        "perpetual_quote_asset_id": "USDT",
+        "proceeds_in_spot_quote": "102",
+        "funding_cost_in_spot_quote": "102",
+        "proceeds_basis_bps": "200",
+        "funding_basis_bps": "200",
+        "proceeds_conversion": {
+          "source_asset_id": "USDT",
+          "target_asset_id": "USDT",
+          "source_amount": "102",
+          "target_amount": "102",
+          "mid_equivalent": "102",
+          "cost": "0",
+          "required_input": false,
+          "rate": null,
+          "reasons": []
+        },
+        "funding_conversion": {
+          "source_asset_id": "USDT",
+          "target_asset_id": "USDT",
+          "source_amount": "102",
+          "target_amount": "102",
+          "mid_equivalent": "102",
+          "cost": "0",
+          "required_input": true,
+          "rate": null,
+          "reasons": []
+        },
+        "spot_asof": {
+          "session_id": "synthetic-session",
+          "ingest_ordinal": "1",
+          "event_index": "0",
+          "exchange_event_wall_ns": null,
+          "receive_wall_ns": "1000000000",
+          "receive_mono_ns": "1000000000",
+          "clock_id": "synthetic-clock"
+        },
+        "perpetual_asof": {
+          "session_id": "synthetic-session",
+          "ingest_ordinal": "2",
+          "event_index": "0",
+          "exchange_event_wall_ns": null,
+          "receive_wall_ns": "1000000000",
+          "receive_mono_ns": "1000000000",
+          "clock_id": "synthetic-clock"
+        },
+        "reasons": [],
+        "label": "reference_basis_not_executable_arbitrage",
+        "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+      }
+    },
+    {
+      "asset": "SOL",
+      "spot_identity": {
+        "asset_id": "SOL",
+        "ticker": "SOL",
+        "native_token_id": "SOL",
+        "network": null,
+        "contract_address": null,
+        "reference_asset_id": null
+      },
+      "perpetual_identity": {
+        "asset_id": "SOL",
+        "ticker": "SOL",
+        "native_token_id": null,
+        "network": null,
+        "contract_address": null,
+        "reference_asset_id": null
+      },
+      "basis": {
+        "spot_instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+        "perpetual_instrument_id": "hyperliquid:info:perpetual:SOL",
+        "reference_kind": "mark",
+        "quote_asset_id": "USDT",
+        "spot_mid": "100",
+        "perpetual_reference": "102",
+        "perpetual_quote_asset_id": "USDT",
+        "proceeds_in_spot_quote": "102",
+        "funding_cost_in_spot_quote": "102",
+        "proceeds_basis_bps": "200",
+        "funding_basis_bps": "200",
+        "proceeds_conversion": {
+          "source_asset_id": "USDT",
+          "target_asset_id": "USDT",
+          "source_amount": "102",
+          "target_amount": "102",
+          "mid_equivalent": "102",
+          "cost": "0",
+          "required_input": false,
+          "rate": null,
+          "reasons": []
+        },
+        "funding_conversion": {
+          "source_asset_id": "USDT",
+          "target_asset_id": "USDT",
+          "source_amount": "102",
+          "target_amount": "102",
+          "mid_equivalent": "102",
+          "cost": "0",
+          "required_input": true,
+          "rate": null,
+          "reasons": []
+        },
+        "spot_asof": {
+          "session_id": "synthetic-session",
+          "ingest_ordinal": "1",
+          "event_index": "0",
+          "exchange_event_wall_ns": null,
+          "receive_wall_ns": "1000000000",
+          "receive_mono_ns": "1000000000",
+          "clock_id": "synthetic-clock"
+        },
+        "perpetual_asof": {
+          "session_id": "synthetic-session",
+          "ingest_ordinal": "2",
+          "event_index": "0",
+          "exchange_event_wall_ns": null,
+          "receive_wall_ns": "1000000000",
+          "receive_mono_ns": "1000000000",
+          "clock_id": "synthetic-clock"
+        },
+        "reasons": [],
+        "label": "reference_basis_not_executable_arbitrage",
+        "cost_scope": "explicit_fx_spread_and_conversion_fee_only_not_trading_fees_or_funding_pnl"
+      }
+    }
+  ],
+  "all_basis_available": true
+}

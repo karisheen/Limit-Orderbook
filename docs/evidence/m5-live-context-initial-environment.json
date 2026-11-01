@@ -1,0 +1,8 @@
+{
+  "command": "/Users/dakariantoine/Developer/personal/limit-orderbook/.venv/bin/python docs/evidence/m5-live-context-probe.py",
+  "exit_code": 1,
+  "stage": "production module import, before network access",
+  "failure": "ModuleNotFoundError: No module named 'websockets'",
+  "location": "src/workstation/ingestion.py:17",
+  "next_action": "Use existing .venv-upgrade workstation environment; do not install or modify dependencies."
+}

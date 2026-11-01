@@ -1,6 +1,6 @@
-# M4 liquidity workspace
+# Native liquidity and research workspace
 
-The React/TypeScript terminal is a presentation client of the real versioned Runtime HTTP/WebSocket API. It does not collect feeds, construct books, calculate financial metrics, estimate fills, or inject fallback fixtures. Python analytics/cost/visualization engines supply authoritative values. M4 adds the historical Canvas workspace and proposed-risk consumer; alerts, paper trading and journals remain separate milestone work, not placeholder tabs.
+The React/TypeScript terminal is a presentation client of the versioned Runtime HTTP/WebSocket API. It does not collect feeds, construct books, calculate financial metrics, estimate fills, or inject fallback fixtures. Python analytics/cost/visualization and M5 alert/context/paper/journal/research engines supply authoritative values. Historical Canvas/proposed-risk views and the new workflow tabs share native source identity and causal replay boundaries. Implementation is not acceptance or performance certification.
 
 ## Launch
 
@@ -14,6 +14,11 @@ npm --prefix frontend run build
 ```
 
 Open `http://127.0.0.1:8000`. The backend serves `frontend/dist`; no second production Node server is needed. The default source is explicitly synthetic, nonrecording offline demo replay. A durable recording may be made available with `serve --capture /operator/path/to/capture`; HTTP clients select the managed source ID, never a filesystem path. `serve --network` explicitly enables public live discovery/collection; it is not necessary for demo/replay and must not compete with another collector owner. See [API](API.md), [DEMO](DEMO.md), and [REPLAY](REPLAY.md) for source readiness, recorded-capture verification and operator prerequisites.
+
+`serve --state-dir data/workstation-state` selects durable paper, journal and
+research SQLite storage (also the CLI default). Use the same directory for CLI
+research. Reload creates a new independent session, not automatic adoption of an
+old paper run. Keep the state directory across server restarts.
 
 Development uses the same backend on port 8000 plus:
 
@@ -38,9 +43,108 @@ Open `http://127.0.0.1:5173`. Vite proxies `/api` (including WebSocket upgrades)
 - Presets (**Balanced**, **Analysis**, **DOM focus**), pane toggles and draggable separators control layout. Focus a separator and use arrow keys for keyboard resizing. Narrow layouts prioritize the chart, DOM/tape, research and exact watchlist as real stacked panes. **/** focuses search; **Space** pauses/resumes view; **R** recenters; **D** toggles independent DOM freeze; **1–6** select chart modes. Shortcuts ignore editable fields and focused controls.
 - Browser-local preferences use bounded, validated schema `limit-orderbook.workspace.v1`: exact source/instrument preference, pane dimensions/collapse, preset, aggregation, range/follow/freeze, chart mode/contrast/overlays and DOM rows. Session IDs are never saved. Reload opens a new independent session. Stale source IDs may fall back only to an explicitly reported ready source in the same mode; unavailable live/replay never silently becomes demo. Invalid saved instruments use the selected source's declared default with a notice. Storage failures are visible and do not prevent use.
 
+## Native workflow tabs
+
+The **Research pane** tablist contains **Costs & proposed risk**, **Core
+analytics**, **Alerts**, **Context**, **Paper**, **Journal** and **Research**.
+Expand the bottom pane if hidden. Inputs are exact strings; inspect native
+eligibility/reasons before interpreting a number. [API](API.md) specifies fields
+and response bounds; [CONTRACTS](CONTRACTS.md) specifies domain policies.
+
+### Alerts and supporting evidence
+
+Select an exact instrument, open **Alerts**, choose kind/direction and enter
+threshold/rearm levels in the server-declared unit. Enter cooldown and, only for
+event OFI or persistent displayed liquidity, a positive rolling window. Other
+kinds are instantaneous. A depth shock means a low absolute depth level, not
+percent change. Net-cost rules additionally require an observed sell instrument,
+quantity and explicit fee/stress assumptions; unknown fees never become zero.
+
+Create/remove rules through native mutations. Current evaluations and retained
+fires expose qualification, latch/cooldown and omission counts. Request current
+rule or historical event evidence explicitly: applicable metric, book/trade
+references, prints, displayed liquidity and pair inputs remain a labeled snapshot
+until requested again. Depth disappearance is not a trade; displayed liquidity
+does not prove spoofing or predictive edge. Rewind/reset rebuilds prefix-valid
+rules/latches/fires, not future evidence.
+
+### Hyperliquid context and basis
+
+**Context** exposes the reference watchlist, selectable exact instruments and
+required Hyperliquid mark/oracle, funding rate/interval and open interest when
+native channels are present. Missing fields stay missing with reasons. Mids and
+context are reference-only, not replacement executable depth. Funding units are
+fractions per interval; open-interest units are adapter-declared.
+
+Related spot/perpetual mark/oracle/mid basis preserves underlying, quote and
+settlement identity. USD, USDT and USDC remain distinct. Enter explicit
+side-aware FX and conversion-fee evidence when needed; absent/stale/skewed FX
+leaves basis unknown. Applied assumptions are source-scoped, not saved market
+facts. “Funding cost” here means FX cost to acquire a reference amount, not
+perpetual funding P&L. Basis is not executable arbitrage and excludes trading
+fees, funding P&L, inventory and account access.
+
+### Spot IOC paper workflow
+
+1. Select a supported spot/base-quantity instrument and expand **Explicit new
+   run / fork — starting funds, sourced fees and latency**.
+2. Enter venue/asset balances and provenance using native asset IDs shown in
+   metadata. Add dated/sourced instrument fee schedules and fee asset IDs.
+   Enter feed, decision and order latency nanoseconds; the UI requires explicit
+   values, including zero.
+3. Confirm intent and **Create new paper run** or **Create explicit fork**.
+   Every configuration creates a durable run; forks record a parent but start
+   from entered funds, not copied accounting.
+4. Submit exact base quantity as **Market IOC** or **Marketable limit IOC**.
+   In paused replay, advance source time to reach pending arrival; browser time
+   cannot advance replay fills. Inspect orders, balances, positions, fills,
+   exact fees, clocks and consumed levels. Pending orders can be cancelled.
+5. Use **Open read-only archived audit** separately from active accounting.
+   **Resume this run at cursor** is explicit and available only for matching
+   demo/replay sources. Success is confirmed by a new-generation native run
+   snapshot, not merely by HTTP completion.
+
+Feed delay gates usable books; decision plus order delay fixes arrival. Funds
+are contested at arrival. Native depth, constraints, quality and known dated
+fees govern fills. Partial IOC remainder cancels; nonmarketable limits do not
+rest. Consumed liquidity requires observed replenishment—not an unchanged
+snapshot, revision or instrument switch. No passive fills, derivative economics,
+borrowing or market impact is represented.
+
+Initial inventory basis stays unknown and affected P&L unavailable. Marks are
+gross best bid, not liquidation proceeds. Rewind before creation leaves intent
+only; later commands require an explicit fork before new mutations. Live
+archives remain inspectable but cannot resume under a new owner. The run list
+is bounded to 100 without pagination/omitted counts; known older IDs remain
+addressable through the API.
+
+### Journal and read-only research
+
+**Journal** creates/edits manual rationale, optional entry/stop and context.
+New links require an active run and visible selected-instrument order. Edits
+retain original source/session/delivery/clock and links. Query current source,
+all authored sources or an explicit run filter. Notes survive rewind/reopen;
+later notes are later authorship, not evidence known at an earlier cursor.
+Archives do not populate active link choices.
+
+**Research** lists persisted attempts and displays exact configuration, source/
+hash provenance, exclusions, support counts, selection, limitations and paged
+trials. It cannot launch experiments or tune parameters in the browser. Use
+`research run`, `research list` and `research show` with the same `--state-dir`;
+see [DEMO](DEMO.md) for the full CLI/config tutorial.
+
+All candidate outcomes are retained, not just winners. Chronological train/
+validation/test partitions purge boundary-overlapping outcomes and embargo later
+partitions; selection uses train/validation only. Unknown fees exclude net
+economics. Independent unfunded directional markouts are not realized portfolio
+returns: turnover/drawdown remain unavailable without a sequential funded model.
+Synthetic results cannot establish edge; failed or insufficient-evidence attempts
+remain inspectable.
+
+
 ## Lifecycle, precision and bounds
 
-The frontend consumes API DTO v1, with string economics, IDs and domain timestamps. `src/api.ts` names the consumer types. Exact values are shown without financial arithmetic; long values are visually abbreviated only and their full string remains in title/evidence disclosures. Number conversions are limited to plotting/measurement and bounded UI counts; time-window arithmetic uses BigInt. No formatted or plotted value feeds a financial input.
+The frontend consumes API DTO v1, with string economics, IDs and domain timestamps. `src/api.ts` and `src/workflow-api.ts` name the consumer types. Exact values are shown without financial arithmetic; long values are visually abbreviated only and their full string remains in title/evidence disclosures. Number conversions are limited to plotting/measurement and bounded UI counts; time-window arithmetic uses BigInt. No formatted or plotted value feeds a financial input.
 
 Each hook instance creates one HTTP session and one socket. Unmount/source replacement closes the socket and sends idempotent DELETE. Page exit uses keepalive deletion; late session-creation responses are explicitly released. WebSocket loss or five seconds without a valid frame immediately makes evidence unavailable and starts reconnecting to a **new** independent session, retaining selection/source but resetting replay cursor. The same capped exponential backoff (1/2/4/8/10 seconds, capped at 10) retries HTTP setup failures; successful receipt of valid stream evidence resets it. Runtime's nominal 200 ms publication cadence is not a hard scheduling guarantee; the five-second deadline is a conservative client liveness guard, including paused/ended/seeking replay. Visibility restoration also checks expired evidence. Manual Reconnect replaces the session. Replay/selection requests are abortable and owned by a session-scoped operation token: retiring a session releases its busy lock immediately, and old responses/finalizers cannot alter a new session. No fixture fallback appears on errors; backend HTTP status/detail text remains readable.
 
@@ -53,6 +157,19 @@ future column cannot remain the exact-data readout's selected sample.
 Hidden documents suspend chart and ladder queries; a collapsed DOM pane suspends its ladder query. Restoring visibility/panes resumes fresh requests unless explicitly frozen. Replay/collection remains independent. In constrained laptop layouts the chart container scrolls vertically, keeping its quality disclosure and exact-data controls reachable.
 
 A busy read worker can retain one explicitly labeled **last completed presentation** instead of blanking tape/cursor on every historical query. Its presentation health is diagnostic/unready until ownership is available; it is never a new market validation. Seek, source failure and generation changes clear access to old evidence. Replay without a currently available cursor is labeled replay-unavailable, never live.
+
+Workflow reads are single-flight and completion-scheduled (normally two seconds).
+Inactive tabs, hidden documents, disconnect/loading/seek, source/selection or
+generation changes suspend queries, abort owned requests and make old results
+unavailable. Mutations serialize against reads/lifecycle actions; obsolete
+responses cannot overwrite a newer session. Paper resume returns a new-generation
+Frame and pauses replay.
+
+**Workflow mutations are never automatically retried.** An abort, timeout or
+disconnect can occur after a mutation committed. Refresh and inspect native
+persisted state before repeating configuration, orders, alert edits or journal
+writes. Query polling and socket/setup reconnects retry independently; neither
+grants permission to resubmit a mutation.
 
 After a committed visible-document render, two animation-frame callbacks provide a paint opportunity before the frame ACK is sent. Receipt timing starts at the beginning of the WebSocket message callback, before JSON parsing/validation, and includes decoding/coalescing/render work. The server receives `frame_id` and browser receive-to-paint-opportunity duration. Hidden tabs do not report painted frames. This is **not** GPU completion or synchronized one-way latency. The footer labels server publication-to-ACK as a conservative round-trip upper bound; historical exchange/source clocks are not subtracted from browser clocks. The distinct ACK-expired counter reports bounded server ACK-buffer eviction, not presentation coalescing. Queue/coalescing/overflow and observer measurements come from Runtime. Source & health includes an expandable live-ingestion disclosure of native SubscriptionStatus records: actual processing stages/clock, processed frames, queue counts/bytes/highwaters, lifecycle and reasons; demo/replay truthfully show an empty list. Production performance budgets require actual measured evidence.
 
@@ -68,9 +185,9 @@ M0's [ADR-004](ARCHITECTURE.md#adr-004--native-canvas2d-heatmap-measured-before-
 
 ## Verification commands and interaction selectors
 
-The following M3 evidence is historical, not a claim that the M4 changes have passed gates: M3 integration passed frontend lint, three exact-format unit tests, TypeScript and production Vite build; real-server Chromium passed **8 tests in 33.4 s** after correcting a disabled-option matcher. The M4 workspace owner does not run gates mid-flight. The integration owner must run the union below after backend and renderer integration.
+The following M3 evidence is historical, not a claim that current M4/M5 changes have passed gates: M3 integration passed frontend lint, three exact-format unit tests, TypeScript and production Vite build; real-server Chromium passed **8 tests in 33.4 s** after correcting a disabled-option matcher. Current executed checks belong in the integration handoff.
 
-M4 adds `frontend/e2e/workspace.spec.ts` actual-server workflows for grouped depth, aggregation/range, independent freeze, persisted layout/new sessions, streaming pane geometry, risk availability and exact costs. `frontend/src/workspace.test.ts` covers preference trust boundaries and bounded incremental history/seek replacement. These additions are unrun by the workspace owner; the parent integration gates remain required.
+M4 workspace tests cover grouped depth, aggregation/range, independent freeze, persisted layout/new sessions, streaming pane geometry, risk availability and exact costs. Workspace unit coverage includes preference trust boundaries and bounded incremental history/seek replacement. Commands below are integration entrypoints, not results from this documentation update.
 
 ```sh
 npm --prefix frontend run typecheck
@@ -104,5 +221,6 @@ Stable accessible selectors:
 | View/DOM freeze | `getByTestId('view-freeze')`, `getByTestId('view-recenter')`, `getByTestId('dom-freeze')` |
 | Layout | `getByLabel('Workspace preset')`, separators `Watchlist width`, `DOM width`, `Research pane height` |
 | Chart timing | `getByTestId('chart-telemetry')` (distinct from frame footer timing) |
+| Workflow tabs | `getByRole('tab', {name:'Alerts', exact:true})` (also `Context`, `Paper`, `Journal`, `Research`) within tablist `Research pane` |
 
-The terminal is read-only public-market analysis. It has no exchange submission, credentials, wallet/signing, alerts, paper ledger or journal in this milestone. Cost estimates do not establish execution readiness, profitable signals, account access or guaranteed fills.
+The terminal permits local alert configuration, simulated paper accounting and manual journal writes, but has no exchange submission, credentials, wallet/signing or private execution access. Research reports are read-only. Cost estimates, alerts, reference basis and paper fills do not establish execution readiness, profitable signals, account access or guaranteed fills.

@@ -5,7 +5,7 @@ import type { Catalog, Costs, CostInput, Frame, Mode, ReplayAction, VisualGrid, 
 export interface ConnectionOptions { mode: Mode; source_id?: string; instrument_id?: string }
 interface Presentation { frame: Frame; receivedAt: number; acknowledge: boolean }
 interface SessionScope { active: boolean; connected: boolean; sessionId: string | null; sourceId: string | null }
-interface Mutation { scope: SessionScope; controller: AbortController }
+interface Mutation { scope: SessionScope; controller: AbortController; deferred: Presentation | null }
 
 export function useTerminal(initialOptions: ConnectionOptions = { mode: 'demo' }) {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
@@ -96,9 +96,18 @@ export function useTerminal(initialOptions: ConnectionOptions = { mode: 'demo' }
     };
     const accept = (next: Presentation) => {
       if (!scope.active || reconnecting || next.frame.session_id !== scope.sessionId) return;
-      const prior = current.current;
+      const mutation = actionPending.current;
+      const prior = mutation?.scope === scope ? mutation.deferred?.frame ?? current.current : current.current;
       if (prior && (BigInt(next.frame.generation) < BigInt(prior.generation) ||
         (next.frame.generation === prior.generation && BigInt(next.frame.frame_id) < BigInt(prior.frame_id)))) return;
+      // The stream can publish a committed generation before its HTTP mutation
+      // response arrives. Retain one latest frame without invalidating the
+      // caller's still-owned request; publish it when that request settles.
+      if (mutation?.scope === scope && current.current &&
+        BigInt(next.frame.generation) > BigInt(current.current.generation)) {
+        mutation.deferred = next;
+        return;
+      }
       current.current = next.frame;
       options.current.instrument_id = next.frame.selection.instrument_id ?? undefined;
       setPresentation(next);
@@ -222,35 +231,51 @@ export function useTerminal(initialOptions: ConnectionOptions = { mode: 'demo' }
     return () => { cancelAnimationFrame(first); cancelAnimationFrame(second); };
   }, [presentation]);
 
-  const mutate = useCallback(async (path: string, payload: Record<string, unknown>) => {
+  const mutate = useCallback(async (path: string, payload: Record<string, unknown>, signal?: AbortSignal): Promise<Frame | null> => {
     const active = current.current;
     const scope = lifecycle.current;
-    if (!active || !scope?.active || !scope.connected || actionPending.current) return;
-    const operation: Mutation = { scope, controller: new AbortController() };
+    if (!active || !scope?.active || !scope.connected || actionPending.current) return null;
+    const operation: Mutation = { scope, controller: new AbortController(), deferred: null };
     actionPending.current = operation;
     setBusy(true);
     setError(null);
     try {
-      const next = await request<Frame>(path, { session_id: active.session_id, generation: active.generation, ...payload }, operation.controller.signal);
-      if (actionPending.current !== operation || !scope.active || current.current?.session_id !== active.session_id) return;
+      const next = await request<Frame>(path, { session_id: active.session_id, generation: active.generation, ...payload }, signal ? AbortSignal.any([signal, operation.controller.signal]) : operation.controller.signal);
+      if (actionPending.current !== operation || !scope.active || current.current?.session_id !== active.session_id) return null;
       const prior = current.current;
       if (BigInt(next.generation) < BigInt(prior.generation) ||
-        (next.generation === prior.generation && BigInt(next.frame_id) < BigInt(prior.frame_id))) return;
+        (next.generation === prior.generation && BigInt(next.frame_id) < BigInt(prior.frame_id))) return null;
       current.current = next;
       options.current.instrument_id = next.selection.instrument_id ?? undefined;
       setPresentation({ frame: next, receivedAt: performance.now(), acknowledge: false });
+      return next;
     } catch (cause) {
-      if (actionPending.current === operation && scope.active && !operation.controller.signal.aborted) setError(errorMessage(cause));
+      if (actionPending.current === operation && scope.active && !operation.controller.signal.aborted && !signal?.aborted) setError(errorMessage(cause));
+      return null;
     } finally {
       if (actionPending.current === operation) {
+        const deferred = operation.deferred;
+        const prior = current.current;
+        if (deferred && scope.active && scope.connected && prior?.session_id === active.session_id &&
+          (BigInt(deferred.frame.generation) > BigInt(prior.generation) ||
+            (deferred.frame.generation === prior.generation && BigInt(deferred.frame.frame_id) >= BigInt(prior.frame_id)))) {
+          current.current = deferred.frame;
+          options.current.instrument_id = deferred.frame.selection.instrument_id ?? undefined;
+          setPresentation(deferred);
+        }
         actionPending.current = null;
         setBusy(false);
       }
     }
   }, []);
 
-  const select = useCallback((instrumentId: string) => mutate('/subscriptions', { instrument_id: instrumentId }), [mutate]);
-  const replay = useCallback((action: ReplayAction, payload: Record<string, unknown> = {}) => mutate('/replay', { action, ...payload }), [mutate]);
+  const select = useCallback(async (instrumentId: string) => { await mutate('/subscriptions', { instrument_id: instrumentId }); }, [mutate]);
+  const replay = useCallback(async (action: ReplayAction, payload: Record<string, unknown> = {}) => { await mutate('/replay', { action, ...payload }); }, [mutate]);
+  const resumePaper = useCallback(async (runId: string, signal: AbortSignal): Promise<Frame> => {
+    const next = await mutate('/paper/resume', { run_id: runId }, signal);
+    if (!next) throw new ApiError('Paper resume failed, was interrupted, or was superseded. Inspect terminal errors and native run state before retrying.', 409);
+    return next;
+  }, [mutate]);
   const source = useCallback((mode: Mode, sourceId: string) => {
     restoringSelection.current = false;
     setPreferenceNotice(null);
@@ -280,5 +305,5 @@ export function useTerminal(initialOptions: ConnectionOptions = { mode: 'demo' }
   const ladder = useCallback((input: LadderInput, signal: AbortSignal) => query<GroupedLadder>('/ladder', input, signal), [query]);
   const proposalRisk = useCallback((input: ProposalRiskInput, signal: AbortSignal) => query<ProposalRisk>('/proposal-risk', input, signal), [query]);
 
-  return { catalog, catalogError, preferenceNotice, frame: presentation?.frame ?? null, connection, error, busy, reconnect, select, replay, source, costs, visualization, acknowledgeVisualization, ladder, proposalRisk };
+  return { catalog, catalogError, preferenceNotice, frame: presentation?.frame ?? null, connection, error, busy, reconnect, select, replay, resumePaper, workflow: query, source, costs, visualization, acknowledgeVisualization, ladder, proposalRisk };
 }

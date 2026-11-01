@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { CSSProperties, ReactNode } from 'react';
+import type { CSSProperties } from 'react';
 import type { Analytics, CostInput, Costs, Frame, GroupedLadder, Instrument, Metric, Pair, ReplayAction } from './api';
 import { errorMessage } from './api';
-import { compact, exact, label, milliseconds, timestamp } from './format';
+import { exact, label, milliseconds, timestamp } from './format';
 import { useTerminal } from './useTerminal';
 import { MarketCharts } from './MarketCharts';
 import { ProposalRiskPanel } from './ProposalRiskPanel';
@@ -10,20 +10,17 @@ import { useMarketView } from './useMarketView';
 import { useChartTelemetry } from './useChartTelemetry';
 import { presetLayout, useWorkspacePreferences } from './workspace';
 import type { ChartMode, WorkspacePreferences } from './workspace';
+import { Details, Empty, Panel, Reasons, Value } from './WorkflowUI';
+import { AlertsPanel, ContextPanel, ResearchPanel } from './SignalPanels';
+import { JournalPanel, PaperPanel } from './PaperPanels';
 
-function Value({ value, className = '' }: { value: string | null | undefined; className?: string }) {
-  return <span className={`number ${className}`} title={exact(value)}>{compact(value)}</span>;
-}
-function Reasons({ reasons }: { reasons: string[] }) {
-  return reasons.length > 0 ? <ul className="reasons">{[...new Set(reasons)].map(reason => <li key={reason}>{label(reason)}</li>)}</ul> : null;
-}
-function Details({ title = 'Evidence', value }: { title?: string; value: unknown }) {
-  return <details className="evidence"><summary>{title}</summary><pre>{JSON.stringify(value, null, 2)}</pre></details>;
-}
-function Panel({ title, extra, children, className = '' }: { title: string; extra?: ReactNode; children: ReactNode; className?: string }) {
-  return <section className={`panel ${className}`}><header className="panel-heading"><h2>{title}</h2>{extra}</header>{children}</section>;
-}
-function Empty({ children }: { children: ReactNode }) { return <p className="empty">{children}</p>; }
+const workflowTabs = [
+  ['costs', 'Costs & proposed risk'], ['analytics', 'Core analytics'],
+  ['alerts', 'Alerts'], ['context', 'Context'], ['paper', 'Paper'],
+  ['journal', 'Journal'], ['research', 'Research'],
+] as const;
+type WorkflowTab = typeof workflowTabs[number][0];
+
 
 function MetricRow({ metric }: { metric: Metric }) {
   return <tr><th scope="row">{label(metric.name)}</th><td><Value value={metric.value} /></td><td className="muted">{metric.unit}</td><td>
@@ -173,12 +170,12 @@ function CostsPanel({ frame, instruments, connected, calculate }: { frame: Frame
 export default function App() {
   const { preferences: p, setPreferences, storageError } = useWorkspacePreferences();
   const terminal = useTerminal({ mode: p.source?.mode ?? 'demo', ...(p.source ? { source_id: p.source.id } : {}), ...(p.instrument ? { instrument_id: p.instrument } : {}) });
-  const { catalog, frame } = terminal;
+  const { catalog, frame, select } = terminal;
   const [query, setQuery] = useState('');
   const [venue, setVenue] = useState('');
   const [quote, setQuote] = useState('');
   const [market, setMarket] = useState('');
-  const [bottomTab, setBottomTab] = useState<'costs' | 'analytics'>('costs');
+  const [bottomTab, setBottomTab] = useState<WorkflowTab>('costs');
   const [crosshair, setCrosshair] = useState<{ time_ns: string; price: string | null } | null>(null);
   const [recenter, setRecenter] = useState(0);
   const search = useRef<HTMLInputElement | null>(null);
@@ -190,6 +187,11 @@ export default function App() {
   const update = useCallback((value: Partial<WorkspacePreferences>) => setPreferences(previous => ({ ...previous, ...value })), [setPreferences]);
   const views = useMarketView({ frame, connected, preferences: p, recenter, visualization: terminal.visualization, ladder: terminal.ladder });
   const centerView = useCallback(() => { update({ priceOffset: 0, follow: true, range: null, paused: false }); setRecenter(value => value + 1); }, [update]);
+  const selectContextInstrument = useCallback(async (id: string) => {
+    update({ priceStep: '', range: null, follow: true, priceOffset: 0 });
+    await select(id);
+  }, [select, update]);
+  const workflow = { frame, instruments, connected, busy: terminal.busy, request: terminal.workflow };
   const sourceId = frame?.source.id, sourceMode = frame?.source.mode, instrumentId = frame?.selection.instrument_id;
   useEffect(() => {
     if (sourceId && sourceMode) setPreferences(previous => previous.source?.id === sourceId && previous.instrument === instrumentId ? previous
@@ -223,7 +225,7 @@ export default function App() {
   const stepOptions = chartView?.step_options ?? [];
   const style = { '--left-width': `${p.leftOpen ? p.leftWidth : 0}px`, '--right-width': `${p.rightOpen ? p.rightWidth : 0}px`, '--bottom-height': `${p.bottomOpen ? p.bottomHeight : 0}px` } as CSSProperties;
   return <div className="terminal" style={style}>
-    <header className="topbar"><div className="brand">LIMIT<span>ORDERBOOK</span><small>M4 WORKSPACE</small></div>
+    <header className="topbar"><div className="brand">LIMIT<span>ORDERBOOK</span><small>RESEARCH WORKSPACE</small></div>
       <div className="selected-identity"><strong>{selected ? `${selected.base.ticker} / ${selected.quote.ticker}` : 'Select instrument'}</strong><span>{selected ? `${selected.venue} · ${selected.market_type} · ${selected.native_symbol}` : 'Exact public-market identities'}</span></div>
       <input ref={search} className="top-search" aria-label="Search instruments" placeholder="Search instruments /" type="search" value={query} onChange={event => { setQuery(event.target.value); update({ leftOpen: true }); }} />
       <label className="cohort-control">Cohort<select aria-label="Native cohort" value={quote && market ? JSON.stringify([quote, market]) : quote || market ? 'custom' : ''} onChange={event => { const [nextQuote, nextMarket] = event.target.value ? JSON.parse(event.target.value) as [string, string] : ['', '']; setQuote(nextQuote); setMarket(nextMarket); update({ leftOpen: true }); }}><option value="">All native cohorts</option>{(quote || market) && !(quote && market) && <option value="custom" disabled>Custom filters</option>}{[...new Map(instruments.map(item => [JSON.stringify([item.quote.asset_id, item.market_type]), item])).entries()].map(([value, item]) => <option key={value} value={value}>{item.quote.ticker} · {item.market_type} · {item.quote.asset_id}</option>)}</select></label>
@@ -272,8 +274,16 @@ export default function App() {
       </section>
       {p.rightOpen && <><div className="right-resizer"><ResizeHandle axis="horizontal" reverse name="DOM width" value={p.rightWidth} min={250} max={500} onChange={rightWidth => update({ rightWidth })} /></div><aside className="book-tape"><Ladder data={usable ? views.dom.data : null} loading={views.dom.loading} error={!usable ? 'Stream evidence unavailable' : views.dom.error} frozen={p.domFrozen} viewPaused={p.paused} rows={p.domRows} onRows={domRows => update({ domRows })} onFreeze={() => update({ domFrozen: !p.domFrozen })} crosshair={crosshair?.price ?? null} onPrice={linkPrice} /><Tape analytics={usable ? frame?.analytics ?? null : null} instrument={selected} /></aside></>}
       {p.bottomOpen && <><div className="bottom-resizer"><ResizeHandle axis="vertical" reverse name="Research pane height" value={p.bottomHeight} min={170} max={460} onChange={bottomHeight => update({ bottomHeight })} /></div><section className="research-pane">
-        <div className="tabs research-tabs" role="tablist" aria-label="Research pane"><button role="tab" aria-selected={bottomTab === 'costs'} onClick={() => setBottomTab('costs')}>Costs & proposed risk</button><button role="tab" aria-selected={bottomTab === 'analytics'} onClick={() => setBottomTab('analytics')}>Core analytics</button><span className="muted">Actual shared-core results · no execution</span></div>
-        <div className="research-scroll" role="tabpanel"><div hidden={bottomTab !== 'costs'}><CostsPanel frame={frame} instruments={instruments} connected={connected} calculate={terminal.costs} /><ProposalRiskPanel frame={frame} connected={connected} calculate={terminal.proposalRisk} /></div><div hidden={bottomTab !== 'analytics'}><AnalyticsPanel analytics={usable ? frame?.analytics ?? null : null} /></div></div>
+        <div className="tabs research-tabs" role="tablist" aria-label="Research pane">{workflowTabs.map(([id, name]) => <button key={id} id={`workflow-tab-${id}`} role="tab" aria-selected={bottomTab === id} aria-controls={`workflow-panel-${id}`} onClick={() => setBottomTab(id)}>{name}</button>)}<span className="muted">Shared-core evidence · no execution</span></div>
+        <div className="research-scroll">
+          <div id="workflow-panel-costs" role="tabpanel" aria-labelledby="workflow-tab-costs" hidden={bottomTab !== 'costs'}><CostsPanel frame={frame} instruments={instruments} connected={connected} calculate={terminal.costs} /><ProposalRiskPanel frame={frame} connected={connected} calculate={terminal.proposalRisk} /></div>
+          <div id="workflow-panel-analytics" role="tabpanel" aria-labelledby="workflow-tab-analytics" hidden={bottomTab !== 'analytics'}><AnalyticsPanel analytics={usable ? frame?.analytics ?? null : null} /></div>
+          <div id="workflow-panel-alerts" role="tabpanel" aria-labelledby="workflow-tab-alerts" hidden={bottomTab !== 'alerts'}><AlertsPanel {...workflow} active={bottomTab === 'alerts'} /></div>
+          <div id="workflow-panel-context" role="tabpanel" aria-labelledby="workflow-tab-context" hidden={bottomTab !== 'context'}><ContextPanel {...workflow} active={bottomTab === 'context'} selectInstrument={selectContextInstrument} /></div>
+          <div id="workflow-panel-paper" role="tabpanel" aria-labelledby="workflow-tab-paper" hidden={bottomTab !== 'paper'}><PaperPanel {...workflow} active={bottomTab === 'paper'} resumeRun={terminal.resumePaper} /></div>
+          <div id="workflow-panel-journal" role="tabpanel" aria-labelledby="workflow-tab-journal" hidden={bottomTab !== 'journal'}><JournalPanel {...workflow} active={bottomTab === 'journal'} /></div>
+          <div id="workflow-panel-research" role="tabpanel" aria-labelledby="workflow-tab-research" hidden={bottomTab !== 'research'}><ResearchPanel {...workflow} active={bottomTab === 'research'} /></div>
+        </div>
       </section></>}
     </main>
     <footer className="telemetry"><span>Session {frame?.session_id.slice(0, 8) ?? '—'} · generation {frame?.generation ?? '—'}</span><span>Queue {frame?.telemetry.queue_depth ?? '—'} / high {frame?.telemetry.queue_highwater ?? '—'}</span><span>Coalesced {frame?.telemetry.coalesced ?? '—'} · overflow {frame?.telemetry.overflows ?? '—'}</span><span title="ACKs evicted from the bounded server buffer">ACK expired {frame?.telemetry.ack_expired ?? '—'}</span><span>Observer {milliseconds(frame?.telemetry.observer_duration_ms)}</span><span title="Two paint opportunities; not GPU completion">Receive→paint {milliseconds(frame?.telemetry.browser_receive_to_paint_ms)}</span><span title="Conservative round-trip upper bound">Publish→ACK ≤ {milliseconds(frame?.telemetry.publish_to_ack_upper_bound_ms)}</span></footer>

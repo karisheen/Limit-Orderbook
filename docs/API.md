@@ -1,4 +1,4 @@
-# Local terminal API (M3–M4, version 1)
+# Local terminal API (M3–M5, version 1)
 
 ## Start
 
@@ -25,6 +25,15 @@ python -m src.workstation.cli serve --network
 Each managed ID pins the verified immutable manifest plus directory/manifest filesystem identity. Client open compares both to its catalog pin, and each subsequent owner operation checks the filesystem identity before accessing reader caches/history. Removed/replaced/rewritten captures become explicitly unavailable rather than silently substituting a new capture under old metadata. ReplaySource declares `total_deliveries`; callers do not depend on a concrete memory batch-array implementation.
 
 `--host` permits only `127.0.0.1` (default), `localhost`, or `::1`; `--port` defaults to 8000. `--max-sessions` defaults to 8 (maximum 32). Exactly one backend worker is required, including offline mode; conflicting `WEB_CONCURRENCY`/`UVICORN_WORKERS` fail explicitly. Live registry acquisition retains its independent OS singleton fence. Do not run a second live collector beside an active recorder process.
+
+`--state-dir` defaults to `data/workstation-state`. The server opens worker-owned
+`paper.sqlite3` (runs, commands and accounting archives), `journal.sqlite3`
+(manual entries) and `research.sqlite3` (CLI attempts, evidence and reports).
+Keep this directory to retain local state across restarts. The Python
+`TerminalRuntime` constructor without `state_dir` instead uses temporary state;
+that embedding default is not the `serve` CLI persistence policy. HTTP accepts
+neither database paths nor research execution requests. Point the research CLI
+at the same state directory; see [DEMO](DEMO.md).
 
 The supported Streamlit entrypoint is a thin loopback client of these same APIs; see [LEGACY](LEGACY.md). It owns no independent collector or analytics engine. The FastAPI root serves `frontend/dist/index.html` and a traversal-safe `/assets` mount when built; otherwise root returns an explicit 503 directing the operator to build or use Vite. No arbitrary filesystem/static catch-all is exposed. Vite development origins on local port 5173 are allowed; production origins match the configured loopback port. Host validation rejects DNS rebinding names. Cross-site/unknown-origin requests are rejected, including WebSocket handshakes. This is a local trusted-user service, not an authenticated public deployment.
 
@@ -59,7 +68,162 @@ Requests reject unknown fields, numeric JSON economics, nonfinite decimals, exce
 | POST | `/proposal-risk` | Hypothetical entry/stop, side and quantity or risk budget; explicit fee assumptions, native constraints and unavailable reasons. Neither an order nor guaranteed maximum loss. |
 | WS | `/stream?session_id=...` | One socket per session. Full Frames at up to 5 Hz. Disconnect destroys the session; reconnection creates an independent session, never steals another tab's state. |
 
-No alerts/paper/journal stub endpoints are exposed; those are M5 additions.
+### M5 consumer routes
+
+All routes in this section are **POST** and require `session_id` (1–64 lowercase
+hex characters) and decimal-string `generation` (at most 20 digits). Unknown
+fields are rejected. These are local analysis/simulation mutations, not exchange
+orders. Runtime checks generation both before and under ownership fences.
+
+Unless stated otherwise, responses carry
+`{version:'1',session_id,generation,source_identity,delivery_index,...}`.
+`source_identity` is the native source fence, not the server-lifetime catalog ID;
+domain delivery indices, clocks, rates, quantities and counters remain strings.
+Consumer results are explicit queries, not extra full evidence on every Frame.
+
+| Route | Additional request fields | Response |
+|---|---|---|
+| `/alerts/query` | `event_limit=20` (integer 1–100) | `snapshot`, `kinds:[{kind,unit}]`, `evaluation_scope:'last_delivered_batch'`, `presentation` |
+| `/alerts/rules/put` | Alert fields below; also `event_limit` | Same as query |
+| `/alerts/rules/remove` | Required `rule_id`; also `event_limit` | Same as query |
+| `/alerts/evidence` | Exactly one `rule_id` or digit-string `event_id` (up to 20 digits) | Full bounded `evaluation`; 404 if absent from retained prefix |
+| `/context` | `fx_rates=[]`, at most 16 | `snapshot:{instrument_id,now,watchlist,contexts,basis,reasons}` |
+| `/paper/query` | `orders_limit=20`, `fills_limit=20` (each integer 1–100) | `snapshot` |
+| `/paper/configure` | Required `balances`, `fees` (each at most 64); three latency fields below; query limits | New run's `snapshot` |
+| `/paper/orders` | Required `side:'buy'|'sell'`, `quantity`; optional `instrument_id`, `order_type:'market'|'limit'` (default `market`), `limit_price`; query limits | `snapshot` |
+| `/paper/cancel` | Required `order_id`; query limits | `snapshot` |
+| `/paper/runs` | `limit=20` (integer 1–100) | `runs` summaries across stored sources |
+| `/paper/archive` | Required `run_id`; query limits | `archived:true`, `archive_scope:'historical_accounting_not_current_replay_state'`, `snapshot` |
+| `/paper/resume` | Required `run_id`; query limits accepted | A new-generation **Frame**, not a consumer snapshot |
+| `/journal/query` | `limit=50` (integer 1–100), `all_sources=false`, optional `run_id` | `entries`, `scope`, `limit` |
+| `/journal/put` | Required `rationale`; optional `entry_id`, `entry`, `stop`, `context=''`, `run_id`, `order_id` | Saved `entry` |
+| `/research/query` | `limit=20` (integer 1–100), optional `attempt_id`, `trial_offset=0` (integer 0–50000), `trial_limit=50` (integer 1–200) | `{version,session_id,generation,attempts,attempt,config,source,report}` |
+
+#### Alert rules and evidence
+
+Required fields: `kind`, `direction:'above'|'below'`, exact-string `threshold`
+and `rearm_threshold`. Kinds are `spread_shock`, `depth_shock`,
+`large_executed_print`, `event_ofi`, `best_quote_imbalance`,
+`persistent_displayed_liquidity` and `net_cost`. Optional `rule_id` (1–128
+characters) updates a rule; omission creates an ID. Optional `instrument_id`
+(1–512) defaults to selection; it must identify a unique currently observed book.
+
+`window_ns='0'` and `cooldown_ns='0'` are nonnegative digit strings (up to 20
+digits). Only `event_ofi` and `persistent_displayed_liquidity` require a positive
+window; other kinds require zero. `depth_side='bid'|'ask'` defaults to `bid`;
+`depth_bps='10'` must be positive and below 10000. Above rules rearm strictly
+below their threshold; below rules rearm strictly above it. Thresholds are
+absolute metric levels, not percent changes. Returned `kinds` supplies units.
+
+`net_cost` additionally requires `sell_instrument_id` and positive
+`base_quantity`; these two fields are forbidden for other kinds. `buy_fees`
+and `sell_fees` default to unknown fee objects. `latency_bps='0'` and
+`rebalance_quote='0'` are explicit nonnegative stress assumptions.
+
+Fee objects contain optional `fee_bps`, `fee_provenance`, `fee_date` and
+`fee_asset_id`. A known fee requires the first three together, finite
+`0 <= fee_bps < 10000`, nonempty provenance (up to 256 characters) and a valid
+ISO date. Omitted rates are unknown, never zero. Economics strings are bounded
+to 128 characters; asset IDs to 256. These fee objects are also used by paper.
+
+The engine bounds rules to 64, retained fires to 256, commands to 4096 and
+supporting evidence collections to 200; oversized evidence is unavailable, not
+silently treated as complete. Query returns the newest requested fires, all
+current rules/evaluation summaries, `dropped_events` and
+`presentation:{event_limit,events_omitted}`. Summaries omit references, metric,
+prints, displayed liquidity, pair, trade and book evidence and expose
+`evidence_available`; fetch `/alerts/evidence` explicitly for those records.
+Evidence is a retained-prefix snapshot, not a continuously refreshed claim.
+
+#### Context and FX
+
+Each FX input has required `base_asset_id`, `quote_asset_id`, positive exact
+`bid`, `ask`, `asof:{clock_id,mono_ns,wall_ns?}`, and `source`; optional
+`conversion_fee_rate` and `assumed=true`. Clock IDs/sources are at most 256
+characters, clock integers at most 24 digits. Quotes must be ordered and
+conversion fees nonnegative and below one. Missing conversion fees do not imply
+free conversion. Context uses the same native conversion/quality checks as costs.
+
+Reference watchlist and context channels are independently qualified, each
+bounded to 64 streams; the engine accepts at most 256 streams/64 instruments.
+Related spot/perpetual candidates expose three basis rows (`mark`, `oracle`,
+`mid`), bounded by 192 rows. Fields preserve source instruments, quote/settlement
+identities, as-of, eligibility and per-field reasons. Missing fields/channels,
+incompatible underlying identity/units, stale or skewed clocks and missing FX
+leave basis unavailable. USDT, USDC and USD are not interchangeable.
+`funding_cost_in_spot_quote` is the FX cost to acquire the reference amount,
+**not funding-rate P&L**. Basis cost scope includes FX spread/conversion fees,
+not trading fees, funding P&L, executable arbitrage or a realizable hedge.
+
+#### Paper and journal semantics
+
+Balance objects are `{venue,asset_id,available,provenance?,asof?}`; venue/asset IDs
+and provenance are at most 256 characters. Default provenance is
+`user supplied prefunded balance`; available amounts are exact nonnegative
+strings. Fee objects add required `instrument_id`. Duplicate venue/asset balances
+or instrument fee schedules are invalid. `feed_latency_ns`,
+`decision_latency_ns`, `order_latency_ns` default to `'0'`, each nonnegative,
+at most 20 digits and at most one day. Feed latency delays usable books;
+decision plus order latency determines arrival. Funds are competed for at
+arrival, not reserved at submission.
+
+Orders use positive exact `quantity`; limit orders require positive
+`limit_price`, market orders forbid it. Only supported spot/base-unit instruments
+are fillable. Native constraints, funds, eligibility, dated known fees and
+available unconsumed depth gate fills. Fees may use native base or quote, not a
+third token; future-dated fees or unavailable arrival wall clocks exclude fills.
+Marketable-limit and market orders are IOC: partial/unfilled remainders cancel.
+Cancellation targets pending orders; there is no passive order queue or impact
+model. `order_id`, `run_id` and journal IDs are 1–128 characters.
+
+Paper snapshots expose `run,delivery_index,at,balances,orders,fills,positions,
+reasons,assumptions,presentation`. Run configuration retains funds, fees and
+latencies; metadata presentation includes instrument ID/version pairs rather
+than full duplicated instruments. Run-list summaries omit configuration.
+Orders/fills are the newest requested rows. Each presented fill includes at most
+20 consumed levels and `consumed_levels_omitted`; snapshot presentation reports
+order/fill limits and omissions. Exact fill fees, book key/revision/as-of and
+native source clocks remain visible. Initial inventory basis and derived P&L
+can be null; marks are gross best bid, not liquidation proceeds.
+
+Archives are separately queried durable accounting transitions, including live
+audit history; 404 means no archived transition. Opening a new client does not
+auto-adopt an old run. Resume is replay/demo-only and must match native source
+identity. It rebuilds a candidate from commands against an independent replay
+projection at the current cursor; failure does not replace current state.
+Successful publication pauses playback, replaces paper ownership, increments
+generation and clears old presentation/ACK state. It does not import archived
+future fills into a past cursor. Live histories cannot resume across ownership.
+
+Journal rationale is 1–8192 characters, context up to 16384; optional `entry`
+and `stop` are positive exact strings (up to 128 characters).
+New entries capture native source/session, delivery/clock and instrument/venue.
+A linked run must be active at this prefix; linked orders must also be visible
+and match the selected instrument. Edits preserve original provenance and cannot
+reassign run/order links. Query scope is `current_source` by default or
+`all_manually_authored_sources` when requested. Manual notes are not causal
+replay observations and can remain visible after rewind.
+
+#### Persisted research reports and lifecycle
+
+Research HTTP is read-only: run experiments with the CLI and inspect them here.
+Without `attempt_id`, detail/config/source/report are null. Unknown attempts
+return 404; running/failed attempts may have no report. A report retains all
+trial outcomes in storage; `report.presentation` carries `trial_offset`,
+`trial_limit`, `trial_total` for the returned page. Reports retain source/config/
+observation/label/report hashes, exclusions and limitations. They are historical
+artifacts, not current-prefix trading decisions. Catalog-worker report reads
+hold the lifecycle action fence but do not block source delivery under the replay
+owner lock. See [CONTRACTS](CONTRACTS.md) and [DEMO](DEMO.md).
+
+Consumer calls serialize lifecycle actions and owner work; request cancellation
+joins already dispatched work before releasing ownership. An aborted/failed
+mutation may have committed and must not be blindly retried. Frontend panels
+abort inactive/hidden/disconnected or superseded work, fence session/generation/
+selection and discard obsolete responses. Polling queries and socket reconnects
+are distinct from mutations: **workflow mutations are never automatically
+retried**. Refresh and inspect persisted native state before deciding to repeat
+an interrupted action.
 
 ### Source and Frame
 
@@ -69,7 +233,7 @@ For managed captures, `recording: true` means **recorded source**, not a current
 
 Every Frame has:
 
-- `version:'1'`, `type:'frame'`, `frame_id`, `session_id`, `generation`: frame ID and generation are decimal strings. Frame ID strictly increases per session; generation changes on selection and seek/reset. Clients discard reordered old generations/frames.
+- `version:'1'`, `type:'frame'`, `frame_id`, `session_id`, `generation`: frame ID and generation are decimal strings. Frame ID strictly increases per session; generation changes on selection, seek/reset and explicit paper resume. Clients discard reordered old generations/frames.
 - `status`: `loading`, `paused`, `playing`, `seeking`, `ended`, `live`, `unavailable`, or `error`.
 - `selection:{instrument_id}`, `source`, exact selected `book` or null, `analytics` (`AnalyticsSnapshot`) or null.
 - `replay`: null for live; otherwise `{cursor:{delivery_index,ordinal,event_index},speed,status,total_deliveries}` with exact string counters.
@@ -98,13 +262,13 @@ Response: `{version:'1',generation,estimate:ExecutionEstimate|null,matrix:PairEs
 
 ## Ownership, backpressure and instrumentation
 
-A runtime has one shared live registry, one bounded catalog worker, and at most one worker per active client. Each client owns its selection/generation, independent ReplaySession/cursor, AnalyticsEngine and history. Memory source data alone is shared immutably. Browser close never releases a recorder's independent lease.
+A runtime has one shared live registry, one bounded catalog worker, and at most one worker per active client. Each client owns its selection/generation, independent ReplaySession/cursor, analytics, visualization, context, alerts and paper observers plus history. Paper/journal SQLite connections are owner-thread-local; research queries use the catalog worker. Memory source data alone is shared immutably. Browser close never releases a recorder's independent lease.
 
 Creation reserves capacity privately and exposes a session ID only after initialization succeeds. Shutdown cancels and joins private initializers before disposing executors. Reaping checks active requests, action/owner fences and worker activity, then rechecks idleness under the lifecycle fence; completed requests refresh their idle deadline.
 
 Live attachment installs a bounded temporary processed sink **before** acquiring leases. Registration and a baseline snapshot of already-completed registry state occur together without an await. Baseline books are reconciled against actual lease owner IDs; buffered real deliveries are then replayed in order before presentation becomes live. `AnalyticsEngine.initialize_books` seeds only exact existing book evidence for static metrics, not fictitious historical events, tape, OFI samples or complete window anchors. Thus a quiet existing healthy owner appears immediately, while its missing trade/window history remains honestly unavailable. Failed initialization removes temporary sinks and releases only the failed client's leases.
 
-The live consumer receives `subscribe_processed(events, books)` at the **completed atomic source-message boundary**. It never samples `registry.books()` in a pre-publication callback or deferred callback. Offers retain only affected-key books (including explicitly scoped gap targets); a reset with an absent current book removes the previous epoch from the client map. The full current client-scoped map is then reconstructed in queue order for AnalyticsEngine. Events are loss-intolerant analytical input: each client's queue is capped at 256 batches and an 8 MiB accounting budget covering event representation plus conservatively charged immutable book levels (not a measured process-RSS claim). Overflow marks that client unavailable, suppresses all analytical/cost action, and requires explicit reselection to establish a fresh history anchor. This is a client analytical loss, not a fabricated market event or a claim that the independent recorder lost data. Other clients/recording continue. Snapshot presentation may coalesce only after validated processing.
+The live consumer receives `subscribe_processed(events, books)` at the **completed atomic source-message boundary**. It never samples `registry.books()` in a pre-publication callback or deferred callback. Offers retain only affected-key books (including explicitly scoped gap targets); a reset with an absent current book removes the previous epoch from the client map. The full current client-scoped map is then reconstructed in queue order for AnalyticsEngine. Events are loss-intolerant analytical input: each client's admission is capped at 256 batches and a 128 MiB accounting budget covering queued and in-flight event representation plus conservatively charged immutable book levels (not a measured process-RSS claim). Overflow marks that client unavailable, suppresses all analytical/cost action, and requires explicit reselection to establish a fresh history anchor. This is a client analytical loss, not a fabricated market event or a claim that the independent recorder lost data. Other clients/recording continue. Snapshot presentation may coalesce only after validated processing.
 
 WebSocket output holds only one in-flight Frame and no unbounded output FIFO. A send stalled for five seconds evicts the client. Each session retains at most 64 pending ACK IDs. Unattached HTTP sessions expire after 60 idle seconds. Repeated disconnect/switch/close joins playback and client work; no lifetime session-ID quota accumulates. The server limits concurrent connections/requests to 128 and WebSocket messages to 4096 bytes with a bounded protocol queue.
 
@@ -114,8 +278,8 @@ WebSocket ownership cleanup is shielded from ASGI/AnyIO level-triggered cancella
 
 Telemetry separates:
 
-- `queue_depth`, `queue_highwater`, `overflows`: actual per-client analytical queue measurements.
-- `queue_wait_ms`, `observer_duration_ms`: current-runtime queue waiting and worker-processing wall durations (worker execution includes real callback/reduction/scheduling work, not exchange age).
+- `queue_depth`, `queue_highwater`, `overflows`: per-client analytical admission measurements, including detached in-flight deliveries until the worker completes or cancellation joins it.
+- `queue_wait_ms`, `observer_duration_ms`: oldest-delivery queue wait and wall duration of the current ordered owner batch (at most32 original atomic deliveries). These are current-runtime scheduling/processing measurements, not exchange age or per-event latency.
 - `coalesced`: skipped validated selected-book revisions between emitted Frames, segmented by generation/epoch; `ack_expired` is separately bounded ACK eviction, not data loss.
 - `ingestion`: live registry `SubscriptionStatus` snapshots including parent's actual processing observation, source queue high-water and capture state. Historical replay processing timestamps are preserved native evidence, never subtracted from the present monotonic clock.
 - `published_mono_ns`: server presentation publication timestamp, not a replacement source timestamp.

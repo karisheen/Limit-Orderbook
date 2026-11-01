@@ -1,0 +1,957 @@
+{
+  "actual_native_queue_evidence": {
+    "observed_rejected_total_bytes": 11634141,
+    "path": "docs/evidence/m5-lifecycle-offline-native-queue.json",
+    "scope": "Preserved same-loop replay stress: adapter/reducer work runs on the consumer event loop and can starve dequeue. The failure is real for that diagnostic topology but cannot size production capacity. See corrected separated-thread raw evidence and capacity summary.",
+    "sha256": "e8b2502a0f1c5ae8acccb09e48d37cf215ae40269e38637d664709668ca7676a"
+  },
+  "assertions": {
+    "all_trade_only_deliveries_have_zero_changed_books": true,
+    "coinbase_kraken_hyperliquid_peers_present": true,
+    "exact_selected_instrument_retained": true,
+    "identical_native_history": true,
+    "identical_native_projection_and_observer_hashes": true,
+    "no_inactive_implicit_peers": true,
+    "same_full_cohort_bound": true
+  },
+  "atomic_capacity": {
+    "coinbase_40000_levels_lower_bound_bytes_not_observed": 20484096,
+    "coinbase_actual_payload_available_in_frozen_snapshot": false,
+    "current_bound_bytes": 8388608,
+    "largest_observed_deliveries": [
+      {
+        "apply_profiled_ns": 1328395,
+        "changed_books": 1,
+        "changed_levels": 10003,
+        "cohort_books": 4,
+        "delivery": "56",
+        "enqueue_ns": 16540370,
+        "events": 1,
+        "payload_types": [
+          "BookUpdate"
+        ],
+        "queued_bytes": 6626908,
+        "source_mono_ns": "90368195485854"
+      },
+      {
+        "apply_profiled_ns": 1463138,
+        "changed_books": 1,
+        "changed_levels": 10000,
+        "cohort_books": 6,
+        "delivery": "67",
+        "enqueue_ns": 21070766,
+        "events": 1,
+        "payload_types": [
+          "BookUpdate"
+        ],
+        "queued_bytes": 6615658,
+        "source_mono_ns": "90368665182334"
+      },
+      {
+        "apply_profiled_ns": 804379,
+        "changed_books": 1,
+        "changed_levels": 9844,
+        "cohort_books": 5,
+        "delivery": "59",
+        "enqueue_ns": 19934117,
+        "events": 1,
+        "payload_types": [
+          "BookUpdate"
+        ],
+        "queued_bytes": 6501233,
+        "source_mono_ns": "90368387898172"
+      },
+      {
+        "apply_profiled_ns": 904682,
+        "changed_books": 1,
+        "changed_levels": 10011,
+        "cohort_books": 6,
+        "delivery": "113",
+        "enqueue_ns": 60907,
+        "events": 1,
+        "payload_types": [
+          "BookUpdate"
+        ],
+        "queued_bytes": 5131912,
+        "source_mono_ns": "90370048458076"
+      },
+      {
+        "apply_profiled_ns": 1194047,
+        "changed_books": 1,
+        "changed_levels": 10008,
+        "cohort_books": 6,
+        "delivery": "316",
+        "enqueue_ns": 69759,
+        "events": 1,
+        "payload_types": [
+          "BookUpdate"
+        ],
+        "queued_bytes": 5131870,
+        "source_mono_ns": "90376356668649"
+      },
+      {
+        "apply_profiled_ns": 1357249,
+        "changed_books": 1,
+        "changed_levels": 10010,
+        "cohort_books": 6,
+        "delivery": "108",
+        "enqueue_ns": 80630,
+        "events": 1,
+        "payload_types": [
+          "BookUpdate"
+        ],
+        "queued_bytes": 5131698,
+        "source_mono_ns": "90369799497938"
+      },
+      {
+        "apply_profiled_ns": 2390040,
+        "changed_books": 1,
+        "changed_levels": 10010,
+        "cohort_books": 6,
+        "delivery": "169",
+        "enqueue_ns": 87871,
+        "events": 1,
+        "payload_types": [
+          "BookUpdate"
+        ],
+        "queued_bytes": 5131694,
+        "source_mono_ns": "90371992592322"
+      },
+      {
+        "apply_profiled_ns": 1815929,
+        "changed_books": 1,
+        "changed_levels": 9987,
+        "cohort_books": 6,
+        "delivery": "404",
+        "enqueue_ns": 259801,
+        "events": 1,
+        "payload_types": [
+          "BookUpdate"
+        ],
+        "queued_bytes": 5131660,
+        "source_mono_ns": "90378201397304"
+      }
+    ],
+    "max_observed_single_delivery_bytes": 6626908,
+    "native_large_bootstrap_deliveries": [
+      {
+        "apply_profiled_ns": 1328395,
+        "changed_books": 1,
+        "changed_levels": 10003,
+        "cohort_books": 4,
+        "delivery": "56",
+        "enqueue_ns": 16540370,
+        "events": 1,
+        "payload_types": [
+          "BookUpdate"
+        ],
+        "queued_bytes": 6626908,
+        "source_mono_ns": "90368195485854"
+      },
+      {
+        "apply_profiled_ns": 804379,
+        "changed_books": 1,
+        "changed_levels": 9844,
+        "cohort_books": 5,
+        "delivery": "59",
+        "enqueue_ns": 19934117,
+        "events": 1,
+        "payload_types": [
+          "BookUpdate"
+        ],
+        "queued_bytes": 6501233,
+        "source_mono_ns": "90368387898172"
+      },
+      {
+        "apply_profiled_ns": 1463138,
+        "changed_books": 1,
+        "changed_levels": 10000,
+        "cohort_books": 6,
+        "delivery": "67",
+        "enqueue_ns": 21070766,
+        "events": 1,
+        "payload_types": [
+          "BookUpdate"
+        ],
+        "queued_bytes": 6615658,
+        "source_mono_ns": "90368665182334"
+      }
+    ],
+    "recommendation": "Do not increase the production cap based on same-loop replay stress or receive-time modeling. Corrected dedicated-raw-producer/collector/analytical-owner trials pass all703 deliveries at both8MiB and256MiB, identical full observer/core state, cold highwater6,626,908B and steady5,131,912B. The same-loop8/32/64/128 failures were consumer scheduling starvation in that diagnostic topology, not measured live capacity requirements. This12-stream serialized source does not establish concurrent16-product live bootstrap acceptance. The40k-level book formula exceeds19.5MiB before events, but no actual Coinbase payload is available; parent must resolve actual full-cohort/native atomic capacity separately. Preserve full depth and fail-closed count/byte bounds.",
+    "two_largest_atomic_deliveries_without_drain_bytes": 13242566,
+    "two_largest_profiled_service_drain_ns": 40402669
+  },
+  "cohort_after": [
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "BTC",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "USDT",
+        "contract_address": null,
+        "native_token_id": "USDT",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "USDT"
+      },
+      "status": "active",
+      "venue": "binance-global"
+    },
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "BTC",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "coinbase:advanced-trade:spot:BTC-USDT",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "USDT",
+        "contract_address": null,
+        "native_token_id": "USDT",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "USDT"
+      },
+      "status": "active",
+      "venue": "coinbase"
+    },
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": null,
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "hyperliquid:info:perpetual:BTC",
+      "market_type": "perpetual",
+      "quote": {
+        "asset_id": "USDT",
+        "contract_address": null,
+        "native_token_id": null,
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "USDT"
+      },
+      "status": "active",
+      "venue": "hyperliquid"
+    },
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "XXBT",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "kraken:spot-v2:spot:BTC/USDT",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "USDT",
+        "contract_address": null,
+        "native_token_id": "USDT",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "USDT"
+      },
+      "status": "active",
+      "venue": "kraken"
+    },
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "BTC",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "kucoin:classic-spot:spot:BTC-USDT",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "USDT",
+        "contract_address": null,
+        "native_token_id": "USDT",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "USDT"
+      },
+      "status": "active",
+      "venue": "kucoin"
+    },
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "BTC",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "binance-global:spot-v3:spot:BTCARS",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "binance-global:ARS",
+        "contract_address": null,
+        "native_token_id": "ARS",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "ARS"
+      },
+      "status": "active",
+      "venue": "binance-global"
+    },
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "BTC",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "coinbase:advanced-trade:spot:BTC-EUR",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "coinbase:EUR",
+        "contract_address": null,
+        "native_token_id": "EUR",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "EUR"
+      },
+      "status": "active",
+      "venue": "coinbase"
+    },
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "XXBT",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "kraken:spot-v2:spot:BTC/AUD",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "kraken:AUD",
+        "contract_address": null,
+        "native_token_id": "ZAUD",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "AUD"
+      },
+      "status": "active",
+      "venue": "kraken"
+    },
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "BTC",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "kucoin:classic-spot:spot:BTC-EUR",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "kucoin:EUR",
+        "contract_address": null,
+        "native_token_id": "EUR",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "EUR"
+      },
+      "status": "active",
+      "venue": "kucoin"
+    },
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "BTC",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "binance-global:spot-v3:spot:BTCBRL",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "binance-global:BRL",
+        "contract_address": null,
+        "native_token_id": "BRL",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BRL"
+      },
+      "status": "active",
+      "venue": "binance-global"
+    },
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "BTC",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "coinbase:advanced-trade:spot:BTC-GBP",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "coinbase:GBP",
+        "contract_address": null,
+        "native_token_id": "GBP",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "GBP"
+      },
+      "status": "active",
+      "venue": "coinbase"
+    },
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "XXBT",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "kraken:spot-v2:spot:BTC/AUSD",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "kraken:AUSD",
+        "contract_address": null,
+        "native_token_id": "AUSD",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "AUSD"
+      },
+      "status": "active",
+      "venue": "kraken"
+    },
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "BTC",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "kucoin:classic-spot:spot:BTC-USD1",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "kucoin:USD1",
+        "contract_address": null,
+        "native_token_id": "USD1",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "USD1"
+      },
+      "status": "active",
+      "venue": "kucoin"
+    },
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "BTC",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "binance-global:spot-v3:spot:BTCEUR",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "binance-global:EUR",
+        "contract_address": null,
+        "native_token_id": "EUR",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "EUR"
+      },
+      "status": "active",
+      "venue": "binance-global"
+    },
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "BTC",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "coinbase:advanced-trade:spot:BTC-INR",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "coinbase:INR",
+        "contract_address": null,
+        "native_token_id": "INR",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "INR"
+      },
+      "status": "active",
+      "venue": "coinbase"
+    },
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "XXBT",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "kraken:spot-v2:spot:BTC/CAD",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "kraken:CAD",
+        "contract_address": null,
+        "native_token_id": "ZCAD",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "CAD"
+      },
+      "status": "active",
+      "venue": "kraken"
+    }
+  ],
+  "cohort_before": [
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "BTC",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "USDT",
+        "contract_address": null,
+        "native_token_id": "USDT",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "USDT"
+      },
+      "status": "active",
+      "venue": "binance-global"
+    },
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "BTC",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "binance-global:spot-v3:spot:BTCARS",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "binance-global:ARS",
+        "contract_address": null,
+        "native_token_id": "ARS",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "ARS"
+      },
+      "status": "active",
+      "venue": "binance-global"
+    },
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "BTC",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "binance-global:spot-v3:spot:BTCBRL",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "binance-global:BRL",
+        "contract_address": null,
+        "native_token_id": "BRL",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BRL"
+      },
+      "status": "active",
+      "venue": "binance-global"
+    },
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "BTC",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "binance-global:spot-v3:spot:BTCEUR",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "binance-global:EUR",
+        "contract_address": null,
+        "native_token_id": "EUR",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "EUR"
+      },
+      "status": "active",
+      "venue": "binance-global"
+    },
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "BTC",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "binance-global:spot-v3:spot:BTCFDUSD",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "binance-global:FDUSD",
+        "contract_address": null,
+        "native_token_id": "FDUSD",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "FDUSD"
+      },
+      "status": "active",
+      "venue": "binance-global"
+    },
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "BTC",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "binance-global:spot-v3:spot:BTCIDR",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "binance-global:IDR",
+        "contract_address": null,
+        "native_token_id": "IDR",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "IDR"
+      },
+      "status": "active",
+      "venue": "binance-global"
+    },
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "BTC",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "binance-global:spot-v3:spot:BTCJPY",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "binance-global:JPY",
+        "contract_address": null,
+        "native_token_id": "JPY",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "JPY"
+      },
+      "status": "active",
+      "venue": "binance-global"
+    },
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "BTC",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "binance-global:spot-v3:spot:BTCMXN",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "binance-global:MXN",
+        "contract_address": null,
+        "native_token_id": "MXN",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "MXN"
+      },
+      "status": "active",
+      "venue": "binance-global"
+    },
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "BTC",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "binance-global:spot-v3:spot:BTCTHB",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "binance-global:THB",
+        "contract_address": null,
+        "native_token_id": "THB",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "THB"
+      },
+      "status": "active",
+      "venue": "binance-global"
+    },
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "BTC",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "binance-global:spot-v3:spot:BTCTRY",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "binance-global:TRY",
+        "contract_address": null,
+        "native_token_id": "TRY",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "TRY"
+      },
+      "status": "active",
+      "venue": "binance-global"
+    },
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "BTC",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "binance-global:spot-v3:spot:BTCU",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "binance-global:U",
+        "contract_address": null,
+        "native_token_id": "U",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "U"
+      },
+      "status": "active",
+      "venue": "binance-global"
+    },
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "BTC",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "binance-global:spot-v3:spot:BTCUSD",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "USD",
+        "contract_address": null,
+        "native_token_id": "USD",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "USD"
+      },
+      "status": "active",
+      "venue": "binance-global"
+    },
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "BTC",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "binance-global:spot-v3:spot:BTCUSD1",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "binance-global:USD1",
+        "contract_address": null,
+        "native_token_id": "USD1",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "USD1"
+      },
+      "status": "active",
+      "venue": "binance-global"
+    },
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "BTC",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "binance-global:spot-v3:spot:BTCUSDC",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "USDC",
+        "contract_address": null,
+        "native_token_id": "USDC",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "USDC"
+      },
+      "status": "active",
+      "venue": "binance-global"
+    },
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "BTC",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "binance-global:spot-v3:spot:BTCUSDS",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "binance-global:USDS",
+        "contract_address": null,
+        "native_token_id": "USDS",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "USDS"
+      },
+      "status": "active",
+      "venue": "binance-global"
+    },
+    {
+      "base": {
+        "asset_id": "BTC",
+        "contract_address": null,
+        "native_token_id": "BTC",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "BTC"
+      },
+      "instrument_id": "coinbase:advanced-trade:spot:BTC-EUR",
+      "market_type": "spot",
+      "quote": {
+        "asset_id": "coinbase:EUR",
+        "contract_address": null,
+        "native_token_id": "EUR",
+        "network": null,
+        "reference_asset_id": null,
+        "ticker": "EUR"
+      },
+      "status": "active",
+      "venue": "coinbase"
+    }
+  ],
+  "corrected_threaded_queue_evidence": [
+    {
+      "path": "docs/evidence/m5-lifecycle-offline-threaded-raw-8mib.json",
+      "sha256": "9b780a8c44e89889fc9a55ee02d65982da05da4bd630c120a5bd725998f5667d"
+    },
+    {
+      "path": "docs/evidence/m5-lifecycle-offline-threaded-raw-256mib.json",
+      "sha256": "db019f427c34631275d31688b8ef1ee59900b11af517d21384059cba1db9133e"
+    }
+  ],
+  "diagnostic_source": "\"\"\"Offline evidence: unchanged native service hashes, burst capacity, fair real metadata.\"\"\"\nfrom collections import Counter, deque\nimport hashlib\nimport json\nfrom pathlib import Path\n\nfrom src.workstation.instruments import AssetIdentity, Instrument, OrderConstraints\nfrom src.workstation.runtime import _live_cohort\n\nROOT = Path(__file__).resolve().parents[2]\nBEFORE = ROOT / 'docs/evidence/m5-lifecycle-offline-before.json'\nAFTER = ROOT / 'docs/evidence/m5-lifecycle-offline-after.json'\nCATALOG = ROOT / 'docs/evidence/m5-lifecycle-live-20261101T160715Z.json'\nbefore, after, discovery = (json.loads(path.read_text()) for path in (BEFORE, AFTER, CATALOG))\nraw = next(item['response']['instruments'] for item in discovery['api'] if item['route'] == '/api/v1/instruments?source_id=live')\ninstruments = []\nfor record in raw:\n    fields = dict(record)\n    for key in ('base', 'quote', 'settlement'):\n        if fields[key] is not None:\n            fields[key] = AssetIdentity(**fields[key])\n    fields['constraints'] = OrderConstraints(**fields['constraints'])\n    for key in ('metadata_asof_wall_ns', 'expiry_wall_ns'):\n        if fields[key] is not None:\n            fields[key] = int(fields[key])\n    instruments.append(Instrument(**fields))\nselected = next(item for item in instruments if item.instrument_id == 'binance-global:spot-v3:spot:BTCUSDT')\nold = [selected] + [item for item in instruments if item.base.asset_id == selected.base.asset_id and item.instrument_id != selected.instrument_id and item.status == 'active'][:15]\nnew = _live_cohort(selected, tuple(instruments))\nby_id = {item['instrument_id']: item for item in raw}\n\ndef native_metadata(cohort):\n    return [{key: by_id[item.instrument_id][key] for key in ('instrument_id', 'venue', 'base', 'quote', 'market_type', 'status')} for item in cohort]\n\ndef queue_model(rows):\n    waiting = deque()\n    finish = 0\n    frontier = 0\n    peak_bytes = peak_count = peak_wait = 0\n    for row in rows:\n        frontier = max(frontier, int(row['source_mono_ns']))\n        arrival = frontier\n        while waiting and waiting[0][0] <= arrival:\n            waiting.popleft()\n        start = max(arrival, finish)\n        peak_wait = max(peak_wait, start - arrival)\n        waiting.append((start, row['queued_bytes']))\n        peak_bytes = max(peak_bytes, sum(charge for _, charge in waiting))\n        peak_count = max(peak_count, len(waiting))\n        finish = start + row['enqueue_ns'] + row['apply_profiled_ns']\n    return {'peak_waiting_bytes': peak_bytes, 'peak_waiting_count': peak_count, 'max_wait_ns': peak_wait,\n            'drain_after_last_arrival_ns': finish - frontier,\n            'scope': '[INFERENCE] Single-owner normalized replay-frontier scheduling model using cumulative maximum receive stamps and cProfile service durations. Source receive times are NOT callback publication times. Excludes collector scheduling, executor handoff and competing CPU; cannot justify live queue capacity.'}\n\nrows = after['rows']\ntrades = [row for row in rows if set(row['payload_types']) == {'Trade'}]\nlarge = sorted(rows, key=lambda row: row['queued_bytes'], reverse=True)\nbootstrap = [row for row in rows if row['changed_levels'] >= 9000 and row['queued_bytes'] > 6_000_000]\nresult = {\n    'diagnostic_source': Path(__file__).read_text(),\n    'inputs': {str(path.relative_to(ROOT)): hashlib.sha256(path.read_bytes()).hexdigest() for path in (BEFORE, AFTER, CATALOG)},\n    'assertions': {\n        'identical_native_projection_and_observer_hashes': before['replay_hashes'] == after['replay_hashes'],\n        'identical_native_history': before['terminal'] == after['terminal'],\n        'all_trade_only_deliveries_have_zero_changed_books': all(row['changed_books'] == 0 for row in trades),\n        'same_full_cohort_bound': len(old) == len(new) == 16,\n        'exact_selected_instrument_retained': new[0] is selected,\n        'coinbase_kraken_hyperliquid_peers_present': {'coinbase', 'kraken', 'hyperliquid'} <= {item.venue for item in new},\n        'no_inactive_implicit_peers': all(item.status == 'active' for item in new[1:]),\n    },\n    'profiled_service': {\n        'before_apply_ns': before['apply_profiled_total_ns'], 'after_apply_ns': after['apply_profiled_total_ns'],\n        'before_enqueue_ns': before['enqueue_total_ns'], 'after_enqueue_ns': after['enqueue_total_ns'],\n        'apply_reduction_fraction': 1 - after['apply_profiled_total_ns'] / before['apply_profiled_total_ns'],\n        'observed_source_duration_ns': after['source_duration_ns'], 'native_deliveries': len(rows),\n        'trade_only_deliveries': len(trades), 'max_trade_queued_bytes': max(row['queued_bytes'] for row in trades),\n    },\n    'source_paced_model_before': queue_model(before['rows']),\n    'source_paced_model_after': queue_model(rows),\n    'atomic_capacity': {\n        'current_bound_bytes': 8 * 1024 * 1024, 'max_observed_single_delivery_bytes': large[0]['queued_bytes'],\n        'largest_observed_deliveries': large[:8], 'native_large_bootstrap_deliveries': bootstrap,\n        'two_largest_atomic_deliveries_without_drain_bytes': sum(row['queued_bytes'] for row in large[:2]),\n        'two_largest_profiled_service_drain_ns': sum(row['apply_profiled_ns'] + row['enqueue_ns'] for row in large[:2]),\n        'coinbase_actual_payload_available_in_frozen_snapshot': False,\n        'coinbase_40000_levels_lower_bound_bytes_not_observed': 4096 + 512 * 40000,\n        'recommendation': 'Do not increase the production cap based on same-loop replay stress or receive-time modeling. Corrected dedicated-raw-producer/collector/analytical-owner trials pass all703 deliveries at both8MiB and256MiB, identical full observer/core state, cold highwater6,626,908B and steady5,131,912B. The same-loop8/32/64/128 failures were consumer scheduling starvation in that diagnostic topology, not measured live capacity requirements. This12-stream serialized source does not establish concurrent16-product live bootstrap acceptance. The40k-level book formula exceeds19.5MiB before events, but no actual Coinbase payload is available; parent must resolve actual full-cohort/native atomic capacity separately. Preserve full depth and fail-closed count/byte bounds.',\n    },\n    'actual_native_queue_evidence': {\n        'path': 'docs/evidence/m5-lifecycle-offline-native-queue.json',\n        'sha256': hashlib.sha256((ROOT / 'docs/evidence/m5-lifecycle-offline-native-queue.json').read_bytes()).hexdigest(),\n        'observed_rejected_total_bytes': 6504039 + 3958 + 5126144,\n        'scope': 'Preserved same-loop replay stress: adapter/reducer work runs on the consumer event loop and can starve dequeue. The failure is real for that diagnostic topology but cannot size production capacity. See corrected separated-thread raw evidence and capacity summary.',\n    },\n    'corrected_threaded_queue_evidence': [\n        {'path': str(path.relative_to(ROOT)), 'sha256': hashlib.sha256(path.read_bytes()).hexdigest()}\n        for path in (ROOT / 'docs/evidence/m5-lifecycle-offline-threaded-raw-8mib.json', ROOT / 'docs/evidence/m5-lifecycle-offline-threaded-raw-256mib.json')\n    ],\n    'cohort_before': native_metadata(old), 'cohort_after': native_metadata(new),\n    'venue_counts_before': Counter(item.venue for item in old), 'venue_counts_after': Counter(item.venue for item in new),\n    'limitations': ['No network collected after lifecycle handoff; no BTC live acceptance rerun.', 'Retained real profile covers12 core streams, not the full16-product discovery cohort.', 'Profile timing includes instrumentation and concurrent workstation activity; hash equality, zero trade book charge and exact capacity arithmetic are stronger evidence than one-run timing.', 'Frozen actual recordings contain Binance-global/Hyperliquid; Coinbase recordings found are synthetic only.40k-level formula is explicitly not a measured Coinbase payload.', 'Native cap/depth remain unchanged; parent owns capacity decision and required-cohort acceptance.'],\n}\noutput = ROOT / 'docs/evidence/m5-lifecycle-offline-summary.json'\noutput.write_text(json.dumps(result, indent=2) + '\\n')\nprint(json.dumps({key: result[key] for key in ('assertions', 'profiled_service', 'source_paced_model_before', 'source_paced_model_after', 'venue_counts_before', 'venue_counts_after')}, indent=2))\nprint('Evidence:', output)\n",
+  "inputs": {
+    "docs/evidence/m5-lifecycle-live-20261101T160715Z.json": "2a25712d55a8a025ef131613b66fa9a1cb690c1184fef9a41290c45a1457204c",
+    "docs/evidence/m5-lifecycle-offline-after.json": "f6702ecb4a395d1ea1c22e702a325a39cdb34e2537dcf068b3b8b44fdad7b506",
+    "docs/evidence/m5-lifecycle-offline-before.json": "5f8b32577f33d035025053c7af5746486c284ad9f40cd9e53df44fce7e649895"
+  },
+  "limitations": [
+    "No network collected after lifecycle handoff; no BTC live acceptance rerun.",
+    "Retained real profile covers12 core streams, not the full16-product discovery cohort.",
+    "Profile timing includes instrumentation and concurrent workstation activity; hash equality, zero trade book charge and exact capacity arithmetic are stronger evidence than one-run timing.",
+    "Frozen actual recordings contain Binance-global/Hyperliquid; Coinbase recordings found are synthetic only.40k-level formula is explicitly not a measured Coinbase payload.",
+    "Native cap/depth remain unchanged; parent owns capacity decision and required-cohort acceptance."
+  ],
+  "profiled_service": {
+    "after_apply_ns": 1564014099,
+    "after_enqueue_ns": 100515260,
+    "apply_reduction_fraction": 0.22805267622731717,
+    "before_apply_ns": 2026063244,
+    "before_enqueue_ns": 89864820,
+    "max_trade_queued_bytes": 43014,
+    "native_deliveries": 703,
+    "observed_source_duration_ns": "25016050864",
+    "trade_only_deliveries": 188
+  },
+  "publication": {
+    "original_bytes": 36113,
+    "original_path": "/tmp/limit-orderbook-m5-NBWAK4/lifecycle-proof/docs/evidence/m5-lifecycle-offline-summary.json",
+    "original_sha256": "0972fd10505bf7e8388134a5594481e41e776dbf97945177b3023cb552b59ea6",
+    "transformation": "Deduplicated native source texts into SHA256-addressed source bundle; all measurements, observations, diagnostic source, assertions and failure results retained. Summary input SHA256 values identify original retained reports, not these derived publication files. Full discovery catalog originals remain local; bounded public lifecycle reports label their excerpts."
+  },
+  "source_paced_model_after": {
+    "drain_after_last_arrival_ns": 157129349,
+    "max_wait_ns": 156143933,
+    "peak_waiting_bytes": 137694107,
+    "peak_waiting_count": 27,
+    "scope": "[INFERENCE] Single-owner normalized replay-frontier scheduling model using cumulative maximum receive stamps and cProfile service durations. Source receive times are NOT callback publication times. Excludes collector scheduling, executor handoff and competing CPU; cannot justify live queue capacity."
+  },
+  "source_paced_model_before": {
+    "drain_after_last_arrival_ns": 146089223,
+    "max_wait_ns": 142124858,
+    "peak_waiting_bytes": 137694026,
+    "peak_waiting_count": 27,
+    "scope": "[INFERENCE] Single-owner normalized replay-frontier scheduling model using cumulative maximum receive stamps and cProfile service durations. Source receive times are NOT callback publication times. Excludes collector scheduling, executor handoff and competing CPU; cannot justify live queue capacity."
+  },
+  "venue_counts_after": {
+    "binance-global": 4,
+    "coinbase": 4,
+    "hyperliquid": 1,
+    "kraken": 4,
+    "kucoin": 3
+  },
+  "venue_counts_before": {
+    "binance-global": 15,
+    "coinbase": 1
+  }
+}

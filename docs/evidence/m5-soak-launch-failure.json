@@ -1,0 +1,10 @@
+{
+  "status": "launch_failed_before_capture",
+  "capture_started": false,
+  "requested_seconds": 1800,
+  "worktree": "/tmp/limit-orderbook-m5-NBWAK4/soak",
+  "merged_revision": "95b9f8875bc23b8c8c5ee776489266ecfe7fadbe",
+  "exit_code": 1,
+  "error": "SyntaxError: expected except or finally block at line 302; raw source transfer contained a tool preview footer after line 300 instead of the final 34 lines",
+  "correction": "Re-transfer exact bounded raw ranges and verify complete source checksum before launch; no network/capture success is claimed for this attempt"
+}

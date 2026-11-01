@@ -61,6 +61,12 @@ rejects unsupported options. Current venue constructors consume only Hyperliquid
 `dex`. Supervisor configuration belongs in `Recorder.config` (immutable text pairs),
 including `poll_interval` and `dedup_capacity` when not using defaults.
 
+Arrow's first Python-to-table conversion is also prepared with an empty table
+using the real normalized schema before the worker starts or a source can attach.
+This moves lazy conversion/dependency initialization out of the first required
+flush; preparation failure releases the active lock and remains recoverably
+incomplete, never admitting a capture that cannot encode its normalized rows.
+
 `code_revision`, `provenance`, `license`, and `clock_id` must be nonempty strings of
 at most 4,096 characters. Initialization bounds the complete encoded metadata to
 16 MiB before creating session files, then reserves its bytes plus 128 KiB for
@@ -297,9 +303,89 @@ The combined `data/m3-profile-writer/evidence.json` retains both streaming and
 predecoded observations, failed loads, exact commands, tool/source hashes and
 the source text of removed scratch profiling workloads.
 
+M5 retained-capture analysis distinguishes finite arrival bursts from sustained
+writer overload. The failed merged-M4 capture
+`8932ce7d-d783-4139-be9e-ea7aef6552f5` had an empty queue in 41 of 54 sampled
+health observations, including shortly before failure. Its retained receive-time
+trace contains 1,114 raw-plus-normalized items in 0.5 seconds. Receive times are
+not callback times, so this establishes burst size, not exact live queue timing.
+Full-depth checkpoint and first Parquet flush work can pause dispatch for roughly
+0.6–0.8 seconds on the measured workstation.
+
+An offline, predecoded first-45-second prefix retained all 4,123 raw frames and
+4,135 batches at original receive-frontier pacing with the old 512-item bound:
+writer thread CPU was 11.426 seconds and final drain/sealing took 0.714 seconds.
+At a finite 2x schedule, that bound rejected an offer at 512 items. With only the
+count bound raised to 2,048, the same 2x prefix retained every offered item,
+peaked at 591 items / 9,226,391 accounted bytes and drained/sealed in 0.711 seconds.
+Writer CPU was 10.574 seconds over 22.504 seconds of offers. Raw and normalized
+values and reconstructed native/checkpoint wire state matched exactly.
+These are single-run capacity observations, not throughput or latency guarantees.
+
+That earlier finite result led to a 2,048-item default, retaining the 128 MiB resident
+accounting cap, in-flight admission accounting, sticky terminal overflow, native
+depth, checkpoint cadence and all raw/normalized evidence. This finite count also
+covered the then-observed 1,566 receive-time items in two seconds without assuming any
+dispatch during that interval; longer bursts can still fail explicitly. Queue
+container/slot overhead remains count-bounded; the byte cap is not a total process
+RSS promise. Writer buffers and reader limits are unchanged. Evidence, exact source
+pins, paired measurements, scheduling limitations and reproduction workload are
+in `docs/evidence/m5-recorder-capacity.json`. All profile captures intentionally
+remain incomplete. The actual corrected public30-minute soak remains required.
+
+The subsequent actual 1,800-second request invalidated the sufficiency of that
+finite-prefix capacity result: capture
+`f512d31e-6649-47de-a5b5-3a6f3c1f887c` stopped at 484.082 seconds with
+`queue_overflow`, 2,048 admitted items at its count high-water mark, and only
+12,195,402 accounted bytes at its independent byte high-water mark. Of 95 sampled
+health observations, 56 showed an empty queue; the last empty sample was at
+477.411 seconds. The retained terminal second contains 936 normalized callbacks,
+each with a separate raw offer where present. Delivery 27,000, which requires
+the unchanged periodic full-projection checkpoint, has receive-frontier time
+481.970 seconds. These observations support transient service-pause/count pressure,
+not a demonstrated sustained average overload; original callback timestamps and
+writer-stage overlap were not recorded, so exact original causality is not claimed.
+The failed capture and incomplete status remain intact. The recorder-service
+diagnosis and finite retained-workload evidence are recorded separately in
+`docs/evidence/m5-recorder-service.json`; they do not establish a sustained live
+capture pass.
+
+The correction first removes avoidable cold Arrow conversion work from the writer:
+a fresh-process empty-table preparation took 0.646 seconds, while the following
+payload conversion took 0.000099 seconds. The unprofiled retained workload's first
+flush took 0.698 seconds. This is an initialization correction, not a claimed
+terminal-checkpoint speedup. Required full native checkpoint materialization and
+exact wire encoding remain the major service pause (up to 1.341 seconds in the
+unprofiled run); grouped checkpoint gzip/filesystem work took at most 0.083 seconds.
+No codec, native depth, compression, or checkpoint cadence is weakened.
+
+The count bound is now 4,096, with the byte cap still 128 MiB. The retained trace
+contains 2,432 raw-plus-normalized items in two seconds and 3,542 in five seconds;
+4,096 covers that finite five-second envelope plus the 273 items sampled shortly
+before failure, without assuming dispatch during the envelope. This is a bounded
+burst allowance, not protection against arbitrary stalls or sustained overload.
+The original unprofiled 60-second terminal receive schedule drained with a peak
+of 671 items when upstream live decoding/contention was absent, so it does **not**
+reproduce or disprove the live failure. With the corrected initialization and bound,
+the final 60 receive-seconds offered at 2x peaked at 2,314 items (above the old
+2,048 limit), repeatedly drained, and finalized in 2.814 seconds after offers ended.
+It retained all 28,163 raw frames, 28,173 batches / 29,183 events, and 348 logical
+checkpoints. Every raw, normalized, checkpoint, and auxiliary file matched the
+original descriptor/hash exactly; final native state and lexical checkpoint parity
+also matched. Queue byte high-water was 13,891,279 bytes, including warmup; this is
+accounted queue content, not RSS. Corrected native checkpoint pauses still reached
+1.522 seconds, so no general checkpoint speedup is claimed.
+
+The finite schedule warms and drains the original prefix first, then schedules
+only the terminal 60 seconds at 2x. It does not reconstruct live producer CPU,
+network dispatch, or exact callback times. Exact parity results, source hashes,
+failed diagnostics, and scheduling caveats are retained in the service evidence.
+The parent must still run the real sustained capture; neither diagnostic output
+nor its manifest is relabeled complete.
+
 | Limit | Default |
 | --- | --- |
-| Queue items / resident bytes (including in-flight) | 512 / 128 MiB |
+| Queue items / resident bytes (including in-flight) | 4,096 / 128 MiB |
 | Raw rotation target | 16 MiB compressed |
 | Parquet rows per stream group / global pending rows / serialized bytes | 128 / 4,096 / 16 MiB |
 | Checkpoint rows per block / block target | 64 / 16 MiB |

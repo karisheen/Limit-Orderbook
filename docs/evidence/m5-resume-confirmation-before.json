@@ -1,0 +1,12 @@
+{
+  "command": "npm --prefix frontend exec -- playwright test --config frontend/playwright.config.ts frontend/e2e/workflow.spec.ts --grep 'failed and pane-aborted'",
+  "actual_backend": "owned m5-workflow-visual port8000; native synthetic-v3 SQLite state; real failed request followed by real rewind0",
+  "outcome": "failed as expected before correction",
+  "assertion": "Not yet confirmed",
+  "actual": "Confirmed by a new-generation native run snapshot",
+  "native_snapshot_reason": "run_not_active_at_cursor",
+  "failed_resume_run_id": "86ec7d087f934c42a72c8976431a6898",
+  "test_seconds": 25.4,
+  "total_seconds": 34.85,
+  "fix": "Tie confirmation to generation from completed owned HTTP resume response, same native run and active cutoff; caller lifecycle abort remains local rather than persistent terminal error"
+}

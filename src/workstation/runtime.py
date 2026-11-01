@@ -8,13 +8,15 @@ import asyncio
 from collections import OrderedDict, deque
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
-from dataclasses import fields, is_dataclass
+from dataclasses import fields, is_dataclass, replace
 from datetime import datetime, timezone
 from decimal import Decimal, localcontext
 from functools import partial
+from hashlib import sha256
 import os
 from pathlib import Path
 import time
+from tempfile import TemporaryDirectory
 from typing import (
     AsyncIterator,
     Callable,
@@ -26,27 +28,35 @@ from typing import (
 )
 from uuid import uuid4
 
+from .alerts import AlertEngine
 from .analytics import AnalyticsEngine, AnalyticsSnapshot
 from .book import Book
+from .context import ContextEngine
 from .demo import demo_source
 from .demo_memory import MemoryReplaySource
 from .events import ClientId, EventEnvelope, Gap, StreamId, SubscriptionKey
 from .instruments import Instrument
+from .journal import JournalStore
+from .paper import PaperEngine, PaperStore
 from .precision import DERIVED_DECIMAL_POLICY, canonical_decimal, decimal
 from .quality import ClockReading, EligibilityPolicy, evaluate
 from .recording import RecordedBatch, RecordingReader, SessionManifest, StreamSpec
 from .replay import ReplayClock, ReplayPacer, ReplaySession, ReplaySource
 from .subscriptions import SubscriptionRegistry
 from .visuals import VisualHistory, grouped_ladder, proposal_risk
+from .wire import dumps
 
 
 CaptureIdentity: TypeAlias = tuple[int, int, int, int, int, int]
-LiveDelivery: TypeAlias = tuple[tuple[EventEnvelope, ...], tuple[Book, ...], int, int]
+LiveDelivery: TypeAlias = tuple[
+    tuple[EventEnvelope, ...], tuple[Book, ...], int, int, int
+]
 P = ParamSpec("P")
 R = TypeVar("R")
 FRAME_BOOK_LEVELS = 100
 FRAME_PROFILE_LEVELS = 200
 FRAME_DISPLAY_EVIDENCE = 100
+LIVE_QUEUE_BYTES = 128 * 1024 * 1024
 
 
 class ClientTelemetry(TypedDict):
@@ -138,6 +148,158 @@ def _analytics_presentation(analytics: AnalyticsSnapshot | None):
     return result
 
 
+def _input_clock(value):
+    return (
+        None
+        if value is None
+        else ClockReading(
+            value.clock_id,
+            int(value.mono_ns),
+            None if value.wall_ns is None else int(value.wall_ns),
+        )
+    )
+
+
+def _input_fees(value):
+    from .costs import FeeSchedule
+
+    if value.fee_bps is None:
+        return FeeSchedule(asset_id=value.fee_asset_id)
+    date = datetime.strptime(value.fee_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    with localcontext() as context:
+        context.prec = 80
+        return FeeSchedule(
+            rate=decimal(value.fee_bps) / Decimal(10000),
+            asset_id=value.fee_asset_id,
+            provenance=value.fee_provenance,
+            asof_wall_ns=int(date.timestamp()) * 1_000_000_000,
+            assumed=True,
+        )
+
+
+def _input_fx(values):
+    from .costs import FXRate
+
+    return tuple(
+        FXRate(
+            item.base_asset_id,
+            item.quote_asset_id,
+            decimal(item.bid, positive=True),
+            decimal(item.ask, positive=True),
+            _input_clock(item.asof),
+            item.source,
+            None
+            if item.conversion_fee_rate is None
+            else decimal(item.conversion_fee_rate),
+            item.assumed,
+        )
+        for item in values
+    )
+
+
+def _alert_summary(evaluation):
+    detail_fields = (
+        "references",
+        "metric",
+        "prints",
+        "displayed",
+        "pair",
+        "trade_evidence",
+        "book_evidence",
+    )
+    result = {
+        field.name: dto(getattr(evaluation, field.name))
+        for field in fields(evaluation)
+        if field.name not in detail_fields
+    }
+    result["evidence_available"] = any(
+        getattr(evaluation, name) for name in detail_fields
+    )
+    return result
+
+
+def _paper_run_presentation(run, *, configuration=True):
+    if run is None:
+        return None
+    excluded = ("instruments",) if configuration else ("instruments", "config")
+    result = {
+        field.name: dto(getattr(run, field.name))
+        for field in fields(run)
+        if field.name not in excluded
+    }
+    if configuration:
+        result["instrument_metadata"] = [
+            {
+                "instrument_id": str(item.instrument_id),
+                "metadata_version": item.metadata_version,
+            }
+            for item in run.instruments
+        ]
+    return result
+
+
+def _paper_presentation(snapshot, request):
+    result = {
+        field.name: dto(getattr(snapshot, field.name))
+        for field in fields(snapshot)
+        if field.name not in ("run", "orders", "fills")
+    }
+    result["run"] = _paper_run_presentation(snapshot.run)
+    result["orders"] = dto(snapshot.orders[-request.orders_limit :])
+    fills = []
+    for fill in snapshot.fills[-request.fills_limit :]:
+        item = {
+            field.name: dto(getattr(fill, field.name))
+            for field in fields(fill)
+            if field.name != "consumed_levels"
+        }
+        item["consumed_levels"] = dto(fill.consumed_levels[:20])
+        item["consumed_levels_omitted"] = max(0, len(fill.consumed_levels) - 20)
+        fills.append(item)
+    result["fills"] = fills
+    result["presentation"] = {
+        "orders_limit": request.orders_limit,
+        "orders_omitted": max(0, len(snapshot.orders) - request.orders_limit),
+        "fills_limit": request.fills_limit,
+        "fills_omitted": max(0, len(snapshot.fills) - request.fills_limit),
+        "fill_levels_limit": 20,
+    }
+    return result
+
+
+def _live_cohort(
+    instrument: Instrument, instruments: tuple[Instrument, ...]
+) -> tuple[Instrument, ...]:
+    """Fill the existing cohort bound fairly, not by catalog venue ordering."""
+    venues: dict[str, list[Instrument]] = {}
+    for item in instruments:
+        if (
+            item.base.asset_id == instrument.base.asset_id
+            and item.instrument_id != instrument.instrument_id
+            and item.status == "active"
+        ):
+            venues.setdefault(item.venue, []).append(item)
+    for peers in venues.values():
+        peers.sort(
+            key=lambda item: (
+                item.market_type != instrument.market_type,
+                item.quote.asset_id != instrument.quote.asset_id,
+                item.instrument_id,
+            )
+        )
+    ordered_venues = sorted(
+        venues, key=lambda venue: (venue == instrument.venue, venue)
+    )
+    cohort = [instrument]
+    for offset in range(15):
+        for venue in ordered_venues:
+            if offset < len(venues[venue]):
+                cohort.append(venues[venue][offset])
+                if len(cohort) == 16:
+                    return tuple(cohort)
+    return tuple(cohort)
+
+
 class RuntimeFailure(Exception):
     def __init__(self, status: int, detail: str):
         self.status, self.detail = status, detail
@@ -181,6 +343,12 @@ class ClientSession:
         self.reader: RecordingReader | ReplaySource | None = None
         self.engine: AnalyticsEngine | None = None
         self.visuals: VisualHistory | None = None
+        self.context: ContextEngine | None = None
+        self.alerts: AlertEngine | None = None
+        self.paper: PaperEngine | None = None
+        self.paper_store: PaperStore | None = None
+        self.journal: JournalStore | None = None
+        self.source_identity = ""
         self.streams: tuple[StreamSpec, ...] = ()
         self.live_books: tuple[Book, ...] = ()
         self.live_clock = ReplayClock()
@@ -193,6 +361,7 @@ class ClientSession:
         self.live_task: asyncio.Task[None] | None = None
         self.live_queue: asyncio.Queue[LiveDelivery] = asyncio.Queue(maxsize=256)
         self.live_bytes = 0
+        self.live_inflight = 0
         self.live_keys: frozenset[SubscriptionKey] = frozenset()
         self.live_stream_ids: frozenset[StreamId] = frozenset()
         self.live_stream_keys: dict[StreamId, SubscriptionKey] = {}
@@ -301,6 +470,27 @@ class ClientSession:
         if self.status in ("unavailable", "error"):
             raise RuntimeFailure(503, self.error or self.status)
 
+    def _initialize_consumers(self) -> None:
+        if self.engine is None or not self.source_identity:
+            raise RuntimeError("consumer source and analytics must be initialized")
+        self.context = ContextEngine(self.streams)
+        self.alerts = AlertEngine(self.streams, self.engine)
+        self.paper_store = PaperStore(self.runtime.state_dir / "paper.sqlite3")
+        self.journal = JournalStore(self.runtime.state_dir / "journal.sqlite3")
+        self.paper = PaperEngine(self.streams, self.paper_store, self.source_identity)
+
+    def _observers(
+        self,
+    ) -> tuple[VisualHistory, ContextEngine, AlertEngine, PaperEngine]:
+        if (
+            self.visuals is None
+            or self.context is None
+            or self.alerts is None
+            or self.paper is None
+        ):
+            raise RuntimeError("session consumers have not been initialized")
+        return self.visuals, self.context, self.alerts, self.paper
+
     def _initialize_replay(
         self,
         source: Path | ReplaySource,
@@ -331,7 +521,19 @@ class ClientSession:
         self.streams = streams
         self.engine = AnalyticsEngine(streams)
         self.visuals = VisualHistory(self.engine)
-        self.replay = ReplaySession(self.reader, observers=(self.visuals,))
+        if isinstance(self.reader, RecordingReader):
+            manifest_hash = sha256(
+                (self.reader.path / "manifest.json").read_bytes()
+            ).hexdigest()
+            self.source_identity = (
+                "recording:" + self.reader.manifest.session_id + ":" + manifest_hash
+            )
+        else:
+            self.source_identity = (
+                "demo:" + sha256(dumps(self.reader.descriptor)).hexdigest()
+            )
+        self._initialize_consumers()
+        self.replay = ReplaySession(self.reader, observers=self._observers())
         # Deliver the entire bootstrap and first scenario second, not a reduced
         # fixture. No data later than this cursor can enter analytics/history.
         first = None
@@ -349,6 +551,17 @@ class ClientSession:
                 first = self.replay.clock.virtual_mono_ns
         self.status = "paused"
 
+    def _retain_live_observation(self, keys: frozenset[SubscriptionKey]) -> None:
+        if self.paper is not None:
+            # Stop observing departed books at ownership cutover, not after the
+            # asynchronous collector replacement has waited for network cleanup.
+            # Retained subscriptions keep their existing causal book evidence.
+            self.paper.replace_streams(
+                tuple(spec for spec in self.streams if spec.key in keys),
+                books=(),
+                now=self._command_now(),
+            )
+
     def _initialize_live(
         self,
         streams: tuple[StreamSpec, ...],
@@ -362,15 +575,29 @@ class ClientSession:
         self.visuals = VisualHistory(self.engine, self.key)
         self.visuals.initialize_books(baseline)
         self.live_books = baseline
-        self.live_clock = ReplayClock()
-        self.live_clock.reading = ClockReading(
-            clock_id, time.monotonic_ns(), time.time_ns()
+        self.live_clock.observe_frontier(
+            ClockReading(clock_id, time.monotonic_ns(), time.time_ns())
         )
+        now = self.live_clock.reading
+        assert now is not None
+        if self.paper is None:
+            # Independent live sessions have different delivered histories even
+            # when they share a physical source. Never resume across either ID.
+            self.source_identity = (
+                "live:" + sha256(dumps((clock_id, self.id))).hexdigest()
+            )
+            self._initialize_consumers()
+            assert self.paper is not None
+            self.paper.initialize_books(baseline, now)
+        else:
+            assert self.alerts is not None
+            self.context = ContextEngine(streams)
+            self.alerts.replace_streams(streams, self.engine)
+            self.paper.replace_streams(streams, books=baseline, now=now)
         self.history.clear()
         self.history_sizes.clear()
         self.history_bytes = 0
-        self.history_floor = 1
-        self.delivery = 0
+        self.history_floor = self.delivery + 1
 
     def choose(self, instrument_id: str) -> None:
         books = [
@@ -667,10 +894,14 @@ class ClientSession:
         # Charge retained immutable books as well as events. Fixed native Decimal
         # bounds permit a conservative per-level object budget without building
         # giant book repr/JSON strings in the ingestion callback.
-        size = sum(len(repr(event)) for event in selected) + sum(
+        event_bytes = len(repr(selected))
+        size = event_bytes + sum(
             4096 + 512 * (len(book.bids) + len(book.asks)) for book in changed_books
         )
-        if self.live_queue.full() or self.live_bytes + size > 8 * 1024 * 1024:
+        if (
+            self.live_queue.qsize() + self.live_inflight >= self.live_queue.maxsize
+            or self.live_bytes + size > LIVE_QUEUE_BYTES
+        ):
             self.telemetry["overflows"] += 1
             self.status, self.error = (
                 "unavailable",
@@ -678,31 +909,38 @@ class ClientSession:
             )
             return
         self.live_bytes += size
-        self.live_queue.put_nowait((selected, changed_books, time.monotonic_ns(), size))
-        self.telemetry["queue_depth"] = self.live_queue.qsize()
+        self.live_queue.put_nowait(
+            (selected, changed_books, time.monotonic_ns(), size, event_bytes)
+        )
+        depth = self.live_queue.qsize() + self.live_inflight
+        self.telemetry["queue_depth"] = depth
         self.telemetry["queue_highwater"] = max(
-            self.telemetry["queue_highwater"], self.live_queue.qsize()
+            self.telemetry["queue_highwater"], depth
         )
 
     def _apply_live(
-        self, events: tuple[EventEnvelope, ...], books: tuple[Book, ...]
+        self,
+        events: tuple[EventEnvelope, ...],
+        books: tuple[Book, ...],
+        event_bytes: int,
     ) -> None:
         if self.engine is None:
             raise RuntimeError("live observer has not been initialized")
         self.delivery += 1
         batch = RecordedBatch(self.delivery, events)
         self.live_clock.advance(events[0])
-        current = {book.key: book for book in self.live_books}
-        supplied = frozenset(book.key for book in books)
-        for key in self.affected_keys(events):
-            if key.channel == "book" and key not in supplied:
-                current.pop(key, None)
-        current.update((book.key, book) for book in books)
-        self.live_books = tuple(current.values())
-        if self.visuals is None:
-            raise RuntimeError("live visualization observer has not been initialized")
-        self.visuals.on_batch(batch, self.live_books, self.live_clock)
-        size = len(repr(events))
+        affected = self.affected_keys(events)
+        if books or any(key.channel == "book" for key in affected):
+            current = {book.key: book for book in self.live_books}
+            supplied = frozenset(book.key for book in books)
+            for key in affected:
+                if key.channel == "book" and key not in supplied:
+                    current.pop(key, None)
+            current.update((book.key, book) for book in books)
+            self.live_books = tuple(current.values())
+        for observer in self._observers():
+            observer.on_batch(batch, self.live_books, self.live_clock)
+        size = event_bytes
         while self.history and (
             len(self.history) >= 4096 or self.history_bytes + size > 8 * 1024 * 1024
         ):
@@ -715,23 +953,62 @@ class ClientSession:
         else:
             self.history_floor = self.delivery + 1
 
+    def _take_live_batch(
+        self, first: LiveDelivery, limit: int = 32
+    ) -> list[LiveDelivery]:
+        batch = [first]
+        for _ in range(1, limit):
+            try:
+                batch.append(self.live_queue.get_nowait())
+            except asyncio.QueueEmpty:
+                break
+        self.live_inflight = len(batch)
+        self.telemetry["queue_depth"] = self.live_queue.qsize() + self.live_inflight
+        return batch
+
+    def _release_live_batch(self, batch: list[LiveDelivery]) -> None:
+        self.live_bytes -= sum(delivery[3] for delivery in batch)
+        self.live_inflight = 0
+        self.telemetry["queue_depth"] = self.live_queue.qsize()
+
+    def _apply_live_batch(
+        self, batch: list[LiveDelivery], bootstrap: bool = False
+    ) -> None:
+        for events, books, _queued, _size, event_bytes in batch:
+            if self.status in ("unavailable", "error"):
+                break
+            if bootstrap:
+                original_count = len(events)
+                events = tuple(
+                    event for event in events if event.stream_id in self.live_stream_ids
+                )
+                if len(events) != original_count:
+                    event_bytes = len(repr(events))
+                affected = self.affected_keys(events)
+                books = tuple(book for book in books if book.key in affected)
+            if events:
+                self._apply_live(events, books, event_bytes)
+
     async def consume_live(self) -> None:
         try:
             while True:
-                events, books, queued, size = await self.live_queue.get()
-                self.live_bytes -= size
-                self.telemetry["queue_depth"] = self.live_queue.qsize()
-                self.telemetry["queue_wait_ms"] = (
-                    time.monotonic_ns() - queued
-                ) / 1_000_000
-                if self.status != "live":
-                    continue
-                async with self.lock:
-                    start = time.monotonic_ns()
-                    await self.work(self._apply_live, events, books)
-                    self.telemetry["observer_duration_ms"] = (
-                        time.monotonic_ns() - start
-                    ) / 1_000_000
+                batch = self._take_live_batch(await self.live_queue.get())
+                try:
+                    async with self.lock:
+                        if self.status != "live":
+                            continue
+                        self.telemetry["queue_wait_ms"] = (
+                            time.monotonic_ns() - batch[0][2]
+                        ) / 1_000_000
+                        start = time.monotonic_ns()
+                        await self.work(self._apply_live_batch, batch)
+                        self.telemetry["observer_duration_ms"] = (
+                            time.monotonic_ns() - start
+                        ) / 1_000_000
+                finally:
+                    # Work joins cancellation before releasing admitted ownership.
+                    # A detached batch remains charged to both queue bounds.
+                    self._release_live_batch(batch)
         except asyncio.CancelledError:
             raise
         except Exception as exc:
@@ -977,6 +1254,375 @@ class ClientSession:
             "reasons": [],
         }
 
+    def _delivery_index(self) -> int:
+        return self.replay.cursor.delivery_index if self.replay else self.delivery
+
+    def _consumer_result(self, **payload):
+        return {
+            "version": "1",
+            "session_id": self.id,
+            "generation": str(self.generation),
+            "source_identity": self.source_identity,
+            "delivery_index": str(self._delivery_index()),
+            **payload,
+        }
+
+    def _now(self) -> ClockReading | None:
+        if self.replay is not None:
+            return self.replay.clock.reading
+        previous = self.live_clock.reading
+        if previous is not None:
+            self.live_clock.observe_frontier(
+                ClockReading(previous.clock_id, time.monotonic_ns(), time.time_ns())
+            )
+        return self.live_clock.reading
+
+    def _command_now(self) -> ClockReading:
+        now = self._now()
+        if now is None:
+            raise RuntimeFailure(
+                409, "deliver a source observation before authoring a command"
+            )
+        return now
+
+    def _book_spec(self, instrument_id: str | None = None) -> StreamSpec:
+        identifier = self.instrument_id if instrument_id is None else instrument_id
+        matches = [
+            spec
+            for spec in self.streams
+            if spec.key.channel == "book"
+            and str(spec.instrument.instrument_id) == identifier
+        ]
+        if len(matches) != 1:
+            raise RuntimeFailure(
+                422, "instrument has no unique currently observed book key"
+            )
+        return matches[0]
+
+    def _alerts_query(self, request):
+        from .alerts import ALERT_KINDS, alert_unit
+
+        assert self.alerts is not None
+        snapshot = self.alerts.snapshot()
+        events = [
+            {
+                **{
+                    field.name: dto(getattr(event, field.name))
+                    for field in fields(event)
+                    if field.name != "evaluation"
+                },
+                "evaluation": _alert_summary(event.evaluation),
+            }
+            for event in snapshot.events[-request.event_limit :]
+        ]
+        instrument = self._book_spec().instrument
+        return self._consumer_result(
+            snapshot={
+                "rules": dto(snapshot.rules),
+                "evaluations": [_alert_summary(item) for item in snapshot.evaluations],
+                "events": events,
+                "delivery_index": str(snapshot.delivery_index),
+                "now": dto(snapshot.now),
+                "dropped_events": str(snapshot.dropped_events),
+                "reasons": dto(snapshot.reasons),
+            },
+            kinds=[
+                {"kind": kind, "unit": alert_unit(instrument, kind)}
+                for kind in ALERT_KINDS
+            ],
+            evaluation_scope="last_delivered_batch",
+            presentation={
+                "event_limit": request.event_limit,
+                "events_omitted": max(0, len(snapshot.events) - request.event_limit),
+            },
+        )
+
+    def _alert_put(self, request):
+        from .alerts import AlertRule, alert_unit
+        from .costs import StressAssumptions
+
+        assert self.alerts is not None
+        spec = self._book_spec(request.instrument_id)
+        sell = (
+            None
+            if request.sell_instrument_id is None
+            else self._book_spec(request.sell_instrument_id)
+        )
+        rule = AlertRule(
+            rule_id=request.rule_id or uuid4().hex,
+            key=spec.key,
+            kind=request.kind,
+            direction=request.direction,
+            threshold=decimal(request.threshold),
+            rearm_threshold=decimal(request.rearm_threshold),
+            unit=alert_unit(spec.instrument, request.kind),
+            window_ns=int(request.window_ns),
+            cooldown_ns=int(request.cooldown_ns),
+            depth_side=request.depth_side,
+            depth_bps=decimal(request.depth_bps, positive=True),
+            sell_key=None if sell is None else sell.key,
+            base_quantity=None
+            if request.base_quantity is None
+            else decimal(request.base_quantity, positive=True),
+            buy_fees=_input_fees(request.buy_fees),
+            sell_fees=_input_fees(request.sell_fees),
+            stress=StressAssumptions(
+                latency_bps=decimal(request.latency_bps),
+                rebalance_cost=decimal(request.rebalance_quote),
+            ),
+        )
+        self.alerts.put_rule(rule, delivery_index=self._delivery_index())
+        return self._alerts_query(request)
+
+    def _alert_remove(self, request):
+        assert self.alerts is not None
+        self.alerts.remove_rule(request.rule_id, delivery_index=self._delivery_index())
+        return self._alerts_query(request)
+
+    def _alert_evidence(self, request):
+        assert self.alerts is not None
+        snapshot = self.alerts.snapshot()
+        if request.event_id is not None:
+            evaluation = next(
+                (
+                    item.evaluation
+                    for item in snapshot.events
+                    if str(item.event_id) == request.event_id
+                ),
+                None,
+            )
+        else:
+            evaluation = next(
+                (
+                    item
+                    for item in snapshot.evaluations
+                    if item.rule.rule_id == request.rule_id
+                ),
+                None,
+            )
+        if evaluation is None:
+            raise RuntimeFailure(
+                404, "alert evidence is absent from this retained prefix"
+            )
+        return self._consumer_result(evaluation=dto(evaluation))
+
+    def _context_query(self, request):
+        assert self.context is not None
+        snapshot = self.context.snapshot(
+            str(self._book_spec().instrument.instrument_id),
+            books=self.replay.books() if self.replay else self.live_books,
+            now=self._now(),
+            fx_rates=_input_fx(request.fx_rates),
+        )
+        return self._consumer_result(snapshot=dto(snapshot))
+
+    def _paper_query(self, request):
+        assert self.paper is not None
+        now = self._now()
+        if self.mode == "live" and now is not None:
+            self.paper.advance_time(now)
+        return self._consumer_result(
+            snapshot=_paper_presentation(self.paper.snapshot(now), request)
+        )
+
+    def _paper_configure(self, request):
+        from .costs import InventoryBalance
+        from .paper import PaperConfig, PaperFee
+
+        assert self.paper is not None
+        config = PaperConfig(
+            balances=tuple(
+                InventoryBalance(
+                    item.venue,
+                    item.asset_id,
+                    decimal(item.available),
+                    item.provenance,
+                    _input_clock(item.asof),
+                )
+                for item in request.balances
+            ),
+            fees=tuple(
+                PaperFee(item.instrument_id, _input_fees(item)) for item in request.fees
+            ),
+            feed_latency_ns=int(request.feed_latency_ns),
+            decision_latency_ns=int(request.decision_latency_ns),
+            order_latency_ns=int(request.order_latency_ns),
+        )
+        self.paper.configure(
+            config, now=self._command_now(), delivery_index=self._delivery_index()
+        )
+        return self._paper_query(request)
+
+    def _paper_order(self, request):
+        from .paper import PaperOrderRequest
+
+        assert self.paper is not None
+        spec = self._book_spec(request.instrument_id)
+        self.paper.submit(
+            PaperOrderRequest(
+                spec.instrument.instrument_id,
+                request.side,
+                decimal(request.quantity, positive=True),
+                request.order_type,
+                None
+                if request.limit_price is None
+                else decimal(request.limit_price, positive=True),
+            ),
+            now=self._command_now(),
+            delivery_index=self._delivery_index(),
+        )
+        return self._paper_query(request)
+
+    def _paper_cancel(self, request):
+        assert self.paper is not None
+        self.paper.cancel(
+            request.order_id,
+            now=self._command_now(),
+            delivery_index=self._delivery_index(),
+        )
+        return self._paper_query(request)
+
+    def _paper_runs(self, request):
+        assert self.paper_store is not None
+        return self._consumer_result(
+            runs=[
+                _paper_run_presentation(run, configuration=False)
+                for run in self.paper_store.list_runs(limit=request.limit)
+            ]
+        )
+
+    def _paper_archive(self, request):
+        assert self.paper_store is not None
+        snapshot = self.paper_store.archived_snapshot(request.run_id)
+        if snapshot is None:
+            raise RuntimeFailure(404, "no archived accounting transition for this run")
+        return self._consumer_result(
+            archived=True,
+            archive_scope="historical_accounting_not_current_replay_state",
+            snapshot=_paper_presentation(snapshot, request),
+        )
+
+    def _paper_candidate(self, request) -> PaperEngine:
+        if self.replay is None:
+            raise RuntimeFailure(
+                422, "live histories cannot be resumed across session/source ownership"
+            )
+        assert self.paper_store is not None
+        candidate = PaperEngine(
+            self.streams,
+            self.paper_store,
+            self.source_identity,
+            run_id=request.run_id,
+            archive_enabled=False,
+        )
+        # Rebuild only the candidate against an independent projection. Failure
+        # must not reset the active ledger, analytics, alerts, history or cursor.
+        staged = ReplaySession(
+            self.replay.reader,
+            mode=self.replay.mode,
+            observers=(candidate,),
+            checkpoint_policy=self.replay.checkpoint_policy,
+        )
+        try:
+            staged.seek_delivery(self.replay.cursor.delivery_index)
+        finally:
+            staged.close()
+        return candidate
+
+    def _resume_paper(self, candidate: PaperEngine) -> None:
+        assert self.replay is not None
+        # A failed durable write leaves the previous projection untouched.
+        candidate.publish_archive()
+        self.paper = candidate
+        self.replay.observers = self._observers()
+        self.generation += 1
+        self.status, self.error = "paused", None
+        self.pending_acks.clear()
+        self.pending_views.clear()
+        self.completed_view = None
+        self.last_presentation = None
+
+    def _journal_query(self, request):
+        assert self.journal is not None
+        return self._consumer_result(
+            entries=dto(
+                self.journal.list(
+                    source_id=None if request.all_sources else self.source_identity,
+                    run_id=request.run_id,
+                    limit=request.limit,
+                )
+            ),
+            scope="all_manually_authored_sources"
+            if request.all_sources
+            else "current_source",
+            limit=request.limit,
+        )
+
+    def _journal_put(self, request):
+        from .journal import JournalEntry
+
+        assert self.journal is not None
+        entry = None if request.entry is None else decimal(request.entry, positive=True)
+        stop = None if request.stop is None else decimal(request.stop, positive=True)
+        if request.entry_id is not None:
+            previous = self.journal.get(request.entry_id)
+            if previous is None:
+                raise RuntimeFailure(404, "journal entry not found")
+            if (request.run_id, request.order_id) != (
+                previous.run_id,
+                previous.order_id,
+            ):
+                raise RuntimeFailure(422, "journal provenance cannot be reassigned")
+            authored = replace(
+                previous,
+                rationale=request.rationale,
+                entry=entry,
+                stop=stop,
+                context=request.context,
+            )
+        else:
+            spec, now = self._book_spec(), self._command_now()
+            if request.run_id is not None or request.order_id is not None:
+                assert self.paper is not None
+                snapshot = self.paper.snapshot(now)
+                if snapshot.run is None or snapshot.run.run_id != request.run_id:
+                    raise RuntimeFailure(
+                        422, "journal run must be active at this source prefix"
+                    )
+                if request.order_id is not None:
+                    order = next(
+                        (
+                            item
+                            for item in snapshot.orders
+                            if item.order_id == request.order_id
+                        ),
+                        None,
+                    )
+                    if (
+                        order is None
+                        or order.request.instrument_id != spec.instrument.instrument_id
+                    ):
+                        raise RuntimeFailure(
+                            422,
+                            "journal order must match this instrument and visible prefix",
+                        )
+            authored = JournalEntry(
+                uuid4().hex,
+                self.source_identity,
+                self.id,
+                self._delivery_index(),
+                now,
+                spec.instrument.instrument_id,
+                spec.instrument.venue,
+                request.rationale,
+                entry,
+                stop,
+                request.context,
+                request.run_id,
+                request.order_id,
+            )
+        return self._consumer_result(entry=dto(self.journal.put(authored)))
+
     def _close_worker(self) -> None:
         if self.replay:
             self.replay.close()
@@ -986,6 +1632,15 @@ class ClientSession:
         if self.visuals is not None:
             self.visuals.reset()
             self.visuals = None
+        if self.paper_store is not None:
+            self.paper_store.close()
+            self.paper_store = None
+        if self.journal is not None:
+            self.journal.close()
+            self.journal = None
+        self.context = None
+        self.alerts = None
+        self.paper = None
 
     async def close(self) -> None:
         if self.closed:
@@ -1015,6 +1670,7 @@ class TerminalRuntime:
         enable_live: bool = False,
         max_sessions: int = 8,
         orphan_seconds: float = 60,
+        state_dir: str | Path | None = None,
     ) -> None:
         if (
             max(
@@ -1028,6 +1684,13 @@ class TerminalRuntime:
             raise ValueError("orphan timeout must be 1..3600 seconds")
         if not 1 <= max_sessions <= 32:
             raise ValueError("session limit must be 1..32")
+        self._temporary_state: TemporaryDirectory[str] | None = None
+        if state_dir is None:
+            self._temporary_state = TemporaryDirectory(prefix="orderbook-state-")
+            self.state_dir = Path(self._temporary_state.name)
+        else:
+            self.state_dir = Path(state_dir).expanduser().resolve()
+        self.state_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
         self.registry = registry
         self.owns_registry = registry is None
         self.enable_live = enable_live or registry is not None
@@ -1055,6 +1718,49 @@ class TerminalRuntime:
         self.source_instruments: dict[str, tuple[Instrument, ...]] = {}
         self.closed = False
 
+    def _research_query(self, request):
+        from .research import ResearchStore
+
+        store = ResearchStore(self.state_dir / "research.sqlite3")
+        try:
+            result = {
+                "version": "1",
+                "attempts": dto(store.list_attempts(request.limit)),
+                "attempt": None,
+                "report": None,
+                "config": None,
+                "source": None,
+            }
+            if request.attempt_id is not None:
+                attempt = store.get_attempt(request.attempt_id)
+                if attempt is None:
+                    raise RuntimeFailure(404, "research attempt not found")
+                result["attempt"] = dto(attempt)
+                result["config"] = dto(store.get_config(request.attempt_id))
+                result["source"] = dto(store.get_source(request.attempt_id))
+                report = store.get_report(request.attempt_id)
+                if report is not None:
+                    presented = {
+                        field.name: dto(getattr(report, field.name))
+                        for field in fields(report)
+                        if field.name != "trials"
+                    }
+                    presented["trials"] = dto(
+                        report.trials[
+                            request.trial_offset : request.trial_offset
+                            + request.trial_limit
+                        ]
+                    )
+                    presented["presentation"] = {
+                        "trial_offset": request.trial_offset,
+                        "trial_limit": request.trial_limit,
+                        "trial_total": len(report.trials),
+                    }
+                    result["report"] = presented
+            return result
+        finally:
+            store.close()
+
     async def _catalog_work(
         self, fn: Callable[P, R], *args: P.args, **kwargs: P.kwargs
     ) -> R:
@@ -1079,7 +1785,7 @@ class TerminalRuntime:
         self.sources[self.demo_id] = {
             "id": self.demo_id,
             "mode": "demo",
-            "label": "Synthetic 180s / 24 streams (memory, not recording)",
+            "label": f"Synthetic 180s / {len(metadata.streams)} streams (memory, not recording)",
             "status": "loading",
             "synthetic": True,
             "recording": False,
@@ -1139,7 +1845,7 @@ class TerminalRuntime:
                         "status": "ready",
                         "streams": len(manifest.streams),
                         "synthetic": (
-                            dict(manifest.config).get("fixture_version") == "2"
+                            dict(manifest.config).get("fixture_version") in ("2", "3")
                             and "fixture_sha256" in dict(manifest.config)
                         ),
                     }
@@ -1278,18 +1984,31 @@ class TerminalRuntime:
         instrument = self.registry.catalog.instruments.get(instrument_id)
         # Subscribe the selected base cohort, not all products. Same base is not
         # claimed comparable: the cost engine still excludes quote/market mismatch.
-        cohort = [instrument] + [
+        cohort = _live_cohort(instrument, self.registry.catalog.instruments.list())
+        references = [
             item
             for item in self.registry.catalog.instruments.list()
-            if item.base.asset_id == instrument.base.asset_id
-            and item.instrument_id != instrument.instrument_id
-        ][:15]
+            if item.venue == "hyperliquid"
+            and item.market_type == "perpetual"
+            and item.dex_namespace == "default"
+            and item.status == "active"
+            and (
+                item.base.ticker in ("BTC", "ETH", "SOL", "HYPE")
+                or item.base.asset_id == instrument.base.asset_id
+            )
+        ][:8]
         keys = frozenset(
             self.registry.catalog.canonical_key(
                 SubscriptionKey.for_instrument(item, channel=channel)
             )
             for item in cohort
             for channel in ("book", "trades")
+        ) | frozenset(
+            self.registry.catalog.canonical_key(
+                SubscriptionKey.for_instrument(item, channel=channel)
+            )
+            for item in references
+            for channel in ("reference", "context")
         )
         session.live_keys = keys
         session.live_stream_keys = {}
@@ -1322,6 +2041,7 @@ class TerminalRuntime:
             (stream_id, key) for key, stream_id in baseline_owners.items()
         )
         try:
+            await session.work(session._retain_live_observation, keys)
             leases = await self.registry.replace(
                 ClientId(session.id), keys, session.generation
             )
@@ -1348,23 +2068,19 @@ class TerminalRuntime:
             session.unsubscribe()
             session.live_stream_keys = {spec.stream_id: spec.key for spec in streams}
             session.unsubscribe = self.registry.subscribe_processed(session.offer)
-            initial_count = session.live_queue.qsize()
-            for _ in range(initial_count):
-                events, books, queued, size = session.live_queue.get_nowait()
-                session.live_bytes -= size
-                events = tuple(
-                    event
-                    for event in events
-                    if event.stream_id in session.live_stream_ids
+            remaining = session.live_queue.qsize()
+            while remaining:
+                batch = session._take_live_batch(
+                    session.live_queue.get_nowait(), min(32, remaining)
                 )
-                books = tuple(
-                    book for book in books if book.key in session.affected_keys(events)
-                )
-                if events:
+                remaining -= len(batch)
+                try:
                     session.telemetry["queue_wait_ms"] = (
-                        time.monotonic_ns() - queued
+                        time.monotonic_ns() - batch[0][2]
                     ) / 1_000_000
-                    await session.work(session._apply_live, events, books)
+                    await session.work(session._apply_live_batch, batch, True)
+                finally:
+                    session._release_live_batch(batch)
             if session.status == "unavailable":
                 raise RuntimeFailure(503, session.error or "live bootstrap unavailable")
             session.telemetry["queue_depth"] = session.live_queue.qsize()
@@ -1411,6 +2127,7 @@ class TerminalRuntime:
             if session.mode == "live":
                 session.live_queue = asyncio.Queue(maxsize=256)
                 session.live_bytes = 0
+                session.live_inflight = 0
                 session.status = "loading"
                 try:
                     await self._select_live(session, instrument_id)
@@ -1480,3 +2197,5 @@ class TerminalRuntime:
         if self.registry is not None and self.owns_registry:
             await self.registry.close()
         self.catalog_executor.shutdown(wait=True, cancel_futures=True)
+        if self._temporary_state is not None:
+            self._temporary_state.cleanup()
