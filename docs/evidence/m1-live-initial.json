@@ -1,0 +1,4401 @@
+{
+  "schema_version": 1,
+  "kind": "real_public_adapter_supervisor_probe",
+  "status": "completed",
+  "started_wall_ns": 1793501671197755000,
+  "runtime": "3.13.5 (main, Jul 23 2025, 00:30:58) [Clang 20.1.4 ]",
+  "platform": "macOS-13.7.8-x86_64-i386-64bit-Mach-O",
+  "configuration": {
+    "venues": [
+      "coinbase",
+      "kraken",
+      "binance-global",
+      "binance-us",
+      "bybit",
+      "kucoin",
+      "hyperliquid"
+    ],
+    "bases": [
+      "BTC",
+      "ETH",
+      "SOL"
+    ],
+    "duration_seconds": 30.0,
+    "operation_timeout_seconds": 20.0,
+    "metrics_interval_seconds": 10,
+    "binance_host_profile": "data-only",
+    "include_hype": false
+  },
+  "venues": {
+    "coinbase": {
+      "status": "passed",
+      "source": "https://api.coinbase.com/api/v3/brokerage/market/products",
+      "payload_sha256": "86ff89e14c1b17d0e0184201fc413e8b505ea2793a3523dade668fc527eccc0c",
+      "instrument_count": 929,
+      "elapsed_seconds": 0.670777328996337
+    },
+    "kraken": {
+      "status": "passed",
+      "source": "https://api.kraken.com/0/public/AssetPairs",
+      "payload_sha256": "a083c2e510e8b1a341526c3257f7aa7671473631640f9990d981d43abcf9103e",
+      "instrument_count": 1464,
+      "elapsed_seconds": 0.3573323029995663
+    },
+    "binance-global": {
+      "status": "passed",
+      "source": "https://data-api.binance.vision/api/v3/exchangeInfo",
+      "payload_sha256": "5242692afc73014e15604f2f56e445ec3c8ebc3c6ac29857a8e897b90a471c19",
+      "instrument_count": 3702,
+      "elapsed_seconds": 2.563541448995238
+    },
+    "binance-us": {
+      "status": "passed",
+      "source": "https://api.binance.us/api/v3/exchangeInfo",
+      "payload_sha256": "17ac7a00ddbf24ccf000830f27011d5afb624dc05856932da5438bddc2b64ad8",
+      "instrument_count": 629,
+      "elapsed_seconds": 0.8653171399928397
+    },
+    "bybit": {
+      "status": "failed",
+      "error_type": "PublicTransportError",
+      "detail": "blocked",
+      "access": "blocked",
+      "elapsed_seconds": 0.0852798180130776
+    },
+    "kucoin": {
+      "status": "passed",
+      "source": "https://api.kucoin.com/api/v2/symbols",
+      "payload_sha256": "6b062391842eccec8ad1655d89529f1aafffb3b380ab3c0a61e64ecb94b78bbe",
+      "instrument_count": 972,
+      "elapsed_seconds": 0.3709304939984577
+    },
+    "hyperliquid": {
+      "status": "passed",
+      "source": "https://api.hyperliquid.xyz/info",
+      "payload_sha256": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7",
+      "instrument_count": 583,
+      "elapsed_seconds": 1.7009222219930962
+    }
+  },
+  "products": [
+    {
+      "venue": "coinbase",
+      "requested_base": "BTC",
+      "instrument": {
+        "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+        "metadata_version": "86ff89e14c1b17d0e0184201fc413e8b505ea2793a3523dade668fc527eccc0c:1793501672034933000",
+        "venue": "coinbase",
+        "api_family": "advanced-trade",
+        "native_symbol": "BTC-USD",
+        "base": {
+          "asset_id": "BTC",
+          "ticker": "BTC",
+          "native_token_id": "BTC",
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "quote": {
+          "asset_id": "USD",
+          "ticker": "USD",
+          "native_token_id": "USD",
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "tick_size": "0.01",
+        "lot_size": "1E-8",
+        "native_asset_id": "BTC-USD",
+        "dex_namespace": null,
+        "settlement": null,
+        "market_type": "spot",
+        "expiry_wall_ns": null,
+        "constraints": {
+          "min_base": "1E-8",
+          "max_base": "3400",
+          "min_notional": "1",
+          "max_notional": "150000000",
+          "min_notional_currency": "USD",
+          "price_rule": "fixed_tick",
+          "size_rule": "fixed_lot"
+        },
+        "contract_multiplier": "1",
+        "quantity_unit": "base",
+        "contract_value_currency": null,
+        "inverse": false,
+        "status": "active",
+        "data_access": "unknown",
+        "execution_access": "unknown",
+        "metadata_asof_wall_ns": 1793501672034933000,
+        "metadata_source": "https://api.coinbase.com/api/v3/brokerage/market/products"
+      },
+      "metadata": {
+        "status": "passed",
+        "detail": "exact product discovered"
+      },
+      "snapshot": {
+        "status": "failed",
+        "endpoint": "https://api.coinbase.com/api/v3/brokerage/market/product_book?product_id=BTC-USD&limit=1000",
+        "raw_bytes": 79499,
+        "raw_sha256": "606e806b65040bd1260126d30301cd31de7b767bbe44b4c39656018f5ee4aa0b",
+        "decoded_expected_events": 1,
+        "decoded_controls": 0,
+        "integrity": "unknown",
+        "recovery": {
+          "reason": "sequence_gap",
+          "action": "request_snapshot"
+        },
+        "elapsed_seconds": 0.44850948500970844
+      },
+      "rest_trades": {
+        "status": "unsupported",
+        "detail": "adapter exposes no REST request for this channel"
+      },
+      "ws_book": {
+        "status": "passed",
+        "endpoint": "wss://advanced-trade-ws.coinbase.com",
+        "observed_count": 27,
+        "criterion": "valid non-REST book publication"
+      },
+      "ws_trades": {
+        "status": "failed",
+        "endpoint": "wss://advanced-trade-ws.coinbase.com",
+        "observed_count": 0,
+        "criterion": "non-history non-REST trade event",
+        "detail": "no qualifying observation in this run; not proof of universal unavailability"
+      },
+      "streams": {
+        "book": {
+          "elapsed_seconds": 46.00357094500214,
+          "counts": {
+            "normalized_events": 42,
+            "Control": 15,
+            "raw_frames": 584,
+            "raw_bytes": 31576973,
+            "raw_ws_frames": 584,
+            "BookUpdate": 20,
+            "book_snapshot_events": 7,
+            "book_level_changes": 283019,
+            "book_publications": 41,
+            "book_integrity_valid": 27,
+            "ws_valid_book_publications": 27,
+            "book_delta_events": 13,
+            "book_integrity_invalid": 14,
+            "Gap": 7,
+            "recoveries_to_valid_book": 6,
+            "sampled_lifecycle_transitions": 2
+          },
+          "raw_frames_per_second": 12.694666696595782,
+          "diagnostics": {
+            "decode:invalid_coinbase_message": 7
+          },
+          "endpoints": {
+            "wss://advanced-trade-ws.coinbase.com": 584
+          },
+          "last_raw_sha256": "172700274f6297518916400b027bcb90f7aef96f06d7ee7f028c99bc26eca397",
+          "last_book": {
+            "revision": 3,
+            "connection_epoch": 7,
+            "segment_id": "eaa7aae8-e592-4498-bd16-95a405dfaf78",
+            "bid_levels": 18749,
+            "ask_levels": 21672,
+            "quality": {
+              "lifecycle": "resynchronizing",
+              "integrity": "invalid",
+              "transport_alive": true,
+              "source_mode": "ws_delta",
+              "recorded_source_mode": null,
+              "last_transport_mono_ns": 79765110417896,
+              "last_book_observation_mono_ns": 79765110360736,
+              "last_book_change_mono_ns": 79765110360736,
+              "last_healthy_observation_mono_ns": 79765110360736,
+              "clock_id": "af70b8d4-1d5e-44dd-9937-daa3e357920d",
+              "coverage": {
+                "subscribed_depth": null,
+                "retained_bid_levels": 18749,
+                "retained_ask_levels": 21672,
+                "worst_bid": "0.01",
+                "worst_ask": "138991023.41",
+                "full_depth": true,
+                "source_aggregation": [],
+                "expected_cadence_ns": null
+              },
+              "capabilities": {
+                "snapshot": true,
+                "deltas": true,
+                "trades": false,
+                "sequence_scope": "connection",
+                "checksum_scope": null,
+                "exact_event_flow": true,
+                "reference_prices": [],
+                "asset_context": []
+              },
+              "continuous_since_ordinal": null,
+              "reason_codes": [
+                "decode:invalid_coinbase_message"
+              ],
+              "capture_complete": true
+            }
+          },
+          "time_to_first_valid_book_seconds": 5.4267475079977885,
+          "lifecycle": "waiting_snapshot",
+          "reason": "decode:invalid_coinbase_message",
+          "epoch": 8,
+          "source_mode": "ws_delta",
+          "reconnects": 7,
+          "duplicate_trades": 0,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 0,
+          "queue_bytes": 0,
+          "queue_count_high_water_sampled": 28,
+          "queue_bytes_high_water_sampled": 11632,
+          "lifecycle_samples": {
+            "resynchronizing": 1,
+            "waiting_snapshot": 5
+          },
+          "task_done": false,
+          "task_error": null
+        },
+        "trades": {
+          "elapsed_seconds": 46.00331761500274,
+          "counts": {
+            "normalized_events": 1134,
+            "Control": 877,
+            "raw_frames": 105,
+            "raw_bytes": 175601,
+            "raw_ws_frames": 105,
+            "Trade": 246,
+            "ws_history_trades": 246,
+            "Gap": 11,
+            "sampled_lifecycle_transitions": 3
+          },
+          "raw_frames_per_second": 2.282444081071168,
+          "diagnostics": {
+            "decode:invalid_coinbase_message": 11
+          },
+          "endpoints": {
+            "wss://advanced-trade-ws.coinbase.com": 105
+          },
+          "last_raw_sha256": "64d7b82e9f3362397bde5c01d02ed4c8b6a239bb1710963459cba45ab9cc55e2",
+          "last_book": null,
+          "time_to_first_valid_book_seconds": null,
+          "lifecycle": "waiting_snapshot",
+          "reason": "decode:invalid_coinbase_message",
+          "epoch": 12,
+          "source_mode": "ws_snapshot",
+          "reconnects": 11,
+          "duplicate_trades": 854,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 0,
+          "queue_bytes": 0,
+          "queue_count_high_water_sampled": 17,
+          "queue_bytes_high_water_sampled": 4294,
+          "lifecycle_samples": {
+            "waiting_snapshot": 5,
+            "resynchronizing": 1
+          },
+          "task_done": false,
+          "task_error": null
+        }
+      },
+      "execution_eligibility": "unknown_not_tested",
+      "full_dependencies_passed": false,
+      "selection": {
+        "quote": "USD",
+        "market_type": "spot",
+        "candidate_ids": [
+          "coinbase:advanced-trade:spot:BTC-USD"
+        ]
+      },
+      "metadata_execution_access": "unknown",
+      "currently_live_ws_dependencies": false
+    },
+    {
+      "venue": "coinbase",
+      "requested_base": "ETH",
+      "instrument": {
+        "instrument_id": "coinbase:advanced-trade:spot:ETH-USD",
+        "metadata_version": "86ff89e14c1b17d0e0184201fc413e8b505ea2793a3523dade668fc527eccc0c:1793501672034933000",
+        "venue": "coinbase",
+        "api_family": "advanced-trade",
+        "native_symbol": "ETH-USD",
+        "base": {
+          "asset_id": "ETH",
+          "ticker": "ETH",
+          "native_token_id": "ETH",
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "quote": {
+          "asset_id": "USD",
+          "ticker": "USD",
+          "native_token_id": "USD",
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "tick_size": "0.01",
+        "lot_size": "1E-8",
+        "native_asset_id": "ETH-USD",
+        "dex_namespace": null,
+        "settlement": null,
+        "market_type": "spot",
+        "expiry_wall_ns": null,
+        "constraints": {
+          "min_base": "1E-8",
+          "max_base": "42000",
+          "min_notional": "1",
+          "max_notional": "150000000",
+          "min_notional_currency": "USD",
+          "price_rule": "fixed_tick",
+          "size_rule": "fixed_lot"
+        },
+        "contract_multiplier": "1",
+        "quantity_unit": "base",
+        "contract_value_currency": null,
+        "inverse": false,
+        "status": "active",
+        "data_access": "unknown",
+        "execution_access": "unknown",
+        "metadata_asof_wall_ns": 1793501672034933000,
+        "metadata_source": "https://api.coinbase.com/api/v3/brokerage/market/products"
+      },
+      "metadata": {
+        "status": "passed",
+        "detail": "exact product discovered"
+      },
+      "snapshot": {
+        "status": "failed",
+        "endpoint": "https://api.coinbase.com/api/v3/brokerage/market/product_book?product_id=ETH-USD&limit=1000",
+        "raw_bytes": 77600,
+        "raw_sha256": "8f7f733d96b38c77670f98b1fe788ab35364b5f7e2facf74493470efee14a42c",
+        "decoded_expected_events": 1,
+        "decoded_controls": 0,
+        "integrity": "unknown",
+        "recovery": {
+          "reason": "sequence_gap",
+          "action": "request_snapshot"
+        },
+        "elapsed_seconds": 0.6197732840082608
+      },
+      "rest_trades": {
+        "status": "unsupported",
+        "detail": "adapter exposes no REST request for this channel"
+      },
+      "ws_book": {
+        "status": "passed",
+        "endpoint": "wss://advanced-trade-ws.coinbase.com",
+        "observed_count": 27,
+        "criterion": "valid non-REST book publication"
+      },
+      "ws_trades": {
+        "status": "failed",
+        "endpoint": "wss://advanced-trade-ws.coinbase.com",
+        "observed_count": 0,
+        "criterion": "non-history non-REST trade event",
+        "detail": "no qualifying observation in this run; not proof of universal unavailability"
+      },
+      "streams": {
+        "book": {
+          "elapsed_seconds": 45.80254518199945,
+          "counts": {
+            "normalized_events": 44,
+            "Control": 17,
+            "raw_frames": 294,
+            "raw_bytes": 19085866,
+            "raw_ws_frames": 294,
+            "BookUpdate": 19,
+            "book_snapshot_events": 8,
+            "book_level_changes": 154223,
+            "book_publications": 43,
+            "book_integrity_valid": 27,
+            "ws_valid_book_publications": 27,
+            "book_delta_events": 11,
+            "book_integrity_invalid": 16,
+            "Gap": 8,
+            "recoveries_to_valid_book": 7,
+            "sampled_lifecycle_transitions": 3
+          },
+          "raw_frames_per_second": 6.418857267249484,
+          "diagnostics": {
+            "decode:invalid_coinbase_message": 8
+          },
+          "endpoints": {
+            "wss://advanced-trade-ws.coinbase.com": 294
+          },
+          "last_raw_sha256": "22bad1c5dec577f85fe507910256bcd56580707e40edf946e0ec0defc0b7148a",
+          "last_book": {
+            "revision": 3,
+            "connection_epoch": 8,
+            "segment_id": "1687a78e-3764-4486-a90f-4908e1137b22",
+            "bid_levels": 5749,
+            "ask_levels": 13518,
+            "quality": {
+              "lifecycle": "resynchronizing",
+              "integrity": "invalid",
+              "transport_alive": true,
+              "source_mode": "ws_delta",
+              "recorded_source_mode": null,
+              "last_transport_mono_ns": 79765082860426,
+              "last_book_observation_mono_ns": 79765082829855,
+              "last_book_change_mono_ns": 79765082829855,
+              "last_healthy_observation_mono_ns": 79765082829855,
+              "clock_id": "af70b8d4-1d5e-44dd-9937-daa3e357920d",
+              "coverage": {
+                "subscribed_depth": null,
+                "retained_bid_levels": 5749,
+                "retained_ask_levels": 13518,
+                "worst_bid": "0.01",
+                "worst_ask": "100000000",
+                "full_depth": true,
+                "source_aggregation": [],
+                "expected_cadence_ns": null
+              },
+              "capabilities": {
+                "snapshot": true,
+                "deltas": true,
+                "trades": false,
+                "sequence_scope": "connection",
+                "checksum_scope": null,
+                "exact_event_flow": true,
+                "reference_prices": [],
+                "asset_context": []
+              },
+              "continuous_since_ordinal": null,
+              "reason_codes": [
+                "decode:invalid_coinbase_message"
+              ],
+              "capture_complete": true
+            }
+          },
+          "time_to_first_valid_book_seconds": 5.202028953994159,
+          "lifecycle": "waiting_snapshot",
+          "reason": "decode:invalid_coinbase_message",
+          "epoch": 9,
+          "source_mode": "ws_delta",
+          "reconnects": 8,
+          "duplicate_trades": 0,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 9,
+          "queue_bytes": 2516,
+          "queue_count_high_water_sampled": 16,
+          "queue_bytes_high_water_sampled": 5689,
+          "lifecycle_samples": {
+            "waiting_snapshot": 5,
+            "resynchronizing": 1
+          },
+          "task_done": false,
+          "task_error": null
+        },
+        "trades": {
+          "elapsed_seconds": 45.80225741499453,
+          "counts": {
+            "normalized_events": 1134,
+            "Control": 1011,
+            "raw_frames": 57,
+            "raw_bytes": 173653,
+            "raw_ws_frames": 57,
+            "Trade": 112,
+            "ws_history_trades": 112,
+            "Gap": 11,
+            "sampled_lifecycle_transitions": 3
+          },
+          "raw_frames_per_second": 1.2444801461104318,
+          "diagnostics": {
+            "decode:invalid_coinbase_message": 11
+          },
+          "endpoints": {
+            "wss://advanced-trade-ws.coinbase.com": 57
+          },
+          "last_raw_sha256": "a08ec6d190d19613c2ddb0f459d306222e5bdeac5e1e7f605d7494ba263d7560",
+          "last_book": null,
+          "time_to_first_valid_book_seconds": null,
+          "lifecycle": "waiting_snapshot",
+          "reason": "decode:invalid_coinbase_message",
+          "epoch": 12,
+          "source_mode": "ws_snapshot",
+          "reconnects": 11,
+          "duplicate_trades": 988,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 3,
+          "queue_bytes": 14056,
+          "queue_count_high_water_sampled": 7,
+          "queue_bytes_high_water_sampled": 14056,
+          "lifecycle_samples": {
+            "waiting_snapshot": 5,
+            "resynchronizing": 1
+          },
+          "task_done": false,
+          "task_error": null
+        }
+      },
+      "execution_eligibility": "unknown_not_tested",
+      "full_dependencies_passed": false,
+      "selection": {
+        "quote": "USD",
+        "market_type": "spot",
+        "candidate_ids": [
+          "coinbase:advanced-trade:spot:ETH-USD"
+        ]
+      },
+      "metadata_execution_access": "unknown",
+      "currently_live_ws_dependencies": false
+    },
+    {
+      "venue": "coinbase",
+      "requested_base": "SOL",
+      "instrument": {
+        "instrument_id": "coinbase:advanced-trade:spot:SOL-USD",
+        "metadata_version": "86ff89e14c1b17d0e0184201fc413e8b505ea2793a3523dade668fc527eccc0c:1793501672034933000",
+        "venue": "coinbase",
+        "api_family": "advanced-trade",
+        "native_symbol": "SOL-USD",
+        "base": {
+          "asset_id": "SOL",
+          "ticker": "SOL",
+          "native_token_id": "SOL",
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "quote": {
+          "asset_id": "USD",
+          "ticker": "USD",
+          "native_token_id": "USD",
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "tick_size": "0.01",
+        "lot_size": "1E-8",
+        "native_asset_id": "SOL-USD",
+        "dex_namespace": null,
+        "settlement": null,
+        "market_type": "spot",
+        "expiry_wall_ns": null,
+        "constraints": {
+          "min_base": "1E-8",
+          "max_base": "1274000",
+          "min_notional": "1",
+          "max_notional": "25000000",
+          "min_notional_currency": "USD",
+          "price_rule": "fixed_tick",
+          "size_rule": "fixed_lot"
+        },
+        "contract_multiplier": "1",
+        "quantity_unit": "base",
+        "contract_value_currency": null,
+        "inverse": false,
+        "status": "active",
+        "data_access": "unknown",
+        "execution_access": "unknown",
+        "metadata_asof_wall_ns": 1793501672034933000,
+        "metadata_source": "https://api.coinbase.com/api/v3/brokerage/market/products"
+      },
+      "metadata": {
+        "status": "passed",
+        "detail": "exact product discovered"
+      },
+      "snapshot": {
+        "status": "failed",
+        "endpoint": "https://api.coinbase.com/api/v3/brokerage/market/product_book?product_id=SOL-USD&limit=1000",
+        "raw_bytes": 75928,
+        "raw_sha256": "8d2e57942fceeac3c1b67cee091d7f080e59e70fe0c236519566d57a68f3b246",
+        "decoded_expected_events": 1,
+        "decoded_controls": 0,
+        "integrity": "unknown",
+        "recovery": {
+          "reason": "sequence_gap",
+          "action": "request_snapshot"
+        },
+        "elapsed_seconds": 0.47049827499722596
+      },
+      "rest_trades": {
+        "status": "unsupported",
+        "detail": "adapter exposes no REST request for this channel"
+      },
+      "ws_book": {
+        "status": "passed",
+        "endpoint": "wss://advanced-trade-ws.coinbase.com",
+        "observed_count": 22,
+        "criterion": "valid non-REST book publication"
+      },
+      "ws_trades": {
+        "status": "failed",
+        "endpoint": "wss://advanced-trade-ws.coinbase.com",
+        "observed_count": 0,
+        "criterion": "non-history non-REST trade event",
+        "detail": "no qualifying observation in this run; not proof of universal unavailability"
+      },
+      "streams": {
+        "book": {
+          "elapsed_seconds": 45.922432254999876,
+          "counts": {
+            "normalized_events": 37,
+            "Control": 15,
+            "raw_frames": 408,
+            "raw_bytes": 11430570,
+            "raw_ws_frames": 408,
+            "BookUpdate": 15,
+            "book_snapshot_events": 8,
+            "book_level_changes": 103996,
+            "book_publications": 36,
+            "book_integrity_valid": 22,
+            "ws_valid_book_publications": 22,
+            "book_delta_events": 7,
+            "book_integrity_invalid": 14,
+            "Gap": 7,
+            "recoveries_to_valid_book": 7,
+            "sampled_lifecycle_transitions": 3
+          },
+          "raw_frames_per_second": 8.88454683180633,
+          "diagnostics": {
+            "decode:invalid_coinbase_message": 7
+          },
+          "endpoints": {
+            "wss://advanced-trade-ws.coinbase.com": 408
+          },
+          "last_raw_sha256": "e8ad5af2fee9809bed44a3a05b4a9a23ab862d1ae8beb7a31ed38c0c32d264b4",
+          "last_book": {
+            "revision": 1,
+            "connection_epoch": 8,
+            "segment_id": "f2709703-ee10-4cbe-b22b-9f44905de9bb",
+            "bid_levels": 3124,
+            "ask_levels": 9875,
+            "quality": {
+              "lifecycle": "live",
+              "integrity": "valid",
+              "transport_alive": true,
+              "source_mode": "ws_delta",
+              "recorded_source_mode": null,
+              "last_transport_mono_ns": 79768358275752,
+              "last_book_observation_mono_ns": 79768358275752,
+              "last_book_change_mono_ns": 79768358275752,
+              "last_healthy_observation_mono_ns": 79768358275752,
+              "clock_id": "af70b8d4-1d5e-44dd-9937-daa3e357920d",
+              "coverage": {
+                "subscribed_depth": null,
+                "retained_bid_levels": 3124,
+                "retained_ask_levels": 9875,
+                "worst_bid": "0.01",
+                "worst_ask": "80891.69",
+                "full_depth": true,
+                "source_aggregation": [],
+                "expected_cadence_ns": null
+              },
+              "capabilities": {
+                "snapshot": true,
+                "deltas": true,
+                "trades": false,
+                "sequence_scope": "connection",
+                "checksum_scope": null,
+                "exact_event_flow": true,
+                "reference_prices": [],
+                "asset_context": []
+              },
+              "continuous_since_ordinal": 5980,
+              "reason_codes": [],
+              "capture_complete": true
+            }
+          },
+          "time_to_first_valid_book_seconds": 4.684986748005031,
+          "lifecycle": "live",
+          "reason": "decode:invalid_coinbase_message",
+          "epoch": 8,
+          "source_mode": "ws_delta",
+          "reconnects": 7,
+          "duplicate_trades": 0,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 9,
+          "queue_bytes": 2710,
+          "queue_count_high_water_sampled": 29,
+          "queue_bytes_high_water_sampled": 13704,
+          "lifecycle_samples": {
+            "resynchronizing": 1,
+            "waiting_snapshot": 2,
+            "live": 3
+          },
+          "task_done": false,
+          "task_error": null
+        },
+        "trades": {
+          "elapsed_seconds": 45.92229475500062,
+          "counts": {
+            "normalized_events": 1237,
+            "Control": 1073,
+            "raw_frames": 52,
+            "raw_bytes": 172287,
+            "raw_ws_frames": 52,
+            "Trade": 152,
+            "ws_history_trades": 152,
+            "Gap": 12,
+            "sampled_lifecycle_transitions": 4
+          },
+          "raw_frames_per_second": 1.1323475945055546,
+          "diagnostics": {
+            "decode:invalid_coinbase_message": 12
+          },
+          "endpoints": {
+            "wss://advanced-trade-ws.coinbase.com": 52
+          },
+          "last_raw_sha256": "d56324a40625ca2d7418d54f2e2a7aa5b5a492b2b9b5d7dbfefb24a307de3044",
+          "last_book": null,
+          "time_to_first_valid_book_seconds": null,
+          "lifecycle": "waiting_snapshot",
+          "reason": "decode:invalid_coinbase_message",
+          "epoch": 13,
+          "source_mode": "ws_snapshot",
+          "reconnects": 12,
+          "duplicate_trades": 1048,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 0,
+          "queue_bytes": 0,
+          "queue_count_high_water_sampled": 1,
+          "queue_bytes_high_water_sampled": 396,
+          "lifecycle_samples": {
+            "live": 1,
+            "waiting_snapshot": 4,
+            "resynchronizing": 1
+          },
+          "task_done": false,
+          "task_error": null
+        }
+      },
+      "execution_eligibility": "unknown_not_tested",
+      "full_dependencies_passed": false,
+      "selection": {
+        "quote": "USD",
+        "market_type": "spot",
+        "candidate_ids": [
+          "coinbase:advanced-trade:spot:SOL-USD"
+        ]
+      },
+      "metadata_execution_access": "unknown",
+      "currently_live_ws_dependencies": false
+    },
+    {
+      "venue": "kraken",
+      "requested_base": "BTC",
+      "instrument": {
+        "instrument_id": "kraken:spot-v2:spot:BTC/USD",
+        "metadata_version": "a083c2e510e8b1a341526c3257f7aa7671473631640f9990d981d43abcf9103e:1793501671845896000",
+        "venue": "kraken",
+        "api_family": "spot-v2",
+        "native_symbol": "BTC/USD",
+        "base": {
+          "asset_id": "BTC",
+          "ticker": "BTC",
+          "native_token_id": "XXBT",
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "quote": {
+          "asset_id": "USD",
+          "ticker": "USD",
+          "native_token_id": "ZUSD",
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "tick_size": "0.1",
+        "lot_size": "1E-8",
+        "native_asset_id": "XXBTZUSD",
+        "dex_namespace": null,
+        "settlement": null,
+        "market_type": "spot",
+        "expiry_wall_ns": null,
+        "constraints": {
+          "min_base": "0.00006",
+          "max_base": null,
+          "min_notional": "0.5",
+          "max_notional": null,
+          "min_notional_currency": "USD",
+          "price_rule": "fixed_tick",
+          "size_rule": "fixed_lot"
+        },
+        "contract_multiplier": "1",
+        "quantity_unit": "base",
+        "contract_value_currency": null,
+        "inverse": false,
+        "status": "active",
+        "data_access": "unknown",
+        "execution_access": "unknown",
+        "metadata_asof_wall_ns": 1793501671845896000,
+        "metadata_source": "https://api.kraken.com/0/public/AssetPairs"
+      },
+      "metadata": {
+        "status": "passed",
+        "detail": "exact product discovered"
+      },
+      "snapshot": {
+        "status": "unsupported",
+        "detail": "adapter exposes no REST request for this channel"
+      },
+      "rest_trades": {
+        "status": "unsupported",
+        "detail": "adapter exposes no REST request for this channel"
+      },
+      "ws_book": {
+        "status": "passed",
+        "endpoint": "wss://ws.kraken.com/v2",
+        "observed_count": 590,
+        "criterion": "valid non-REST book publication"
+      },
+      "ws_trades": {
+        "status": "passed",
+        "endpoint": "wss://ws.kraken.com/v2",
+        "observed_count": 34,
+        "criterion": "non-history non-REST trade event"
+      },
+      "streams": {
+        "book": {
+          "elapsed_seconds": 46.45317011700536,
+          "counts": {
+            "normalized_events": 593,
+            "Control": 29,
+            "raw_frames": 936,
+            "raw_bytes": 175794,
+            "raw_ws_frames": 936,
+            "BookUpdate": 564,
+            "book_snapshot_events": 1,
+            "book_level_changes": 812,
+            "event_checksum_unchecked": 564,
+            "book_publications": 590,
+            "book_integrity_valid": 590,
+            "ws_valid_book_publications": 590,
+            "book_delta_events": 563,
+            "sampled_lifecycle_transitions": 1
+          },
+          "raw_frames_per_second": 20.149324527097313,
+          "diagnostics": {},
+          "endpoints": {
+            "wss://ws.kraken.com/v2": 936
+          },
+          "last_raw_sha256": "ccabb38c196bbcab425d796282dff9c5e1919852c7e102a462441644f05e330e",
+          "last_book": {
+            "revision": 564,
+            "connection_epoch": 1,
+            "segment_id": "03deefe9-e7f5-4e1c-a51c-d190f47c3d31",
+            "bid_levels": 25,
+            "ask_levels": 25,
+            "quality": {
+              "lifecycle": "live",
+              "integrity": "valid",
+              "transport_alive": true,
+              "source_mode": "ws_delta",
+              "recorded_source_mode": null,
+              "last_transport_mono_ns": 79753137637439,
+              "last_book_observation_mono_ns": 79753137637439,
+              "last_book_change_mono_ns": 79753137637439,
+              "last_healthy_observation_mono_ns": 79753137637439,
+              "clock_id": "af70b8d4-1d5e-44dd-9937-daa3e357920d",
+              "coverage": {
+                "subscribed_depth": 25,
+                "retained_bid_levels": 25,
+                "retained_ask_levels": 25,
+                "worst_bid": "77585.4",
+                "worst_ask": "77618.5",
+                "full_depth": false,
+                "source_aggregation": [],
+                "expected_cadence_ns": null
+              },
+              "capabilities": {
+                "snapshot": true,
+                "deltas": true,
+                "trades": false,
+                "sequence_scope": null,
+                "checksum_scope": "top10",
+                "exact_event_flow": true,
+                "reference_prices": [],
+                "asset_context": []
+              },
+              "continuous_since_ordinal": 34,
+              "reason_codes": [],
+              "capture_complete": true
+            }
+          },
+          "time_to_first_valid_book_seconds": 0.8574141090066405,
+          "lifecycle": "live",
+          "reason": "starting",
+          "epoch": 1,
+          "source_mode": "ws_delta",
+          "reconnects": 0,
+          "duplicate_trades": 0,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 343,
+          "queue_bytes": 63470,
+          "queue_count_high_water_sampled": 447,
+          "queue_bytes_high_water_sampled": 83307,
+          "lifecycle_samples": {
+            "live": 6
+          },
+          "task_done": false,
+          "task_error": null
+        },
+        "trades": {
+          "elapsed_seconds": 46.45294507598737,
+          "counts": {
+            "normalized_events": 132,
+            "Control": 48,
+            "raw_frames": 65,
+            "raw_bytes": 14737,
+            "raw_ws_frames": 65,
+            "Trade": 84,
+            "ws_history_trades": 50,
+            "ws_live_trades": 34,
+            "sampled_lifecycle_transitions": 1
+          },
+          "raw_frames_per_second": 1.3992654264153435,
+          "diagnostics": {},
+          "endpoints": {
+            "wss://ws.kraken.com/v2": 65
+          },
+          "last_raw_sha256": "7f587d1d816240103c6c6e25c13405231e2942eaffb56a17d0d59ada3f95359f",
+          "last_book": null,
+          "time_to_first_valid_book_seconds": null,
+          "lifecycle": "live",
+          "reason": "starting",
+          "epoch": 1,
+          "source_mode": "ws_snapshot",
+          "reconnects": 0,
+          "duplicate_trades": 0,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 0,
+          "queue_bytes": 0,
+          "queue_count_high_water_sampled": 3,
+          "queue_bytes_high_water_sampled": 240,
+          "lifecycle_samples": {
+            "live": 6
+          },
+          "task_done": false,
+          "task_error": null
+        }
+      },
+      "execution_eligibility": "unknown_not_tested",
+      "full_dependencies_passed": false,
+      "selection": {
+        "quote": "USD",
+        "market_type": "spot",
+        "candidate_ids": [
+          "kraken:spot-v2:spot:BTC/USD"
+        ]
+      },
+      "metadata_execution_access": "unknown",
+      "currently_live_ws_dependencies": true
+    },
+    {
+      "venue": "kraken",
+      "requested_base": "ETH",
+      "instrument": {
+        "instrument_id": "kraken:spot-v2:spot:ETH/USD",
+        "metadata_version": "a083c2e510e8b1a341526c3257f7aa7671473631640f9990d981d43abcf9103e:1793501671845896000",
+        "venue": "kraken",
+        "api_family": "spot-v2",
+        "native_symbol": "ETH/USD",
+        "base": {
+          "asset_id": "ETH",
+          "ticker": "ETH",
+          "native_token_id": "XETH",
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "quote": {
+          "asset_id": "USD",
+          "ticker": "USD",
+          "native_token_id": "ZUSD",
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "tick_size": "0.01",
+        "lot_size": "1E-8",
+        "native_asset_id": "XETHZUSD",
+        "dex_namespace": null,
+        "settlement": null,
+        "market_type": "spot",
+        "expiry_wall_ns": null,
+        "constraints": {
+          "min_base": "0.002",
+          "max_base": null,
+          "min_notional": "0.5",
+          "max_notional": null,
+          "min_notional_currency": "USD",
+          "price_rule": "fixed_tick",
+          "size_rule": "fixed_lot"
+        },
+        "contract_multiplier": "1",
+        "quantity_unit": "base",
+        "contract_value_currency": null,
+        "inverse": false,
+        "status": "active",
+        "data_access": "unknown",
+        "execution_access": "unknown",
+        "metadata_asof_wall_ns": 1793501671845896000,
+        "metadata_source": "https://api.kraken.com/0/public/AssetPairs"
+      },
+      "metadata": {
+        "status": "passed",
+        "detail": "exact product discovered"
+      },
+      "snapshot": {
+        "status": "unsupported",
+        "detail": "adapter exposes no REST request for this channel"
+      },
+      "rest_trades": {
+        "status": "unsupported",
+        "detail": "adapter exposes no REST request for this channel"
+      },
+      "ws_book": {
+        "status": "passed",
+        "endpoint": "wss://ws.kraken.com/v2",
+        "observed_count": 632,
+        "criterion": "valid non-REST book publication"
+      },
+      "ws_trades": {
+        "status": "passed",
+        "endpoint": "wss://ws.kraken.com/v2",
+        "observed_count": 6,
+        "criterion": "non-history non-REST trade event"
+      },
+      "streams": {
+        "book": {
+          "elapsed_seconds": 46.452647429003264,
+          "counts": {
+            "normalized_events": 639,
+            "Control": 21,
+            "raw_frames": 1180,
+            "raw_bytes": 226927,
+            "raw_ws_frames": 1180,
+            "BookUpdate": 617,
+            "book_snapshot_events": 2,
+            "book_level_changes": 938,
+            "event_checksum_unchecked": 617,
+            "book_publications": 634,
+            "book_integrity_valid": 632,
+            "ws_valid_book_publications": 632,
+            "book_delta_events": 615,
+            "sampled_lifecycle_transitions": 3,
+            "book_integrity_invalid": 2,
+            "Gap": 1,
+            "recoveries_to_valid_book": 1
+          },
+          "raw_frames_per_second": 25.402212044070776,
+          "diagnostics": {
+            "required_queue_overflow": 1
+          },
+          "endpoints": {
+            "wss://ws.kraken.com/v2": 1180
+          },
+          "last_raw_sha256": "7a5c3bfc576acef5c8f80f06cc8db165c01882fd7140fbd29091fdde3c2b1ad5",
+          "last_book": {
+            "revision": 39,
+            "connection_epoch": 2,
+            "segment_id": "39e4a487-3d49-459f-a0f2-82b2b9a8df90",
+            "bid_levels": 25,
+            "ask_levels": 25,
+            "quality": {
+              "lifecycle": "live",
+              "integrity": "valid",
+              "transport_alive": true,
+              "source_mode": "ws_delta",
+              "recorded_source_mode": null,
+              "last_transport_mono_ns": 79768574259813,
+              "last_book_observation_mono_ns": 79768574259813,
+              "last_book_change_mono_ns": 79768574259813,
+              "last_healthy_observation_mono_ns": 79768574259813,
+              "clock_id": "af70b8d4-1d5e-44dd-9937-daa3e357920d",
+              "coverage": {
+                "subscribed_depth": 25,
+                "retained_bid_levels": 25,
+                "retained_ask_levels": 25,
+                "worst_bid": "2261.70",
+                "worst_ask": "2263.74",
+                "full_depth": false,
+                "source_aggregation": [],
+                "expected_cadence_ns": null
+              },
+              "capabilities": {
+                "snapshot": true,
+                "deltas": true,
+                "trades": false,
+                "sequence_scope": null,
+                "checksum_scope": "top10",
+                "exact_event_flow": true,
+                "reference_prices": [],
+                "asset_context": []
+              },
+              "continuous_since_ordinal": 5570,
+              "reason_codes": [],
+              "capture_complete": true
+            }
+          },
+          "time_to_first_valid_book_seconds": 0.8569828129984671,
+          "lifecycle": "live",
+          "reason": "required_queue_overflow",
+          "epoch": 2,
+          "source_mode": "ws_delta",
+          "reconnects": 1,
+          "duplicate_trades": 0,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 29,
+          "queue_bytes": 5541,
+          "queue_count_high_water_sampled": 509,
+          "queue_bytes_high_water_sampled": 95654,
+          "lifecycle_samples": {
+            "live": 5,
+            "waiting_snapshot": 1
+          },
+          "task_done": false,
+          "task_error": null
+        },
+        "trades": {
+          "elapsed_seconds": 46.45254038000712,
+          "counts": {
+            "normalized_events": 104,
+            "Control": 48,
+            "raw_frames": 54,
+            "raw_bytes": 10033,
+            "raw_ws_frames": 54,
+            "Trade": 56,
+            "ws_history_trades": 50,
+            "ws_live_trades": 6,
+            "sampled_lifecycle_transitions": 1
+          },
+          "raw_frames_per_second": 1.162476789390861,
+          "diagnostics": {},
+          "endpoints": {
+            "wss://ws.kraken.com/v2": 54
+          },
+          "last_raw_sha256": "7f587d1d816240103c6c6e25c13405231e2942eaffb56a17d0d59ada3f95359f",
+          "last_book": null,
+          "time_to_first_valid_book_seconds": null,
+          "lifecycle": "live",
+          "reason": "starting",
+          "epoch": 1,
+          "source_mode": "ws_snapshot",
+          "reconnects": 0,
+          "duplicate_trades": 0,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 0,
+          "queue_bytes": 0,
+          "queue_count_high_water_sampled": 4,
+          "queue_bytes_high_water_sampled": 92,
+          "lifecycle_samples": {
+            "live": 6
+          },
+          "task_done": false,
+          "task_error": null
+        }
+      },
+      "execution_eligibility": "unknown_not_tested",
+      "full_dependencies_passed": false,
+      "selection": {
+        "quote": "USD",
+        "market_type": "spot",
+        "candidate_ids": [
+          "kraken:spot-v2:spot:ETH/USD"
+        ]
+      },
+      "metadata_execution_access": "unknown",
+      "currently_live_ws_dependencies": true
+    },
+    {
+      "venue": "kraken",
+      "requested_base": "SOL",
+      "instrument": {
+        "instrument_id": "kraken:spot-v2:spot:SOL/USD",
+        "metadata_version": "a083c2e510e8b1a341526c3257f7aa7671473631640f9990d981d43abcf9103e:1793501671845896000",
+        "venue": "kraken",
+        "api_family": "spot-v2",
+        "native_symbol": "SOL/USD",
+        "base": {
+          "asset_id": "SOL",
+          "ticker": "SOL",
+          "native_token_id": "SOL",
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "quote": {
+          "asset_id": "USD",
+          "ticker": "USD",
+          "native_token_id": "ZUSD",
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "tick_size": "0.01",
+        "lot_size": "1E-8",
+        "native_asset_id": "SOLUSD",
+        "dex_namespace": null,
+        "settlement": null,
+        "market_type": "spot",
+        "expiry_wall_ns": null,
+        "constraints": {
+          "min_base": "0.05",
+          "max_base": null,
+          "min_notional": "0.5",
+          "max_notional": null,
+          "min_notional_currency": "USD",
+          "price_rule": "fixed_tick",
+          "size_rule": "fixed_lot"
+        },
+        "contract_multiplier": "1",
+        "quantity_unit": "base",
+        "contract_value_currency": null,
+        "inverse": false,
+        "status": "active",
+        "data_access": "unknown",
+        "execution_access": "unknown",
+        "metadata_asof_wall_ns": 1793501671845896000,
+        "metadata_source": "https://api.kraken.com/0/public/AssetPairs"
+      },
+      "metadata": {
+        "status": "passed",
+        "detail": "exact product discovered"
+      },
+      "snapshot": {
+        "status": "unsupported",
+        "detail": "adapter exposes no REST request for this channel"
+      },
+      "rest_trades": {
+        "status": "unsupported",
+        "detail": "adapter exposes no REST request for this channel"
+      },
+      "ws_book": {
+        "status": "passed",
+        "endpoint": "wss://ws.kraken.com/v2",
+        "observed_count": 572,
+        "criterion": "valid non-REST book publication"
+      },
+      "ws_trades": {
+        "status": "passed",
+        "endpoint": "wss://ws.kraken.com/v2",
+        "observed_count": 10,
+        "criterion": "non-history non-REST trade event"
+      },
+      "streams": {
+        "book": {
+          "elapsed_seconds": 46.452407360993675,
+          "counts": {
+            "normalized_events": 575,
+            "Control": 35,
+            "raw_frames": 695,
+            "raw_bytes": 121584,
+            "raw_ws_frames": 695,
+            "BookUpdate": 540,
+            "book_snapshot_events": 1,
+            "book_level_changes": 608,
+            "event_checksum_unchecked": 540,
+            "book_publications": 572,
+            "book_integrity_valid": 572,
+            "ws_valid_book_publications": 572,
+            "book_delta_events": 539,
+            "sampled_lifecycle_transitions": 1
+          },
+          "raw_frames_per_second": 14.9615496695139,
+          "diagnostics": {},
+          "endpoints": {
+            "wss://ws.kraken.com/v2": 695
+          },
+          "last_raw_sha256": "3d4e28404ccb72dad357f975e55013d321b1aa154153876693360a3e766002f8",
+          "last_book": {
+            "revision": 540,
+            "connection_epoch": 1,
+            "segment_id": "1a1753e6-230b-486b-be53-d9790094e64f",
+            "bid_levels": 25,
+            "ask_levels": 25,
+            "quality": {
+              "lifecycle": "live",
+              "integrity": "valid",
+              "transport_alive": true,
+              "source_mode": "ws_delta",
+              "recorded_source_mode": null,
+              "last_transport_mono_ns": 79756769732982,
+              "last_book_observation_mono_ns": 79756769732982,
+              "last_book_change_mono_ns": 79756769732982,
+              "last_healthy_observation_mono_ns": 79756769732982,
+              "clock_id": "af70b8d4-1d5e-44dd-9937-daa3e357920d",
+              "coverage": {
+                "subscribed_depth": 25,
+                "retained_bid_levels": 25,
+                "retained_ask_levels": 25,
+                "worst_bid": "95.04",
+                "worst_ask": "95.59",
+                "full_depth": false,
+                "source_aggregation": [],
+                "expected_cadence_ns": null
+              },
+              "capabilities": {
+                "snapshot": true,
+                "deltas": true,
+                "trades": false,
+                "sequence_scope": null,
+                "checksum_scope": "top10",
+                "exact_event_flow": true,
+                "reference_prices": [],
+                "asset_context": []
+              },
+              "continuous_since_ordinal": 31,
+              "reason_codes": [],
+              "capture_complete": true
+            }
+          },
+          "time_to_first_valid_book_seconds": 0.8531653779937187,
+          "lifecycle": "live",
+          "reason": "starting",
+          "epoch": 1,
+          "source_mode": "ws_delta",
+          "reconnects": 0,
+          "duplicate_trades": 0,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 120,
+          "queue_bytes": 19849,
+          "queue_count_high_water_sampled": 214,
+          "queue_bytes_high_water_sampled": 36853,
+          "lifecycle_samples": {
+            "live": 6
+          },
+          "task_done": false,
+          "task_error": null
+        },
+        "trades": {
+          "elapsed_seconds": 46.45231300899468,
+          "counts": {
+            "normalized_events": 108,
+            "Control": 48,
+            "raw_frames": 56,
+            "raw_bytes": 10586,
+            "raw_ws_frames": 56,
+            "Trade": 60,
+            "ws_history_trades": 50,
+            "ws_live_trades": 10,
+            "sampled_lifecycle_transitions": 1
+          },
+          "raw_frames_per_second": 1.20553738603192,
+          "diagnostics": {},
+          "endpoints": {
+            "wss://ws.kraken.com/v2": 56
+          },
+          "last_raw_sha256": "7f587d1d816240103c6c6e25c13405231e2942eaffb56a17d0d59ada3f95359f",
+          "last_book": null,
+          "time_to_first_valid_book_seconds": null,
+          "lifecycle": "live",
+          "reason": "starting",
+          "epoch": 1,
+          "source_mode": "ws_snapshot",
+          "reconnects": 0,
+          "duplicate_trades": 0,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 0,
+          "queue_bytes": 0,
+          "queue_count_high_water_sampled": 5,
+          "queue_bytes_high_water_sampled": 283,
+          "lifecycle_samples": {
+            "live": 6
+          },
+          "task_done": false,
+          "task_error": null
+        }
+      },
+      "execution_eligibility": "unknown_not_tested",
+      "full_dependencies_passed": false,
+      "selection": {
+        "quote": "USD",
+        "market_type": "spot",
+        "candidate_ids": [
+          "kraken:spot-v2:spot:SOL/USD"
+        ]
+      },
+      "metadata_execution_access": "unknown",
+      "currently_live_ws_dependencies": true
+    },
+    {
+      "venue": "binance-global",
+      "requested_base": "BTC",
+      "instrument": {
+        "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+        "metadata_version": "5242692afc73014e15604f2f56e445ec3c8ebc3c6ac29857a8e897b90a471c19:1793501673258962000",
+        "venue": "binance-global",
+        "api_family": "spot-v3",
+        "native_symbol": "BTCUSDT",
+        "base": {
+          "asset_id": "BTC",
+          "ticker": "BTC",
+          "native_token_id": "BTC",
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "quote": {
+          "asset_id": "USDT",
+          "ticker": "USDT",
+          "native_token_id": "USDT",
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "tick_size": "0.01000000",
+        "lot_size": "0.00001000",
+        "native_asset_id": null,
+        "dex_namespace": null,
+        "settlement": null,
+        "market_type": "spot",
+        "expiry_wall_ns": null,
+        "constraints": {
+          "min_base": "0.00001000",
+          "max_base": "9000.00000000",
+          "min_notional": "5.00000000",
+          "max_notional": "9000000.00000000",
+          "min_notional_currency": "USDT",
+          "price_rule": "fixed_tick",
+          "size_rule": "fixed_lot"
+        },
+        "contract_multiplier": "1",
+        "quantity_unit": "base",
+        "contract_value_currency": null,
+        "inverse": false,
+        "status": "active",
+        "data_access": "unknown",
+        "execution_access": "unknown",
+        "metadata_asof_wall_ns": 1793501673258962000,
+        "metadata_source": "https://data-api.binance.vision/api/v3/exchangeInfo"
+      },
+      "metadata": {
+        "status": "passed",
+        "detail": "exact product discovered"
+      },
+      "snapshot": {
+        "status": "passed",
+        "endpoint": "https://data-api.binance.vision/api/v3/depth?symbol=BTCUSDT&limit=5000",
+        "raw_bytes": 320054,
+        "raw_sha256": "7c97d5f3e8d737256e4e963223bc1d5ace26807e65559a4611b155fcf7c30904",
+        "decoded_expected_events": 1,
+        "decoded_controls": 0,
+        "integrity": "valid",
+        "recovery": null,
+        "coverage": {
+          "subscribed_depth": null,
+          "retained_bid_levels": 5000,
+          "retained_ask_levels": 5000,
+          "worst_bid": "76686.79000000",
+          "worst_ask": "78663.40000000",
+          "full_depth": false,
+          "source_aggregation": [],
+          "expected_cadence_ns": null
+        },
+        "elapsed_seconds": 4.27029288301128
+      },
+      "rest_trades": {
+        "status": "passed",
+        "endpoint": "https://data-api.binance.vision/api/v3/trades?symbol=BTCUSDT&limit=1000",
+        "raw_bytes": 147360,
+        "raw_sha256": "18fa71f8b96840f7e4eadd4586e95e8abad88a5d0bbd046dac5bbcb9fa96b831",
+        "decoded_expected_events": 1000,
+        "decoded_controls": 0,
+        "elapsed_seconds": 1.7485996929899557
+      },
+      "ws_book": {
+        "status": "passed",
+        "endpoint": "wss://data-stream.binance.vision:443/stream",
+        "observed_count": 242,
+        "criterion": "valid non-REST book publication"
+      },
+      "ws_trades": {
+        "status": "passed",
+        "endpoint": "wss://data-stream.binance.vision:443/stream",
+        "observed_count": 202,
+        "criterion": "non-history non-REST trade event"
+      },
+      "streams": {
+        "book": {
+          "elapsed_seconds": 33.56108431900793,
+          "counts": {
+            "normalized_events": 266,
+            "Control": 2,
+            "raw_frames": 315,
+            "raw_bytes": 453724,
+            "raw_ws_frames": 314,
+            "BookUpdate": 264,
+            "book_delta_events": 263,
+            "book_level_changes": 12525,
+            "sampled_lifecycle_transitions": 2,
+            "raw_rest_frames": 1,
+            "book_snapshot_events": 1,
+            "book_publications": 242,
+            "book_integrity_valid": 242,
+            "ws_valid_book_publications": 242
+          },
+          "raw_frames_per_second": 9.385870760486544,
+          "diagnostics": {},
+          "endpoints": {
+            "wss://data-stream.binance.vision:443/stream": 314,
+            "https://data-api.binance.vision/api/v3/depth?symbol=BTCUSDT&limit=5000": 1
+          },
+          "last_raw_sha256": "6ac03ac958639cd5c57888a59c33fb4dd70941070be1d411b9681f33201dc296",
+          "last_book": {
+            "revision": 246,
+            "connection_epoch": 1,
+            "segment_id": "2a37355f-a83f-4294-a562-59157b81ae31",
+            "bid_levels": 5006,
+            "ask_levels": 5003,
+            "quality": {
+              "lifecycle": "live",
+              "integrity": "valid",
+              "transport_alive": true,
+              "source_mode": "ws_delta",
+              "recorded_source_mode": null,
+              "last_transport_mono_ns": 79764097821223,
+              "last_book_observation_mono_ns": 79764097821223,
+              "last_book_change_mono_ns": 79764097821223,
+              "last_healthy_observation_mono_ns": 79764097821223,
+              "clock_id": "af70b8d4-1d5e-44dd-9937-daa3e357920d",
+              "coverage": {
+                "subscribed_depth": null,
+                "retained_bid_levels": 5006,
+                "retained_ask_levels": 5003,
+                "worst_bid": "62195.20000000",
+                "worst_ask": "89884.78000000",
+                "full_depth": false,
+                "source_aggregation": [],
+                "expected_cadence_ns": null
+              },
+              "capabilities": {
+                "snapshot": true,
+                "deltas": true,
+                "trades": false,
+                "sequence_scope": "binance-global:spot-v3:spot:BTCUSDT:depth",
+                "checksum_scope": null,
+                "exact_event_flow": true,
+                "reference_prices": [],
+                "asset_context": []
+              },
+              "continuous_since_ordinal": 2355,
+              "reason_codes": [],
+              "capture_complete": true
+            }
+          },
+          "time_to_first_valid_book_seconds": 10.961197758995695,
+          "lifecycle": "live",
+          "reason": "starting",
+          "epoch": 1,
+          "source_mode": "ws_delta",
+          "reconnects": 0,
+          "duplicate_trades": 0,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 49,
+          "queue_bytes": 16292,
+          "queue_count_high_water_sampled": 123,
+          "queue_bytes_high_water_sampled": 46996,
+          "lifecycle_samples": {
+            "waiting_snapshot": 1,
+            "live": 5
+          },
+          "task_done": false,
+          "task_error": null
+        },
+        "trades": {
+          "elapsed_seconds": 33.56093405399588,
+          "counts": {
+            "normalized_events": 204,
+            "Control": 2,
+            "raw_frames": 204,
+            "raw_bytes": 34313,
+            "raw_ws_frames": 204,
+            "sampled_lifecycle_transitions": 2,
+            "Trade": 202,
+            "ws_live_trades": 202
+          },
+          "raw_frames_per_second": 6.078495898588111,
+          "diagnostics": {},
+          "endpoints": {
+            "wss://data-stream.binance.vision:443/stream": 204
+          },
+          "last_raw_sha256": "0e15fa8130b1331066c8526cf5a38761a072630571eaa8abb2f8c9881ed90b91",
+          "last_book": null,
+          "time_to_first_valid_book_seconds": null,
+          "lifecycle": "live",
+          "reason": "starting",
+          "epoch": 1,
+          "source_mode": "ws_snapshot",
+          "reconnects": 0,
+          "duplicate_trades": 0,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 0,
+          "queue_bytes": 0,
+          "queue_count_high_water_sampled": 108,
+          "queue_bytes_high_water_sampled": 18250,
+          "lifecycle_samples": {
+            "waiting_snapshot": 1,
+            "live": 5
+          },
+          "task_done": false,
+          "task_error": null
+        }
+      },
+      "execution_eligibility": "unknown_not_tested",
+      "full_dependencies_passed": true,
+      "selection": {
+        "quote": "USDT",
+        "market_type": "spot",
+        "candidate_ids": [
+          "binance-global:spot-v3:spot:BTCUSDT"
+        ]
+      },
+      "metadata_execution_access": "unknown",
+      "currently_live_ws_dependencies": true
+    },
+    {
+      "venue": "binance-global",
+      "requested_base": "ETH",
+      "instrument": {
+        "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+        "metadata_version": "5242692afc73014e15604f2f56e445ec3c8ebc3c6ac29857a8e897b90a471c19:1793501673258962000",
+        "venue": "binance-global",
+        "api_family": "spot-v3",
+        "native_symbol": "ETHUSDT",
+        "base": {
+          "asset_id": "ETH",
+          "ticker": "ETH",
+          "native_token_id": "ETH",
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "quote": {
+          "asset_id": "USDT",
+          "ticker": "USDT",
+          "native_token_id": "USDT",
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "tick_size": "0.01000000",
+        "lot_size": "0.00010000",
+        "native_asset_id": null,
+        "dex_namespace": null,
+        "settlement": null,
+        "market_type": "spot",
+        "expiry_wall_ns": null,
+        "constraints": {
+          "min_base": "0.00010000",
+          "max_base": "9000.00000000",
+          "min_notional": "5.00000000",
+          "max_notional": "9000000.00000000",
+          "min_notional_currency": "USDT",
+          "price_rule": "fixed_tick",
+          "size_rule": "fixed_lot"
+        },
+        "contract_multiplier": "1",
+        "quantity_unit": "base",
+        "contract_value_currency": null,
+        "inverse": false,
+        "status": "active",
+        "data_access": "unknown",
+        "execution_access": "unknown",
+        "metadata_asof_wall_ns": 1793501673258962000,
+        "metadata_source": "https://data-api.binance.vision/api/v3/exchangeInfo"
+      },
+      "metadata": {
+        "status": "passed",
+        "detail": "exact product discovered"
+      },
+      "snapshot": {
+        "status": "passed",
+        "endpoint": "https://data-api.binance.vision/api/v3/depth?symbol=ETHUSDT&limit=5000",
+        "raw_bytes": 310343,
+        "raw_sha256": "4da116186565277edb057182ca5fac02792e1771b13d7655af79a513ec0fc835",
+        "decoded_expected_events": 1,
+        "decoded_controls": 0,
+        "integrity": "valid",
+        "recovery": null,
+        "coverage": {
+          "subscribed_depth": null,
+          "retained_bid_levels": 5000,
+          "retained_ask_levels": 5000,
+          "worst_bid": "2158.69000000",
+          "worst_ask": "2366.33000000",
+          "full_depth": false,
+          "source_aggregation": [],
+          "expected_cadence_ns": null
+        },
+        "elapsed_seconds": 5.25127163399884
+      },
+      "rest_trades": {
+        "status": "passed",
+        "endpoint": "https://data-api.binance.vision/api/v3/trades?symbol=ETHUSDT&limit=1000",
+        "raw_bytes": 146177,
+        "raw_sha256": "e3e99ba895b0e1f9364a11ced4d7a0b59da61e0425c78a07f2cc30920c362710",
+        "decoded_expected_events": 1000,
+        "decoded_controls": 0,
+        "elapsed_seconds": 3.4859769489994505
+      },
+      "ws_book": {
+        "status": "passed",
+        "endpoint": "wss://data-stream.binance.vision:443/stream",
+        "observed_count": 194,
+        "criterion": "valid non-REST book publication"
+      },
+      "ws_trades": {
+        "status": "passed",
+        "endpoint": "wss://data-stream.binance.vision:443/stream",
+        "observed_count": 91,
+        "criterion": "non-history non-REST trade event"
+      },
+      "streams": {
+        "book": {
+          "elapsed_seconds": 30.58842488899245,
+          "counts": {
+            "normalized_events": 249,
+            "Control": 2,
+            "sampled_lifecycle_transitions": 2,
+            "raw_frames": 268,
+            "raw_bytes": 399349,
+            "raw_ws_frames": 267,
+            "BookUpdate": 247,
+            "book_delta_events": 246,
+            "book_level_changes": 11575,
+            "raw_rest_frames": 1,
+            "book_snapshot_events": 1,
+            "book_publications": 194,
+            "book_integrity_valid": 194,
+            "ws_valid_book_publications": 194
+          },
+          "raw_frames_per_second": 8.76148415528393,
+          "diagnostics": {},
+          "endpoints": {
+            "wss://data-stream.binance.vision:443/stream": 267,
+            "https://data-api.binance.vision/api/v3/depth?symbol=ETHUSDT&limit=5000": 1
+          },
+          "last_raw_sha256": "13551392883903ff5e218ae1ed7b37117e98e53ffa8879472b054bbe4f7e4365",
+          "last_book": {
+            "revision": 214,
+            "connection_epoch": 1,
+            "segment_id": "31e40d4c-ea67-4e36-aeaf-97aee80c5828",
+            "bid_levels": 5006,
+            "ask_levels": 5011,
+            "quality": {
+              "lifecycle": "live",
+              "integrity": "valid",
+              "transport_alive": true,
+              "source_mode": "ws_delta",
+              "recorded_source_mode": null,
+              "last_transport_mono_ns": 79767258775317,
+              "last_book_observation_mono_ns": 79767258775317,
+              "last_book_change_mono_ns": 79767258775317,
+              "last_healthy_observation_mono_ns": 79767258775317,
+              "clock_id": "af70b8d4-1d5e-44dd-9937-daa3e357920d",
+              "coverage": {
+                "subscribed_depth": null,
+                "retained_bid_levels": 5006,
+                "retained_ask_levels": 5011,
+                "worst_bid": "1254.46000000",
+                "worst_ask": "3500.00000000",
+                "full_depth": false,
+                "source_aggregation": [],
+                "expected_cadence_ns": null
+              },
+              "capabilities": {
+                "snapshot": true,
+                "deltas": true,
+                "trades": false,
+                "sequence_scope": "binance-global:spot-v3:spot:ETHUSDT:depth",
+                "checksum_scope": null,
+                "exact_event_flow": true,
+                "reference_prices": [],
+                "asset_context": []
+              },
+              "continuous_since_ordinal": 3227,
+              "reason_codes": [],
+              "capture_complete": true
+            }
+          },
+          "time_to_first_valid_book_seconds": 19.104439631992136,
+          "lifecycle": "live",
+          "reason": "starting",
+          "epoch": 1,
+          "source_mode": "ws_delta",
+          "reconnects": 0,
+          "duplicate_trades": 0,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 19,
+          "queue_bytes": 6383,
+          "queue_count_high_water_sampled": 102,
+          "queue_bytes_high_water_sampled": 35948,
+          "lifecycle_samples": {
+            "waiting_snapshot": 2,
+            "live": 4
+          },
+          "task_done": false,
+          "task_error": null
+        },
+        "trades": {
+          "elapsed_seconds": 30.580092471005628,
+          "counts": {
+            "normalized_events": 93,
+            "Control": 2,
+            "sampled_lifecycle_transitions": 2,
+            "raw_frames": 93,
+            "raw_bytes": 15405,
+            "raw_ws_frames": 93,
+            "Trade": 91,
+            "ws_live_trades": 91
+          },
+          "raw_frames_per_second": 3.0411942046341918,
+          "diagnostics": {},
+          "endpoints": {
+            "wss://data-stream.binance.vision:443/stream": 93
+          },
+          "last_raw_sha256": "4db4a3863180c6bbc64c7d447fe708eddb9f0a741991bff0725aaf5cc8101618",
+          "last_book": null,
+          "time_to_first_valid_book_seconds": null,
+          "lifecycle": "live",
+          "reason": "starting",
+          "epoch": 1,
+          "source_mode": "ws_snapshot",
+          "reconnects": 0,
+          "duplicate_trades": 0,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 0,
+          "queue_bytes": 0,
+          "queue_count_high_water_sampled": 13,
+          "queue_bytes_high_water_sampled": 2175,
+          "lifecycle_samples": {
+            "waiting_snapshot": 1,
+            "live": 5
+          },
+          "task_done": false,
+          "task_error": null
+        }
+      },
+      "execution_eligibility": "unknown_not_tested",
+      "full_dependencies_passed": true,
+      "selection": {
+        "quote": "USDT",
+        "market_type": "spot",
+        "candidate_ids": [
+          "binance-global:spot-v3:spot:ETHUSDT"
+        ]
+      },
+      "metadata_execution_access": "unknown",
+      "currently_live_ws_dependencies": true
+    },
+    {
+      "venue": "binance-global",
+      "requested_base": "SOL",
+      "instrument": {
+        "instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+        "metadata_version": "5242692afc73014e15604f2f56e445ec3c8ebc3c6ac29857a8e897b90a471c19:1793501673258962000",
+        "venue": "binance-global",
+        "api_family": "spot-v3",
+        "native_symbol": "SOLUSDT",
+        "base": {
+          "asset_id": "SOL",
+          "ticker": "SOL",
+          "native_token_id": "SOL",
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "quote": {
+          "asset_id": "USDT",
+          "ticker": "USDT",
+          "native_token_id": "USDT",
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "tick_size": "0.01000000",
+        "lot_size": "0.00100000",
+        "native_asset_id": null,
+        "dex_namespace": null,
+        "settlement": null,
+        "market_type": "spot",
+        "expiry_wall_ns": null,
+        "constraints": {
+          "min_base": "0.00100000",
+          "max_base": "90000.00000000",
+          "min_notional": "5.00000000",
+          "max_notional": "9000000.00000000",
+          "min_notional_currency": "USDT",
+          "price_rule": "fixed_tick",
+          "size_rule": "fixed_lot"
+        },
+        "contract_multiplier": "1",
+        "quantity_unit": "base",
+        "contract_value_currency": null,
+        "inverse": false,
+        "status": "active",
+        "data_access": "unknown",
+        "execution_access": "unknown",
+        "metadata_asof_wall_ns": 1793501673258962000,
+        "metadata_source": "https://data-api.binance.vision/api/v3/exchangeInfo"
+      },
+      "metadata": {
+        "status": "passed",
+        "detail": "exact product discovered"
+      },
+      "snapshot": {
+        "status": "passed",
+        "endpoint": "https://data-api.binance.vision/api/v3/depth?symbol=SOLUSDT&limit=5000",
+        "raw_bytes": 293795,
+        "raw_sha256": "4c6aa5721bfed9a64f06d6f7eabc5575313219769244e354891380979129fd7a",
+        "decoded_expected_events": 1,
+        "decoded_controls": 0,
+        "integrity": "valid",
+        "recovery": null,
+        "coverage": {
+          "subscribed_depth": null,
+          "retained_bid_levels": 4831,
+          "retained_ask_levels": 5000,
+          "worst_bid": "18.90000000",
+          "worst_ask": "145.60000000",
+          "full_depth": false,
+          "source_aggregation": [],
+          "expected_cadence_ns": null
+        },
+        "elapsed_seconds": 5.543091742001707
+      },
+      "rest_trades": {
+        "status": "passed",
+        "endpoint": "https://data-api.binance.vision/api/v3/trades?symbol=SOLUSDT&limit=1000",
+        "raw_bytes": 144250,
+        "raw_sha256": "e4bc9729b632c979d848d131477ddb33743802550e3783e50451cf970e4fbbbf",
+        "decoded_expected_events": 1000,
+        "decoded_controls": 0,
+        "elapsed_seconds": 2.9024680650036316
+      },
+      "ws_book": {
+        "status": "passed",
+        "endpoint": "wss://data-stream.binance.vision:443/stream",
+        "observed_count": 138,
+        "criterion": "valid non-REST book publication"
+      },
+      "ws_trades": {
+        "status": "passed",
+        "endpoint": "wss://data-stream.binance.vision:443/stream",
+        "observed_count": 29,
+        "criterion": "non-history non-REST trade event"
+      },
+      "streams": {
+        "book": {
+          "elapsed_seconds": 30.579446057992755,
+          "counts": {
+            "normalized_events": 191,
+            "Control": 2,
+            "sampled_lifecycle_transitions": 2,
+            "raw_frames": 194,
+            "raw_bytes": 331562,
+            "raw_ws_frames": 193,
+            "BookUpdate": 189,
+            "book_delta_events": 188,
+            "book_level_changes": 10207,
+            "raw_rest_frames": 1,
+            "book_snapshot_events": 1,
+            "book_publications": 138,
+            "book_integrity_valid": 138,
+            "ws_valid_book_publications": 138
+          },
+          "raw_frames_per_second": 6.344130617411656,
+          "diagnostics": {},
+          "endpoints": {
+            "wss://data-stream.binance.vision:443/stream": 193,
+            "https://data-api.binance.vision/api/v3/depth?symbol=SOLUSDT&limit=5000": 1
+          },
+          "last_raw_sha256": "ea2f991ecc8c2a30c0e00102a2ad0959341d89f725fdc55016d62cdba8e9a125",
+          "last_book": {
+            "revision": 140,
+            "connection_epoch": 1,
+            "segment_id": "698519b4-5893-4e28-9788-03d913a0bbf6",
+            "bid_levels": 4831,
+            "ask_levels": 5000,
+            "quality": {
+              "lifecycle": "live",
+              "integrity": "valid",
+              "transport_alive": true,
+              "source_mode": "ws_delta",
+              "recorded_source_mode": null,
+              "last_transport_mono_ns": 79768331337333,
+              "last_book_observation_mono_ns": 79768331337333,
+              "last_book_change_mono_ns": 79768331337333,
+              "last_healthy_observation_mono_ns": 79768331337333,
+              "clock_id": "af70b8d4-1d5e-44dd-9937-daa3e357920d",
+              "coverage": {
+                "subscribed_depth": null,
+                "retained_bid_levels": 4831,
+                "retained_ask_levels": 5000,
+                "worst_bid": "18.90000000",
+                "worst_ask": "145.60000000",
+                "full_depth": false,
+                "source_aggregation": [],
+                "expected_cadence_ns": null
+              },
+              "capabilities": {
+                "snapshot": true,
+                "deltas": true,
+                "trades": false,
+                "sequence_scope": "binance-global:spot-v3:spot:SOLUSDT:depth",
+                "checksum_scope": null,
+                "exact_event_flow": true,
+                "reference_prices": [],
+                "asset_context": []
+              },
+              "continuous_since_ordinal": 3385,
+              "reason_codes": [],
+              "capture_complete": true
+            }
+          },
+          "time_to_first_valid_book_seconds": 19.09438370099815,
+          "lifecycle": "live",
+          "reason": "starting",
+          "epoch": 1,
+          "source_mode": "ws_delta",
+          "reconnects": 0,
+          "duplicate_trades": 0,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 3,
+          "queue_bytes": 588,
+          "queue_count_high_water_sampled": 44,
+          "queue_bytes_high_water_sampled": 8567,
+          "lifecycle_samples": {
+            "waiting_snapshot": 2,
+            "live": 4
+          },
+          "task_done": false,
+          "task_error": null
+        },
+        "trades": {
+          "elapsed_seconds": 30.579377196001587,
+          "counts": {
+            "normalized_events": 31,
+            "Control": 2,
+            "sampled_lifecycle_transitions": 2,
+            "raw_frames": 30,
+            "raw_bytes": 4821,
+            "raw_ws_frames": 30,
+            "Trade": 29,
+            "ws_live_trades": 29
+          },
+          "raw_frames_per_second": 0.9810533356422529,
+          "diagnostics": {},
+          "endpoints": {
+            "wss://data-stream.binance.vision:443/stream": 30
+          },
+          "last_raw_sha256": "ef0f509ce3adc90dbeca7db2e5b28ec198d1d43cc6897ba4004b8113c4252cfb",
+          "last_book": null,
+          "time_to_first_valid_book_seconds": null,
+          "lifecycle": "live",
+          "reason": "starting",
+          "epoch": 1,
+          "source_mode": "ws_snapshot",
+          "reconnects": 0,
+          "duplicate_trades": 0,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 0,
+          "queue_bytes": 0,
+          "queue_count_high_water_sampled": 1,
+          "queue_bytes_high_water_sampled": 166,
+          "lifecycle_samples": {
+            "waiting_snapshot": 1,
+            "live": 5
+          },
+          "task_done": false,
+          "task_error": null
+        }
+      },
+      "execution_eligibility": "unknown_not_tested",
+      "full_dependencies_passed": true,
+      "selection": {
+        "quote": "USDT",
+        "market_type": "spot",
+        "candidate_ids": [
+          "binance-global:spot-v3:spot:SOLUSDT"
+        ]
+      },
+      "metadata_execution_access": "unknown",
+      "currently_live_ws_dependencies": true
+    },
+    {
+      "venue": "binance-us",
+      "requested_base": "BTC",
+      "instrument": {
+        "instrument_id": "binance-us:spot-v3:spot:BTCUSDT",
+        "metadata_version": "17ac7a00ddbf24ccf000830f27011d5afb624dc05856932da5438bddc2b64ad8:1793501672735871000",
+        "venue": "binance-us",
+        "api_family": "spot-v3",
+        "native_symbol": "BTCUSDT",
+        "base": {
+          "asset_id": "BTC",
+          "ticker": "BTC",
+          "native_token_id": "BTC",
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "quote": {
+          "asset_id": "USDT",
+          "ticker": "USDT",
+          "native_token_id": "USDT",
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "tick_size": "0.01000000",
+        "lot_size": "0.00001000",
+        "native_asset_id": null,
+        "dex_namespace": null,
+        "settlement": null,
+        "market_type": "spot",
+        "expiry_wall_ns": null,
+        "constraints": {
+          "min_base": "0.00001000",
+          "max_base": "9000.00000000",
+          "min_notional": "1.00000000",
+          "max_notional": null,
+          "min_notional_currency": "USDT",
+          "price_rule": "fixed_tick",
+          "size_rule": "fixed_lot"
+        },
+        "contract_multiplier": "1",
+        "quantity_unit": "base",
+        "contract_value_currency": null,
+        "inverse": false,
+        "status": "active",
+        "data_access": "unknown",
+        "execution_access": "unknown",
+        "metadata_asof_wall_ns": 1793501672735871000,
+        "metadata_source": "https://api.binance.us/api/v3/exchangeInfo"
+      },
+      "metadata": {
+        "status": "passed",
+        "detail": "exact product discovered"
+      },
+      "snapshot": {
+        "status": "passed",
+        "endpoint": "https://api.binance.us/api/v3/depth?symbol=BTCUSDT&limit=20",
+        "raw_bytes": 1325,
+        "raw_sha256": "8e43b179f1347d87e92295979289df63d5deed88494dd131459fd0eadfcfc7e4",
+        "decoded_expected_events": 1,
+        "decoded_controls": 0,
+        "integrity": "valid",
+        "recovery": null,
+        "coverage": {
+          "subscribed_depth": 20,
+          "retained_bid_levels": 20,
+          "retained_ask_levels": 20,
+          "worst_bid": "77691.13000000",
+          "worst_ask": "77814.74000000",
+          "full_depth": false,
+          "source_aggregation": [],
+          "expected_cadence_ns": null
+        },
+        "elapsed_seconds": 5.139033661005669
+      },
+      "rest_trades": {
+        "status": "passed",
+        "endpoint": "https://api.binance.us/api/v3/trades?symbol=BTCUSDT&limit=1000",
+        "raw_bytes": 145647,
+        "raw_sha256": "b7b2d26acbb2cca9f048de61402c706b96d5758390ffdf949dcde9dcba69e6c6",
+        "decoded_expected_events": 1000,
+        "decoded_controls": 0,
+        "elapsed_seconds": 0.7996400609990815
+      },
+      "ws_book": {
+        "status": "passed",
+        "endpoint": "wss://stream.binance.us:9443/stream",
+        "observed_count": 83,
+        "criterion": "valid non-REST book publication"
+      },
+      "ws_trades": {
+        "status": "failed",
+        "endpoint": "wss://stream.binance.us:9443/stream",
+        "observed_count": 0,
+        "criterion": "non-history non-REST trade event",
+        "detail": "no qualifying observation in this run; not proof of universal unavailability"
+      },
+      "streams": {
+        "book": {
+          "elapsed_seconds": 39.32679036799527,
+          "counts": {
+            "normalized_events": 85,
+            "Control": 2,
+            "raw_frames": 84,
+            "raw_bytes": 113483,
+            "raw_ws_frames": 84,
+            "BookUpdate": 83,
+            "book_snapshot_events": 83,
+            "book_level_changes": 3320,
+            "book_publications": 83,
+            "book_integrity_valid": 83,
+            "ws_valid_book_publications": 83,
+            "sampled_lifecycle_transitions": 1
+          },
+          "raw_frames_per_second": 2.1359485280639747,
+          "diagnostics": {},
+          "endpoints": {
+            "wss://stream.binance.us:9443/stream": 84
+          },
+          "last_raw_sha256": "9be4b10ce05f3495fd59cc42973e5f6ddc05762c2a0116541d7f827c30e39672",
+          "last_book": {
+            "revision": 83,
+            "connection_epoch": 1,
+            "segment_id": "7c0da717-8869-43de-b05e-a49b60a2aa06",
+            "bid_levels": 20,
+            "ask_levels": 20,
+            "quality": {
+              "lifecycle": "live",
+              "integrity": "valid",
+              "transport_alive": true,
+              "source_mode": "ws_snapshot",
+              "recorded_source_mode": null,
+              "last_transport_mono_ns": 79768788058452,
+              "last_book_observation_mono_ns": 79768788058452,
+              "last_book_change_mono_ns": 79768788058452,
+              "last_healthy_observation_mono_ns": 79768788058452,
+              "clock_id": "af70b8d4-1d5e-44dd-9937-daa3e357920d",
+              "coverage": {
+                "subscribed_depth": 20,
+                "retained_bid_levels": 20,
+                "retained_ask_levels": 20,
+                "worst_bid": "77699.90000000",
+                "worst_ask": "77808.78000000",
+                "full_depth": false,
+                "source_aggregation": [],
+                "expected_cadence_ns": null
+              },
+              "capabilities": {
+                "snapshot": true,
+                "deltas": false,
+                "trades": false,
+                "sequence_scope": null,
+                "checksum_scope": null,
+                "exact_event_flow": false,
+                "reference_prices": [],
+                "asset_context": []
+              },
+              "continuous_since_ordinal": 6023,
+              "reason_codes": [],
+              "capture_complete": true
+            }
+          },
+          "time_to_first_valid_book_seconds": 4.075849386994378,
+          "lifecycle": "live",
+          "reason": "starting",
+          "epoch": 1,
+          "source_mode": "ws_snapshot",
+          "reconnects": 0,
+          "duplicate_trades": 0,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 0,
+          "queue_bytes": 0,
+          "queue_count_high_water_sampled": 14,
+          "queue_bytes_high_water_sampled": 19138,
+          "lifecycle_samples": {
+            "live": 6
+          },
+          "task_done": false,
+          "task_error": null
+        },
+        "trades": {
+          "elapsed_seconds": 39.326602386005106,
+          "counts": {
+            "normalized_events": 5,
+            "Control": 4,
+            "raw_frames": 2,
+            "raw_bytes": 44,
+            "raw_ws_frames": 2,
+            "sampled_lifecycle_transitions": 1,
+            "Gap": 1
+          },
+          "raw_frames_per_second": 0.05085616042721571,
+          "diagnostics": {
+            "valid_snapshot_timeout": 1
+          },
+          "endpoints": {
+            "wss://stream.binance.us:9443/stream": 2
+          },
+          "last_raw_sha256": "0e8bdd0a9b4defd36d653e03db1bdf307a5d76e761314729867fe6c107ee84b2",
+          "last_book": null,
+          "time_to_first_valid_book_seconds": null,
+          "lifecycle": "waiting_snapshot",
+          "reason": "valid_snapshot_timeout",
+          "epoch": 2,
+          "source_mode": "ws_snapshot",
+          "reconnects": 1,
+          "duplicate_trades": 0,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 0,
+          "queue_bytes": 0,
+          "queue_count_high_water_sampled": 0,
+          "queue_bytes_high_water_sampled": 0,
+          "lifecycle_samples": {
+            "waiting_snapshot": 6
+          },
+          "task_done": false,
+          "task_error": null
+        }
+      },
+      "execution_eligibility": "unknown_not_tested",
+      "full_dependencies_passed": false,
+      "selection": {
+        "quote": "USDT",
+        "market_type": "spot",
+        "candidate_ids": [
+          "binance-us:spot-v3:spot:BTCUSDT"
+        ]
+      },
+      "metadata_execution_access": "unknown",
+      "currently_live_ws_dependencies": false
+    },
+    {
+      "venue": "binance-us",
+      "requested_base": "ETH",
+      "instrument": {
+        "instrument_id": "binance-us:spot-v3:spot:ETHUSDT",
+        "metadata_version": "17ac7a00ddbf24ccf000830f27011d5afb624dc05856932da5438bddc2b64ad8:1793501672735871000",
+        "venue": "binance-us",
+        "api_family": "spot-v3",
+        "native_symbol": "ETHUSDT",
+        "base": {
+          "asset_id": "ETH",
+          "ticker": "ETH",
+          "native_token_id": "ETH",
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "quote": {
+          "asset_id": "USDT",
+          "ticker": "USDT",
+          "native_token_id": "USDT",
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "tick_size": "0.01000000",
+        "lot_size": "0.00010000",
+        "native_asset_id": null,
+        "dex_namespace": null,
+        "settlement": null,
+        "market_type": "spot",
+        "expiry_wall_ns": null,
+        "constraints": {
+          "min_base": "0.00010000",
+          "max_base": "9000.00000000",
+          "min_notional": "1.00000000",
+          "max_notional": null,
+          "min_notional_currency": "USDT",
+          "price_rule": "fixed_tick",
+          "size_rule": "fixed_lot"
+        },
+        "contract_multiplier": "1",
+        "quantity_unit": "base",
+        "contract_value_currency": null,
+        "inverse": false,
+        "status": "active",
+        "data_access": "unknown",
+        "execution_access": "unknown",
+        "metadata_asof_wall_ns": 1793501672735871000,
+        "metadata_source": "https://api.binance.us/api/v3/exchangeInfo"
+      },
+      "metadata": {
+        "status": "passed",
+        "detail": "exact product discovered"
+      },
+      "snapshot": {
+        "status": "passed",
+        "endpoint": "https://api.binance.us/api/v3/depth?symbol=ETHUSDT&limit=20",
+        "raw_bytes": 1287,
+        "raw_sha256": "e32ea594877608e2f12afdfde53ce9fb3e45638f0e7778f5a2f39a612711c82c",
+        "decoded_expected_events": 1,
+        "decoded_controls": 0,
+        "integrity": "valid",
+        "recovery": null,
+        "coverage": {
+          "subscribed_depth": 20,
+          "retained_bid_levels": 20,
+          "retained_ask_levels": 20,
+          "worst_bid": "2264.00000000",
+          "worst_ask": "2268.84000000",
+          "full_depth": false,
+          "source_aggregation": [],
+          "expected_cadence_ns": null
+        },
+        "elapsed_seconds": 3.333970199993928
+      },
+      "rest_trades": {
+        "status": "passed",
+        "endpoint": "https://api.binance.us/api/v3/trades?symbol=ETHUSDT&limit=1000",
+        "raw_bytes": 145074,
+        "raw_sha256": "fbe8f047ab33dc06fcaaece63dc519325e3062095667b5fe5715318926f89690",
+        "decoded_expected_events": 1000,
+        "decoded_controls": 0,
+        "elapsed_seconds": 0.48487220400420483
+      },
+      "ws_book": {
+        "status": "passed",
+        "endpoint": "wss://stream.binance.us:9443/stream",
+        "observed_count": 74,
+        "criterion": "valid non-REST book publication"
+      },
+      "ws_trades": {
+        "status": "failed",
+        "endpoint": "wss://stream.binance.us:9443/stream",
+        "observed_count": 0,
+        "criterion": "non-history non-REST trade event",
+        "detail": "no qualifying observation in this run; not proof of universal unavailability"
+      },
+      "streams": {
+        "book": {
+          "elapsed_seconds": 39.58092896400194,
+          "counts": {
+            "normalized_events": 78,
+            "Control": 3,
+            "Gap": 1,
+            "raw_frames": 75,
+            "raw_bytes": 98336,
+            "raw_ws_frames": 75,
+            "BookUpdate": 74,
+            "book_snapshot_events": 74,
+            "book_level_changes": 2960,
+            "book_publications": 74,
+            "book_integrity_valid": 74,
+            "ws_valid_book_publications": 74,
+            "recoveries_to_valid_book": 1,
+            "sampled_lifecycle_transitions": 1
+          },
+          "raw_frames_per_second": 1.894851939129852,
+          "diagnostics": {
+            "[Errno 8] nodename nor servname provided, or not known": 1
+          },
+          "endpoints": {
+            "wss://stream.binance.us:9443/stream": 75
+          },
+          "last_raw_sha256": "d8a734df9d088ce34b26c27b4f0e1b7d52b53b8c3e914082d156c2b189fbc697",
+          "last_book": {
+            "revision": 74,
+            "connection_epoch": 2,
+            "segment_id": "6fc3aaab-9502-42f1-92b4-529f3ac05e50",
+            "bid_levels": 20,
+            "ask_levels": 20,
+            "quality": {
+              "lifecycle": "live",
+              "integrity": "valid",
+              "transport_alive": true,
+              "source_mode": "ws_snapshot",
+              "recorded_source_mode": null,
+              "last_transport_mono_ns": 79768788116896,
+              "last_book_observation_mono_ns": 79768788116896,
+              "last_book_change_mono_ns": 79768788116896,
+              "last_healthy_observation_mono_ns": 79768788116896,
+              "clock_id": "af70b8d4-1d5e-44dd-9937-daa3e357920d",
+              "coverage": {
+                "subscribed_depth": 20,
+                "retained_bid_levels": 20,
+                "retained_ask_levels": 20,
+                "worst_bid": "2263.81000000",
+                "worst_ask": "2268.76000000",
+                "full_depth": false,
+                "source_aggregation": [],
+                "expected_cadence_ns": null
+              },
+              "capabilities": {
+                "snapshot": true,
+                "deltas": false,
+                "trades": false,
+                "sequence_scope": null,
+                "checksum_scope": null,
+                "exact_event_flow": false,
+                "reference_prices": [],
+                "asset_context": []
+              },
+              "continuous_since_ordinal": 6024,
+              "reason_codes": [],
+              "capture_complete": true
+            }
+          },
+          "time_to_first_valid_book_seconds": 6.475391886007856,
+          "lifecycle": "live",
+          "reason": "[Errno 8] nodename nor servname provided, or not known",
+          "epoch": 2,
+          "source_mode": "ws_snapshot",
+          "reconnects": 1,
+          "duplicate_trades": 0,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 0,
+          "queue_bytes": 0,
+          "queue_count_high_water_sampled": 3,
+          "queue_bytes_high_water_sampled": 3987,
+          "lifecycle_samples": {
+            "live": 6
+          },
+          "task_done": false,
+          "task_error": null
+        },
+        "trades": {
+          "elapsed_seconds": 39.580796570007806,
+          "counts": {
+            "normalized_events": 5,
+            "Control": 4,
+            "raw_frames": 2,
+            "raw_bytes": 44,
+            "raw_ws_frames": 2,
+            "sampled_lifecycle_transitions": 1,
+            "Gap": 1
+          },
+          "raw_frames_per_second": 0.05052955405944236,
+          "diagnostics": {
+            "valid_snapshot_timeout": 1
+          },
+          "endpoints": {
+            "wss://stream.binance.us:9443/stream": 2
+          },
+          "last_raw_sha256": "0e8bdd0a9b4defd36d653e03db1bdf307a5d76e761314729867fe6c107ee84b2",
+          "last_book": null,
+          "time_to_first_valid_book_seconds": null,
+          "lifecycle": "waiting_snapshot",
+          "reason": "valid_snapshot_timeout",
+          "epoch": 2,
+          "source_mode": "ws_snapshot",
+          "reconnects": 1,
+          "duplicate_trades": 0,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 0,
+          "queue_bytes": 0,
+          "queue_count_high_water_sampled": 0,
+          "queue_bytes_high_water_sampled": 0,
+          "lifecycle_samples": {
+            "waiting_snapshot": 6
+          },
+          "task_done": false,
+          "task_error": null
+        }
+      },
+      "execution_eligibility": "unknown_not_tested",
+      "full_dependencies_passed": false,
+      "selection": {
+        "quote": "USDT",
+        "market_type": "spot",
+        "candidate_ids": [
+          "binance-us:spot-v3:spot:ETHUSDT"
+        ]
+      },
+      "metadata_execution_access": "unknown",
+      "currently_live_ws_dependencies": false
+    },
+    {
+      "venue": "binance-us",
+      "requested_base": "SOL",
+      "instrument": {
+        "instrument_id": "binance-us:spot-v3:spot:SOLUSDT",
+        "metadata_version": "17ac7a00ddbf24ccf000830f27011d5afb624dc05856932da5438bddc2b64ad8:1793501672735871000",
+        "venue": "binance-us",
+        "api_family": "spot-v3",
+        "native_symbol": "SOLUSDT",
+        "base": {
+          "asset_id": "SOL",
+          "ticker": "SOL",
+          "native_token_id": "SOL",
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "quote": {
+          "asset_id": "USDT",
+          "ticker": "USDT",
+          "native_token_id": "USDT",
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "tick_size": "0.01000000",
+        "lot_size": "0.00100000",
+        "native_asset_id": null,
+        "dex_namespace": null,
+        "settlement": null,
+        "market_type": "spot",
+        "expiry_wall_ns": null,
+        "constraints": {
+          "min_base": "0.00100000",
+          "max_base": "90000.00000000",
+          "min_notional": "1.00000000",
+          "max_notional": null,
+          "min_notional_currency": "USDT",
+          "price_rule": "fixed_tick",
+          "size_rule": "fixed_lot"
+        },
+        "contract_multiplier": "1",
+        "quantity_unit": "base",
+        "contract_value_currency": null,
+        "inverse": false,
+        "status": "active",
+        "data_access": "unknown",
+        "execution_access": "unknown",
+        "metadata_asof_wall_ns": 1793501672735871000,
+        "metadata_source": "https://api.binance.us/api/v3/exchangeInfo"
+      },
+      "metadata": {
+        "status": "passed",
+        "detail": "exact product discovered"
+      },
+      "snapshot": {
+        "status": "passed",
+        "endpoint": "https://api.binance.us/api/v3/depth?symbol=SOLUSDT&limit=20",
+        "raw_bytes": 1263,
+        "raw_sha256": "8df1b2c190c2a8333142f3c8d20f9460b41d0f9b3c7fbcfce653ac79f12cfe60",
+        "decoded_expected_events": 1,
+        "decoded_controls": 0,
+        "integrity": "valid",
+        "recovery": null,
+        "coverage": {
+          "subscribed_depth": 20,
+          "retained_bid_levels": 20,
+          "retained_ask_levels": 20,
+          "worst_bid": "95.24000000",
+          "worst_ask": "95.84000000",
+          "full_depth": false,
+          "source_aggregation": [],
+          "expected_cadence_ns": null
+        },
+        "elapsed_seconds": 1.0174274890014203
+      },
+      "rest_trades": {
+        "status": "passed",
+        "endpoint": "https://api.binance.us/api/v3/trades?symbol=SOLUSDT&limit=1000",
+        "raw_bytes": 142547,
+        "raw_sha256": "6344be25d68c906e0f7015e9b71cab6a6d6f428bd3a0021b3307cf82d2d5a977",
+        "decoded_expected_events": 1000,
+        "decoded_controls": 0,
+        "elapsed_seconds": 0.849191390996566
+      },
+      "ws_book": {
+        "status": "passed",
+        "endpoint": "wss://stream.binance.us:9443/stream",
+        "observed_count": 21,
+        "criterion": "valid non-REST book publication"
+      },
+      "ws_trades": {
+        "status": "failed",
+        "endpoint": "wss://stream.binance.us:9443/stream",
+        "observed_count": 0,
+        "criterion": "non-history non-REST trade event",
+        "detail": "no qualifying observation in this run; not proof of universal unavailability"
+      },
+      "streams": {
+        "book": {
+          "elapsed_seconds": 39.17901344200072,
+          "counts": {
+            "normalized_events": 23,
+            "Control": 2,
+            "raw_frames": 22,
+            "raw_bytes": 27381,
+            "raw_ws_frames": 22,
+            "BookUpdate": 21,
+            "book_snapshot_events": 21,
+            "book_level_changes": 840,
+            "book_publications": 21,
+            "book_integrity_valid": 21,
+            "ws_valid_book_publications": 21,
+            "sampled_lifecycle_transitions": 1
+          },
+          "raw_frames_per_second": 0.5615251142698642,
+          "diagnostics": {},
+          "endpoints": {
+            "wss://stream.binance.us:9443/stream": 22
+          },
+          "last_raw_sha256": "e36e7732157338bb37f3d5abf5937ac46aa37f1fc329c6e4c9cef4165f7524d4",
+          "last_book": {
+            "revision": 21,
+            "connection_epoch": 1,
+            "segment_id": "d22ccfe7-588b-4ace-ab9c-5154771b65a6",
+            "bid_levels": 20,
+            "ask_levels": 20,
+            "quality": {
+              "lifecycle": "live",
+              "integrity": "valid",
+              "transport_alive": true,
+              "source_mode": "ws_snapshot",
+              "recorded_source_mode": null,
+              "last_transport_mono_ns": 79767307853083,
+              "last_book_observation_mono_ns": 79767307853083,
+              "last_book_change_mono_ns": 79767307853083,
+              "last_healthy_observation_mono_ns": 79767307853083,
+              "clock_id": "af70b8d4-1d5e-44dd-9937-daa3e357920d",
+              "coverage": {
+                "subscribed_depth": 20,
+                "retained_bid_levels": 20,
+                "retained_ask_levels": 20,
+                "worst_bid": "95.29000000",
+                "worst_ask": "95.82000000",
+                "full_depth": false,
+                "source_aggregation": [],
+                "expected_cadence_ns": null
+              },
+              "capabilities": {
+                "snapshot": true,
+                "deltas": false,
+                "trades": false,
+                "sequence_scope": null,
+                "checksum_scope": null,
+                "exact_event_flow": false,
+                "reference_prices": [],
+                "asset_context": []
+              },
+              "continuous_since_ordinal": 5882,
+              "reason_codes": [],
+              "capture_complete": true
+            }
+          },
+          "time_to_first_valid_book_seconds": 3.938734330004081,
+          "lifecycle": "live",
+          "reason": "starting",
+          "epoch": 1,
+          "source_mode": "ws_snapshot",
+          "reconnects": 0,
+          "duplicate_trades": 0,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 0,
+          "queue_bytes": 0,
+          "queue_count_high_water_sampled": 5,
+          "queue_bytes_high_water_sampled": 6509,
+          "lifecycle_samples": {
+            "live": 6
+          },
+          "task_done": false,
+          "task_error": null
+        },
+        "trades": {
+          "elapsed_seconds": 39.17878088699945,
+          "counts": {
+            "normalized_events": 5,
+            "Control": 4,
+            "raw_frames": 2,
+            "raw_bytes": 44,
+            "raw_ws_frames": 2,
+            "sampled_lifecycle_transitions": 1,
+            "Gap": 1
+          },
+          "raw_frames_per_second": 0.05104804066692266,
+          "diagnostics": {
+            "valid_snapshot_timeout": 1
+          },
+          "endpoints": {
+            "wss://stream.binance.us:9443/stream": 2
+          },
+          "last_raw_sha256": "0e8bdd0a9b4defd36d653e03db1bdf307a5d76e761314729867fe6c107ee84b2",
+          "last_book": null,
+          "time_to_first_valid_book_seconds": null,
+          "lifecycle": "waiting_snapshot",
+          "reason": "valid_snapshot_timeout",
+          "epoch": 2,
+          "source_mode": "ws_snapshot",
+          "reconnects": 1,
+          "duplicate_trades": 0,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 0,
+          "queue_bytes": 0,
+          "queue_count_high_water_sampled": 0,
+          "queue_bytes_high_water_sampled": 0,
+          "lifecycle_samples": {
+            "waiting_snapshot": 6
+          },
+          "task_done": false,
+          "task_error": null
+        }
+      },
+      "execution_eligibility": "unknown_not_tested",
+      "full_dependencies_passed": false,
+      "selection": {
+        "quote": "USDT",
+        "market_type": "spot",
+        "candidate_ids": [
+          "binance-us:spot-v3:spot:SOLUSDT"
+        ]
+      },
+      "metadata_execution_access": "unknown",
+      "currently_live_ws_dependencies": false
+    },
+    {
+      "venue": "bybit",
+      "requested_base": "BTC",
+      "instrument": null,
+      "metadata": {
+        "status": "failed",
+        "error_type": "PublicTransportError",
+        "detail": "blocked",
+        "access": "blocked",
+        "elapsed_seconds": 0.0852798180130776
+      },
+      "snapshot": {
+        "status": "unrun"
+      },
+      "rest_trades": {
+        "status": "unrun"
+      },
+      "ws_book": {
+        "status": "unrun"
+      },
+      "ws_trades": {
+        "status": "unrun"
+      },
+      "streams": {},
+      "execution_eligibility": "unknown_not_tested",
+      "full_dependencies_passed": false,
+      "currently_live_ws_dependencies": false
+    },
+    {
+      "venue": "bybit",
+      "requested_base": "ETH",
+      "instrument": null,
+      "metadata": {
+        "status": "failed",
+        "error_type": "PublicTransportError",
+        "detail": "blocked",
+        "access": "blocked",
+        "elapsed_seconds": 0.0852798180130776
+      },
+      "snapshot": {
+        "status": "unrun"
+      },
+      "rest_trades": {
+        "status": "unrun"
+      },
+      "ws_book": {
+        "status": "unrun"
+      },
+      "ws_trades": {
+        "status": "unrun"
+      },
+      "streams": {},
+      "execution_eligibility": "unknown_not_tested",
+      "full_dependencies_passed": false,
+      "currently_live_ws_dependencies": false
+    },
+    {
+      "venue": "bybit",
+      "requested_base": "SOL",
+      "instrument": null,
+      "metadata": {
+        "status": "failed",
+        "error_type": "PublicTransportError",
+        "detail": "blocked",
+        "access": "blocked",
+        "elapsed_seconds": 0.0852798180130776
+      },
+      "snapshot": {
+        "status": "unrun"
+      },
+      "rest_trades": {
+        "status": "unrun"
+      },
+      "ws_book": {
+        "status": "unrun"
+      },
+      "ws_trades": {
+        "status": "unrun"
+      },
+      "streams": {},
+      "execution_eligibility": "unknown_not_tested",
+      "full_dependencies_passed": false,
+      "currently_live_ws_dependencies": false
+    },
+    {
+      "venue": "kucoin",
+      "requested_base": "BTC",
+      "instrument": {
+        "instrument_id": "kucoin:classic-spot:spot:BTC-USDT",
+        "metadata_version": "6b062391842eccec8ad1655d89529f1aafffb3b380ab3c0a61e64ecb94b78bbe:1793501672471490000",
+        "venue": "kucoin",
+        "api_family": "classic-spot",
+        "native_symbol": "BTC-USDT",
+        "base": {
+          "asset_id": "BTC",
+          "ticker": "BTC",
+          "native_token_id": "BTC",
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "quote": {
+          "asset_id": "USDT",
+          "ticker": "USDT",
+          "native_token_id": "USDT",
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "tick_size": "0.1",
+        "lot_size": "1E-8",
+        "native_asset_id": null,
+        "dex_namespace": null,
+        "settlement": null,
+        "market_type": "spot",
+        "expiry_wall_ns": null,
+        "constraints": {
+          "min_base": "0.00001",
+          "max_base": "10000000000",
+          "min_notional": "0.1",
+          "max_notional": null,
+          "min_notional_currency": "USDT",
+          "price_rule": "fixed_tick",
+          "size_rule": "fixed_lot"
+        },
+        "contract_multiplier": "1",
+        "quantity_unit": "base",
+        "contract_value_currency": null,
+        "inverse": false,
+        "status": "active",
+        "data_access": "unknown",
+        "execution_access": "unknown",
+        "metadata_asof_wall_ns": 1793501672471490000,
+        "metadata_source": "https://api.kucoin.com/api/v2/symbols"
+      },
+      "metadata": {
+        "status": "passed",
+        "detail": "exact product discovered"
+      },
+      "snapshot": {
+        "status": "passed",
+        "endpoint": "https://api.kucoin.com/api/v1/market/orderbook/level2_20?symbol=BTC-USDT",
+        "raw_bytes": 1082,
+        "raw_sha256": "cff5386fd4ca22e65ada8de67054a5d8ad0bd659480c0055e31b6c097e444f39",
+        "decoded_expected_events": 1,
+        "decoded_controls": 0,
+        "integrity": "valid",
+        "recovery": null,
+        "coverage": {
+          "subscribed_depth": 20,
+          "retained_bid_levels": 20,
+          "retained_ask_levels": 20,
+          "worst_bid": "77691.4",
+          "worst_ask": "77695.9",
+          "full_depth": false,
+          "source_aggregation": [],
+          "expected_cadence_ns": null
+        },
+        "elapsed_seconds": 0.4735615190002136
+      },
+      "rest_trades": {
+        "status": "passed",
+        "endpoint": "https://api.kucoin.com/api/v1/market/histories?symbol=BTC-USDT",
+        "raw_bytes": 14107,
+        "raw_sha256": "825d7660d21e582ee543bd061c79a3ca85800f21cc88ad5dc26c72e907b93b2f",
+        "decoded_expected_events": 100,
+        "decoded_controls": 0,
+        "elapsed_seconds": 0.26362145401071757
+      },
+      "ws_book": {
+        "status": "unsupported",
+        "endpoint": null
+      },
+      "ws_trades": {
+        "status": "unsupported",
+        "endpoint": null
+      },
+      "streams": {
+        "book": {
+          "elapsed_seconds": 45.26586085099552,
+          "counts": {
+            "normalized_events": 8,
+            "Control": 1,
+            "raw_frames": 7,
+            "raw_bytes": 7558,
+            "raw_rest_frames": 7,
+            "BookUpdate": 7,
+            "book_snapshot_events": 7,
+            "book_level_changes": 280,
+            "book_publications": 7,
+            "book_integrity_valid": 7,
+            "rest_valid_book_publications": 7,
+            "sampled_lifecycle_transitions": 1
+          },
+          "raw_frames_per_second": 0.15464192811978855,
+          "diagnostics": {},
+          "endpoints": {
+            "https://api.kucoin.com/api/v1/market/orderbook/level2_20?symbol=BTC-USDT": 7
+          },
+          "last_raw_sha256": "917077e4f53e6898921d0e29aa6647dc9d7bb3d90c3f591f589a387cd33216d0",
+          "last_book": {
+            "revision": 7,
+            "connection_epoch": 1,
+            "segment_id": "36aabbc4-4d07-45e8-8e59-8c12f5a75516",
+            "bid_levels": 20,
+            "ask_levels": 20,
+            "quality": {
+              "lifecycle": "degraded",
+              "integrity": "valid",
+              "transport_alive": true,
+              "source_mode": "rest_snapshot",
+              "recorded_source_mode": null,
+              "last_transport_mono_ns": 79767633599204,
+              "last_book_observation_mono_ns": 79767633599204,
+              "last_book_change_mono_ns": 79767633599204,
+              "last_healthy_observation_mono_ns": 79767633599204,
+              "clock_id": "af70b8d4-1d5e-44dd-9937-daa3e357920d",
+              "coverage": {
+                "subscribed_depth": 20,
+                "retained_bid_levels": 20,
+                "retained_ask_levels": 20,
+                "worst_bid": "77697.7",
+                "worst_ask": "77701.6",
+                "full_depth": false,
+                "source_aggregation": [],
+                "expected_cadence_ns": 2000000000
+              },
+              "capabilities": {
+                "snapshot": true,
+                "deltas": false,
+                "trades": false,
+                "sequence_scope": null,
+                "checksum_scope": null,
+                "exact_event_flow": false,
+                "reference_prices": [],
+                "asset_context": []
+              },
+              "continuous_since_ordinal": 5917,
+              "reason_codes": [],
+              "capture_complete": true
+            }
+          },
+          "time_to_first_valid_book_seconds": 4.911902349995216,
+          "lifecycle": "degraded",
+          "reason": "starting",
+          "epoch": 1,
+          "source_mode": "rest_snapshot",
+          "reconnects": 0,
+          "duplicate_trades": 0,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 0,
+          "queue_bytes": 0,
+          "queue_count_high_water_sampled": 0,
+          "queue_bytes_high_water_sampled": 0,
+          "lifecycle_samples": {
+            "degraded": 6
+          },
+          "task_done": false,
+          "task_error": null
+        },
+        "trades": {
+          "elapsed_seconds": 45.265721285002655,
+          "counts": {
+            "normalized_events": 701,
+            "Control": 486,
+            "raw_frames": 7,
+            "raw_bytes": 98694,
+            "raw_rest_frames": 7,
+            "Trade": 215,
+            "rest_history_trades": 215,
+            "sampled_lifecycle_transitions": 1
+          },
+          "raw_frames_per_second": 0.15464240492107711,
+          "diagnostics": {},
+          "endpoints": {
+            "https://api.kucoin.com/api/v1/market/histories?symbol=BTC-USDT": 7
+          },
+          "last_raw_sha256": "7a25cec0766f11da99abc99bf732cb09bd8a10b0af69a48f690ef62932b20477",
+          "last_book": null,
+          "time_to_first_valid_book_seconds": null,
+          "lifecycle": "degraded",
+          "reason": "starting",
+          "epoch": 1,
+          "source_mode": "rest_snapshot",
+          "reconnects": 0,
+          "duplicate_trades": 485,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 0,
+          "queue_bytes": 0,
+          "queue_count_high_water_sampled": 0,
+          "queue_bytes_high_water_sampled": 0,
+          "lifecycle_samples": {
+            "degraded": 6
+          },
+          "task_done": false,
+          "task_error": null
+        }
+      },
+      "execution_eligibility": "unknown_not_tested",
+      "full_dependencies_passed": false,
+      "selection": {
+        "quote": "USDT",
+        "market_type": "spot",
+        "candidate_ids": [
+          "kucoin:classic-spot:spot:BTC-USDT"
+        ]
+      },
+      "metadata_execution_access": "unknown",
+      "currently_live_ws_dependencies": false
+    },
+    {
+      "venue": "kucoin",
+      "requested_base": "ETH",
+      "instrument": {
+        "instrument_id": "kucoin:classic-spot:spot:ETH-USDT",
+        "metadata_version": "6b062391842eccec8ad1655d89529f1aafffb3b380ab3c0a61e64ecb94b78bbe:1793501672471490000",
+        "venue": "kucoin",
+        "api_family": "classic-spot",
+        "native_symbol": "ETH-USDT",
+        "base": {
+          "asset_id": "ETH",
+          "ticker": "ETH",
+          "native_token_id": "ETH",
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "quote": {
+          "asset_id": "USDT",
+          "ticker": "USDT",
+          "native_token_id": "USDT",
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "tick_size": "0.01",
+        "lot_size": "1E-7",
+        "native_asset_id": null,
+        "dex_namespace": null,
+        "settlement": null,
+        "market_type": "spot",
+        "expiry_wall_ns": null,
+        "constraints": {
+          "min_base": "0.0001",
+          "max_base": "10000000000",
+          "min_notional": "0.1",
+          "max_notional": null,
+          "min_notional_currency": "USDT",
+          "price_rule": "fixed_tick",
+          "size_rule": "fixed_lot"
+        },
+        "contract_multiplier": "1",
+        "quantity_unit": "base",
+        "contract_value_currency": null,
+        "inverse": false,
+        "status": "active",
+        "data_access": "unknown",
+        "execution_access": "unknown",
+        "metadata_asof_wall_ns": 1793501672471490000,
+        "metadata_source": "https://api.kucoin.com/api/v2/symbols"
+      },
+      "metadata": {
+        "status": "passed",
+        "detail": "exact product discovered"
+      },
+      "snapshot": {
+        "status": "passed",
+        "endpoint": "https://api.kucoin.com/api/v1/market/orderbook/level2_20?symbol=ETH-USDT",
+        "raw_bytes": 1011,
+        "raw_sha256": "5c40f037f6250a4ac58c7bf08e9a2b0140a0d072debe78027f8275e2929837d9",
+        "decoded_expected_events": 1,
+        "decoded_controls": 0,
+        "integrity": "valid",
+        "recovery": null,
+        "coverage": {
+          "subscribed_depth": 20,
+          "retained_bid_levels": 20,
+          "retained_ask_levels": 20,
+          "worst_bid": "2265.35",
+          "worst_ask": "2266.12",
+          "full_depth": false,
+          "source_aggregation": [],
+          "expected_cadence_ns": null
+        },
+        "elapsed_seconds": 0.4864829349971842
+      },
+      "rest_trades": {
+        "status": "passed",
+        "endpoint": "https://api.kucoin.com/api/v1/market/histories?symbol=ETH-USDT",
+        "raw_bytes": 13855,
+        "raw_sha256": "8849dccd8c95d89d1251c4d8071ea8574349e7c6e581295e107e5c99827b29a7",
+        "decoded_expected_events": 100,
+        "decoded_controls": 0,
+        "elapsed_seconds": 1.6901444130053278
+      },
+      "ws_book": {
+        "status": "unsupported",
+        "endpoint": null
+      },
+      "ws_trades": {
+        "status": "unsupported",
+        "endpoint": null
+      },
+      "streams": {
+        "book": {
+          "elapsed_seconds": 43.738437684005476,
+          "counts": {
+            "normalized_events": 8,
+            "Control": 1,
+            "raw_frames": 7,
+            "raw_bytes": 7014,
+            "raw_rest_frames": 7,
+            "BookUpdate": 7,
+            "book_snapshot_events": 7,
+            "book_level_changes": 280,
+            "book_publications": 7,
+            "book_integrity_valid": 7,
+            "rest_valid_book_publications": 7,
+            "sampled_lifecycle_transitions": 1
+          },
+          "raw_frames_per_second": 0.1600422962194601,
+          "diagnostics": {},
+          "endpoints": {
+            "https://api.kucoin.com/api/v1/market/orderbook/level2_20?symbol=ETH-USDT": 7
+          },
+          "last_raw_sha256": "05d9b918e2568706e8f33998756b6ea145d4033c5f294706cb56f6b3600bf36f",
+          "last_book": {
+            "revision": 7,
+            "connection_epoch": 1,
+            "segment_id": "e8e4b70e-1f9b-40df-b8c2-dc75ae7ab3d2",
+            "bid_levels": 20,
+            "ask_levels": 20,
+            "quality": {
+              "lifecycle": "degraded",
+              "integrity": "valid",
+              "transport_alive": true,
+              "source_mode": "rest_snapshot",
+              "recorded_source_mode": null,
+              "last_transport_mono_ns": 79767650163507,
+              "last_book_observation_mono_ns": 79767650163507,
+              "last_book_change_mono_ns": 79767650163507,
+              "last_healthy_observation_mono_ns": 79767650163507,
+              "clock_id": "af70b8d4-1d5e-44dd-9937-daa3e357920d",
+              "coverage": {
+                "subscribed_depth": 20,
+                "retained_bid_levels": 20,
+                "retained_ask_levels": 20,
+                "worst_bid": "2265.44",
+                "worst_ask": "2266.13",
+                "full_depth": false,
+                "source_aggregation": [],
+                "expected_cadence_ns": 2000000000
+              },
+              "capabilities": {
+                "snapshot": true,
+                "deltas": false,
+                "trades": false,
+                "sequence_scope": null,
+                "checksum_scope": null,
+                "exact_event_flow": false,
+                "reference_prices": [],
+                "asset_context": []
+              },
+              "continuous_since_ordinal": 5919,
+              "reason_codes": [],
+              "capture_complete": true
+            }
+          },
+          "time_to_first_valid_book_seconds": 3.4076644720043987,
+          "lifecycle": "degraded",
+          "reason": "starting",
+          "epoch": 1,
+          "source_mode": "rest_snapshot",
+          "reconnects": 0,
+          "duplicate_trades": 0,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 0,
+          "queue_bytes": 0,
+          "queue_count_high_water_sampled": 0,
+          "queue_bytes_high_water_sampled": 0,
+          "lifecycle_samples": {
+            "degraded": 6
+          },
+          "task_done": false,
+          "task_error": null
+        },
+        "trades": {
+          "elapsed_seconds": 43.73828827899706,
+          "counts": {
+            "normalized_events": 701,
+            "Control": 592,
+            "raw_frames": 7,
+            "raw_bytes": 96865,
+            "raw_rest_frames": 7,
+            "Trade": 109,
+            "rest_history_trades": 109,
+            "sampled_lifecycle_transitions": 1
+          },
+          "raw_frames_per_second": 0.1600428429057058,
+          "diagnostics": {},
+          "endpoints": {
+            "https://api.kucoin.com/api/v1/market/histories?symbol=ETH-USDT": 7
+          },
+          "last_raw_sha256": "9039dfaf9e786d80e6b0c0dd417438bbd7167f4f9f6fa85c024e4ec6022596aa",
+          "last_book": null,
+          "time_to_first_valid_book_seconds": null,
+          "lifecycle": "degraded",
+          "reason": "starting",
+          "epoch": 1,
+          "source_mode": "rest_snapshot",
+          "reconnects": 0,
+          "duplicate_trades": 591,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 0,
+          "queue_bytes": 0,
+          "queue_count_high_water_sampled": 0,
+          "queue_bytes_high_water_sampled": 0,
+          "lifecycle_samples": {
+            "degraded": 6
+          },
+          "task_done": false,
+          "task_error": null
+        }
+      },
+      "execution_eligibility": "unknown_not_tested",
+      "full_dependencies_passed": false,
+      "selection": {
+        "quote": "USDT",
+        "market_type": "spot",
+        "candidate_ids": [
+          "kucoin:classic-spot:spot:ETH-USDT"
+        ]
+      },
+      "metadata_execution_access": "unknown",
+      "currently_live_ws_dependencies": false
+    },
+    {
+      "venue": "kucoin",
+      "requested_base": "SOL",
+      "instrument": {
+        "instrument_id": "kucoin:classic-spot:spot:SOL-USDT",
+        "metadata_version": "6b062391842eccec8ad1655d89529f1aafffb3b380ab3c0a61e64ecb94b78bbe:1793501672471490000",
+        "venue": "kucoin",
+        "api_family": "classic-spot",
+        "native_symbol": "SOL-USDT",
+        "base": {
+          "asset_id": "SOL",
+          "ticker": "SOL",
+          "native_token_id": "SOL",
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "quote": {
+          "asset_id": "USDT",
+          "ticker": "USDT",
+          "native_token_id": "USDT",
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "tick_size": "0.01",
+        "lot_size": "0.001",
+        "native_asset_id": null,
+        "dex_namespace": null,
+        "settlement": null,
+        "market_type": "spot",
+        "expiry_wall_ns": null,
+        "constraints": {
+          "min_base": "0.001",
+          "max_base": "10000000000",
+          "min_notional": "0.1",
+          "max_notional": null,
+          "min_notional_currency": "USDT",
+          "price_rule": "fixed_tick",
+          "size_rule": "fixed_lot"
+        },
+        "contract_multiplier": "1",
+        "quantity_unit": "base",
+        "contract_value_currency": null,
+        "inverse": false,
+        "status": "active",
+        "data_access": "unknown",
+        "execution_access": "unknown",
+        "metadata_asof_wall_ns": 1793501672471490000,
+        "metadata_source": "https://api.kucoin.com/api/v2/symbols"
+      },
+      "metadata": {
+        "status": "passed",
+        "detail": "exact product discovered"
+      },
+      "snapshot": {
+        "status": "passed",
+        "endpoint": "https://api.kucoin.com/api/v1/market/orderbook/level2_20?symbol=SOL-USDT",
+        "raw_bytes": 842,
+        "raw_sha256": "c0726b8a8640b91a38fd98feca445e4eea3c26dbfa6a914a620eef7cdfda0a99",
+        "decoded_expected_events": 1,
+        "decoded_controls": 0,
+        "integrity": "valid",
+        "recovery": null,
+        "coverage": {
+          "subscribed_depth": 20,
+          "retained_bid_levels": 20,
+          "retained_ask_levels": 20,
+          "worst_bid": "95.22",
+          "worst_ask": "95.63",
+          "full_depth": false,
+          "source_aggregation": [],
+          "expected_cadence_ns": null
+        },
+        "elapsed_seconds": 0.3927451069903327
+      },
+      "rest_trades": {
+        "status": "passed",
+        "endpoint": "https://api.kucoin.com/api/v1/market/histories?symbol=SOL-USDT",
+        "raw_bytes": 13452,
+        "raw_sha256": "bb37e06f1559dbfad698e26b5e9f07a00c27de3c54429adff0798988c62d61cb",
+        "decoded_expected_events": 100,
+        "decoded_controls": 0,
+        "elapsed_seconds": 4.137194195005577
+      },
+      "ws_book": {
+        "status": "unsupported",
+        "endpoint": null
+      },
+      "ws_trades": {
+        "status": "unsupported",
+        "endpoint": null
+      },
+      "streams": {
+        "book": {
+          "elapsed_seconds": 41.236365513002966,
+          "counts": {
+            "normalized_events": 8,
+            "Control": 1,
+            "raw_frames": 7,
+            "raw_bytes": 5919,
+            "raw_rest_frames": 7,
+            "BookUpdate": 7,
+            "book_snapshot_events": 7,
+            "book_level_changes": 280,
+            "book_publications": 7,
+            "book_integrity_valid": 7,
+            "rest_valid_book_publications": 7,
+            "sampled_lifecycle_transitions": 1
+          },
+          "raw_frames_per_second": 0.169753078694404,
+          "diagnostics": {},
+          "endpoints": {
+            "https://api.kucoin.com/api/v1/market/orderbook/level2_20?symbol=SOL-USDT": 7
+          },
+          "last_raw_sha256": "2af91f0bbe3ab6ae54f8dfa85859b57d0dffc9eba53ee5e5d4df3c0ff3574f0c",
+          "last_book": {
+            "revision": 7,
+            "connection_epoch": 1,
+            "segment_id": "24a39633-3f78-4ab7-9137-2f5578ebbf98",
+            "bid_levels": 20,
+            "ask_levels": 20,
+            "quality": {
+              "lifecycle": "degraded",
+              "integrity": "valid",
+              "transport_alive": true,
+              "source_mode": "rest_snapshot",
+              "recorded_source_mode": null,
+              "last_transport_mono_ns": 79767640256408,
+              "last_book_observation_mono_ns": 79767640256408,
+              "last_book_change_mono_ns": 79767640256408,
+              "last_healthy_observation_mono_ns": 79767640256408,
+              "clock_id": "af70b8d4-1d5e-44dd-9937-daa3e357920d",
+              "coverage": {
+                "subscribed_depth": 20,
+                "retained_bid_levels": 20,
+                "retained_ask_levels": 20,
+                "worst_bid": "95.24",
+                "worst_ask": "95.63",
+                "full_depth": false,
+                "source_aggregation": [],
+                "expected_cadence_ns": 2000000000
+              },
+              "capabilities": {
+                "snapshot": true,
+                "deltas": false,
+                "trades": false,
+                "sequence_scope": null,
+                "checksum_scope": null,
+                "exact_event_flow": false,
+                "reference_prices": [],
+                "asset_context": []
+              },
+              "continuous_since_ordinal": 5918,
+              "reason_codes": [],
+              "capture_complete": true
+            }
+          },
+          "time_to_first_valid_book_seconds": 0.9270602580072591,
+          "lifecycle": "degraded",
+          "reason": "starting",
+          "epoch": 1,
+          "source_mode": "rest_snapshot",
+          "reconnects": 0,
+          "duplicate_trades": 0,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 0,
+          "queue_bytes": 0,
+          "queue_count_high_water_sampled": 0,
+          "queue_bytes_high_water_sampled": 0,
+          "lifecycle_samples": {
+            "degraded": 6
+          },
+          "task_done": false,
+          "task_error": null
+        },
+        "trades": {
+          "elapsed_seconds": 41.23622295699897,
+          "counts": {
+            "normalized_events": 701,
+            "Control": 601,
+            "raw_frames": 7,
+            "raw_bytes": 94164,
+            "raw_rest_frames": 7,
+            "Trade": 100,
+            "rest_history_trades": 100,
+            "sampled_lifecycle_transitions": 1
+          },
+          "raw_frames_per_second": 0.16975366554059965,
+          "diagnostics": {},
+          "endpoints": {
+            "https://api.kucoin.com/api/v1/market/histories?symbol=SOL-USDT": 7
+          },
+          "last_raw_sha256": "bb37e06f1559dbfad698e26b5e9f07a00c27de3c54429adff0798988c62d61cb",
+          "last_book": null,
+          "time_to_first_valid_book_seconds": null,
+          "lifecycle": "degraded",
+          "reason": "starting",
+          "epoch": 1,
+          "source_mode": "rest_snapshot",
+          "reconnects": 0,
+          "duplicate_trades": 600,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 0,
+          "queue_bytes": 0,
+          "queue_count_high_water_sampled": 0,
+          "queue_bytes_high_water_sampled": 0,
+          "lifecycle_samples": {
+            "degraded": 6
+          },
+          "task_done": false,
+          "task_error": null
+        }
+      },
+      "execution_eligibility": "unknown_not_tested",
+      "full_dependencies_passed": false,
+      "selection": {
+        "quote": "USDT",
+        "market_type": "spot",
+        "candidate_ids": [
+          "kucoin:classic-spot:spot:SOL-USDT"
+        ]
+      },
+      "metadata_execution_access": "unknown",
+      "currently_live_ws_dependencies": false
+    },
+    {
+      "venue": "hyperliquid",
+      "requested_base": "BTC",
+      "instrument": {
+        "instrument_id": "hyperliquid:info:perpetual:BTC",
+        "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793501674241120000",
+        "venue": "hyperliquid",
+        "api_family": "info",
+        "native_symbol": "BTC",
+        "base": {
+          "asset_id": "BTC",
+          "ticker": "BTC",
+          "native_token_id": null,
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "quote": {
+          "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+          "ticker": "USDC",
+          "native_token_id": "0",
+          "network": "hypercore",
+          "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+          "reference_asset_id": null
+        },
+        "tick_size": null,
+        "lot_size": "0.00001",
+        "native_asset_id": "0",
+        "dex_namespace": "default",
+        "settlement": {
+          "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+          "ticker": "USDC",
+          "native_token_id": "0",
+          "network": "hypercore",
+          "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+          "reference_asset_id": null
+        },
+        "market_type": "perpetual",
+        "expiry_wall_ns": null,
+        "constraints": {
+          "min_base": null,
+          "max_base": null,
+          "min_notional": null,
+          "max_notional": null,
+          "min_notional_currency": null,
+          "price_rule": "hyperliquid_significant_digits",
+          "size_rule": "fixed_lot"
+        },
+        "contract_multiplier": "1",
+        "quantity_unit": "base",
+        "contract_value_currency": null,
+        "inverse": false,
+        "status": "active",
+        "data_access": "unknown",
+        "execution_access": "unknown",
+        "metadata_asof_wall_ns": 1793501674241120000,
+        "metadata_source": "https://api.hyperliquid.xyz/info"
+      },
+      "metadata": {
+        "status": "passed",
+        "detail": "exact product discovered"
+      },
+      "snapshot": {
+        "status": "passed",
+        "endpoint": "https://api.hyperliquid.xyz/info",
+        "raw_bytes": 1565,
+        "raw_sha256": "eef5436a5eafd6588a69fa936f7bc329b3a11e880a7f71829374ccedadd8ebbe",
+        "decoded_expected_events": 1,
+        "decoded_controls": 0,
+        "integrity": "valid",
+        "recovery": null,
+        "coverage": {
+          "subscribed_depth": 20,
+          "retained_bid_levels": 20,
+          "retained_ask_levels": 20,
+          "worst_bid": "77686.0",
+          "worst_ask": "77727.0",
+          "full_depth": false,
+          "source_aggregation": [
+            [
+              "fast",
+              "false"
+            ]
+          ],
+          "expected_cadence_ns": 500000000
+        },
+        "elapsed_seconds": 1.1905031489877729
+      },
+      "rest_trades": {
+        "status": "unsupported",
+        "detail": "adapter exposes no REST request for this channel"
+      },
+      "ws_book": {
+        "status": "failed",
+        "endpoint": "wss://api.hyperliquid.xyz/ws",
+        "observed_count": 0,
+        "criterion": "valid non-REST book publication",
+        "detail": "no qualifying observation in this run; not proof of universal unavailability"
+      },
+      "ws_trades": {
+        "status": "passed",
+        "endpoint": "wss://api.hyperliquid.xyz/ws",
+        "observed_count": 79,
+        "criterion": "non-history non-REST trade event"
+      },
+      "streams": {
+        "book": {
+          "elapsed_seconds": 32.233968339001876,
+          "counts": {
+            "normalized_events": 9,
+            "Control": 3,
+            "sampled_lifecycle_transitions": 2,
+            "raw_frames": 8,
+            "raw_bytes": 9786,
+            "raw_ws_frames": 4,
+            "Gap": 2,
+            "raw_rest_frames": 4,
+            "BookUpdate": 4,
+            "book_snapshot_events": 4,
+            "book_level_changes": 160,
+            "book_publications": 4,
+            "book_integrity_valid": 4,
+            "rest_valid_book_publications": 4,
+            "recoveries_to_valid_book": 1
+          },
+          "raw_frames_per_second": 0.24818538989257194,
+          "diagnostics": {
+            "decode:hyperliquid_decode": 2
+          },
+          "endpoints": {
+            "wss://api.hyperliquid.xyz/ws": 4,
+            "https://api.hyperliquid.xyz/info": 4
+          },
+          "last_raw_sha256": "a3ea967459b260e5a9b9df04f7c0ae22ee432b65f04ced0fc18630c5cea3430e",
+          "last_book": {
+            "revision": 4,
+            "connection_epoch": 3,
+            "segment_id": "35baf1b4-f07a-4ad6-83fe-baad32273585",
+            "bid_levels": 20,
+            "ask_levels": 20,
+            "quality": {
+              "lifecycle": "degraded",
+              "integrity": "valid",
+              "transport_alive": true,
+              "source_mode": "rest_snapshot",
+              "recorded_source_mode": null,
+              "last_transport_mono_ns": 79767665047035,
+              "last_book_observation_mono_ns": 79767665047035,
+              "last_book_change_mono_ns": 79767665047035,
+              "last_healthy_observation_mono_ns": 79767665047035,
+              "clock_id": "af70b8d4-1d5e-44dd-9937-daa3e357920d",
+              "coverage": {
+                "subscribed_depth": 20,
+                "retained_bid_levels": 20,
+                "retained_ask_levels": 20,
+                "worst_bid": "77694.0",
+                "worst_ask": "77734.0",
+                "full_depth": false,
+                "source_aggregation": [
+                  [
+                    "fast",
+                    "false"
+                  ]
+                ],
+                "expected_cadence_ns": 2000000000
+              },
+              "capabilities": {
+                "snapshot": true,
+                "deltas": false,
+                "trades": false,
+                "sequence_scope": null,
+                "checksum_scope": null,
+                "exact_event_flow": false,
+                "reference_prices": [],
+                "asset_context": []
+              },
+              "continuous_since_ordinal": 5922,
+              "reason_codes": [],
+              "capture_complete": true
+            }
+          },
+          "time_to_first_valid_book_seconds": 20.7472556970024,
+          "lifecycle": "degraded",
+          "reason": "decode:hyperliquid_decode",
+          "epoch": 3,
+          "source_mode": "rest_snapshot",
+          "reconnects": 2,
+          "duplicate_trades": 0,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 0,
+          "queue_bytes": 0,
+          "queue_count_high_water_sampled": 0,
+          "queue_bytes_high_water_sampled": 0,
+          "lifecycle_samples": {
+            "waiting_snapshot": 2,
+            "degraded": 4
+          },
+          "task_done": false,
+          "task_error": null
+        },
+        "trades": {
+          "elapsed_seconds": 32.22310884400213,
+          "counts": {
+            "normalized_events": 82,
+            "Control": 3,
+            "sampled_lifecycle_transitions": 2,
+            "raw_frames": 16,
+            "raw_bytes": 23071,
+            "raw_ws_frames": 16,
+            "Trade": 79,
+            "ws_live_trades": 79
+          },
+          "raw_frames_per_second": 0.49653806147193563,
+          "diagnostics": {},
+          "endpoints": {
+            "wss://api.hyperliquid.xyz/ws": 16
+          },
+          "last_raw_sha256": "f014de84f53f8dbd5f8f7ef91905bc05fe43391dc9553afe394c787edc7c1f6b",
+          "last_book": null,
+          "time_to_first_valid_book_seconds": null,
+          "lifecycle": "live",
+          "reason": "starting",
+          "epoch": 1,
+          "source_mode": "ws_snapshot",
+          "reconnects": 0,
+          "duplicate_trades": 0,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 1,
+          "queue_bytes": 580,
+          "queue_count_high_water_sampled": 2,
+          "queue_bytes_high_water_sampled": 10493,
+          "lifecycle_samples": {
+            "waiting_snapshot": 1,
+            "live": 5
+          },
+          "task_done": false,
+          "task_error": null
+        }
+      },
+      "execution_eligibility": "unknown_not_tested",
+      "full_dependencies_passed": false,
+      "selection": {
+        "quote": "USDC",
+        "market_type": "perpetual",
+        "candidate_ids": [
+          "hyperliquid:info:perpetual:BTC"
+        ]
+      },
+      "metadata_execution_access": "unknown",
+      "currently_live_ws_dependencies": false
+    },
+    {
+      "venue": "hyperliquid",
+      "requested_base": "ETH",
+      "instrument": {
+        "instrument_id": "hyperliquid:info:perpetual:ETH",
+        "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793501674241120000",
+        "venue": "hyperliquid",
+        "api_family": "info",
+        "native_symbol": "ETH",
+        "base": {
+          "asset_id": "ETH",
+          "ticker": "ETH",
+          "native_token_id": null,
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "quote": {
+          "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+          "ticker": "USDC",
+          "native_token_id": "0",
+          "network": "hypercore",
+          "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+          "reference_asset_id": null
+        },
+        "tick_size": null,
+        "lot_size": "0.0001",
+        "native_asset_id": "1",
+        "dex_namespace": "default",
+        "settlement": {
+          "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+          "ticker": "USDC",
+          "native_token_id": "0",
+          "network": "hypercore",
+          "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+          "reference_asset_id": null
+        },
+        "market_type": "perpetual",
+        "expiry_wall_ns": null,
+        "constraints": {
+          "min_base": null,
+          "max_base": null,
+          "min_notional": null,
+          "max_notional": null,
+          "min_notional_currency": null,
+          "price_rule": "hyperliquid_significant_digits",
+          "size_rule": "fixed_lot"
+        },
+        "contract_multiplier": "1",
+        "quantity_unit": "base",
+        "contract_value_currency": null,
+        "inverse": false,
+        "status": "active",
+        "data_access": "unknown",
+        "execution_access": "unknown",
+        "metadata_asof_wall_ns": 1793501674241120000,
+        "metadata_source": "https://api.hyperliquid.xyz/info"
+      },
+      "metadata": {
+        "status": "passed",
+        "detail": "exact product discovered"
+      },
+      "snapshot": {
+        "status": "passed",
+        "endpoint": "https://api.hyperliquid.xyz/info",
+        "raw_bytes": 1594,
+        "raw_sha256": "9679df555dcb6dcf6787a514269438e10b246a5313c1f9a2771f831f2d4cf64f",
+        "decoded_expected_events": 1,
+        "decoded_controls": 0,
+        "integrity": "valid",
+        "recovery": null,
+        "coverage": {
+          "subscribed_depth": 20,
+          "retained_bid_levels": 20,
+          "retained_ask_levels": 20,
+          "worst_bid": "2263.0",
+          "worst_ask": "2266.9",
+          "full_depth": false,
+          "source_aggregation": [
+            [
+              "fast",
+              "false"
+            ]
+          ],
+          "expected_cadence_ns": 500000000
+        },
+        "elapsed_seconds": 1.9693261439970229
+      },
+      "rest_trades": {
+        "status": "unsupported",
+        "detail": "adapter exposes no REST request for this channel"
+      },
+      "ws_book": {
+        "status": "failed",
+        "endpoint": "wss://api.hyperliquid.xyz/ws",
+        "observed_count": 0,
+        "criterion": "valid non-REST book publication",
+        "detail": "no qualifying observation in this run; not proof of universal unavailability"
+      },
+      "ws_trades": {
+        "status": "passed",
+        "endpoint": "wss://api.hyperliquid.xyz/ws",
+        "observed_count": 41,
+        "criterion": "non-history non-REST trade event"
+      },
+      "streams": {
+        "book": {
+          "elapsed_seconds": 30.17599521399825,
+          "counts": {
+            "normalized_events": 8,
+            "Control": 3,
+            "sampled_lifecycle_transitions": 3,
+            "raw_frames": 7,
+            "raw_bytes": 8333,
+            "raw_ws_frames": 4,
+            "Gap": 2,
+            "raw_rest_frames": 3,
+            "BookUpdate": 3,
+            "book_snapshot_events": 3,
+            "book_level_changes": 120,
+            "book_publications": 3,
+            "book_integrity_valid": 3,
+            "rest_valid_book_publications": 3,
+            "recoveries_to_valid_book": 1
+          },
+          "raw_frames_per_second": 0.23197246521144702,
+          "diagnostics": {
+            "decode:hyperliquid_decode": 2
+          },
+          "endpoints": {
+            "wss://api.hyperliquid.xyz/ws": 4,
+            "https://api.hyperliquid.xyz/info": 3
+          },
+          "last_raw_sha256": "c5544f4cf88bf2fb3eb8ecdaa17ed8524151c69c821a062886d5d8ab5857251e",
+          "last_book": {
+            "revision": 3,
+            "connection_epoch": 3,
+            "segment_id": "408975a1-0f9b-4c8a-b7f7-dc3b60089ab2",
+            "bid_levels": 20,
+            "ask_levels": 20,
+            "quality": {
+              "lifecycle": "degraded",
+              "integrity": "valid",
+              "transport_alive": true,
+              "source_mode": "rest_snapshot",
+              "recorded_source_mode": null,
+              "last_transport_mono_ns": 79767689393874,
+              "last_book_observation_mono_ns": 79767689393874,
+              "last_book_change_mono_ns": 79767689393874,
+              "last_healthy_observation_mono_ns": 79767689393874,
+              "clock_id": "af70b8d4-1d5e-44dd-9937-daa3e357920d",
+              "coverage": {
+                "subscribed_depth": 20,
+                "retained_bid_levels": 20,
+                "retained_ask_levels": 20,
+                "worst_bid": "2263.0",
+                "worst_ask": "2266.9",
+                "full_depth": false,
+                "source_aggregation": [
+                  [
+                    "fast",
+                    "false"
+                  ]
+                ],
+                "expected_cadence_ns": 2000000000
+              },
+              "capabilities": {
+                "snapshot": true,
+                "deltas": false,
+                "trades": false,
+                "sequence_scope": null,
+                "checksum_scope": null,
+                "exact_event_flow": false,
+                "reference_prices": [],
+                "asset_context": []
+              },
+              "continuous_since_ordinal": 5925,
+              "reason_codes": [],
+              "capture_complete": true
+            }
+          },
+          "time_to_first_valid_book_seconds": 20.344266589003382,
+          "lifecycle": "degraded",
+          "reason": "decode:hyperliquid_decode",
+          "epoch": 3,
+          "source_mode": "rest_snapshot",
+          "reconnects": 2,
+          "duplicate_trades": 0,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 0,
+          "queue_bytes": 0,
+          "queue_count_high_water_sampled": 1,
+          "queue_bytes_high_water_sampled": 1623,
+          "lifecycle_samples": {
+            "waiting_snapshot": 1,
+            "resynchronizing": 1,
+            "degraded": 4
+          },
+          "task_done": false,
+          "task_error": null
+        },
+        "trades": {
+          "elapsed_seconds": 30.1757576809905,
+          "counts": {
+            "normalized_events": 44,
+            "Control": 3,
+            "sampled_lifecycle_transitions": 2,
+            "raw_frames": 14,
+            "raw_bytes": 11938,
+            "raw_ws_frames": 14,
+            "Trade": 41,
+            "ws_live_trades": 41
+          },
+          "raw_frames_per_second": 0.46394858243507936,
+          "diagnostics": {},
+          "endpoints": {
+            "wss://api.hyperliquid.xyz/ws": 14
+          },
+          "last_raw_sha256": "02dc6f7abea86227c43f6d664f8b78227830f6f19f1ef7e28deafa718144706e",
+          "last_book": null,
+          "time_to_first_valid_book_seconds": null,
+          "lifecycle": "live",
+          "reason": "starting",
+          "epoch": 1,
+          "source_mode": "ws_snapshot",
+          "reconnects": 0,
+          "duplicate_trades": 0,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 0,
+          "queue_bytes": 0,
+          "queue_count_high_water_sampled": 2,
+          "queue_bytes_high_water_sampled": 604,
+          "lifecycle_samples": {
+            "waiting_snapshot": 1,
+            "live": 5
+          },
+          "task_done": false,
+          "task_error": null
+        }
+      },
+      "execution_eligibility": "unknown_not_tested",
+      "full_dependencies_passed": false,
+      "selection": {
+        "quote": "USDC",
+        "market_type": "perpetual",
+        "candidate_ids": [
+          "hyperliquid:info:perpetual:ETH"
+        ]
+      },
+      "metadata_execution_access": "unknown",
+      "currently_live_ws_dependencies": false
+    },
+    {
+      "venue": "hyperliquid",
+      "requested_base": "SOL",
+      "instrument": {
+        "instrument_id": "hyperliquid:info:perpetual:SOL",
+        "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793501674241120000",
+        "venue": "hyperliquid",
+        "api_family": "info",
+        "native_symbol": "SOL",
+        "base": {
+          "asset_id": "SOL",
+          "ticker": "SOL",
+          "native_token_id": null,
+          "network": null,
+          "contract_address": null,
+          "reference_asset_id": null
+        },
+        "quote": {
+          "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+          "ticker": "USDC",
+          "native_token_id": "0",
+          "network": "hypercore",
+          "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+          "reference_asset_id": null
+        },
+        "tick_size": null,
+        "lot_size": "0.01",
+        "native_asset_id": "5",
+        "dex_namespace": "default",
+        "settlement": {
+          "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+          "ticker": "USDC",
+          "native_token_id": "0",
+          "network": "hypercore",
+          "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+          "reference_asset_id": null
+        },
+        "market_type": "perpetual",
+        "expiry_wall_ns": null,
+        "constraints": {
+          "min_base": null,
+          "max_base": null,
+          "min_notional": null,
+          "max_notional": null,
+          "min_notional_currency": null,
+          "price_rule": "hyperliquid_significant_digits",
+          "size_rule": "fixed_lot"
+        },
+        "contract_multiplier": "1",
+        "quantity_unit": "base",
+        "contract_value_currency": null,
+        "inverse": false,
+        "status": "active",
+        "data_access": "unknown",
+        "execution_access": "unknown",
+        "metadata_asof_wall_ns": 1793501674241120000,
+        "metadata_source": "https://api.hyperliquid.xyz/info"
+      },
+      "metadata": {
+        "status": "passed",
+        "detail": "exact product discovered"
+      },
+      "snapshot": {
+        "status": "passed",
+        "endpoint": "https://api.hyperliquid.xyz/info",
+        "raw_bytes": 1465,
+        "raw_sha256": "a57eaf423bf161a4bcaf28598b63f2e39453494fb5a088a6b4843e55f0da4fd9",
+        "decoded_expected_events": 1,
+        "decoded_controls": 0,
+        "integrity": "valid",
+        "recovery": null,
+        "coverage": {
+          "subscribed_depth": 20,
+          "retained_bid_levels": 20,
+          "retained_ask_levels": 20,
+          "worst_bid": "95.374",
+          "worst_ask": "95.426",
+          "full_depth": false,
+          "source_aggregation": [
+            [
+              "fast",
+              "false"
+            ]
+          ],
+          "expected_cadence_ns": 500000000
+        },
+        "elapsed_seconds": 0.3882032649999019
+      },
+      "rest_trades": {
+        "status": "unsupported",
+        "detail": "adapter exposes no REST request for this channel"
+      },
+      "ws_book": {
+        "status": "failed",
+        "endpoint": "wss://api.hyperliquid.xyz/ws",
+        "observed_count": 0,
+        "criterion": "valid non-REST book publication",
+        "detail": "no qualifying observation in this run; not proof of universal unavailability"
+      },
+      "ws_trades": {
+        "status": "passed",
+        "endpoint": "wss://api.hyperliquid.xyz/ws",
+        "observed_count": 36,
+        "criterion": "non-history non-REST trade event"
+      },
+      "streams": {
+        "book": {
+          "elapsed_seconds": 30.178454289009096,
+          "counts": {
+            "normalized_events": 8,
+            "Control": 3,
+            "sampled_lifecycle_transitions": 3,
+            "raw_frames": 7,
+            "raw_bytes": 7695,
+            "raw_ws_frames": 4,
+            "Gap": 2,
+            "raw_rest_frames": 3,
+            "BookUpdate": 3,
+            "book_snapshot_events": 3,
+            "book_level_changes": 120,
+            "book_publications": 3,
+            "book_integrity_valid": 3,
+            "rest_valid_book_publications": 3,
+            "recoveries_to_valid_book": 1
+          },
+          "raw_frames_per_second": 0.2319535630606959,
+          "diagnostics": {
+            "decode:hyperliquid_decode": 2
+          },
+          "endpoints": {
+            "wss://api.hyperliquid.xyz/ws": 4,
+            "https://api.hyperliquid.xyz/info": 3
+          },
+          "last_raw_sha256": "2988d3aec8976e0efc72a3bce0fa78daa2cd194201586fb5c61a846131f77e31",
+          "last_book": {
+            "revision": 3,
+            "connection_epoch": 3,
+            "segment_id": "4c69eeb4-314f-4fbe-9968-18be55a1d3f8",
+            "bid_levels": 20,
+            "ask_levels": 20,
+            "quality": {
+              "lifecycle": "degraded",
+              "integrity": "valid",
+              "transport_alive": true,
+              "source_mode": "rest_snapshot",
+              "recorded_source_mode": null,
+              "last_transport_mono_ns": 79767709088071,
+              "last_book_observation_mono_ns": 79767709088071,
+              "last_book_change_mono_ns": 79767709088071,
+              "last_healthy_observation_mono_ns": 79767709088071,
+              "clock_id": "af70b8d4-1d5e-44dd-9937-daa3e357920d",
+              "coverage": {
+                "subscribed_depth": 20,
+                "retained_bid_levels": 20,
+                "retained_ask_levels": 20,
+                "worst_bid": "95.372",
+                "worst_ask": "95.43",
+                "full_depth": false,
+                "source_aggregation": [
+                  [
+                    "fast",
+                    "false"
+                  ]
+                ],
+                "expected_cadence_ns": 2000000000
+              },
+              "capabilities": {
+                "snapshot": true,
+                "deltas": false,
+                "trades": false,
+                "sequence_scope": null,
+                "checksum_scope": null,
+                "exact_event_flow": false,
+                "reference_prices": [],
+                "asset_context": []
+              },
+              "continuous_since_ordinal": 5928,
+              "reason_codes": [],
+              "capture_complete": true
+            }
+          },
+          "time_to_first_valid_book_seconds": 20.417876603009063,
+          "lifecycle": "degraded",
+          "reason": "decode:hyperliquid_decode",
+          "epoch": 3,
+          "source_mode": "rest_snapshot",
+          "reconnects": 2,
+          "duplicate_trades": 0,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 0,
+          "queue_bytes": 0,
+          "queue_count_high_water_sampled": 1,
+          "queue_bytes_high_water_sampled": 1494,
+          "lifecycle_samples": {
+            "waiting_snapshot": 1,
+            "resynchronizing": 1,
+            "degraded": 4
+          },
+          "task_done": false,
+          "task_error": null
+        },
+        "trades": {
+          "elapsed_seconds": 30.17776348500047,
+          "counts": {
+            "normalized_events": 39,
+            "Control": 3,
+            "sampled_lifecycle_transitions": 2,
+            "raw_frames": 8,
+            "raw_bytes": 10059,
+            "raw_ws_frames": 8,
+            "Trade": 36,
+            "ws_live_trades": 36
+          },
+          "raw_frames_per_second": 0.2650958545677619,
+          "diagnostics": {},
+          "endpoints": {
+            "wss://api.hyperliquid.xyz/ws": 8
+          },
+          "last_raw_sha256": "b7a5c74659445cce2071b5252110605b12ee297c643c3f3f155e0ca40ea876da",
+          "last_book": null,
+          "time_to_first_valid_book_seconds": null,
+          "lifecycle": "live",
+          "reason": "starting",
+          "epoch": 1,
+          "source_mode": "ws_snapshot",
+          "reconnects": 0,
+          "duplicate_trades": 0,
+          "continuity_capture_complete": true,
+          "raw_capture_persisted": false,
+          "queue_count": 0,
+          "queue_bytes": 0,
+          "queue_count_high_water_sampled": 0,
+          "queue_bytes_high_water_sampled": 0,
+          "lifecycle_samples": {
+            "waiting_snapshot": 1,
+            "live": 5
+          },
+          "task_done": false,
+          "task_error": null
+        }
+      },
+      "execution_eligibility": "unknown_not_tested",
+      "full_dependencies_passed": false,
+      "selection": {
+        "quote": "USDC",
+        "market_type": "perpetual",
+        "candidate_ids": [
+          "hyperliquid:info:perpetual:SOL"
+        ]
+      },
+      "metadata_execution_access": "unknown",
+      "currently_live_ws_dependencies": false
+    }
+  ],
+  "limitations": [
+    "Public readability does not establish execution eligibility; no credentials, wallet, signing or orders.",
+    "Evidence applies only to exact selected products, hosts, channels and observation interval.",
+    "Missing events are never synthesized; a quiet trade stream may fail the observation criterion.",
+    "REST fallback remains REST/degraded and cannot satisfy a WebSocket dependency.",
+    "Book counts are supervisor publications, not necessarily distinct venue updates; raw/event counts are separate.",
+    "Only hashes and counters are retained, not a replayable raw capture. Integrity is the actual adapter/core verdict.",
+    "Queue high-water and lifecycle transitions are sampled and can miss between-sample peaks/transitions.",
+    "No forced disconnect/slow-consumer fault injection; recovery counters cover naturally observed incidents only.",
+    "No UI latency or exchange-to-client latency measurement. Long soak success requires actually running it."
+  ],
+  "elapsed_seconds": 49.28644384400104,
+  "sampled_wall_ns": 1793501720730786000,
+  "binance_preference_by_base": {
+    "BTC": "binance-global",
+    "ETH": "binance-global",
+    "SOL": "binance-global"
+  },
+  "streaming_elapsed_seconds": 30.129726237995783,
+  "shutdown": {
+    "owners_started": 36,
+    "owners_joined": 36,
+    "clean": true
+  },
+  "metrics_file": "data/m1-live-initial-metrics.jsonl",
+  "finished_wall_ns": 1793501726260995000
+}

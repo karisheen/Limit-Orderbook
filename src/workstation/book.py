@@ -172,6 +172,7 @@ class ReducerState:
     strategy_id: str
     truncate_depth: bool
     max_levels: int
+    effective_depth: int | None
     epoch: int
     segment_id: SegmentId
     initialized: bool
@@ -196,6 +197,10 @@ class ReducerState:
             nonnegative_int(value)
         if self.max_levels == 0:
             raise ValueError("invalid reducer capacity")
+        if self.effective_depth is not None and not (
+            1 <= nonnegative_int(self.effective_depth) <= 100_000
+        ):
+            raise ValueError("invalid effective depth")
         for value in (self.initialized, self.synchronized, self.truncate_depth):
             if type(value) is not bool:
                 raise ValueError("invalid reducer state flag")
@@ -326,6 +331,7 @@ class BookReducer:
         segment_id: str = "initial",
         truncate_depth: bool = False,
         max_levels: int = 100_000,
+        effective_depth: int | None = None,
         sequence_validator: SequenceValidator | None = None,
         checksum_calculator: ChecksumCalculator | None = None,
         price_validator: PriceValidator | None = None,
@@ -342,9 +348,17 @@ class BookReducer:
             raise ValueError("reducer subscription identity mismatch")
         if nonnegative_int(max_levels) == 0:
             raise ValueError("max_levels must be positive")
+        effective_depth = key.depth if effective_depth is None else effective_depth
+        if effective_depth is not None and not (
+            1 <= nonnegative_int(effective_depth) <= 100_000
+        ):
+            raise ValueError("invalid effective depth")
+        if key.depth is not None and effective_depth != key.depth:
+            raise ValueError("effective depth conflicts with subscription depth")
         for value in (strategy_id, adapter_revision, config_hash):
             text(value)
         self.instrument, self.key = instrument, key
+        self.effective_depth = effective_depth
         self.capabilities = capabilities
         self.truncate_depth, self.max_levels = truncate_depth, max_levels
         self.sequence_validator, self.checksum_calculator = (
@@ -380,7 +394,8 @@ class BookReducer:
         self.quality = Quality(
             capabilities=self.capabilities,
             coverage=Coverage(
-                subscribed_depth=self.key.depth, source_aggregation=self.key.aggregation
+                subscribed_depth=self.effective_depth,
+                source_aggregation=self.key.aggregation,
             ),
         )
         self.buffered_events: tuple[EventEnvelope, ...] = ()
@@ -401,10 +416,10 @@ class BookReducer:
             if asks is self._asks
             else tuple(sorted(asks.values(), key=lambda level: level.price))
         )
-        if self.truncate_depth and self.key.depth is not None:
+        if self.truncate_depth and self.effective_depth is not None:
             bid_levels, ask_levels = (
-                bid_levels[: self.key.depth],
-                ask_levels[: self.key.depth],
+                bid_levels[: self.effective_depth],
+                ask_levels[: self.effective_depth],
             )
         return bid_levels, ask_levels
 
@@ -563,7 +578,7 @@ class BookReducer:
                 has_book = True
                 if (
                     payload.subscribed_depth is not None
-                    and payload.subscribed_depth != self.key.depth
+                    and payload.subscribed_depth != self.effective_depth
                 ):
                     raise ValueError("subscription_depth_mismatch")
                 if snapshot:
@@ -671,6 +686,23 @@ class BookReducer:
             source_mode=last.source_mode,
             clock_id=last.clock_id,
         )
+        if (
+            synchronized
+            and self.synchronized
+            and self.book is not None
+            and quality.integrity == "valid"
+            and quality.source_mode == "ws_delta"
+            and quality.capabilities.deltas
+            and quality.capabilities.exact_event_flow
+            and quality.continuous_since_ordinal is not None
+            and any(
+                isinstance(event.payload, Control) and event.payload.kind == "heartbeat"
+                for event in accepted_events
+            )
+        ):
+            quality = replace(
+                quality, last_healthy_observation_mono_ns=last.receive_mono_ns
+            )
         changed = False
         if accepted_book:
             # Reuse the exact candidate checked by checksum/candidate hooks.
@@ -758,6 +790,7 @@ class BookReducer:
             self.strategy_id,
             self.truncate_depth,
             self.max_levels,
+            self.effective_depth,
             self.epoch,
             self.segment_id,
             self.initialized,
@@ -810,6 +843,7 @@ class BookReducer:
             state.strategy_id,
             state.truncate_depth,
             state.max_levels,
+            state.effective_depth,
         ) != (
             self.instrument.instrument_id,
             self.instrument.metadata_version,
@@ -817,6 +851,7 @@ class BookReducer:
             self.strategy_id,
             self.truncate_depth,
             self.max_levels,
+            self.effective_depth,
         ):
             raise ValueError("incompatible reducer state")
         if state.book != checkpoint.book or state.segment_id != checkpoint.segment_id:

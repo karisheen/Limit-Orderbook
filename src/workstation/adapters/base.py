@@ -2,8 +2,10 @@
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from ipaddress import ip_address
 import re
 from typing import Protocol
+from urllib.parse import parse_qsl, unquote, urlsplit
 
 from ..book import BookReducer
 from ..events import (
@@ -22,7 +24,7 @@ from ..events import (
     Trade,
 )
 from ..instruments import Instrument, MetadataSnapshot
-from ..precision import nonnegative_int, text
+from ..precision import exact_json_loads, nonnegative_int, text
 from ..quality import Capabilities, SourceMode
 
 
@@ -30,6 +32,133 @@ _RFC3339 = re.compile(
     r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,9}))?(Z|[+-]\d{2}:\d{2})\Z",
     re.ASCII,
 )
+
+_PUBLIC_HEADERS = frozenset(("accept", "content-type", "user-agent"))
+_PUBLIC_QUERY_FIELDS = frozenset(
+    (
+        "symbol",
+        "limit",
+        "pair",
+        "count",
+        "category",
+        "product_type",
+        "offset",
+        "cursor",
+        "product_id",
+        "streams",
+        "stream",
+    )
+)
+_PUBLIC_BODY_FIELDS = frozenset(
+    (
+        "type",
+        "coin",
+        "dex",
+        "nSigFigs",
+        "mantissa",
+        "fast",
+        "method",
+        "subscription",
+        "params",
+        "channel",
+        "symbol",
+        "snapshot",
+        "depth",
+        "product_ids",
+        "op",
+        "args",
+        "req_id",
+        "id",
+        "subscribe",
+    )
+)
+_PUBLIC_OPERATIONS = frozenset(("subscribe", "unsubscribe", "ping", "pong"))
+_PUBLIC_TYPES = frozenset(
+    (
+        "subscribe",
+        "unsubscribe",
+        "ping",
+        "pong",
+        "spotMeta",
+        "meta",
+        "metaAndAssetCtxs",
+        "perpDexs",
+        "l2Book",
+        "allMids",
+        "spotMetaAndAssetCtxs",
+        "trades",
+        "activeAssetCtx",
+    )
+)
+
+
+def validate_public_endpoint(endpoint: str, *, websocket: bool = False) -> None:
+    """Validate public URI syntax before either transport can open a connection."""
+    text(endpoint, "public endpoint")
+    if (
+        any(not c.isascii() or c.isspace() or ord(c) == 127 for c in endpoint)
+        or "\\" in endpoint
+        or "#" in endpoint
+        or re.search(r"%(?![0-9A-Fa-f]{2})", endpoint)
+    ):
+        raise ValueError("invalid public endpoint")
+    parsed = urlsplit(endpoint)
+    if (
+        parsed.scheme != ("wss" if websocket else "https")
+        or not parsed.hostname
+        or "@" in parsed.netloc
+        or (parsed.port is not None and not 0 < parsed.port <= 65535)
+    ):
+        raise ValueError("public endpoint must be secure and credential-free")
+    host = parsed.hostname
+    try:
+        ip_address(host)
+    except ValueError:
+        if len(host) > 253 or any(
+            not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?", label)
+            for label in host.rstrip(".").split(".")
+        ):
+            raise ValueError("invalid public endpoint host") from None
+    decoded_path = unquote(parsed.path, errors="strict")
+    if any(ord(c) < 32 or ord(c) == 127 or c == "\\" for c in decoded_path):
+        raise ValueError("invalid public endpoint path")
+    for name, value in parse_qsl(
+        parsed.query,
+        keep_blank_values=True,
+        strict_parsing=True,
+        max_num_fields=32,
+        errors="strict",
+    ):
+        if name not in _PUBLIC_QUERY_FIELDS:
+            raise ValueError("unsupported public query parameter")
+        text(value, "public query value")
+        if any(ord(c) == 127 for c in value):
+            raise ValueError("invalid public query value")
+
+
+def _validate_public_body(body: bytes) -> None:
+    value = exact_json_loads(body, max_bytes=4_194_304)
+    if not isinstance(value, dict):
+        raise ValueError("public request body must be a JSON object")
+    pending = [value]
+    while pending:
+        item = pending.pop()
+        if isinstance(item, dict):
+            if any(key not in _PUBLIC_BODY_FIELDS for key in item):
+                raise ValueError("unsupported public request field")
+            for key in ("method", "op"):
+                if key in item and (
+                    not isinstance(item[key], str)
+                    or item[key].lower() not in _PUBLIC_OPERATIONS
+                ):
+                    raise ValueError("unsupported public request operation")
+            if "type" in item and (
+                not isinstance(item["type"], str) or item["type"] not in _PUBLIC_TYPES
+            ):
+                raise ValueError("unsupported public request type")
+            pending.extend(item.values())
+        elif isinstance(item, list):
+            pending.extend(item)
 
 
 def parse_rfc3339_ns(value: str | None) -> int | None:
@@ -61,19 +190,23 @@ class TransportRequest:
     def __post_init__(self):
         if self.method not in ("GET", "POST", "WS"):
             raise ValueError("unsupported public transport method")
-        text(self.endpoint_id)
+        validate_public_endpoint(self.endpoint_id, websocket=self.method == "WS")
         if self.body is not None and (
             not isinstance(self.body, bytes) or len(self.body) > 4_194_304
         ):
             raise ValueError("invalid request body")
+        if self.body is not None:
+            if self.method == "GET":
+                raise ValueError("public GET requests must not supply a body")
+            _validate_public_body(self.body)
         object.__setattr__(self, "headers", tuple(tuple(pair) for pair in self.headers))
         for pair in self.headers:
             if len(pair) != 2:
                 raise ValueError("invalid header")
             for value in pair:
                 text(value)
-            if pair[0].lower() in ("authorization", "cookie", "x-api-key"):
-                raise ValueError("public adapters must not supply credentials")
+            if pair[0].lower() not in _PUBLIC_HEADERS:
+                raise ValueError("unsupported public request header")
 
 
 @dataclass(frozen=True)

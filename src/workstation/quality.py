@@ -206,7 +206,14 @@ def evaluate(
         reasons.append("instrument_mismatch")
     if instrument.status != "active":
         reasons.append("instrument_" + instrument.status)
-    if instrument.data_access != "available":
+    readable_observation = (
+        quality.integrity == "valid"
+        and quality.last_book_observation_mono_ns is not None
+        and quality.last_healthy_observation_mono_ns is not None
+    )
+    if instrument.data_access in ("blocked", "unsupported") or (
+        instrument.data_access == "unknown" and not readable_observation
+    ):
         reasons.append("data_access_" + instrument.data_access)
     if policy.require_execution_access and instrument.execution_access != "available":
         reasons.append("execution_access_" + instrument.execution_access)

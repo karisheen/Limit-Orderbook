@@ -10,9 +10,9 @@ workstation; the planned terminal is **not** the current Streamlit application.
 - **M0:** baseline audit, architecture decisions, contracts and acceptance backlog
   recorded. Historical audit observations describe the starting code, not all
   current behavior.
-- **M1:** exact core implemented, with legacy feed-integrity and session-safety
-  safeguards. **Full feed integration and M1 acceptance remain pending**; core
-  implementation is not evidence that every venue is integrated or validated live.
+- **M1:** exact core, seven public venue adapters, supervised shared subscription
+  ownership and legacy safety fixes implemented. Live feed integrations have
+  measured evidence below; final review/merge is tracked in the handoff.
 - **M2–M6:** **not done**. Durable recording/replay, shared analytics and cost
   models, the new React/TypeScript terminal, alerts/paper trading/research, and
   final operational/performance acceptance remain milestone work.
@@ -24,6 +24,33 @@ it as implementation and acceptance evidence land. See the
 [architecture decisions](docs/ARCHITECTURE.md) and
 [exact contracts](docs/CONTRACTS.md). Neither fixture tests nor successful access
 probes establish complete live-feed correctness or trading readiness.
+
+## New headless feeds
+
+The new backend is independent of Streamlit rendering. Run an explicit public
+network probe (not a recorder and not an execution client):
+
+```sh
+uv run --locked python tools/probe_feeds.py --live --duration 60 --include-hype
+```
+
+Observed integration evidence, not blanket regional-access guarantees:
+
+| Venue | Actual validation | Limitation |
+| --- | --- | --- |
+| Binance global | BTC/ETH/SOL metadata, REST depth/trades, synchronized diff books and live trades on official data-only hosts | Preferred over US only when required dependencies work |
+| Coinbase | BTC/ETH/SOL Advanced Trade REST snapshots, full WS books and live trades | Public Advanced Trade schema; not the legacy Exchange REST API |
+| Kraken | BTC/ETH/SOL REST snapshots, CRC-validated WS books and live trades | REST has no WS continuity/checksum claim |
+| Hyperliquid | BTC/ETH/SOL/HYPE perpetual REST snapshots, bounded WS replacement books and live trades | No exact event OFI or invented depth beyond the subscription |
+| Binance.US | BTC/ETH/SOL REST and partial WS books; ETH/SOL live prints | BTC produced no live print in the short observation window; distinct venue |
+| KuCoin | BTC/ETH/SOL REST books and trade history | Degraded snapshots; unknown aggressor side, not continuous WS |
+| Bybit | Offline protocol/reset fixtures | Metadata HTTP 403 blocked this machine; remaining live checks unrun |
+
+The initial failed run and corrected run are retained in
+[`docs/evidence/`](docs/evidence/); see [feed validation](docs/FEED_VALIDATION.md)
+for exact commands and [contracts](docs/CONTRACTS.md) for loss, freshness,
+ownership and source-transition semantics. No fixture data fills gaps in live
+history. Streamlit still uses its temporary legacy service until terminal parity.
 
 ## Run the current Streamlit app
 
@@ -97,8 +124,8 @@ implemented behavior; the acceptance backlog defines remaining work.
 
 - `crypto_lob.py`: current Streamlit entrypoint.
 - `src/data/`, `src/domain/`, `src/ui/`: legacy adapters, service and presentation.
-- `src/workstation/`: exact M1 core and new adapter work; not a claim of full
-  end-to-end feed integration into the current UI.
+- `src/workstation/`: exact core, public adapters and supervised shared feed registry;
+  not yet connected to the legacy Streamlit UI.
 - `tests/`: offline contracts/regressions and explicitly separate live checks.
 - `docs/`: development instructions, contracts, acceptance and evidence.
 

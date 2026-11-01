@@ -52,14 +52,25 @@ class OrderConstraints:
     min_notional_currency: AssetId | None = None
     price_rule: str = "fixed_tick"
     size_rule: str = "fixed_lot"
+    max_limit_base: Decimal | None = None
+    max_market_base: Decimal | None = None
 
     def __post_init__(self):
-        for name in ("min_base", "max_base", "min_notional", "max_notional"):
+        for name in (
+            "min_base",
+            "max_base",
+            "min_notional",
+            "max_notional",
+            "max_limit_base",
+            "max_market_base",
+        ):
             value = getattr(self, name)
             if value is not None:
                 object.__setattr__(self, name, decimal(value, nonnegative=True))
         for low, high in (
             (self.min_base, self.max_base),
+            (self.min_base, self.max_limit_base),
+            (self.min_base, self.max_market_base),
             (self.min_notional, self.max_notional),
         ):
             if low is not None and high is not None and low > high:
@@ -98,6 +109,9 @@ class Instrument:
     execution_access: str = "unknown"
     metadata_asof_wall_ns: int = 0
     metadata_source: str = "unspecified"
+    reference_multiplier: Decimal | None = None
+    settlement_conversion: str = "unknown"
+    contract_specification_source: str | None = None
 
     def __post_init__(self):
         object.__setattr__(self, "instrument_id", InstrumentId(self.instrument_id))
@@ -109,7 +123,11 @@ class Instrument:
             self.metadata_source,
         ):
             text(required_text)
-        for optional_text in (self.native_asset_id, self.dex_namespace):
+        for optional_text in (
+            self.native_asset_id,
+            self.dex_namespace,
+            self.contract_specification_source,
+        ):
             if optional_text is not None:
                 text(optional_text)
         if not isinstance(self.base, AssetIdentity) or not isinstance(
@@ -124,6 +142,15 @@ class Instrument:
             raise ValueError("invalid order constraints")
         choice(self.market_type, ("spot", "perpetual", "future"), "market type")
         choice(self.quantity_unit, ("base", "contracts"), "quantity unit")
+        choice(
+            self.settlement_conversion,
+            ("unknown", "none", "quanto_no_fx"),
+            "settlement conversion",
+        )
+        if self.settlement_conversion == "quanto_no_fx" and (
+            self.market_type == "spot" or self.settlement is None
+        ):
+            raise ValueError("quanto conversion requires a derivative settlement")
         choice(
             self.status,
             ("active", "suspended", "delisted", "unavailable", "unknown"),
@@ -149,6 +176,12 @@ class Instrument:
             "contract_multiplier",
             decimal(self.contract_multiplier, positive=True),
         )
+        if self.reference_multiplier is not None:
+            object.__setattr__(
+                self,
+                "reference_multiplier",
+                decimal(self.reference_multiplier, positive=True),
+            )
         nonnegative_int(self.metadata_asof_wall_ns)
         if self.expiry_wall_ns is not None:
             nonnegative_int(self.expiry_wall_ns)
@@ -168,7 +201,10 @@ class Instrument:
         decimal(quantity, nonnegative=not incremental)
         validate_increment(quantity, self.lot_size, name="quantity")
 
-    def validate_order(self, price: Decimal, quantity: Decimal) -> None:
+    def validate_order(
+        self, price: Decimal, quantity: Decimal, *, order_type: str
+    ) -> None:
+        choice(order_type, ("limit", "market"), "order type")
         self.validate_price(price)
         self.validate_quantity(quantity)
         decimal(quantity, positive=True)
@@ -181,6 +217,13 @@ class Instrument:
             raise ValueError("contract orders require explicit contract valuation")
         for value, low, high in (
             (quantity, self.constraints.min_base, self.constraints.max_base),
+            (
+                quantity,
+                None,
+                self.constraints.max_limit_base
+                if order_type == "limit"
+                else self.constraints.max_market_base,
+            ),
             (notional, self.constraints.min_notional, self.constraints.max_notional),
         ):
             if low is not None and value < low or high is not None and value > high:

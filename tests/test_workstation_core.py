@@ -180,7 +180,7 @@ def test_instrument_constraints_are_exact_and_unknown_is_not_zero():
     )
     instrument = synthetic_instrument(constraints=constraints)
     assert constraints.max_notional is None
-    instrument.validate_order(D("100"), D("0.05"))
+    instrument.validate_order(D("100"), D("0.05"), order_type="limit")
     for price, quantity in (
         (D("100.005"), D("1")),
         (D("100"), D("0.0001")),
@@ -188,11 +188,90 @@ def test_instrument_constraints_are_exact_and_unknown_is_not_zero():
         (D("100"), D("-1")),
     ):
         with pytest.raises(ValueError):
-            instrument.validate_order(price, quantity)
+            instrument.validate_order(price, quantity, order_type="limit")
     with pytest.raises(ValueError):
         replace(instrument, tick_size=D("NaN"))
     with pytest.raises(FrozenInstanceError):
         instrument.status = "delisted"
+
+
+def test_order_type_constraints_are_explicit_and_independent():
+    instrument = synthetic_instrument(
+        constraints=OrderConstraints(max_limit_base=D("10"), max_market_base=D("2"))
+    )
+    instrument.validate_order(D("100"), D("10"), order_type="limit")
+    instrument.validate_order(D("100"), D("2"), order_type="market")
+    for order_type, quantity in (("limit", "10.001"), ("market", "2.001")):
+        with pytest.raises(ValueError, match="outside instrument constraints"):
+            instrument.validate_order(D("100"), D(quantity), order_type=order_type)
+    with pytest.raises(TypeError):
+        instrument.validate_order(D("100"), D("1"))
+    with pytest.raises(ValueError, match="order type"):
+        instrument.validate_order(D("100"), D("1"), order_type="post_only")
+    generic = replace(instrument, constraints=OrderConstraints(max_base=D("1")))
+    for order_type in ("limit", "market"):
+        with pytest.raises(ValueError):
+            generic.validate_order(D("100"), D("2"), order_type=order_type)
+    unknown = replace(instrument, constraints=OrderConstraints(max_market_base=D("2")))
+    unknown.validate_order(D("100"), D("10"), order_type="limit")
+
+
+@pytest.mark.parametrize("field", ["max_limit_base", "max_market_base"])
+def test_order_type_constraints_reject_invalid_or_inverted_bounds(field):
+    for value in (D("-1"), D("NaN"), D("Infinity")):
+        with pytest.raises(ValueError):
+            OrderConstraints(**{field: value})
+    with pytest.raises(ValueError, match="inverted"):
+        OrderConstraints(min_base=D("2"), **{field: D("1")})
+
+
+def test_instrument_reference_and_settlement_metadata_wire_roundtrip():
+    instrument = synthetic_instrument(
+        reference_multiplier=D("0.001"),
+        constraints=OrderConstraints(max_limit_base=D("10"), max_market_base=D("2")),
+        market_type="perpetual",
+        settlement=AssetIdentity("native:USDC", "USDC"),
+        settlement_conversion="quanto_no_fx",
+        contract_specification_source="https://example.com/contract-specification",
+    )
+    encoded = dumps(instrument)
+    assert loads(encoded) == instrument
+    snapshot = MetadataSnapshot("fixture", 0, "fixture-hash", (instrument,))
+    assert loads(dumps(snapshot)) == snapshot
+    default = synthetic_instrument()
+    assert loads(dumps(default)) == default
+    fields = json.loads(encoded)["value"]
+    assert fields["reference_multiplier"] == "0.001"
+    assert fields["constraints"]["max_limit_base"] == "10"
+    assert fields["constraints"]["max_market_base"] == "2"
+    fields["reference_multiplier"] = 0.001
+    with pytest.raises(ValueError):
+        loads(json.dumps({"schema_version": 1, "value": fields}))
+    fields = json.loads(encoded)["value"]
+    del fields["reference_multiplier"]
+    with pytest.raises(ValueError):
+        loads(json.dumps({"schema_version": 1, "value": fields}))
+    fields = json.loads(encoded)["value"]
+    fields["constraints"]["max_market_base"] = 2
+    with pytest.raises(ValueError):
+        loads(json.dumps({"schema_version": 1, "value": fields}))
+    for value in (D("0"), D("-1"), D("NaN"), D("Infinity")):
+        with pytest.raises(ValueError):
+            replace(instrument, reference_multiplier=value)
+    for changes in (
+        {"settlement_conversion": "fx"},
+        {"settlement": None},
+        {"market_type": "spot"},
+        {"contract_specification_source": ""},
+    ):
+        with pytest.raises(ValueError):
+            replace(instrument, **changes)
+    assert default.reference_multiplier is None
+    assert default.settlement_conversion == "unknown"
+    assert (
+        replace(instrument, settlement_conversion="none").settlement.asset_id
+        == "native:USDC"
+    )
 
 
 def test_frames_hash_exact_bytes_and_validate_time_and_ordinal():
@@ -745,6 +824,168 @@ def test_protocol_price_and_candidate_hooks_run_before_commit():
     assert result.book.bids[0].quantity == 1
 
 
+@pytest.mark.parametrize("depth", [0, -1, 100_001, True])
+def test_effective_reconstruction_depth_rejects_invalid_bounds(depth):
+    with pytest.raises(ValueError):
+        fixture_core(effective_depth=depth)
+
+
+def test_ignored_sequence_heartbeat_does_not_refresh_book_health():
+    instrument, key, reducer = fixture_core(
+        capabilities=Capabilities(
+            deltas=True, exact_event_flow=True, sequence_scope="connection"
+        ),
+        sequence_validator=monotonic_sequence,
+    )
+    sequence = SequenceInfo("connection", last="10")
+    reducer.apply(
+        (envelope(instrument, key, source_mode="ws_delta", sequence=sequence),)
+    )
+    now = 10_000_000_001
+    result = reducer.apply(
+        (
+            synthetic_envelope(
+                instrument,
+                Control("heartbeat"),
+                key=key,
+                ordinal=2,
+                mono_ns=now,
+                source_mode="ws_delta",
+                sequence=sequence,
+            ),
+        )
+    )
+    assert result.recovery is None and not result.events
+    assert reducer.quality.last_healthy_observation_mono_ns == 1
+    assert (
+        "stale"
+        in evaluate(
+            reducer.book, instrument, "comparison", ClockReading("synthetic-clock", now)
+        ).reasons
+    )
+
+
+def test_continuous_book_heartbeat_refreshes_health_without_inventing_book_change():
+    instrument, key, reducer = fixture_core(
+        capabilities=Capabilities(deltas=True, exact_event_flow=True)
+    )
+    original = reducer.apply((envelope(instrument, key, source_mode="ws_delta"),)).book
+    now = 10_000_000_001
+    heartbeat = synthetic_envelope(
+        instrument,
+        Control("heartbeat"),
+        key=key,
+        ordinal=2,
+        mono_ns=now,
+        source_mode="ws_delta",
+    )
+    result = reducer.apply((heartbeat,))
+    book = result.book
+    assert result.recovery is None and not result.changed
+    assert book is not original
+    assert book.bids is original.bids and book.asks is original.asks
+    assert book.asof == original.asof and book.revision == original.revision
+    assert book.quality.last_book_observation_mono_ns == 1
+    assert book.quality.last_book_change_mono_ns == 1
+    assert book.quality.last_transport_mono_ns == now
+    assert book.quality.last_healthy_observation_mono_ns == now
+    assert original.quality.last_healthy_observation_mono_ns == 1
+    assert evaluate(
+        book, instrument, "comparison", ClockReading("synthetic-clock", now)
+    ).eligible
+    assert evaluate(
+        book, instrument, "event_ofi", ClockReading("synthetic-clock", now)
+    ).eligible
+
+
+@pytest.mark.parametrize("state", ["bookless", "invalid", "unsynchronized"])
+def test_heartbeat_never_repairs_missing_invalid_or_unsynchronized_book(state):
+    instrument, key, reducer = fixture_core(
+        capabilities=Capabilities(deltas=True, exact_event_flow=True)
+    )
+    if state != "bookless":
+        reducer.apply(
+            (envelope(instrument, key, source_mode="ws_delta"),),
+            synchronized=state != "unsynchronized",
+        )
+    if state == "invalid":
+        reducer.apply(
+            (
+                synthetic_envelope(
+                    instrument,
+                    Gap("lost_continuity"),
+                    key=key,
+                    ordinal=2,
+                    mono_ns=2,
+                    source_mode="ws_delta",
+                ),
+            )
+        )
+    healthy_before = reducer.quality.last_healthy_observation_mono_ns
+    now = 10_000_000_001
+    result = reducer.apply(
+        (
+            synthetic_envelope(
+                instrument,
+                Control("heartbeat"),
+                key=key,
+                ordinal=3,
+                mono_ns=now,
+                source_mode="ws_delta",
+            ),
+        )
+    )
+    assert result.book is None and not reducer.synchronized
+    assert reducer.quality.last_transport_mono_ns == now
+    assert reducer.quality.last_healthy_observation_mono_ns == healthy_before
+    if reducer.book is not None:
+        assert not evaluate(
+            reducer.book, instrument, "comparison", ClockReading("synthetic-clock", now)
+        ).eligible
+
+
+@pytest.mark.parametrize(
+    "source_mode,capabilities,control",
+    [
+        ("ws_snapshot", Capabilities(deltas=True, exact_event_flow=True), "heartbeat"),
+        (
+            "rest_snapshot",
+            Capabilities(deltas=True, exact_event_flow=True),
+            "heartbeat",
+        ),
+        ("ws_delta", Capabilities(deltas=True), "heartbeat"),
+        ("ws_delta", Capabilities(), "heartbeat"),
+        ("ws_delta", Capabilities(deltas=True, exact_event_flow=True), "ack"),
+        ("ws_delta", Capabilities(deltas=True, exact_event_flow=True), "clock_tick"),
+    ],
+)
+def test_noncontinuous_observation_or_nonheartbeat_cannot_refresh_book_health(
+    source_mode, capabilities, control
+):
+    instrument, key, reducer = fixture_core(capabilities=capabilities)
+    reducer.apply((envelope(instrument, key, source_mode=source_mode),))
+    now = 10_000_000_001
+    reducer.apply(
+        (
+            synthetic_envelope(
+                instrument,
+                Control(control),
+                key=key,
+                ordinal=2,
+                mono_ns=now,
+                source_mode=source_mode,
+            ),
+        )
+    )
+    assert reducer.quality.last_healthy_observation_mono_ns == 1
+    assert (
+        "stale"
+        in evaluate(
+            reducer.book, instrument, "comparison", ClockReading("synthetic-clock", now)
+        ).reasons
+    )
+
+
 def test_quiet_valid_observation_refreshes_health_but_not_change_time():
     instrument, key, reducer, _ = healthy()
     result = reducer.apply((envelope(instrument, key, "delta", ordinal=2, mono_ns=10),))
@@ -1018,3 +1259,51 @@ def test_adapter_wrapping_preserves_control_sequence_and_rejects_partial_decode(
         TransportRequest(
             "POST", "https://public.example", headers=(("Authorization", "secret"),)
         )
+
+
+def test_validated_observation_resolves_readability_not_execution_permission():
+    instrument, key, reducer, book = healthy()
+    instrument = replace(instrument, data_access="unknown")
+    now = ClockReading("synthetic-clock", 1)
+    assert evaluate(book, instrument, "comparison", now).eligible
+    assert instrument.data_access == "unknown"
+    execution = evaluate(
+        book,
+        instrument,
+        "paper_fill",
+        now,
+        EligibilityPolicy(require_execution_access=True),
+    )
+    assert not execution.eligible
+    assert "execution_access_unknown" in execution.reasons
+    stale = evaluate(
+        book, instrument, "comparison", ClockReading("synthetic-clock", 10_000_000_001)
+    )
+    assert not stale.eligible and "stale" in stale.reasons
+
+
+@pytest.mark.parametrize("access", ["blocked", "unsupported"])
+def test_explicit_access_restrictions_survive_observation(access):
+    instrument, key, reducer, book = healthy()
+    result = evaluate(
+        book,
+        replace(instrument, data_access=access),
+        "comparison",
+        ClockReading("synthetic-clock", 1),
+    )
+    assert not result.eligible
+    assert "data_access_" + access in result.reasons
+
+
+def test_transport_evidence_without_book_observation_does_not_resolve_access():
+    instrument, key, reducer, book = healthy()
+    result = evaluate(
+        replace(
+            book,
+            quality=replace(book.quality, last_book_observation_mono_ns=None),
+        ),
+        replace(instrument, data_access="unknown"),
+        "comparison",
+        ClockReading("synthetic-clock", 1),
+    )
+    assert not result.eligible and "data_access_unknown" in result.reasons
