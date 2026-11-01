@@ -873,8 +873,16 @@ def test_analytical_sink_failure_is_not_silently_coalesced():
         )
         with pytest.raises(FeedFault, match="event_sink_failed"):
             await feed._process(frame)
+        assert not feed.capture_complete
+        assert any(
+            gap.payload.continuity_lost and gap.payload.capture_lost for gap in gaps
+        )
         feed._gap("analytical_queue_overflow")
-        assert len(gaps) == 1 and gaps[0].payload.continuity_lost
+        assert any(
+            gap.payload.first_missing_ordinal == frame.ingest_ordinal
+            and gap.payload.last_missing_ordinal == frame.ingest_ordinal
+            for gap in gaps
+        )
 
     asyncio.run(scenario())
 
@@ -1089,7 +1097,7 @@ def test_binance_protocol_ping_records_only_observed_pong(acknowledged):
                 assert raw[0].transport == "local" and raw[0].endpoint_id == "ws_pong"
                 queued = feed.queue.get_nowait()
                 assert queued is raw[0]
-                events, reduction = feed._decode_reduce(queued)
+                events, reduction, _ = feed._decode_reduce(queued)
                 assert events[0].payload == Control("heartbeat", "ws_pong")
                 assert events[0].ingest_ordinal == raw[0].ingest_ordinal
                 assert reduction.book is None and not feed.reducer.synchronized
@@ -1473,3 +1481,72 @@ def test_single_capture_loss_records_exact_ordinal():
         gap.first_missing_ordinal == gap.last_missing_ordinal == raw[0].ingest_ordinal
     )
     assert gap.capture_lost
+
+
+def test_processing_stages_use_live_origin_without_rewriting_source_receive(
+    monkeypatch,
+):
+    async def scenario():
+        delivered = []
+        feed = supervisor(callbacks=FeedCallbacks(events=delivered.extend))
+        feed._start_epoch(False)
+        frame = feed.boundary.frame(
+            feed.stream_id, feed.connection_id, feed.epoch, "ws", "endpoint", b"ok"
+        )
+        origin = frame.receive_mono_ns
+        ticks = iter(origin + offset for offset in (100, 200, 300, 400, 500, 600))
+        monkeypatch.setattr(time, "monotonic_ns", lambda: next(ticks))
+        await feed._process(frame)
+        event = delivered[-1]
+        assert event.receive_mono_ns == origin
+        assert event.receive_wall_ns == frame.receive_wall_ns
+        assert (
+            event.process_start_mono_ns,
+            event.process_end_mono_ns,
+            event.publish_mono_ns,
+        ) == (origin + 200, origin + 500, origin + 600)
+        stages = feed.last_processing
+        assert stages.clock_id == frame.clock_id
+        assert stages.queue_exit_mono_ns - stages.receive_mono_ns == 100
+        assert stages.decode_start_mono_ns - stages.queue_exit_mono_ns == 100
+        assert stages.decode_end_mono_ns - stages.decode_start_mono_ns == 100
+        assert stages.validation_end_mono_ns - stages.decode_end_mono_ns == 100
+        assert feed.book.bids[0].price == Decimal("99")
+
+    asyncio.run(scenario())
+
+
+def test_quiet_trade_transport_keeps_owner_alive_but_never_invents_a_trade():
+    async def scenario():
+        delivered = []
+        feed = supervisor(
+            channel="trades", callbacks=FeedCallbacks(events=delivered.extend)
+        )
+        feed._start_epoch(False)
+
+        async def process(payload):
+            frame = feed.boundary.frame(
+                feed.stream_id,
+                feed.connection_id,
+                feed.epoch,
+                "ws",
+                "endpoint",
+                payload,
+            )
+            await feed._process(frame)
+
+        await process(b"heartbeat")
+        assert not feed._valid
+        await process(b"trade1")
+        assert feed._valid
+        feed.last_valid = 0
+        await process(b"heartbeat")
+        assert feed.last_valid > 0
+        assert [
+            event.payload.dedup_key
+            for event in delivered
+            if isinstance(event.payload, Trade)
+        ] == ["trade1"]
+        assert delivered[-1].payload == Control("heartbeat")
+
+    asyncio.run(scenario())

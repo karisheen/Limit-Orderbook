@@ -1,0 +1,2834 @@
+{
+  "schema_version": 1,
+  "kind": "managed_recording_offline_benchmark",
+  "started_wall_ns": 1793519062041642000,
+  "runtime": "3.13.5 (main, Jul 23 2025, 00:30:58) [Clang 20.1.4 ]",
+  "checkpoint_interval_batches_override": null,
+  "input_mode": "bounded_predecoded_writer_isolation",
+  "preload_byte_limit": 134217728,
+  "tool_sha256": "84ae41fb85478187fe3938ab428e76dc77558ccda6c12ba14234d6a727830afe",
+  "hardware": {
+    "processor": "i386",
+    "machine": "x86_64",
+    "logical_cpu_count": 4,
+    "sysctl": {
+      "machdep.cpu.brand_string": "Intel(R) Core(TM) i5-7360U CPU @ 2.30GHz",
+      "hw.model": "MacBookPro14,1",
+      "hw.memsize": "8589934592"
+    }
+  },
+  "platform": "macOS-13.7.8-x86_64-i386-64bit-Mach-O",
+  "machine": "x86_64",
+  "processor": "i386",
+  "logical_cpu_count": 4,
+  "packages": {
+    "pyarrow": "26.0.0",
+    "duckdb": "2.0.0"
+  },
+  "command": [
+    "tools/benchmark_recording.py",
+    "--source",
+    "data/m2-soak/run-1793513547763496000/store/51d3dc95-be2e-4210-ad4a-b1b29e84476c",
+    "--allow-incomplete",
+    "--output-root",
+    "data/m3-profile/final-prefix-predecoded",
+    "--preload-byte-limit",
+    "134217728",
+    "--max-source-records",
+    "10000",
+    "--max-source-bytes",
+    "1073741824",
+    "--max-load-seconds",
+    "180"
+  ],
+  "source_path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m2-soak/run-1793513547763496000/store/51d3dc95-be2e-4210-ad4a-b1b29e84476c",
+  "bounds": {
+    "max_source_bytes": 1073741824,
+    "max_source_records": 10000,
+    "max_load_seconds": 180.0,
+    "samples": 20000
+  },
+  "hash_encoding": "logical evidence: uint64 big-endian length-prefixed noncanonical workstation wire; raw ordinal order, normalized delivery order, checkpoints descending delivery then stream",
+  "limitations": [
+    "No network or UI. Original processing/publication timestamps are absent; receive-highwater schedules are synthetic, not original callback timing or network latency.",
+    "Default input streams with two-item lookahead. Explicit predecode mode admits the entire bounded source under its production resident-accounting cap; decoding transients/caches and whole-process RSS are separate. OS caches are not evicted.",
+    "Timing wrappers perturb the workload. Nested worker/replay stages overlap and must not be summed. Accepted-to-dispatch includes pre-dispatch disk checks, not exact deque residence.",
+    "Process CPU includes producer and worker; RSS is process lifetime highwater, not per-load allocation. Baseline, 2x burst, unpaced are sequential in the same process.",
+    "No required event is deliberately dropped, retried or backpressured. A rejected offer terminates that load and its unfinished output remains incomplete.",
+    "Source checkpoint bytes are compared with regenerated output; changed checkpoint cadence/schema may differ. Strict output checkpoint seek must reproduce its own linear state.",
+    "Unpaced finite measurement is not proof of sustained maximum capacity or a healthy live soak; if the queue never fills, saturation is not demonstrated.",
+    "Record/file byte limits bound admitted input, not total decompressed work; production decoder limits remain active. Deadlines are checked between atomic operations, not hard process termination."
+  ],
+  "source": {
+    "complete": false,
+    "incomplete_reasons": [
+      "queue_overflow",
+      "no_valid_book:binance-global:spot-v3:spot:BTCUSDT",
+      "no_valid_book:hyperliquid:info:perpetual:ETH",
+      "no_valid_book:hyperliquid:info:perpetual:SOL",
+      "no_valid_book:hyperliquid:info:perpetual:BTC",
+      "no_valid_book:binance-global:spot-v3:spot:ETHUSDT",
+      "no_valid_book:binance-global:spot-v3:spot:SOLUSDT",
+      "source_capture_incomplete:ef3df77f-f8e8-4ae2-8098-9740d88aabc7",
+      "source_capture_incomplete:761e16bb-c313-4ad9-ba5f-17a6bcd1b615",
+      "source_capture_incomplete:085d9b37-4acc-46f6-9bac-d9daf5283515",
+      "source_capture_incomplete:296ba758-44eb-4524-9dbb-78ea561e6a5e",
+      "source_capture_incomplete:67b6ba67-0ac2-41d6-9780-2acad3847785",
+      "source_capture_incomplete:c269ec92-443a-424a-aabe-51ff4bab7711",
+      "source_capture_incomplete:a21bd2ea-f348-49e1-8838-5f50cec812d7",
+      "source_capture_incomplete:218e9e81-8974-4c13-a489-498b69fd006b",
+      "source_capture_incomplete:2a4552dc-abd7-488e-9c9c-306c59c2364b",
+      "source_capture_incomplete:594a3e40-eccd-461c-b710-3d146eb844a3",
+      "source_capture_incomplete:a6339e76-b458-485c-a17d-af7e0c4cf4da",
+      "source_capture_incomplete:29217694-d071-41c7-8057-46798b87b229",
+      "feed_capture_incomplete"
+    ],
+    "raw_count": 609,
+    "batch_count": 432,
+    "event_count": 522,
+    "checkpoint_count": 60,
+    "gap_count": 0,
+    "gap_reasons": {},
+    "capture_lost_gap_count": 0,
+    "limits": {
+      "queue_count": 512,
+      "queue_bytes": 134217728,
+      "raw_rotation_bytes": 16777216,
+      "parquet_batch_count": 128,
+      "parquet_batch_bytes": 16777216,
+      "max_row_bytes": 268435456,
+      "max_files": 100000,
+      "max_streams": 1024,
+      "min_free_bytes": 67108864,
+      "managed_budget_bytes": 10737418240,
+      "retention_max_sessions": 100,
+      "finalize_timeout": 30.0,
+      "checkpoint_interval_batches": 100,
+      "max_query_rows": 10000,
+      "parquet_buffer_count": 4096,
+      "reader_cache_bytes": 33554432,
+      "reader_cache_count": 8192,
+      "checkpoint_group_count": 64,
+      "checkpoint_group_bytes": 16777216
+    },
+    "session_id": "51d3dc95-be2e-4210-ad4a-b1b29e84476c",
+    "manifest_sha256": "f970da57bf56929251420243cb46be2d901445d31622d194cfe31dffcbfadc64",
+    "code_revision": "workstation-source-sha256:6f5665b8342651897e66da18d4f0198f190b3b74035418a1937d776fc71df3ab",
+    "declared_file_bytes": 4960232,
+    "files": [
+      {
+        "path": "checkpoints/aux-59cb986405d2bdc6ecfc83235938151de3be94405352cfb885ee933aee0f9014.json.gz",
+        "kind": "checkpoint_aux",
+        "sha256": "a35939465b9f201e86fd6a059db9b0639b8aba72eb69c04cfe95f28665a81d8d",
+        "size_bytes": 4543,
+        "row_count": 1,
+        "first_ordinal": null,
+        "last_ordinal": null,
+        "first_delivery": null,
+        "last_delivery": null,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/00000001.jsonl.gz",
+        "kind": "checkpoint",
+        "sha256": "a4cfa1dab00e0d975aa89d3b0fd146a5fd9b9c38dc6b3dd35e64a5d064afbc1f",
+        "size_bytes": 551292,
+        "row_count": 12,
+        "first_ordinal": 36,
+        "last_ordinal": 204,
+        "first_delivery": 100,
+        "last_delivery": 100,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/aux-05ddca229c7ce23f19c648c17e8750062a1dc7bede929ff9064510479c511356.json.gz",
+        "kind": "checkpoint_aux",
+        "sha256": "88fcca162a05b08447bb9e0b8f4beb0be38c96facb456770f4736621a33a8cdd",
+        "size_bytes": 4856,
+        "row_count": 1,
+        "first_ordinal": null,
+        "last_ordinal": null,
+        "first_delivery": null,
+        "last_delivery": null,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/00000002.jsonl.gz",
+        "kind": "checkpoint",
+        "sha256": "9b1c92e994cf3a65f3b7e072b51a1650651a7fb07271ec6ae6ae79ca4b8e532d",
+        "size_bytes": 778204,
+        "row_count": 12,
+        "first_ordinal": 36,
+        "last_ordinal": 340,
+        "first_delivery": 200,
+        "last_delivery": 200,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/aux-7804c321285a1839816382d1368a75754b5c3b340fb8e88c55625a5f668c7d57.json.gz",
+        "kind": "checkpoint_aux",
+        "sha256": "8856780ac3fddfb11ffb4ac4624ed8a3b49adacf71bb71aeaa85ee849c18d611",
+        "size_bytes": 5278,
+        "row_count": 1,
+        "first_ordinal": null,
+        "last_ordinal": null,
+        "first_delivery": null,
+        "last_delivery": null,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/00000003.jsonl.gz",
+        "kind": "checkpoint",
+        "sha256": "454b8d6b80fbb855d462a9b3a2e37caae3fabe6d053f03fc2d02ccdf1c0452a0",
+        "size_bytes": 778146,
+        "row_count": 12,
+        "first_ordinal": 36,
+        "last_ordinal": 429,
+        "first_delivery": 300,
+        "last_delivery": 300,
+        "stream_id": null
+      },
+      {
+        "path": "normalized/7ebd0da161b42ba211938d42/00000001.parquet",
+        "kind": "normalized",
+        "sha256": "9bbea9117f0870bb7c15dc4378120fc09647fb9fc67b48bb51bbeeeeeb58300f",
+        "size_bytes": 19028,
+        "row_count": 128,
+        "first_ordinal": 2,
+        "last_ordinal": 269,
+        "first_delivery": 2,
+        "last_delivery": 312,
+        "stream_id": "761e16bb-c313-4ad9-ba5f-17a6bcd1b615"
+      },
+      {
+        "path": "checkpoints/aux-651b4ca655add3da5f5be125f5b01a1f246fd8ccecb4a96cf7603a7983a55aa6.json.gz",
+        "kind": "checkpoint_aux",
+        "sha256": "2e3ef9c613a888f4d695104f8b5514bfa2409be315d7af19629aa0f2554152af",
+        "size_bytes": 5605,
+        "row_count": 1,
+        "first_ordinal": null,
+        "last_ordinal": null,
+        "first_delivery": null,
+        "last_delivery": null,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/00000004.jsonl.gz",
+        "kind": "checkpoint",
+        "sha256": "bfeb7961251861571ded72b9daf088d094d01ace3e32762da903d31918a7f3b2",
+        "size_bytes": 777356,
+        "row_count": 12,
+        "first_ordinal": 36,
+        "last_ordinal": 619,
+        "first_delivery": 400,
+        "last_delivery": 400,
+        "stream_id": null
+      },
+      {
+        "path": "normalized/91df2f031216a17750c96789/00000002.parquet",
+        "kind": "normalized",
+        "sha256": "6085df042b854c9cae84a09ae9a4b740f75477a74e423d2fdde00b137a6468ad",
+        "size_bytes": 85172,
+        "row_count": 59,
+        "first_ordinal": 1,
+        "last_ordinal": 620,
+        "first_delivery": 1,
+        "last_delivery": 401,
+        "stream_id": "ef3df77f-f8e8-4ae2-8098-9740d88aabc7"
+      },
+      {
+        "path": "normalized/c538e2e5107570c002e74ac6/00000003.parquet",
+        "kind": "normalized",
+        "sha256": "c1fe32bc01592a8414c045d5d0ca824f584a8f33b05a37edf692de7e9d265301",
+        "size_bytes": 80104,
+        "row_count": 55,
+        "first_ordinal": 3,
+        "last_ordinal": 621,
+        "first_delivery": 3,
+        "last_delivery": 402,
+        "stream_id": "085d9b37-4acc-46f6-9bac-d9daf5283515"
+      },
+      {
+        "path": "normalized/8348c65ff936ec6b0c537531/00000004.parquet",
+        "kind": "normalized",
+        "sha256": "847585f5a67855e57823c09fc134a67e51d9516ffbaab451019dde6d1afcea18",
+        "size_bytes": 13497,
+        "row_count": 43,
+        "first_ordinal": 4,
+        "last_ordinal": 597,
+        "first_delivery": 4,
+        "last_delivery": 427,
+        "stream_id": "296ba758-44eb-4524-9dbb-78ea561e6a5e"
+      },
+      {
+        "path": "normalized/981b09c02c7b2ca8c4c91a35/00000005.parquet",
+        "kind": "normalized",
+        "sha256": "a61ac9514682ebee53b6dcfde74f84139d28709c16f442d91b81e67138f6e0f8",
+        "size_bytes": 84124,
+        "row_count": 43,
+        "first_ordinal": 5,
+        "last_ordinal": 619,
+        "first_delivery": 5,
+        "last_delivery": 400,
+        "stream_id": "67b6ba67-0ac2-41d6-9780-2acad3847785"
+      },
+      {
+        "path": "normalized/f3e3e7886473ae2c71062afd/00000006.parquet",
+        "kind": "normalized",
+        "sha256": "621d2a535d9f7de4be26049da3a0652eca6d2a124e36c39d30e6e8429dfa63d1",
+        "size_bytes": 10933,
+        "row_count": 6,
+        "first_ordinal": 6,
+        "last_ordinal": 419,
+        "first_delivery": 6,
+        "last_delivery": 290,
+        "stream_id": "c269ec92-443a-424a-aabe-51ff4bab7711"
+      },
+      {
+        "path": "normalized/902523c518d65314aa318ed6/00000007.parquet",
+        "kind": "normalized",
+        "sha256": "77019a4af26011a3525c745e38ec03bbe27a0813475c7271bc25cc53ff097170",
+        "size_bytes": 8280,
+        "row_count": 4,
+        "first_ordinal": 7,
+        "last_ordinal": 43,
+        "first_delivery": 7,
+        "last_delivery": 43,
+        "stream_id": "a21bd2ea-f348-49e1-8838-5f50cec812d7"
+      },
+      {
+        "path": "normalized/4bb338613db78583786086b2/00000008.parquet",
+        "kind": "normalized",
+        "sha256": "920ae5e5c79dffc5e3bd0d1937282e174abab54411d7bae6919a079cc5299775",
+        "size_bytes": 9012,
+        "row_count": 7,
+        "first_ordinal": 8,
+        "last_ordinal": 232,
+        "first_delivery": 8,
+        "last_delivery": 155,
+        "stream_id": "218e9e81-8974-4c13-a489-498b69fd006b"
+      },
+      {
+        "path": "normalized/35e2973d6d76db3a4c0315ad/00000009.parquet",
+        "kind": "normalized",
+        "sha256": "a71300c13e9ee960f6ad90df14adda5c6069cafa3679b596f76b87ec403ce423",
+        "size_bytes": 8198,
+        "row_count": 4,
+        "first_ordinal": 9,
+        "last_ordinal": 36,
+        "first_delivery": 9,
+        "last_delivery": 36,
+        "stream_id": "2a4552dc-abd7-488e-9c9c-306c59c2364b"
+      },
+      {
+        "path": "normalized/acf545eb8f444412e70bc10f/00000010.parquet",
+        "kind": "normalized",
+        "sha256": "268f8eeeafec7e26ee51da71f0ce7a6b7d06bd044d1c6551f92b1b64c17105ad",
+        "size_bytes": 8893,
+        "row_count": 5,
+        "first_ordinal": 10,
+        "last_ordinal": 352,
+        "first_delivery": 10,
+        "last_delivery": 231,
+        "stream_id": "594a3e40-eccd-461c-b710-3d146eb844a3"
+      },
+      {
+        "path": "normalized/b0c8b8d691474fecbe8b39cc/00000011.parquet",
+        "kind": "normalized",
+        "sha256": "e206f5401f825d7a3706fbbacbed9872809f780de498825ac3e7cd4ca545aa35",
+        "size_bytes": 8118,
+        "row_count": 4,
+        "first_ordinal": 11,
+        "last_ordinal": 38,
+        "first_delivery": 11,
+        "last_delivery": 38,
+        "stream_id": "a6339e76-b458-485c-a17d-af7e0c4cf4da"
+      },
+      {
+        "path": "normalized/3f69b5f81827cd831ad4db5f/00000012.parquet",
+        "kind": "normalized",
+        "sha256": "9ba311cbbae6a4c38b6a03bc990ec447bfbb6fa5ceaa7ca38f2f6bc066344a4d",
+        "size_bytes": 9104,
+        "row_count": 6,
+        "first_ordinal": 12,
+        "last_ordinal": 201,
+        "first_delivery": 12,
+        "last_delivery": 71,
+        "stream_id": "29217694-d071-41c7-8057-46798b87b229"
+      },
+      {
+        "path": "normalized/7ebd0da161b42ba211938d42/00000013.parquet",
+        "kind": "normalized",
+        "sha256": "b8cfbfdc7966153b74560beb92e43802c0c465c9af9e37d94160bd5f59a4091b",
+        "size_bytes": 15375,
+        "row_count": 68,
+        "first_ordinal": 270,
+        "last_ordinal": 366,
+        "first_delivery": 313,
+        "last_delivery": 432,
+        "stream_id": "761e16bb-c313-4ad9-ba5f-17a6bcd1b615"
+      },
+      {
+        "path": "checkpoints/aux-64c8d0fcf58c340578370fcbfae580e5de4fad8490741ad245d0c693f2ac85d6.json.gz",
+        "kind": "checkpoint_aux",
+        "sha256": "55035afa894e91ddf03de85f483f33b8a97228603c0182ba738fa4ce010c27b5",
+        "size_bytes": 5762,
+        "row_count": 1,
+        "first_ordinal": null,
+        "last_ordinal": null,
+        "first_delivery": null,
+        "last_delivery": null,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/00000005.jsonl.gz",
+        "kind": "checkpoint",
+        "sha256": "34944561164f22a5ae5d7b7ca75c6620c7a492b543402a456fd631631866484d",
+        "size_bytes": 777481,
+        "row_count": 12,
+        "first_ordinal": 36,
+        "last_ordinal": 621,
+        "first_delivery": 432,
+        "last_delivery": 432,
+        "stream_id": null
+      },
+      {
+        "path": "raw/00000001.jsonl.gz",
+        "kind": "raw",
+        "sha256": "b4aa34e51cb54b4d9374a1162f624775376ec6eb10e0be9bc3c9aa8c7f078433",
+        "size_bytes": 625151,
+        "row_count": 609,
+        "first_ordinal": 13,
+        "last_ordinal": 621,
+        "first_delivery": null,
+        "last_delivery": null,
+        "stream_id": null
+      },
+      {
+        "path": "index.sqlite3",
+        "kind": "catalog",
+        "sha256": "c726e74cb29bba1292cfc4b4087b0f10d677d5453a1384d3e82e3de38aedd9c4",
+        "size_bytes": 286720,
+        "row_count": 1101,
+        "first_ordinal": null,
+        "last_ordinal": null,
+        "first_delivery": null,
+        "last_delivery": null,
+        "stream_id": null
+      }
+    ],
+    "original_dropped_event_count": null,
+    "original_queue_highwaters": null,
+    "streams": [
+      {
+        "stream_id": "ef3df77f-f8e8-4ae2-8098-9740d88aabc7",
+        "instrument": {
+          "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+          "metadata_version": "8db26f80cdd5cbf887bbddb203311954bcc8daa510a56d5cd8db6d1fe278e176:1793513549967468000",
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "native_symbol": "BTCUSDT",
+          "base": {
+            "asset_id": "BTC",
+            "ticker": "BTC",
+            "native_token_id": "BTC",
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "quote": {
+            "asset_id": "USDT",
+            "ticker": "USDT",
+            "native_token_id": "USDT",
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "tick_size": "0.01000000",
+          "lot_size": "0.00001000",
+          "native_asset_id": null,
+          "dex_namespace": null,
+          "settlement": null,
+          "market_type": "spot",
+          "expiry_wall_ns": null,
+          "constraints": {
+            "min_base": "0.00001000",
+            "max_base": "9000.00000000",
+            "min_notional": "5.00000000",
+            "max_notional": "9000000.00000000",
+            "min_notional_currency": "USDT",
+            "price_rule": "fixed_tick",
+            "size_rule": "fixed_lot",
+            "max_limit_base": null,
+            "max_market_base": null
+          },
+          "contract_multiplier": "1",
+          "quantity_unit": "base",
+          "contract_value_currency": null,
+          "inverse": false,
+          "status": "active",
+          "data_access": "unknown",
+          "execution_access": "unknown",
+          "metadata_asof_wall_ns": 1793513549967468000,
+          "metadata_source": "https://data-api.binance.vision/api/v3/exchangeInfo",
+          "reference_multiplier": null,
+          "settlement_conversion": "unknown",
+          "contract_specification_source": null
+        },
+        "key": {
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+          "channel": "book",
+          "depth": 5000,
+          "aggregation": []
+        },
+        "adapter_revision": "binance-v2",
+        "config_hash": "default",
+        "adapter_config": []
+      },
+      {
+        "stream_id": "761e16bb-c313-4ad9-ba5f-17a6bcd1b615",
+        "instrument": {
+          "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+          "metadata_version": "8db26f80cdd5cbf887bbddb203311954bcc8daa510a56d5cd8db6d1fe278e176:1793513549967468000",
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "native_symbol": "BTCUSDT",
+          "base": {
+            "asset_id": "BTC",
+            "ticker": "BTC",
+            "native_token_id": "BTC",
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "quote": {
+            "asset_id": "USDT",
+            "ticker": "USDT",
+            "native_token_id": "USDT",
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "tick_size": "0.01000000",
+          "lot_size": "0.00001000",
+          "native_asset_id": null,
+          "dex_namespace": null,
+          "settlement": null,
+          "market_type": "spot",
+          "expiry_wall_ns": null,
+          "constraints": {
+            "min_base": "0.00001000",
+            "max_base": "9000.00000000",
+            "min_notional": "5.00000000",
+            "max_notional": "9000000.00000000",
+            "min_notional_currency": "USDT",
+            "price_rule": "fixed_tick",
+            "size_rule": "fixed_lot",
+            "max_limit_base": null,
+            "max_market_base": null
+          },
+          "contract_multiplier": "1",
+          "quantity_unit": "base",
+          "contract_value_currency": null,
+          "inverse": false,
+          "status": "active",
+          "data_access": "unknown",
+          "execution_access": "unknown",
+          "metadata_asof_wall_ns": 1793513549967468000,
+          "metadata_source": "https://data-api.binance.vision/api/v3/exchangeInfo",
+          "reference_multiplier": null,
+          "settlement_conversion": "unknown",
+          "contract_specification_source": null
+        },
+        "key": {
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+          "channel": "trades",
+          "depth": null,
+          "aggregation": []
+        },
+        "adapter_revision": "binance-v1",
+        "config_hash": "default",
+        "adapter_config": []
+      },
+      {
+        "stream_id": "085d9b37-4acc-46f6-9bac-d9daf5283515",
+        "instrument": {
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+          "metadata_version": "8db26f80cdd5cbf887bbddb203311954bcc8daa510a56d5cd8db6d1fe278e176:1793513549967468000",
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "native_symbol": "ETHUSDT",
+          "base": {
+            "asset_id": "ETH",
+            "ticker": "ETH",
+            "native_token_id": "ETH",
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "quote": {
+            "asset_id": "USDT",
+            "ticker": "USDT",
+            "native_token_id": "USDT",
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "tick_size": "0.01000000",
+          "lot_size": "0.00010000",
+          "native_asset_id": null,
+          "dex_namespace": null,
+          "settlement": null,
+          "market_type": "spot",
+          "expiry_wall_ns": null,
+          "constraints": {
+            "min_base": "0.00010000",
+            "max_base": "9000.00000000",
+            "min_notional": "5.00000000",
+            "max_notional": "9000000.00000000",
+            "min_notional_currency": "USDT",
+            "price_rule": "fixed_tick",
+            "size_rule": "fixed_lot",
+            "max_limit_base": null,
+            "max_market_base": null
+          },
+          "contract_multiplier": "1",
+          "quantity_unit": "base",
+          "contract_value_currency": null,
+          "inverse": false,
+          "status": "active",
+          "data_access": "unknown",
+          "execution_access": "unknown",
+          "metadata_asof_wall_ns": 1793513549967468000,
+          "metadata_source": "https://data-api.binance.vision/api/v3/exchangeInfo",
+          "reference_multiplier": null,
+          "settlement_conversion": "unknown",
+          "contract_specification_source": null
+        },
+        "key": {
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+          "channel": "book",
+          "depth": 5000,
+          "aggregation": []
+        },
+        "adapter_revision": "binance-v2",
+        "config_hash": "default",
+        "adapter_config": []
+      },
+      {
+        "stream_id": "296ba758-44eb-4524-9dbb-78ea561e6a5e",
+        "instrument": {
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+          "metadata_version": "8db26f80cdd5cbf887bbddb203311954bcc8daa510a56d5cd8db6d1fe278e176:1793513549967468000",
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "native_symbol": "ETHUSDT",
+          "base": {
+            "asset_id": "ETH",
+            "ticker": "ETH",
+            "native_token_id": "ETH",
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "quote": {
+            "asset_id": "USDT",
+            "ticker": "USDT",
+            "native_token_id": "USDT",
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "tick_size": "0.01000000",
+          "lot_size": "0.00010000",
+          "native_asset_id": null,
+          "dex_namespace": null,
+          "settlement": null,
+          "market_type": "spot",
+          "expiry_wall_ns": null,
+          "constraints": {
+            "min_base": "0.00010000",
+            "max_base": "9000.00000000",
+            "min_notional": "5.00000000",
+            "max_notional": "9000000.00000000",
+            "min_notional_currency": "USDT",
+            "price_rule": "fixed_tick",
+            "size_rule": "fixed_lot",
+            "max_limit_base": null,
+            "max_market_base": null
+          },
+          "contract_multiplier": "1",
+          "quantity_unit": "base",
+          "contract_value_currency": null,
+          "inverse": false,
+          "status": "active",
+          "data_access": "unknown",
+          "execution_access": "unknown",
+          "metadata_asof_wall_ns": 1793513549967468000,
+          "metadata_source": "https://data-api.binance.vision/api/v3/exchangeInfo",
+          "reference_multiplier": null,
+          "settlement_conversion": "unknown",
+          "contract_specification_source": null
+        },
+        "key": {
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+          "channel": "trades",
+          "depth": null,
+          "aggregation": []
+        },
+        "adapter_revision": "binance-v1",
+        "config_hash": "default",
+        "adapter_config": []
+      },
+      {
+        "stream_id": "67b6ba67-0ac2-41d6-9780-2acad3847785",
+        "instrument": {
+          "instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+          "metadata_version": "8db26f80cdd5cbf887bbddb203311954bcc8daa510a56d5cd8db6d1fe278e176:1793513549967468000",
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "native_symbol": "SOLUSDT",
+          "base": {
+            "asset_id": "SOL",
+            "ticker": "SOL",
+            "native_token_id": "SOL",
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "quote": {
+            "asset_id": "USDT",
+            "ticker": "USDT",
+            "native_token_id": "USDT",
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "tick_size": "0.01000000",
+          "lot_size": "0.00100000",
+          "native_asset_id": null,
+          "dex_namespace": null,
+          "settlement": null,
+          "market_type": "spot",
+          "expiry_wall_ns": null,
+          "constraints": {
+            "min_base": "0.00100000",
+            "max_base": "90000.00000000",
+            "min_notional": "5.00000000",
+            "max_notional": "9000000.00000000",
+            "min_notional_currency": "USDT",
+            "price_rule": "fixed_tick",
+            "size_rule": "fixed_lot",
+            "max_limit_base": null,
+            "max_market_base": null
+          },
+          "contract_multiplier": "1",
+          "quantity_unit": "base",
+          "contract_value_currency": null,
+          "inverse": false,
+          "status": "active",
+          "data_access": "unknown",
+          "execution_access": "unknown",
+          "metadata_asof_wall_ns": 1793513549967468000,
+          "metadata_source": "https://data-api.binance.vision/api/v3/exchangeInfo",
+          "reference_multiplier": null,
+          "settlement_conversion": "unknown",
+          "contract_specification_source": null
+        },
+        "key": {
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+          "channel": "book",
+          "depth": 5000,
+          "aggregation": []
+        },
+        "adapter_revision": "binance-v2",
+        "config_hash": "default",
+        "adapter_config": []
+      },
+      {
+        "stream_id": "c269ec92-443a-424a-aabe-51ff4bab7711",
+        "instrument": {
+          "instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+          "metadata_version": "8db26f80cdd5cbf887bbddb203311954bcc8daa510a56d5cd8db6d1fe278e176:1793513549967468000",
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "native_symbol": "SOLUSDT",
+          "base": {
+            "asset_id": "SOL",
+            "ticker": "SOL",
+            "native_token_id": "SOL",
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "quote": {
+            "asset_id": "USDT",
+            "ticker": "USDT",
+            "native_token_id": "USDT",
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "tick_size": "0.01000000",
+          "lot_size": "0.00100000",
+          "native_asset_id": null,
+          "dex_namespace": null,
+          "settlement": null,
+          "market_type": "spot",
+          "expiry_wall_ns": null,
+          "constraints": {
+            "min_base": "0.00100000",
+            "max_base": "90000.00000000",
+            "min_notional": "5.00000000",
+            "max_notional": "9000000.00000000",
+            "min_notional_currency": "USDT",
+            "price_rule": "fixed_tick",
+            "size_rule": "fixed_lot",
+            "max_limit_base": null,
+            "max_market_base": null
+          },
+          "contract_multiplier": "1",
+          "quantity_unit": "base",
+          "contract_value_currency": null,
+          "inverse": false,
+          "status": "active",
+          "data_access": "unknown",
+          "execution_access": "unknown",
+          "metadata_asof_wall_ns": 1793513549967468000,
+          "metadata_source": "https://data-api.binance.vision/api/v3/exchangeInfo",
+          "reference_multiplier": null,
+          "settlement_conversion": "unknown",
+          "contract_specification_source": null
+        },
+        "key": {
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+          "channel": "trades",
+          "depth": null,
+          "aggregation": []
+        },
+        "adapter_revision": "binance-v1",
+        "config_hash": "default",
+        "adapter_config": []
+      },
+      {
+        "stream_id": "a21bd2ea-f348-49e1-8838-5f50cec812d7",
+        "instrument": {
+          "instrument_id": "hyperliquid:info:perpetual:BTC",
+          "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793513552271548000:hyperliquid-denomination-v2",
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "native_symbol": "BTC",
+          "base": {
+            "asset_id": "BTC",
+            "ticker": "BTC",
+            "native_token_id": null,
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "quote": {
+            "asset_id": "USDT",
+            "ticker": "USDT",
+            "native_token_id": null,
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "tick_size": null,
+          "lot_size": "0.00001",
+          "native_asset_id": "0",
+          "dex_namespace": "default",
+          "settlement": {
+            "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+            "ticker": "USDC",
+            "native_token_id": "0",
+            "network": "hypercore",
+            "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+            "reference_asset_id": null
+          },
+          "market_type": "perpetual",
+          "expiry_wall_ns": null,
+          "constraints": {
+            "min_base": "0.00001",
+            "max_base": null,
+            "min_notional": null,
+            "max_notional": null,
+            "min_notional_currency": null,
+            "price_rule": "hyperliquid_significant_digits",
+            "size_rule": "fixed_lot",
+            "max_limit_base": null,
+            "max_market_base": null
+          },
+          "contract_multiplier": "1",
+          "quantity_unit": "base",
+          "contract_value_currency": "BTC",
+          "inverse": false,
+          "status": "active",
+          "data_access": "unknown",
+          "execution_access": "unknown",
+          "metadata_asof_wall_ns": 1793513552271548000,
+          "metadata_source": "https://api.hyperliquid.xyz/info",
+          "reference_multiplier": null,
+          "settlement_conversion": "quanto_no_fx",
+          "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+        },
+        "key": {
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "instrument_id": "hyperliquid:info:perpetual:BTC",
+          "channel": "book",
+          "depth": 20,
+          "aggregation": []
+        },
+        "adapter_revision": "hyperliquid-v1",
+        "config_hash": "default",
+        "adapter_config": [
+          [
+            "dex",
+            ""
+          ]
+        ]
+      },
+      {
+        "stream_id": "218e9e81-8974-4c13-a489-498b69fd006b",
+        "instrument": {
+          "instrument_id": "hyperliquid:info:perpetual:BTC",
+          "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793513552271548000:hyperliquid-denomination-v2",
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "native_symbol": "BTC",
+          "base": {
+            "asset_id": "BTC",
+            "ticker": "BTC",
+            "native_token_id": null,
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "quote": {
+            "asset_id": "USDT",
+            "ticker": "USDT",
+            "native_token_id": null,
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "tick_size": null,
+          "lot_size": "0.00001",
+          "native_asset_id": "0",
+          "dex_namespace": "default",
+          "settlement": {
+            "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+            "ticker": "USDC",
+            "native_token_id": "0",
+            "network": "hypercore",
+            "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+            "reference_asset_id": null
+          },
+          "market_type": "perpetual",
+          "expiry_wall_ns": null,
+          "constraints": {
+            "min_base": "0.00001",
+            "max_base": null,
+            "min_notional": null,
+            "max_notional": null,
+            "min_notional_currency": null,
+            "price_rule": "hyperliquid_significant_digits",
+            "size_rule": "fixed_lot",
+            "max_limit_base": null,
+            "max_market_base": null
+          },
+          "contract_multiplier": "1",
+          "quantity_unit": "base",
+          "contract_value_currency": "BTC",
+          "inverse": false,
+          "status": "active",
+          "data_access": "unknown",
+          "execution_access": "unknown",
+          "metadata_asof_wall_ns": 1793513552271548000,
+          "metadata_source": "https://api.hyperliquid.xyz/info",
+          "reference_multiplier": null,
+          "settlement_conversion": "quanto_no_fx",
+          "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+        },
+        "key": {
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "instrument_id": "hyperliquid:info:perpetual:BTC",
+          "channel": "trades",
+          "depth": null,
+          "aggregation": []
+        },
+        "adapter_revision": "hyperliquid-v1",
+        "config_hash": "default",
+        "adapter_config": [
+          [
+            "dex",
+            ""
+          ]
+        ]
+      },
+      {
+        "stream_id": "2a4552dc-abd7-488e-9c9c-306c59c2364b",
+        "instrument": {
+          "instrument_id": "hyperliquid:info:perpetual:ETH",
+          "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793513552271548000:hyperliquid-denomination-v2",
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "native_symbol": "ETH",
+          "base": {
+            "asset_id": "ETH",
+            "ticker": "ETH",
+            "native_token_id": null,
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "quote": {
+            "asset_id": "USDT",
+            "ticker": "USDT",
+            "native_token_id": null,
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "tick_size": null,
+          "lot_size": "0.0001",
+          "native_asset_id": "1",
+          "dex_namespace": "default",
+          "settlement": {
+            "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+            "ticker": "USDC",
+            "native_token_id": "0",
+            "network": "hypercore",
+            "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+            "reference_asset_id": null
+          },
+          "market_type": "perpetual",
+          "expiry_wall_ns": null,
+          "constraints": {
+            "min_base": "0.0001",
+            "max_base": null,
+            "min_notional": null,
+            "max_notional": null,
+            "min_notional_currency": null,
+            "price_rule": "hyperliquid_significant_digits",
+            "size_rule": "fixed_lot",
+            "max_limit_base": null,
+            "max_market_base": null
+          },
+          "contract_multiplier": "1",
+          "quantity_unit": "base",
+          "contract_value_currency": "ETH",
+          "inverse": false,
+          "status": "active",
+          "data_access": "unknown",
+          "execution_access": "unknown",
+          "metadata_asof_wall_ns": 1793513552271548000,
+          "metadata_source": "https://api.hyperliquid.xyz/info",
+          "reference_multiplier": null,
+          "settlement_conversion": "quanto_no_fx",
+          "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+        },
+        "key": {
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "instrument_id": "hyperliquid:info:perpetual:ETH",
+          "channel": "book",
+          "depth": 20,
+          "aggregation": []
+        },
+        "adapter_revision": "hyperliquid-v1",
+        "config_hash": "default",
+        "adapter_config": [
+          [
+            "dex",
+            ""
+          ]
+        ]
+      },
+      {
+        "stream_id": "594a3e40-eccd-461c-b710-3d146eb844a3",
+        "instrument": {
+          "instrument_id": "hyperliquid:info:perpetual:ETH",
+          "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793513552271548000:hyperliquid-denomination-v2",
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "native_symbol": "ETH",
+          "base": {
+            "asset_id": "ETH",
+            "ticker": "ETH",
+            "native_token_id": null,
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "quote": {
+            "asset_id": "USDT",
+            "ticker": "USDT",
+            "native_token_id": null,
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "tick_size": null,
+          "lot_size": "0.0001",
+          "native_asset_id": "1",
+          "dex_namespace": "default",
+          "settlement": {
+            "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+            "ticker": "USDC",
+            "native_token_id": "0",
+            "network": "hypercore",
+            "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+            "reference_asset_id": null
+          },
+          "market_type": "perpetual",
+          "expiry_wall_ns": null,
+          "constraints": {
+            "min_base": "0.0001",
+            "max_base": null,
+            "min_notional": null,
+            "max_notional": null,
+            "min_notional_currency": null,
+            "price_rule": "hyperliquid_significant_digits",
+            "size_rule": "fixed_lot",
+            "max_limit_base": null,
+            "max_market_base": null
+          },
+          "contract_multiplier": "1",
+          "quantity_unit": "base",
+          "contract_value_currency": "ETH",
+          "inverse": false,
+          "status": "active",
+          "data_access": "unknown",
+          "execution_access": "unknown",
+          "metadata_asof_wall_ns": 1793513552271548000,
+          "metadata_source": "https://api.hyperliquid.xyz/info",
+          "reference_multiplier": null,
+          "settlement_conversion": "quanto_no_fx",
+          "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+        },
+        "key": {
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "instrument_id": "hyperliquid:info:perpetual:ETH",
+          "channel": "trades",
+          "depth": null,
+          "aggregation": []
+        },
+        "adapter_revision": "hyperliquid-v1",
+        "config_hash": "default",
+        "adapter_config": [
+          [
+            "dex",
+            ""
+          ]
+        ]
+      },
+      {
+        "stream_id": "a6339e76-b458-485c-a17d-af7e0c4cf4da",
+        "instrument": {
+          "instrument_id": "hyperliquid:info:perpetual:SOL",
+          "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793513552271548000:hyperliquid-denomination-v2",
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "native_symbol": "SOL",
+          "base": {
+            "asset_id": "SOL",
+            "ticker": "SOL",
+            "native_token_id": null,
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "quote": {
+            "asset_id": "USDT",
+            "ticker": "USDT",
+            "native_token_id": null,
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "tick_size": null,
+          "lot_size": "0.01",
+          "native_asset_id": "5",
+          "dex_namespace": "default",
+          "settlement": {
+            "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+            "ticker": "USDC",
+            "native_token_id": "0",
+            "network": "hypercore",
+            "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+            "reference_asset_id": null
+          },
+          "market_type": "perpetual",
+          "expiry_wall_ns": null,
+          "constraints": {
+            "min_base": "0.01",
+            "max_base": null,
+            "min_notional": null,
+            "max_notional": null,
+            "min_notional_currency": null,
+            "price_rule": "hyperliquid_significant_digits",
+            "size_rule": "fixed_lot",
+            "max_limit_base": null,
+            "max_market_base": null
+          },
+          "contract_multiplier": "1",
+          "quantity_unit": "base",
+          "contract_value_currency": "SOL",
+          "inverse": false,
+          "status": "active",
+          "data_access": "unknown",
+          "execution_access": "unknown",
+          "metadata_asof_wall_ns": 1793513552271548000,
+          "metadata_source": "https://api.hyperliquid.xyz/info",
+          "reference_multiplier": null,
+          "settlement_conversion": "quanto_no_fx",
+          "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+        },
+        "key": {
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "instrument_id": "hyperliquid:info:perpetual:SOL",
+          "channel": "book",
+          "depth": 20,
+          "aggregation": []
+        },
+        "adapter_revision": "hyperliquid-v1",
+        "config_hash": "default",
+        "adapter_config": [
+          [
+            "dex",
+            ""
+          ]
+        ]
+      },
+      {
+        "stream_id": "29217694-d071-41c7-8057-46798b87b229",
+        "instrument": {
+          "instrument_id": "hyperliquid:info:perpetual:SOL",
+          "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793513552271548000:hyperliquid-denomination-v2",
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "native_symbol": "SOL",
+          "base": {
+            "asset_id": "SOL",
+            "ticker": "SOL",
+            "native_token_id": null,
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "quote": {
+            "asset_id": "USDT",
+            "ticker": "USDT",
+            "native_token_id": null,
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "tick_size": null,
+          "lot_size": "0.01",
+          "native_asset_id": "5",
+          "dex_namespace": "default",
+          "settlement": {
+            "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+            "ticker": "USDC",
+            "native_token_id": "0",
+            "network": "hypercore",
+            "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+            "reference_asset_id": null
+          },
+          "market_type": "perpetual",
+          "expiry_wall_ns": null,
+          "constraints": {
+            "min_base": "0.01",
+            "max_base": null,
+            "min_notional": null,
+            "max_notional": null,
+            "min_notional_currency": null,
+            "price_rule": "hyperliquid_significant_digits",
+            "size_rule": "fixed_lot",
+            "max_limit_base": null,
+            "max_market_base": null
+          },
+          "contract_multiplier": "1",
+          "quantity_unit": "base",
+          "contract_value_currency": "SOL",
+          "inverse": false,
+          "status": "active",
+          "data_access": "unknown",
+          "execution_access": "unknown",
+          "metadata_asof_wall_ns": 1793513552271548000,
+          "metadata_source": "https://api.hyperliquid.xyz/info",
+          "reference_multiplier": null,
+          "settlement_conversion": "quanto_no_fx",
+          "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+        },
+        "key": {
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "instrument_id": "hyperliquid:info:perpetual:SOL",
+          "channel": "trades",
+          "depth": null,
+          "aggregation": []
+        },
+        "adapter_revision": "hyperliquid-v1",
+        "config_hash": "default",
+        "adapter_config": [
+          [
+            "dex",
+            ""
+          ]
+        ]
+      }
+    ],
+    "evidence": {
+      "raw": {
+        "sha256": "c1672ca0dd36d6964b5d76206794f7e4dc09ee5b1667ef57135dec218dcd7c9c",
+        "records": 609,
+        "encoded_bytes": 1834871
+      },
+      "normalized": {
+        "sha256": "1ed7741a5f285db7e6afa4b5720a3dcdcbf412330697e9f56a024f0fd9706fa2",
+        "records": 432,
+        "encoded_bytes": 5479854
+      },
+      "checkpoints": {
+        "sha256": "fc46b59af40173c7f0ef80b65126f5d53c2869f220b9b83e6fa2ddcaa10046c8",
+        "records": 60,
+        "encoded_bytes": 36670472
+      },
+      "raw_receive": {
+        "span_seconds": 6.083854537,
+        "payload_bytes": 1118364,
+        "average_frames_per_second": 100.10101265509597,
+        "peak_frames_per_receive_highwater_aligned_second": 187
+      }
+    }
+  },
+  "source_verification_and_hashing": {
+    "wall_seconds": 8.60494032400311,
+    "cpu_seconds": 8.484942,
+    "cpu_percent_one_core": 98.60547174663861,
+    "process_lifetime_peak_rss_bytes": 166596608
+  },
+  "source_normalized_replay": {
+    "mode": "normalized",
+    "deliveries": 432,
+    "book_sha256": "4e37ef562d3e23bf088a658da713785f7a7401b2f524795921c02050a5441d90",
+    "state_sha256": "f21d65ae86122a2a7db2ddf8cf8b815434270ef452ce6af7ed53af9d64a22fd7",
+    "clock_sha256": "fd047227c12e6bb0c2e1165dc52d717f071badb4b226982f6db4907abd3c7732",
+    "dataset": {
+      "event_mix": {
+        "Control": 24,
+        "BookUpdate": 157,
+        "Trade": 341
+      },
+      "book_updates": {
+        "snapshot": 9,
+        "level_changes": 32071,
+        "delta": 148
+      },
+      "source_modes": {
+        "ws_delta": 157,
+        "ws_snapshot": 365
+      },
+      "maximum_connection_epoch": {
+        "ef3df77f-f8e8-4ae2-8098-9740d88aabc7": 1,
+        "761e16bb-c313-4ad9-ba5f-17a6bcd1b615": 1,
+        "085d9b37-4acc-46f6-9bac-d9daf5283515": 1,
+        "296ba758-44eb-4524-9dbb-78ea561e6a5e": 1,
+        "67b6ba67-0ac2-41d6-9780-2acad3847785": 1,
+        "c269ec92-443a-424a-aabe-51ff4bab7711": 1,
+        "a21bd2ea-f348-49e1-8838-5f50cec812d7": 1,
+        "218e9e81-8974-4c13-a489-498b69fd006b": 1,
+        "2a4552dc-abd7-488e-9c9c-306c59c2364b": 1,
+        "594a3e40-eccd-461c-b710-3d146eb844a3": 1,
+        "a6339e76-b458-485c-a17d-af7e0c4cf4da": 1,
+        "29217694-d071-41c7-8057-46798b87b229": 1
+      },
+      "native_retained_depths": {
+        "a21bd2ea-f348-49e1-8838-5f50cec812d7": {
+          "max_bid_levels": 20,
+          "max_ask_levels": 20
+        },
+        "a6339e76-b458-485c-a17d-af7e0c4cf4da": {
+          "max_bid_levels": 20,
+          "max_ask_levels": 20
+        },
+        "2a4552dc-abd7-488e-9c9c-306c59c2364b": {
+          "max_bid_levels": 20,
+          "max_ask_levels": 20
+        },
+        "67b6ba67-0ac2-41d6-9780-2acad3847785": {
+          "max_bid_levels": 4870,
+          "max_ask_levels": 5000
+        },
+        "ef3df77f-f8e8-4ae2-8098-9740d88aabc7": {
+          "max_bid_levels": 5012,
+          "max_ask_levels": 5005
+        },
+        "085d9b37-4acc-46f6-9bac-d9daf5283515": {
+          "max_bid_levels": 5006,
+          "max_ask_levels": 5002
+        }
+      },
+      "receive_mono_span_seconds": 6.773025957,
+      "average_batches_per_receive_span_second": 63.78242202859463,
+      "peak_batches_per_receive_highwater_aligned_second": 105
+    },
+    "wall_seconds": 4.504917637998005,
+    "cpu_seconds": 4.395770000000001,
+    "cpu_percent_one_core": 97.57714465016257,
+    "process_lifetime_peak_rss_bytes": 166596608,
+    "stages": {
+      "reader_batch_next": {
+        "count": 433,
+        "retained_samples": 433,
+        "quantile_method": "nearest-rank all observations",
+        "total_seconds": 1.265182519,
+        "max_ms": 329.707915,
+        "p50_ms": 0.526639,
+        "p95_ms": 2.096837,
+        "p99_ms": 7.000405
+      },
+      "replay_projection_apply": {
+        "count": 432,
+        "retained_samples": 432,
+        "quantile_method": "nearest-rank all observations",
+        "total_seconds": 1.129682332,
+        "max_ms": 287.160076,
+        "p50_ms": 0.048054,
+        "p95_ms": 2.958604,
+        "p99_ms": 4.524905
+      },
+      "replay_step_inclusive": {
+        "count": 433,
+        "retained_samples": 433,
+        "quantile_method": "nearest-rank all observations",
+        "total_seconds": 2.406992125,
+        "max_ms": 616.910424,
+        "p50_ms": 0.659352,
+        "p95_ms": 4.595966,
+        "p99_ms": 9.244536
+      }
+    }
+  },
+  "source_raw_replay": {
+    "mode": "raw",
+    "deliveries": 432,
+    "book_sha256": "4e37ef562d3e23bf088a658da713785f7a7401b2f524795921c02050a5441d90",
+    "state_sha256": "f21d65ae86122a2a7db2ddf8cf8b815434270ef452ce6af7ed53af9d64a22fd7",
+    "clock_sha256": "fd047227c12e6bb0c2e1165dc52d717f071badb4b226982f6db4907abd3c7732",
+    "wall_seconds": 6.45785855500435,
+    "cpu_seconds": 6.128329000000001,
+    "cpu_percent_one_core": 94.89723176502544,
+    "process_lifetime_peak_rss_bytes": 174178304,
+    "stages": {
+      "reader_batch_next": {
+        "count": 433,
+        "retained_samples": 433,
+        "quantile_method": "nearest-rank all observations",
+        "total_seconds": 1.293931322,
+        "max_ms": 398.343504,
+        "p50_ms": 0.519242,
+        "p95_ms": 2.020641,
+        "p99_ms": 7.906055
+      },
+      "reader_raw_lookup": {
+        "count": 432,
+        "retained_samples": 432,
+        "quantile_method": "nearest-rank all observations",
+        "total_seconds": 0.223382228,
+        "max_ms": 7.097805,
+        "p50_ms": 0.453626,
+        "p95_ms": 0.745751,
+        "p99_ms": 1.813193
+      },
+      "replay_projection_apply": {
+        "count": 12,
+        "retained_samples": 12,
+        "quantile_method": "nearest-rank all observations",
+        "total_seconds": 0.001204402,
+        "max_ms": 0.255104,
+        "p50_ms": 0.075508,
+        "p95_ms": 0.255104,
+        "p99_ms": 0.255104
+      },
+      "replay_raw_decode_and_projection": {
+        "count": 420,
+        "retained_samples": 420,
+        "quantile_method": "nearest-rank all observations",
+        "total_seconds": 2.14880775,
+        "max_ms": 644.243365,
+        "p50_ms": 0.34328,
+        "p95_ms": 3.869655,
+        "p99_ms": 7.481937
+      },
+      "replay_step_inclusive": {
+        "count": 433,
+        "retained_samples": 433,
+        "quantile_method": "nearest-rank all observations",
+        "total_seconds": 4.378247355,
+        "max_ms": 1194.179998,
+        "p50_ms": 1.667854,
+        "p95_ms": 6.993628,
+        "p99_ms": 15.881693
+      }
+    }
+  },
+  "source_raw_normalized_state_exact": true,
+  "source_checkpoint_seek": {
+    "checkpoint_status": "restored",
+    "book_sha256": "4e37ef562d3e23bf088a658da713785f7a7401b2f524795921c02050a5441d90",
+    "state_sha256": "f21d65ae86122a2a7db2ddf8cf8b815434270ef452ce6af7ed53af9d64a22fd7",
+    "book_exact": true,
+    "state_exact": true,
+    "wall_seconds": 7.463565049009048,
+    "cpu_seconds": 7.320700000000002,
+    "cpu_percent_one_core": 98.08583367236794,
+    "process_lifetime_peak_rss_bytes": 201523200
+  },
+  "source_files_sha256": {
+    "src/workstation/__init__.py": "d32a38cc280c6e747e68e7e64e27ebbe9aef3e3ac4e19fca2e7d8f7fb54f9ac8",
+    "src/workstation/adapter_catalog.py": "82d22123e418ebbb5f56da499805b4fef7671bcf29039124355431855519dba2",
+    "src/workstation/adapters/__init__.py": "ebfb09d028b47872e3ede6cdaea00ff7903029c37ed000f5308741abc23665e8",
+    "src/workstation/adapters/base.py": "078cc7da780e21c11b065a62436986b48664ae244c4a38326a5e9f3ad4e12d45",
+    "src/workstation/adapters/binance.py": "ce02eb26c3ab8b4cebe975240201f9d1fc7403391cffdaab947cc3758d8853ca",
+    "src/workstation/adapters/hyperliquid.py": "c1f3a558c73f9c9f5831c401bb8f978ba3d8f7bee931de3aed59232ad088b7c3",
+    "src/workstation/analytics.py": "5e4371590747399200b048a72e15ff0c542f0f68748f1c4962d369e92fcb5813",
+    "src/workstation/book.py": "f908201f41719b1d7726af4a38df0a3a166660c7312d21c4e9428e63053e4a74",
+    "src/workstation/costs.py": "1b249341e6e0373e84c9f2c4077d60354950fd96a9a482e26fdcb8d69779a40a",
+    "src/workstation/events.py": "63edc89a304a2272e2999708a30153aef2e99dfd10b22c718933f8722a18727d",
+    "src/workstation/ingestion.py": "84f2dcbc759f9e1119df693aa699b46bf7909f436dad2e252412ae59616a552e",
+    "src/workstation/instruments.py": "188e11494cd470414cff1ec3fd96024c528f0a6ae51289a2d2dcab77bf3a27a9",
+    "src/workstation/precision.py": "abee27115d3d86d88cb32e99627e9b7ec48bdaa13c453b5be30331463ad25edc",
+    "src/workstation/projection.py": "f36753759de852eea545932a1723b749257e74b013f01c057be447de6bb101b8",
+    "src/workstation/quality.py": "e49ea4fd531d2e42c9baf31133876610df8ec205e7f62770dca254ad9b279071",
+    "src/workstation/recording.py": "11bc8046eb9acf90f8d3c22e7d2a8ca595f231ca8f6a9edc9e8490b75771afef",
+    "src/workstation/replay.py": "1f3592b0ea9e30e1c88bf49424886e63f1df72070bc8c40c1436649f114220d1",
+    "src/workstation/transport.py": "3b706b8140f456a9a7f8b54b13ed69be0d01d29b744704e65614cfe79502b530",
+    "src/workstation/wire.py": "addafd6a9e6d677751cba2fc0d4613bcb571b4b03dd81dc1d28e25faad012737"
+  },
+  "preload": {
+    "wall_seconds": 1.5797374579997268,
+    "cpu_seconds": 1.5520420000000001,
+    "cpu_percent_one_core": 98.24683159473886,
+    "process_lifetime_peak_rss_bytes": 201523200,
+    "records": 1041,
+    "accounted_retained_bytes": 15910622,
+    "byte_limit": 134217728,
+    "item_limit": 100000,
+    "accounting": "list storage plus sum of production recording._size(item); shared objects counted per item; excludes transient decoder/reader caches and whole-process RSS",
+    "stages": {
+      "preload_generator_next_inclusive": {
+        "count": 1042,
+        "retained_samples": 1042,
+        "quantile_method": "nearest-rank all observations",
+        "total_seconds": 1.447181369,
+        "max_ms": 289.508567,
+        "p50_ms": 0.426115,
+        "p95_ms": 1.109263,
+        "p99_ms": 3.902922
+      },
+      "preload_production_resident_size": {
+        "count": 1041,
+        "retained_samples": 1041,
+        "quantile_method": "nearest-rank all observations",
+        "total_seconds": 0.118282587,
+        "max_ms": 31.538468,
+        "p50_ms": 0.008718,
+        "p95_ms": 0.068892,
+        "p99_ms": 0.28744
+      },
+      "reader_batch_next": {
+        "count": 433,
+        "retained_samples": 433,
+        "quantile_method": "nearest-rank all observations",
+        "total_seconds": 1.158321723,
+        "max_ms": 289.500588,
+        "p50_ms": 0.482376,
+        "p95_ms": 1.819072,
+        "p99_ms": 7.330927
+      },
+      "reader_raw_lookup": {
+        "count": 609,
+        "retained_samples": 609,
+        "quantile_method": "nearest-rank all observations",
+        "total_seconds": 0.279711406,
+        "max_ms": 3.981804,
+        "p50_ms": 0.395604,
+        "p95_ms": 0.637408,
+        "p99_ms": 0.942519
+      }
+    }
+  },
+  "loads": [
+    {
+      "name": "baseline",
+      "speed_multiplier": 1,
+      "input_mode": "bounded_predecoded_writer_isolation",
+      "visited_prefix_scheduled_span_seconds": 6.773025957,
+      "schedule": "synthetic receive-mono highwater; raw ordinal merge before normalized callback delivery",
+      "source_publication_timestamps_available": false,
+      "source_local_processing_latency": null,
+      "output_path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m3-profile/final-prefix-predecoded/baseline/51d3dc95-be2e-4210-ad4a-b1b29e84476c",
+      "offered_raw": 609,
+      "offered_batches": 432,
+      "offered_events": 522,
+      "rejected_offer_count": 0,
+      "unoffered_raw": 0,
+      "unoffered_batches": 0,
+      "accepted_but_not_written_raw": 0,
+      "accepted_but_not_written_batches": 0,
+      "intentional_drops": 0,
+      "failure": null,
+      "producer_seconds": 6.785492590002832,
+      "finalize_drain_and_seal_seconds": 0.6978280890034512,
+      "worker_thread_cpu_seconds": 2.746176916,
+      "worker_thread_wall_seconds": 7.48127387,
+      "achieved_offered_batches_per_second": 63.665237898346845,
+      "capture": {
+        "complete": false,
+        "incomplete_reasons": [
+          "benchmark_source_incomplete",
+          "source:queue_overflow",
+          "source:no_valid_book:binance-global:spot-v3:spot:BTCUSDT",
+          "source:no_valid_book:hyperliquid:info:perpetual:ETH",
+          "source:no_valid_book:hyperliquid:info:perpetual:SOL",
+          "source:no_valid_book:hyperliquid:info:perpetual:BTC",
+          "source:no_valid_book:binance-global:spot-v3:spot:ETHUSDT",
+          "source:no_valid_book:binance-global:spot-v3:spot:SOLUSDT",
+          "source:source_capture_incomplete:ef3df77f-f8e8-4ae2-8098-9740d88aabc7",
+          "source:source_capture_incomplete:761e16bb-c313-4ad9-ba5f-17a6bcd1b615",
+          "source:source_capture_incomplete:085d9b37-4acc-46f6-9bac-d9daf5283515",
+          "source:source_capture_incomplete:296ba758-44eb-4524-9dbb-78ea561e6a5e",
+          "source:source_capture_incomplete:67b6ba67-0ac2-41d6-9780-2acad3847785",
+          "source:source_capture_incomplete:c269ec92-443a-424a-aabe-51ff4bab7711",
+          "source:source_capture_incomplete:a21bd2ea-f348-49e1-8838-5f50cec812d7",
+          "source:source_capture_incomplete:218e9e81-8974-4c13-a489-498b69fd006b",
+          "source:source_capture_incomplete:2a4552dc-abd7-488e-9c9c-306c59c2364b",
+          "source:source_capture_incomplete:594a3e40-eccd-461c-b710-3d146eb844a3",
+          "source:source_capture_incomplete:a6339e76-b458-485c-a17d-af7e0c4cf4da",
+          "source:source_capture_incomplete:29217694-d071-41c7-8057-46798b87b229",
+          "source:feed_capture_incomplete"
+        ],
+        "raw_count": 609,
+        "batch_count": 432,
+        "event_count": 522,
+        "checkpoint_count": 12,
+        "gap_count": 0,
+        "gap_reasons": {},
+        "capture_lost_gap_count": 0,
+        "limits": {
+          "queue_count": 512,
+          "queue_bytes": 134217728,
+          "raw_rotation_bytes": 16777216,
+          "parquet_batch_count": 128,
+          "parquet_batch_bytes": 16777216,
+          "max_row_bytes": 268435456,
+          "max_files": 100000,
+          "max_streams": 1024,
+          "min_free_bytes": 67108864,
+          "managed_budget_bytes": 10737418240,
+          "retention_max_sessions": 100,
+          "finalize_timeout": 30.0,
+          "checkpoint_interval_batches": 1000,
+          "max_query_rows": 10000,
+          "parquet_buffer_count": 4096,
+          "reader_cache_bytes": 33554432,
+          "reader_cache_count": 8192,
+          "checkpoint_group_count": 64,
+          "checkpoint_group_bytes": 16777216
+        }
+      },
+      "checkpoint_cadence": {
+        "source_interval_batches": 100,
+        "effective_writer_interval_batches": 1000,
+        "matches_source": false
+      },
+      "health": {
+        "state": "incomplete",
+        "queue_count": 0,
+        "queue_bytes": 0,
+        "high_water_count": 228,
+        "high_water_bytes": 8355522,
+        "incomplete_reasons": [
+          "benchmark_source_incomplete",
+          "source:queue_overflow",
+          "source:no_valid_book:binance-global:spot-v3:spot:BTCUSDT",
+          "source:no_valid_book:hyperliquid:info:perpetual:ETH",
+          "source:no_valid_book:hyperliquid:info:perpetual:SOL",
+          "source:no_valid_book:hyperliquid:info:perpetual:BTC",
+          "source:no_valid_book:binance-global:spot-v3:spot:ETHUSDT",
+          "source:no_valid_book:binance-global:spot-v3:spot:SOLUSDT",
+          "source:source_capture_incomplete:ef3df77f-f8e8-4ae2-8098-9740d88aabc7",
+          "source:source_capture_incomplete:761e16bb-c313-4ad9-ba5f-17a6bcd1b615",
+          "source:source_capture_incomplete:085d9b37-4acc-46f6-9bac-d9daf5283515",
+          "source:source_capture_incomplete:296ba758-44eb-4524-9dbb-78ea561e6a5e",
+          "source:source_capture_incomplete:67b6ba67-0ac2-41d6-9780-2acad3847785",
+          "source:source_capture_incomplete:c269ec92-443a-424a-aabe-51ff4bab7711",
+          "source:source_capture_incomplete:a21bd2ea-f348-49e1-8838-5f50cec812d7",
+          "source:source_capture_incomplete:218e9e81-8974-4c13-a489-498b69fd006b",
+          "source:source_capture_incomplete:2a4552dc-abd7-488e-9c9c-306c59c2364b",
+          "source:source_capture_incomplete:594a3e40-eccd-461c-b710-3d146eb844a3",
+          "source:source_capture_incomplete:a6339e76-b458-485c-a17d-af7e0c4cf4da",
+          "source:source_capture_incomplete:29217694-d071-41c7-8057-46798b87b229",
+          "source:feed_capture_incomplete"
+        ],
+        "written_bytes": 1768232,
+        "terminal_failure": false
+      },
+      "stages": {
+        "accepted_to_worker_dispatch_events_inclusive": {
+          "count": 432,
+          "retained_samples": 432,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 43.689494066,
+          "max_ms": 562.06695,
+          "p50_ms": 10.138777,
+          "p95_ms": 476.60481,
+          "p99_ms": 527.481487
+        },
+        "accepted_to_worker_dispatch_raw": {
+          "count": 609,
+          "retained_samples": 609,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 71.532117521,
+          "max_ms": 534.978675,
+          "p50_ms": 62.622592,
+          "p95_ms": 343.260908,
+          "p99_ms": 466.089218
+        },
+        "load_generator_next_inclusive": {
+          "count": 1042,
+          "retained_samples": 1042,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.000847461,
+          "max_ms": 0.027515,
+          "p50_ms": 0.00048,
+          "p95_ms": 0.002263,
+          "p99_ms": 0.004204
+        },
+        "producer_append_events_inclusive": {
+          "count": 432,
+          "retained_samples": 432,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.22545712,
+          "max_ms": 68.938794,
+          "p50_ms": 0.07411,
+          "p95_ms": 0.417104,
+          "p99_ms": 1.179932
+        },
+        "producer_append_raw_inclusive": {
+          "count": 609,
+          "retained_samples": 609,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.030334339,
+          "max_ms": 2.04214,
+          "p50_ms": 0.021665,
+          "p95_ms": 0.183411,
+          "p99_ms": 0.400814
+        },
+        "producer_queue_offer_events": {
+          "count": 432,
+          "retained_samples": 432,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.005184698,
+          "max_ms": 0.135587,
+          "p50_ms": 0.007931,
+          "p95_ms": 0.035377,
+          "p99_ms": 0.080227
+        },
+        "producer_queue_offer_raw": {
+          "count": 609,
+          "retained_samples": 609,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.00917079,
+          "max_ms": 0.289349,
+          "p50_ms": 0.00561,
+          "p95_ms": 0.061641,
+          "p99_ms": 0.125235
+        },
+        "synthetic_schedule_lateness": {
+          "count": 1041,
+          "retained_samples": 1041,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 12.821554558,
+          "max_ms": 84.992749,
+          "p50_ms": 8.646675,
+          "p95_ms": 49.57329,
+          "p99_ms": 61.180509
+        },
+        "worker_checkpoint_group": {
+          "count": 1,
+          "retained_samples": 1,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.263984669,
+          "max_ms": 263.984669,
+          "p50_ms": 263.984669,
+          "p95_ms": 263.984669,
+          "p99_ms": 263.984669
+        },
+        "worker_events_inclusive": {
+          "count": 432,
+          "retained_samples": 432,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 2.177038815,
+          "max_ms": 554.083774,
+          "p50_ms": 0.237825,
+          "p95_ms": 4.58977,
+          "p99_ms": 9.249324
+        },
+        "worker_flush_events": {
+          "count": 2,
+          "retained_samples": 2,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.618471027,
+          "max_ms": 553.9221,
+          "p50_ms": 64.548927,
+          "p95_ms": 553.9221,
+          "p99_ms": 553.9221
+        },
+        "worker_projection_apply": {
+          "count": 432,
+          "retained_samples": 432,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 1.274524723,
+          "max_ms": 313.097702,
+          "p50_ms": 0.063436,
+          "p95_ms": 3.96044,
+          "p99_ms": 6.733981
+        },
+        "worker_raw": {
+          "count": 609,
+          "retained_samples": 609,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.212470354,
+          "max_ms": 52.703773,
+          "p50_ms": 0.112299,
+          "p95_ms": 0.43026,
+          "p99_ms": 5.623663
+        },
+        "worker_save_projection_inclusive": {
+          "count": 25,
+          "retained_samples": 25,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.603725826,
+          "max_ms": 599.575657,
+          "p50_ms": 0.158663,
+          "p95_ms": 1.348549,
+          "p99_ms": 599.575657
+        }
+      },
+      "wall_seconds": 7.659581492000143,
+      "cpu_seconds": 3.1099190000000014,
+      "cpu_percent_one_core": 40.601683045582554,
+      "process_lifetime_peak_rss_bytes": 214245376,
+      "written_batches_per_second_including_startup_drain_seal": 56.39994828061971,
+      "parity": {
+        "manifest_sha256": "34e89789ec125b7840810b6fa220bea5c99fbde2db83bb174e8d5b4c4f84a163",
+        "evidence": {
+          "raw": {
+            "sha256": "c1672ca0dd36d6964b5d76206794f7e4dc09ee5b1667ef57135dec218dcd7c9c",
+            "records": 609,
+            "encoded_bytes": 1834871
+          },
+          "normalized": {
+            "sha256": "1ed7741a5f285db7e6afa4b5720a3dcdcbf412330697e9f56a024f0fd9706fa2",
+            "records": 432,
+            "encoded_bytes": 5479854
+          },
+          "checkpoints": {
+            "sha256": "19349eac5eddfaeae9ea85148958a3fcc1c8fc082ec9b0aea673d8912b8ec86c",
+            "records": 12,
+            "encoded_bytes": 8021387
+          },
+          "raw_receive": {
+            "span_seconds": 6.083854537,
+            "payload_bytes": 1118364,
+            "average_frames_per_second": 100.10101265509597,
+            "peak_frames_per_receive_highwater_aligned_second": 187
+          }
+        },
+        "raw_exact": true,
+        "normalized_exact": true,
+        "regenerated_checkpoints_exact": false,
+        "normalized_replay": {
+          "mode": "normalized",
+          "deliveries": 432,
+          "book_sha256": "4e37ef562d3e23bf088a658da713785f7a7401b2f524795921c02050a5441d90",
+          "state_sha256": "f21d65ae86122a2a7db2ddf8cf8b815434270ef452ce6af7ed53af9d64a22fd7",
+          "clock_sha256": "fd047227c12e6bb0c2e1165dc52d717f071badb4b226982f6db4907abd3c7732",
+          "wall_seconds": 4.413365418993635,
+          "cpu_seconds": 4.331325,
+          "cpu_percent_one_core": 98.14109163404957,
+          "process_lifetime_peak_rss_bytes": 244494336,
+          "stages": {
+            "reader_batch_next": {
+              "count": 433,
+              "retained_samples": 433,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 1.17119188,
+              "max_ms": 283.685298,
+              "p50_ms": 0.516902,
+              "p95_ms": 2.014222,
+              "p99_ms": 7.459357
+            },
+            "replay_projection_apply": {
+              "count": 432,
+              "retained_samples": 432,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 1.103153015,
+              "max_ms": 273.509297,
+              "p50_ms": 0.045554,
+              "p95_ms": 3.008829,
+              "p99_ms": 5.791677
+            },
+            "replay_step_inclusive": {
+              "count": 433,
+              "retained_samples": 433,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 2.286172764,
+              "max_ms": 556.196066,
+              "p50_ms": 0.629087,
+              "p95_ms": 4.256481,
+              "p99_ms": 9.063669
+            }
+          }
+        },
+        "raw_replay": {
+          "mode": "raw",
+          "deliveries": 432,
+          "book_sha256": "4e37ef562d3e23bf088a658da713785f7a7401b2f524795921c02050a5441d90",
+          "state_sha256": "f21d65ae86122a2a7db2ddf8cf8b815434270ef452ce6af7ed53af9d64a22fd7",
+          "clock_sha256": "fd047227c12e6bb0c2e1165dc52d717f071badb4b226982f6db4907abd3c7732",
+          "wall_seconds": 6.101724582011229,
+          "cpu_seconds": 5.995134,
+          "cpu_percent_one_core": 98.25310728829889,
+          "process_lifetime_peak_rss_bytes": 255975424,
+          "stages": {
+            "reader_batch_next": {
+              "count": 433,
+              "retained_samples": 433,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 1.276775361,
+              "max_ms": 393.912589,
+              "p50_ms": 0.522121,
+              "p95_ms": 2.003691,
+              "p99_ms": 7.000713
+            },
+            "reader_raw_lookup": {
+              "count": 432,
+              "retained_samples": 432,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 0.221743014,
+              "max_ms": 4.334052,
+              "p50_ms": 0.457905,
+              "p95_ms": 0.748802,
+              "p99_ms": 1.309746
+            },
+            "replay_projection_apply": {
+              "count": 12,
+              "retained_samples": 12,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 0.001063313,
+              "max_ms": 0.147567,
+              "p50_ms": 0.07343,
+              "p95_ms": 0.147567,
+              "p99_ms": 0.147567
+            },
+            "replay_raw_decode_and_projection": {
+              "count": 420,
+              "retained_samples": 420,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 1.985258267,
+              "max_ms": 545.684177,
+              "p50_ms": 0.327158,
+              "p95_ms": 3.709193,
+              "p99_ms": 11.515705
+            },
+            "replay_step_inclusive": {
+              "count": 433,
+              "retained_samples": 433,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 4.060805547,
+              "max_ms": 1087.361479,
+              "p50_ms": 1.672335,
+              "p95_ms": 5.951572,
+              "p99_ms": 17.448204
+            }
+          }
+        },
+        "source_final_state_exact": true,
+        "source_final_book_exact": true,
+        "raw_normalized_state_exact": true,
+        "checkpoint_seek": {
+          "checkpoint_status": "restored",
+          "book_sha256": "4e37ef562d3e23bf088a658da713785f7a7401b2f524795921c02050a5441d90",
+          "state_sha256": "f21d65ae86122a2a7db2ddf8cf8b815434270ef452ce6af7ed53af9d64a22fd7",
+          "book_exact": true,
+          "state_exact": true,
+          "wall_seconds": 7.441008611000143,
+          "cpu_seconds": 7.304915000000001,
+          "cpu_percent_one_core": 98.1710327441504,
+          "process_lifetime_peak_rss_bytes": 273113088
+        },
+        "verification_and_parity_usage": {
+          "wall_seconds": 21.479394766007317,
+          "cpu_seconds": 21.062237000000003,
+          "cpu_percent_one_core": 98.05787001658214,
+          "process_lifetime_peak_rss_bytes": 273113088
+        }
+      }
+    },
+    {
+      "name": "burst_2x",
+      "speed_multiplier": 2,
+      "input_mode": "bounded_predecoded_writer_isolation",
+      "visited_prefix_scheduled_span_seconds": 3.3865129785,
+      "schedule": "synthetic receive-mono highwater; raw ordinal merge before normalized callback delivery",
+      "source_publication_timestamps_available": false,
+      "source_local_processing_latency": null,
+      "output_path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m3-profile/final-prefix-predecoded/burst_2x/51d3dc95-be2e-4210-ad4a-b1b29e84476c",
+      "offered_raw": 609,
+      "offered_batches": 432,
+      "offered_events": 522,
+      "rejected_offer_count": 0,
+      "unoffered_raw": 0,
+      "unoffered_batches": 0,
+      "accepted_but_not_written_raw": 0,
+      "accepted_but_not_written_batches": 0,
+      "intentional_drops": 0,
+      "failure": null,
+      "producer_seconds": 3.400080426989007,
+      "finalize_drain_and_seal_seconds": 0.7150078300037421,
+      "worker_thread_cpu_seconds": 2.216363488,
+      "worker_thread_wall_seconds": 4.10813292,
+      "achieved_offered_batches_per_second": 127.0558180244472,
+      "capture": {
+        "complete": false,
+        "incomplete_reasons": [
+          "benchmark_source_incomplete",
+          "source:queue_overflow",
+          "source:no_valid_book:binance-global:spot-v3:spot:BTCUSDT",
+          "source:no_valid_book:hyperliquid:info:perpetual:ETH",
+          "source:no_valid_book:hyperliquid:info:perpetual:SOL",
+          "source:no_valid_book:hyperliquid:info:perpetual:BTC",
+          "source:no_valid_book:binance-global:spot-v3:spot:ETHUSDT",
+          "source:no_valid_book:binance-global:spot-v3:spot:SOLUSDT",
+          "source:source_capture_incomplete:ef3df77f-f8e8-4ae2-8098-9740d88aabc7",
+          "source:source_capture_incomplete:761e16bb-c313-4ad9-ba5f-17a6bcd1b615",
+          "source:source_capture_incomplete:085d9b37-4acc-46f6-9bac-d9daf5283515",
+          "source:source_capture_incomplete:296ba758-44eb-4524-9dbb-78ea561e6a5e",
+          "source:source_capture_incomplete:67b6ba67-0ac2-41d6-9780-2acad3847785",
+          "source:source_capture_incomplete:c269ec92-443a-424a-aabe-51ff4bab7711",
+          "source:source_capture_incomplete:a21bd2ea-f348-49e1-8838-5f50cec812d7",
+          "source:source_capture_incomplete:218e9e81-8974-4c13-a489-498b69fd006b",
+          "source:source_capture_incomplete:2a4552dc-abd7-488e-9c9c-306c59c2364b",
+          "source:source_capture_incomplete:594a3e40-eccd-461c-b710-3d146eb844a3",
+          "source:source_capture_incomplete:a6339e76-b458-485c-a17d-af7e0c4cf4da",
+          "source:source_capture_incomplete:29217694-d071-41c7-8057-46798b87b229",
+          "source:feed_capture_incomplete"
+        ],
+        "raw_count": 609,
+        "batch_count": 432,
+        "event_count": 522,
+        "checkpoint_count": 12,
+        "gap_count": 0,
+        "gap_reasons": {},
+        "capture_lost_gap_count": 0,
+        "limits": {
+          "queue_count": 512,
+          "queue_bytes": 134217728,
+          "raw_rotation_bytes": 16777216,
+          "parquet_batch_count": 128,
+          "parquet_batch_bytes": 16777216,
+          "max_row_bytes": 268435456,
+          "max_files": 100000,
+          "max_streams": 1024,
+          "min_free_bytes": 67108864,
+          "managed_budget_bytes": 10737418240,
+          "retention_max_sessions": 100,
+          "finalize_timeout": 30.0,
+          "checkpoint_interval_batches": 1000,
+          "max_query_rows": 10000,
+          "parquet_buffer_count": 4096,
+          "reader_cache_bytes": 33554432,
+          "reader_cache_count": 8192,
+          "checkpoint_group_count": 64,
+          "checkpoint_group_bytes": 16777216
+        }
+      },
+      "checkpoint_cadence": {
+        "source_interval_batches": 100,
+        "effective_writer_interval_batches": 1000,
+        "matches_source": false
+      },
+      "health": {
+        "state": "incomplete",
+        "queue_count": 0,
+        "queue_bytes": 0,
+        "high_water_count": 256,
+        "high_water_bytes": 12502916,
+        "incomplete_reasons": [
+          "benchmark_source_incomplete",
+          "source:queue_overflow",
+          "source:no_valid_book:binance-global:spot-v3:spot:BTCUSDT",
+          "source:no_valid_book:hyperliquid:info:perpetual:ETH",
+          "source:no_valid_book:hyperliquid:info:perpetual:SOL",
+          "source:no_valid_book:hyperliquid:info:perpetual:BTC",
+          "source:no_valid_book:binance-global:spot-v3:spot:ETHUSDT",
+          "source:no_valid_book:binance-global:spot-v3:spot:SOLUSDT",
+          "source:source_capture_incomplete:ef3df77f-f8e8-4ae2-8098-9740d88aabc7",
+          "source:source_capture_incomplete:761e16bb-c313-4ad9-ba5f-17a6bcd1b615",
+          "source:source_capture_incomplete:085d9b37-4acc-46f6-9bac-d9daf5283515",
+          "source:source_capture_incomplete:296ba758-44eb-4524-9dbb-78ea561e6a5e",
+          "source:source_capture_incomplete:67b6ba67-0ac2-41d6-9780-2acad3847785",
+          "source:source_capture_incomplete:c269ec92-443a-424a-aabe-51ff4bab7711",
+          "source:source_capture_incomplete:a21bd2ea-f348-49e1-8838-5f50cec812d7",
+          "source:source_capture_incomplete:218e9e81-8974-4c13-a489-498b69fd006b",
+          "source:source_capture_incomplete:2a4552dc-abd7-488e-9c9c-306c59c2364b",
+          "source:source_capture_incomplete:594a3e40-eccd-461c-b710-3d146eb844a3",
+          "source:source_capture_incomplete:a6339e76-b458-485c-a17d-af7e0c4cf4da",
+          "source:source_capture_incomplete:29217694-d071-41c7-8057-46798b87b229",
+          "source:feed_capture_incomplete"
+        ],
+        "written_bytes": 1768232,
+        "terminal_failure": false
+      },
+      "stages": {
+        "accepted_to_worker_dispatch_events_inclusive": {
+          "count": 432,
+          "retained_samples": 432,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 86.285072401,
+          "max_ms": 818.542944,
+          "p50_ms": 71.30636,
+          "p95_ms": 649.59011,
+          "p99_ms": 811.536887
+        },
+        "accepted_to_worker_dispatch_raw": {
+          "count": 609,
+          "retained_samples": 609,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 115.006732211,
+          "max_ms": 819.014424,
+          "p50_ms": 16.732071,
+          "p95_ms": 583.084115,
+          "p99_ms": 758.667676
+        },
+        "load_generator_next_inclusive": {
+          "count": 1042,
+          "retained_samples": 1042,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.000694031,
+          "max_ms": 0.036726,
+          "p50_ms": 0.000397,
+          "p95_ms": 0.001808,
+          "p99_ms": 0.00337
+        },
+        "producer_append_events_inclusive": {
+          "count": 432,
+          "retained_samples": 432,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.213857747,
+          "max_ms": 65.646618,
+          "p50_ms": 0.059509,
+          "p95_ms": 0.383495,
+          "p99_ms": 1.274828
+        },
+        "producer_append_raw_inclusive": {
+          "count": 609,
+          "retained_samples": 609,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.021843439,
+          "max_ms": 0.413201,
+          "p50_ms": 0.017694,
+          "p95_ms": 0.134302,
+          "p99_ms": 0.225234
+        },
+        "producer_queue_offer_events": {
+          "count": 432,
+          "retained_samples": 432,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.00376375,
+          "max_ms": 0.093239,
+          "p50_ms": 0.005582,
+          "p95_ms": 0.023232,
+          "p99_ms": 0.043385
+        },
+        "producer_queue_offer_raw": {
+          "count": 609,
+          "retained_samples": 609,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.00694353,
+          "max_ms": 0.235076,
+          "p50_ms": 0.004817,
+          "p95_ms": 0.050024,
+          "p99_ms": 0.088004
+        },
+        "synthetic_schedule_lateness": {
+          "count": 1041,
+          "retained_samples": 1041,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 7.725695075,
+          "max_ms": 81.014736,
+          "p50_ms": 5.784995,
+          "p95_ms": 15.354722,
+          "p99_ms": 48.76707
+        },
+        "worker_checkpoint_group": {
+          "count": 1,
+          "retained_samples": 1,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.270641063,
+          "max_ms": 270.641063,
+          "p50_ms": 270.641063,
+          "p95_ms": 270.641063,
+          "p99_ms": 270.641063
+        },
+        "worker_events_inclusive": {
+          "count": 432,
+          "retained_samples": 432,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 1.52310716,
+          "max_ms": 421.362473,
+          "p50_ms": 0.204009,
+          "p95_ms": 4.011672,
+          "p99_ms": 6.778635
+        },
+        "worker_flush_events": {
+          "count": 2,
+          "retained_samples": 2,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.072024184,
+          "max_ms": 63.656041,
+          "p50_ms": 8.368143,
+          "p95_ms": 63.656041,
+          "p99_ms": 63.656041
+        },
+        "worker_projection_apply": {
+          "count": 432,
+          "retained_samples": 432,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 1.186893165,
+          "max_ms": 328.421475,
+          "p50_ms": 0.053001,
+          "p95_ms": 3.612877,
+          "p99_ms": 5.592467
+        },
+        "worker_raw": {
+          "count": 609,
+          "retained_samples": 609,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.156179679,
+          "max_ms": 29.00304,
+          "p50_ms": 0.093148,
+          "p95_ms": 0.390996,
+          "p99_ms": 1.464718
+        },
+        "worker_save_projection_inclusive": {
+          "count": 25,
+          "retained_samples": 25,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.610969372,
+          "max_ms": 608.561135,
+          "p50_ms": 0.136579,
+          "p95_ms": 0.464957,
+          "p99_ms": 608.561135
+        }
+      },
+      "wall_seconds": 4.135812250999152,
+      "cpu_seconds": 2.4151329999999973,
+      "cpu_percent_one_core": 58.395615018949094,
+      "process_lifetime_peak_rss_bytes": 273113088,
+      "written_batches_per_second_including_startup_drain_seal": 104.45348429335377,
+      "parity": {
+        "manifest_sha256": "af54f9bc4dc9fb40cc11213841b860f636decf916d572b404180b13e1f4b60b5",
+        "evidence": {
+          "raw": {
+            "sha256": "c1672ca0dd36d6964b5d76206794f7e4dc09ee5b1667ef57135dec218dcd7c9c",
+            "records": 609,
+            "encoded_bytes": 1834871
+          },
+          "normalized": {
+            "sha256": "1ed7741a5f285db7e6afa4b5720a3dcdcbf412330697e9f56a024f0fd9706fa2",
+            "records": 432,
+            "encoded_bytes": 5479854
+          },
+          "checkpoints": {
+            "sha256": "19349eac5eddfaeae9ea85148958a3fcc1c8fc082ec9b0aea673d8912b8ec86c",
+            "records": 12,
+            "encoded_bytes": 8021387
+          },
+          "raw_receive": {
+            "span_seconds": 6.083854537,
+            "payload_bytes": 1118364,
+            "average_frames_per_second": 100.10101265509597,
+            "peak_frames_per_receive_highwater_aligned_second": 187
+          }
+        },
+        "raw_exact": true,
+        "normalized_exact": true,
+        "regenerated_checkpoints_exact": false,
+        "normalized_replay": {
+          "mode": "normalized",
+          "deliveries": 432,
+          "book_sha256": "4e37ef562d3e23bf088a658da713785f7a7401b2f524795921c02050a5441d90",
+          "state_sha256": "f21d65ae86122a2a7db2ddf8cf8b815434270ef452ce6af7ed53af9d64a22fd7",
+          "clock_sha256": "fd047227c12e6bb0c2e1165dc52d717f071badb4b226982f6db4907abd3c7732",
+          "wall_seconds": 4.528843474006862,
+          "cpu_seconds": 4.420085999999998,
+          "cpu_percent_one_core": 97.5985596625038,
+          "process_lifetime_peak_rss_bytes": 273113088,
+          "stages": {
+            "reader_batch_next": {
+              "count": 433,
+              "retained_samples": 433,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 1.193415924,
+              "max_ms": 287.099423,
+              "p50_ms": 0.576592,
+              "p95_ms": 2.014707,
+              "p99_ms": 7.09264
+            },
+            "replay_projection_apply": {
+              "count": 432,
+              "retained_samples": 432,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 1.139678149,
+              "max_ms": 281.552645,
+              "p50_ms": 0.062565,
+              "p95_ms": 3.280176,
+              "p99_ms": 4.93837
+            },
+            "replay_step_inclusive": {
+              "count": 433,
+              "retained_samples": 433,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 2.346030557,
+              "max_ms": 568.69677,
+              "p50_ms": 0.75732,
+              "p95_ms": 4.870287,
+              "p99_ms": 10.338949
+            }
+          }
+        },
+        "raw_replay": {
+          "mode": "raw",
+          "deliveries": 432,
+          "book_sha256": "4e37ef562d3e23bf088a658da713785f7a7401b2f524795921c02050a5441d90",
+          "state_sha256": "f21d65ae86122a2a7db2ddf8cf8b815434270ef452ce6af7ed53af9d64a22fd7",
+          "clock_sha256": "fd047227c12e6bb0c2e1165dc52d717f071badb4b226982f6db4907abd3c7732",
+          "wall_seconds": 6.195152451997274,
+          "cpu_seconds": 5.992142000000008,
+          "cpu_percent_one_core": 96.72307576657268,
+          "process_lifetime_peak_rss_bytes": 273113088,
+          "stages": {
+            "reader_batch_next": {
+              "count": 433,
+              "retained_samples": 433,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 1.169784757,
+              "max_ms": 280.914799,
+              "p50_ms": 0.540556,
+              "p95_ms": 1.969922,
+              "p99_ms": 7.100397
+            },
+            "reader_raw_lookup": {
+              "count": 432,
+              "retained_samples": 432,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 0.230268192,
+              "max_ms": 5.389902,
+              "p50_ms": 0.471547,
+              "p95_ms": 0.7603,
+              "p99_ms": 1.394194
+            },
+            "replay_projection_apply": {
+              "count": 12,
+              "retained_samples": 12,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 0.001052152,
+              "max_ms": 0.117871,
+              "p50_ms": 0.079936,
+              "p95_ms": 0.117871,
+              "p99_ms": 0.117871
+            },
+            "replay_raw_decode_and_projection": {
+              "count": 420,
+              "retained_samples": 420,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 2.020399659,
+              "max_ms": 493.22473,
+              "p50_ms": 0.349888,
+              "p95_ms": 4.008802,
+              "p99_ms": 12.86518
+            },
+            "replay_step_inclusive": {
+              "count": 433,
+              "retained_samples": 433,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 4.159743397,
+              "max_ms": 1079.54499,
+              "p50_ms": 1.715847,
+              "p95_ms": 7.834612,
+              "p99_ms": 22.712836
+            }
+          }
+        },
+        "source_final_state_exact": true,
+        "source_final_book_exact": true,
+        "raw_normalized_state_exact": true,
+        "checkpoint_seek": {
+          "checkpoint_status": "restored",
+          "book_sha256": "4e37ef562d3e23bf088a658da713785f7a7401b2f524795921c02050a5441d90",
+          "state_sha256": "f21d65ae86122a2a7db2ddf8cf8b815434270ef452ce6af7ed53af9d64a22fd7",
+          "book_exact": true,
+          "state_exact": true,
+          "wall_seconds": 7.382405322990962,
+          "cpu_seconds": 7.263903999999997,
+          "cpu_percent_one_core": 98.39481418580584,
+          "process_lifetime_peak_rss_bytes": 280047616
+        },
+        "verification_and_parity_usage": {
+          "wall_seconds": 21.497275909991004,
+          "cpu_seconds": 21.001442000000004,
+          "cpu_percent_one_core": 97.69350353008888,
+          "process_lifetime_peak_rss_bytes": 280047616
+        }
+      }
+    },
+    {
+      "name": "unpaced_saturation",
+      "speed_multiplier": 0,
+      "input_mode": "bounded_predecoded_writer_isolation",
+      "visited_prefix_scheduled_span_seconds": null,
+      "schedule": "unpaced finite saturation attempt; predecoded input",
+      "source_publication_timestamps_available": false,
+      "source_local_processing_latency": null,
+      "output_path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m3-profile/final-prefix-predecoded/unpaced_saturation/51d3dc95-be2e-4210-ad4a-b1b29e84476c",
+      "offered_raw": 328,
+      "offered_batches": 200,
+      "offered_events": 290,
+      "rejected_offer_count": 1,
+      "unoffered_raw": 281,
+      "unoffered_batches": 232,
+      "accepted_but_not_written_raw": 0,
+      "accepted_but_not_written_batches": 0,
+      "intentional_drops": 0,
+      "failure": "RecordingError:recorder queue count/byte capacity exceeded",
+      "producer_seconds": 0.1183408429933479,
+      "finalize_drain_and_seal_seconds": 2.0265659900032915,
+      "worker_thread_cpu_seconds": 1.965291469,
+      "worker_thread_wall_seconds": 2.138100187,
+      "achieved_offered_batches_per_second": 1690.0335923011996,
+      "capture": {
+        "complete": false,
+        "incomplete_reasons": [
+          "benchmark_source_incomplete",
+          "source:queue_overflow",
+          "source:no_valid_book:binance-global:spot-v3:spot:BTCUSDT",
+          "source:no_valid_book:hyperliquid:info:perpetual:ETH",
+          "source:no_valid_book:hyperliquid:info:perpetual:SOL",
+          "source:no_valid_book:hyperliquid:info:perpetual:BTC",
+          "source:no_valid_book:binance-global:spot-v3:spot:ETHUSDT",
+          "source:no_valid_book:binance-global:spot-v3:spot:SOLUSDT",
+          "source:source_capture_incomplete:ef3df77f-f8e8-4ae2-8098-9740d88aabc7",
+          "source:source_capture_incomplete:761e16bb-c313-4ad9-ba5f-17a6bcd1b615",
+          "source:source_capture_incomplete:085d9b37-4acc-46f6-9bac-d9daf5283515",
+          "source:source_capture_incomplete:296ba758-44eb-4524-9dbb-78ea561e6a5e",
+          "source:source_capture_incomplete:67b6ba67-0ac2-41d6-9780-2acad3847785",
+          "source:source_capture_incomplete:c269ec92-443a-424a-aabe-51ff4bab7711",
+          "source:source_capture_incomplete:a21bd2ea-f348-49e1-8838-5f50cec812d7",
+          "source:source_capture_incomplete:218e9e81-8974-4c13-a489-498b69fd006b",
+          "source:source_capture_incomplete:2a4552dc-abd7-488e-9c9c-306c59c2364b",
+          "source:source_capture_incomplete:594a3e40-eccd-461c-b710-3d146eb844a3",
+          "source:source_capture_incomplete:a6339e76-b458-485c-a17d-af7e0c4cf4da",
+          "source:source_capture_incomplete:29217694-d071-41c7-8057-46798b87b229",
+          "source:feed_capture_incomplete",
+          "queue_overflow",
+          "benchmark_offer_rejected"
+        ],
+        "raw_count": 328,
+        "batch_count": 200,
+        "event_count": 290,
+        "checkpoint_count": 12,
+        "gap_count": 0,
+        "gap_reasons": {},
+        "capture_lost_gap_count": 0,
+        "limits": {
+          "queue_count": 512,
+          "queue_bytes": 134217728,
+          "raw_rotation_bytes": 16777216,
+          "parquet_batch_count": 128,
+          "parquet_batch_bytes": 16777216,
+          "max_row_bytes": 268435456,
+          "max_files": 100000,
+          "max_streams": 1024,
+          "min_free_bytes": 67108864,
+          "managed_budget_bytes": 10737418240,
+          "retention_max_sessions": 100,
+          "finalize_timeout": 30.0,
+          "checkpoint_interval_batches": 1000,
+          "max_query_rows": 10000,
+          "parquet_buffer_count": 4096,
+          "reader_cache_bytes": 33554432,
+          "reader_cache_count": 8192,
+          "checkpoint_group_count": 64,
+          "checkpoint_group_bytes": 16777216
+        }
+      },
+      "checkpoint_cadence": {
+        "source_interval_batches": 100,
+        "effective_writer_interval_batches": 1000,
+        "matches_source": false
+      },
+      "health": {
+        "state": "incomplete",
+        "queue_count": 0,
+        "queue_bytes": 0,
+        "high_water_count": 512,
+        "high_water_bytes": 14588192,
+        "incomplete_reasons": [
+          "benchmark_source_incomplete",
+          "source:queue_overflow",
+          "source:no_valid_book:binance-global:spot-v3:spot:BTCUSDT",
+          "source:no_valid_book:hyperliquid:info:perpetual:ETH",
+          "source:no_valid_book:hyperliquid:info:perpetual:SOL",
+          "source:no_valid_book:hyperliquid:info:perpetual:BTC",
+          "source:no_valid_book:binance-global:spot-v3:spot:ETHUSDT",
+          "source:no_valid_book:binance-global:spot-v3:spot:SOLUSDT",
+          "source:source_capture_incomplete:ef3df77f-f8e8-4ae2-8098-9740d88aabc7",
+          "source:source_capture_incomplete:761e16bb-c313-4ad9-ba5f-17a6bcd1b615",
+          "source:source_capture_incomplete:085d9b37-4acc-46f6-9bac-d9daf5283515",
+          "source:source_capture_incomplete:296ba758-44eb-4524-9dbb-78ea561e6a5e",
+          "source:source_capture_incomplete:67b6ba67-0ac2-41d6-9780-2acad3847785",
+          "source:source_capture_incomplete:c269ec92-443a-424a-aabe-51ff4bab7711",
+          "source:source_capture_incomplete:a21bd2ea-f348-49e1-8838-5f50cec812d7",
+          "source:source_capture_incomplete:218e9e81-8974-4c13-a489-498b69fd006b",
+          "source:source_capture_incomplete:2a4552dc-abd7-488e-9c9c-306c59c2364b",
+          "source:source_capture_incomplete:594a3e40-eccd-461c-b710-3d146eb844a3",
+          "source:source_capture_incomplete:a6339e76-b458-485c-a17d-af7e0c4cf4da",
+          "source:source_capture_incomplete:29217694-d071-41c7-8057-46798b87b229",
+          "source:feed_capture_incomplete",
+          "queue_overflow",
+          "benchmark_offer_rejected"
+        ],
+        "written_bytes": 1561299,
+        "terminal_failure": true
+      },
+      "stages": {
+        "accepted_to_worker_dispatch_events_inclusive": {
+          "count": 200,
+          "retained_samples": 200,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 161.580183764,
+          "max_ms": 1351.10548,
+          "p50_ms": 840.076625,
+          "p95_ms": 1339.030364,
+          "p99_ms": 1347.552418
+        },
+        "accepted_to_worker_dispatch_raw": {
+          "count": 328,
+          "retained_samples": 328,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 248.106521859,
+          "max_ms": 1347.720647,
+          "p50_ms": 474.957316,
+          "p95_ms": 1321.149708,
+          "p99_ms": 1340.162508
+        },
+        "load_generator_next_inclusive": {
+          "count": 529,
+          "retained_samples": 529,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.000171325,
+          "max_ms": 0.001285,
+          "p50_ms": 0.00031,
+          "p95_ms": 0.000438,
+          "p99_ms": 0.000601
+        },
+        "producer_append_events_inclusive": {
+          "count": 200,
+          "retained_samples": 200,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.11213586,
+          "max_ms": 35.168848,
+          "p50_ms": 0.038797,
+          "p95_ms": 0.161384,
+          "p99_ms": 31.982499
+        },
+        "producer_append_raw_inclusive": {
+          "count": 329,
+          "retained_samples": 329,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.004494076,
+          "max_ms": 0.084796,
+          "p50_ms": 0.013059,
+          "p95_ms": 0.014881,
+          "p99_ms": 0.022283
+        },
+        "producer_queue_offer_events": {
+          "count": 200,
+          "retained_samples": 200,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.000874248,
+          "max_ms": 0.015023,
+          "p50_ms": 0.004129,
+          "p95_ms": 0.005525,
+          "p99_ms": 0.010563
+        },
+        "producer_queue_offer_raw": {
+          "count": 329,
+          "retained_samples": 329,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.001180182,
+          "max_ms": 0.02185,
+          "p50_ms": 0.003451,
+          "p95_ms": 0.00402,
+          "p99_ms": 0.005092
+        },
+        "worker_checkpoint_group": {
+          "count": 1,
+          "retained_samples": 1,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.260172085,
+          "max_ms": 260.172085,
+          "p50_ms": 260.172085,
+          "p95_ms": 260.172085,
+          "p99_ms": 260.172085
+        },
+        "worker_events_inclusive": {
+          "count": 200,
+          "retained_samples": 200,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 1.34513792,
+          "max_ms": 375.3234,
+          "p50_ms": 0.356011,
+          "p95_ms": 4.496864,
+          "p99_ms": 334.667165
+        },
+        "worker_flush_events": {
+          "count": 1,
+          "retained_samples": 1,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.051121697,
+          "max_ms": 51.121697,
+          "p50_ms": 51.121697,
+          "p95_ms": 51.121697,
+          "p99_ms": 51.121697
+        },
+        "worker_projection_apply": {
+          "count": 200,
+          "retained_samples": 200,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 1.015456466,
+          "max_ms": 295.207285,
+          "p50_ms": 0.093047,
+          "p95_ms": 3.311113,
+          "p99_ms": 252.801046
+        },
+        "worker_raw": {
+          "count": 328,
+          "retained_samples": 328,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.105964952,
+          "max_ms": 30.8317,
+          "p50_ms": 0.092069,
+          "p95_ms": 0.210604,
+          "p99_ms": 7.737592
+        },
+        "worker_save_projection_inclusive": {
+          "count": 25,
+          "retained_samples": 25,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.605724592,
+          "max_ms": 603.930749,
+          "p50_ms": 0.130467,
+          "p95_ms": 0.159416,
+          "p99_ms": 603.930749
+        }
+      },
+      "wall_seconds": 2.166718734006281,
+      "cpu_seconds": 2.109363000000002,
+      "cpu_percent_one_core": 97.35287588988406,
+      "process_lifetime_peak_rss_bytes": 280047616,
+      "written_batches_per_second_including_startup_drain_seal": 92.30547410747602,
+      "saturation_observation": "queue_capacity_reached",
+      "parity": {
+        "manifest_sha256": "dadbc2ab7a4d2c6d728f3eca52a6cc2befd5f6f86209844eb6546e67643e1ff0",
+        "evidence": {
+          "raw": {
+            "sha256": "a415d014e61e7bc1682434e1bcdd209b17af7f73d45d7e795a5ef157fd04661b",
+            "records": 328,
+            "encoded_bytes": 1577571
+          },
+          "normalized": {
+            "sha256": "536be45d5578d3a6444c82b5e84e296672704edb37b7a0dec3ef74ffe8aa3c0a",
+            "records": 200,
+            "encoded_bytes": 5005480
+          },
+          "checkpoints": {
+            "sha256": "156424aaff4674369047cbf5ae62b1b85cb2d94464f3790a72e7e7bdbd463dd4",
+            "records": 12,
+            "encoded_bytes": 7677795
+          },
+          "raw_receive": {
+            "span_seconds": 4.113358183,
+            "payload_bytes": 1044443,
+            "average_frames_per_second": 79.74019898281249,
+            "peak_frames_per_receive_highwater_aligned_second": 144
+          }
+        },
+        "raw_exact": false,
+        "normalized_exact": false,
+        "regenerated_checkpoints_exact": false,
+        "normalized_replay": {
+          "mode": "normalized",
+          "deliveries": 200,
+          "book_sha256": "316b20348b45a857caba2254adcf37ceffcb292788ed304c161f412d2a1acdd3",
+          "state_sha256": "26ad64ae83414ce71482d7e9a927400daf46604f9a90680bab591a537b9f3a08",
+          "clock_sha256": "86bac51783f46509be610761c3fe56f0a289995fe9f240a33f36718290cbfc2a",
+          "wall_seconds": 6.064026787993498,
+          "cpu_seconds": 4.613846999999993,
+          "cpu_percent_one_core": 76.08553130298176,
+          "process_lifetime_peak_rss_bytes": 280047616,
+          "stages": {
+            "reader_batch_next": {
+              "count": 201,
+              "retained_samples": 201,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 1.678254433,
+              "max_ms": 660.268031,
+              "p50_ms": 0.616211,
+              "p95_ms": 4.256798,
+              "p99_ms": 369.13515
+            },
+            "replay_projection_apply": {
+              "count": 200,
+              "retained_samples": 200,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 1.481788231,
+              "max_ms": 533.042191,
+              "p50_ms": 0.086832,
+              "p95_ms": 4.158275,
+              "p99_ms": 342.562268
+            },
+            "replay_step_inclusive": {
+              "count": 201,
+              "retained_samples": 201,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 3.166384721,
+              "max_ms": 1193.353899,
+              "p50_ms": 1.099785,
+              "p95_ms": 7.12208,
+              "p99_ms": 711.742024
+            }
+          }
+        },
+        "raw_replay": {
+          "mode": "raw",
+          "deliveries": 200,
+          "book_sha256": "316b20348b45a857caba2254adcf37ceffcb292788ed304c161f412d2a1acdd3",
+          "state_sha256": "26ad64ae83414ce71482d7e9a927400daf46604f9a90680bab591a537b9f3a08",
+          "clock_sha256": "86bac51783f46509be610761c3fe56f0a289995fe9f240a33f36718290cbfc2a",
+          "wall_seconds": 6.057104752995656,
+          "cpu_seconds": 5.5819000000000045,
+          "cpu_percent_one_core": 92.15458915811834,
+          "process_lifetime_peak_rss_bytes": 280047616,
+          "stages": {
+            "reader_batch_next": {
+              "count": 201,
+              "retained_samples": 201,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 1.545699654,
+              "max_ms": 672.146586,
+              "p50_ms": 0.657499,
+              "p95_ms": 3.394196,
+              "p99_ms": 278.430816
+            },
+            "reader_raw_lookup": {
+              "count": 200,
+              "retained_samples": 200,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 0.123093112,
+              "max_ms": 6.197877,
+              "p50_ms": 0.489121,
+              "p95_ms": 0.992397,
+              "p99_ms": 4.340832
+            },
+            "replay_projection_apply": {
+              "count": 12,
+              "retained_samples": 12,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 0.001147683,
+              "max_ms": 0.194215,
+              "p50_ms": 0.077641,
+              "p95_ms": 0.194215,
+              "p99_ms": 0.194215
+            },
+            "replay_raw_decode_and_projection": {
+              "count": 188,
+              "retained_samples": 188,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 1.790341147,
+              "max_ms": 518.796619,
+              "p50_ms": 0.581338,
+              "p95_ms": 4.835458,
+              "p99_ms": 504.411978
+            },
+            "replay_step_inclusive": {
+              "count": 201,
+              "retained_samples": 201,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 4.003614908,
+              "max_ms": 1355.489283,
+              "p50_ms": 2.356119,
+              "p95_ms": 9.218104,
+              "p99_ms": 911.554011
+            }
+          }
+        },
+        "source_final_state_exact": false,
+        "source_final_book_exact": false,
+        "raw_normalized_state_exact": true,
+        "checkpoint_seek": {
+          "checkpoint_status": "restored",
+          "book_sha256": "316b20348b45a857caba2254adcf37ceffcb292788ed304c161f412d2a1acdd3",
+          "state_sha256": "26ad64ae83414ce71482d7e9a927400daf46604f9a90680bab591a537b9f3a08",
+          "book_exact": true,
+          "state_exact": true,
+          "wall_seconds": 7.216540864988929,
+          "cpu_seconds": 7.083883999999998,
+          "cpu_percent_one_core": 98.16176659329243,
+          "process_lifetime_peak_rss_bytes": 280047616
+        },
+        "verification_and_parity_usage": {
+          "wall_seconds": 22.37000411999179,
+          "cpu_seconds": 20.257999999999996,
+          "cpu_percent_one_core": 90.55876740718021,
+          "process_lifetime_peak_rss_bytes": 280047616
+        }
+      }
+    }
+  ],
+  "status": "completed",
+  "source_remains_incomplete": true
+}

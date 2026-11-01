@@ -26,7 +26,7 @@ jobs:
         if: ${{ hashFiles('frontend/package.json') != '' }}
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "22.22.0"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - name: Install locked frontend dependencies
@@ -34,3 +34,29 @@ jobs:
         run: npm --prefix frontend ci
       - name: Run offline tests, scoped lint, format, types and frontend build
         run: ./tools/check.sh
+      - name: Install browser for real offline terminal workflows
+        if: ${{ hashFiles('frontend/package.json') != '' }}
+        working-directory: frontend
+        run: npm exec -- playwright install --with-deps chromium
+      - name: Exercise actual offline backend in Chromium
+        if: ${{ hashFiles('frontend/package.json') != '' }}
+        shell: bash
+        run: |
+          .venv/bin/python -m src.workstation.cli serve --port 8000 > /tmp/terminal.log 2>&1 &
+          server=$!
+          trap 'kill -INT "$server" 2>/dev/null || true; wait "$server" || true' EXIT
+          for attempt in {1..60}; do
+            if curl --fail --silent http://127.0.0.1:8000/health/live; then break; fi
+            kill -0 "$server"
+            sleep 0.5
+          done
+          curl --fail --silent http://127.0.0.1:8000/health/live
+          npm --prefix frontend run test:e2e
+      - name: Retain browser failure evidence
+        if: ${{ failure() && hashFiles('frontend/package.json') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: terminal-failure-evidence
+          path: |
+            frontend/test-results/
+            /tmp/terminal.log

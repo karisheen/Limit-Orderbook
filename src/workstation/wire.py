@@ -9,7 +9,13 @@ import json
 import types
 from typing import Union, get_args, get_origin, get_type_hints
 
-from .precision import canonical_decimal, decimal, exact_json_loads
+from .precision import (
+    DEFAULT_DECIMAL_POLICY,
+    DecimalPolicy,
+    canonical_decimal,
+    decimal,
+    exact_json_loads,
+)
 
 WIRE_SCHEMA_VERSION = 1
 _DECIMAL_MEMO_LIMIT = 8192
@@ -17,10 +23,10 @@ _DECIMAL_MEMO_LIMIT = 8192
 
 @lru_cache(maxsize=1)
 def _registry() -> dict[str, type]:
-    from . import book, events, instruments, precision, quality
+    from . import analytics, book, costs, events, instruments, precision, quality
 
     result: dict[str, type] = {}
-    for module in (book, events, instruments, precision, quality):
+    for module in (book, events, instruments, precision, quality, analytics, costs):
         for name, cls in vars(module).items():
             if (
                 isinstance(cls, type)
@@ -42,20 +48,29 @@ def _record_fields(record_type: type) -> tuple[tuple[str, ...], frozenset[str]]:
     return names, frozenset((*names, "$type"))
 
 
-def to_wire(value, *, canonical: bool = True):
+def to_wire(
+    value,
+    *,
+    canonical: bool = True,
+    decimal_policy: DecimalPolicy = DEFAULT_DECIMAL_POLICY,
+):
     # Only lexical scalar strings are memoized, for this one call. Numeric Decimal
     # equality would merge distinct scales and can even bypass exponent bounds.
-    return _to_wire(value, canonical, {})
+    return _to_wire(value, canonical, {}, decimal_policy)
 
 
-def _to_wire(value, canonical, decimal_memo):
+def _to_wire(value, canonical, decimal_memo, decimal_policy):
     if value is None or isinstance(value, (bool, str)):
         return value
     if isinstance(value, Decimal):
         lexical = str(Decimal(value))
         encoded = decimal_memo.get(lexical)
         if encoded is None:
-            encoded = canonical_decimal(value) if canonical else str(decimal(value))
+            encoded = (
+                canonical_decimal(value, policy=decimal_policy)
+                if canonical
+                else str(decimal(value, policy=decimal_policy))
+            )
             if len(decimal_memo) < _DECIMAL_MEMO_LIMIT:
                 decimal_memo[lexical] = encoded
         return encoded
@@ -71,22 +86,26 @@ def _to_wire(value, canonical, decimal_memo):
         return {
             "$type": type(value).__name__,
             **{
-                name: _to_wire(getattr(value, name), canonical, decimal_memo)
+                name: _to_wire(
+                    getattr(value, name), canonical, decimal_memo, decimal_policy
+                )
                 for name in _record_fields(_registry()[type(value).__name__])[0]
             },
         }
     if isinstance(value, (tuple, frozenset)):
         items = sorted(value) if isinstance(value, frozenset) else value
-        return [_to_wire(item, canonical, decimal_memo) for item in items]
+        return [
+            _to_wire(item, canonical, decimal_memo, decimal_policy) for item in items
+        ]
     raise ValueError(f"unsupported wire type: {type(value).__name__}")
 
 
-def _decode(value, expected):
+def _decode(value, expected, decimal_policy):
     origin, args = get_origin(expected), get_args(expected)
     if origin in (Union, types.UnionType):
         for option in args:
             try:
-                return _decode(value, option)
+                return _decode(value, option, decimal_policy)
             except (ValueError, TypeError):
                 continue
         raise ValueError("wire value does not match union")
@@ -102,21 +121,22 @@ def _decode(value, expected):
         if not isinstance(value, list):
             raise ValueError("expected wire array")
         if origin is frozenset:
-            result = frozenset(_decode(item, args[0]) for item in value)
+            result = frozenset(_decode(item, args[0], decimal_policy) for item in value)
             if len(result) != len(value):
                 raise ValueError("duplicate set member")
             return result
         if len(args) == 2 and args[1] is Ellipsis:
-            return tuple(_decode(item, args[0]) for item in value)
+            return tuple(_decode(item, args[0], decimal_policy) for item in value)
         if len(value) != len(args):
             raise ValueError("tuple length mismatch")
         return tuple(
-            _decode(item, kind) for item, kind in zip(value, args, strict=True)
+            _decode(item, kind, decimal_policy)
+            for item, kind in zip(value, args, strict=True)
         )
     if expected is Decimal:
         if not isinstance(value, str):
             raise ValueError("decimal wire value must be text")
-        return decimal(value)
+        return decimal(value, policy=decimal_policy)
     if expected is bytes:
         if not isinstance(value, dict) or set(value) != {"$bytes"}:
             raise ValueError("expected encoded bytes")
@@ -149,23 +169,38 @@ def _decode(value, expected):
         if value.keys() != allowed:
             raise ValueError("missing/unknown wire fields")
         hints = _record_hints(expected)
-        return expected(**{name: _decode(value[name], hints[name]) for name in names})
+        return expected(
+            **{
+                name: _decode(value[name], hints[name], decimal_policy)
+                for name in names
+            }
+        )
     raise ValueError(f"unsupported wire annotation: {expected}")
 
 
-def from_wire(value, expected_type=None):
+def from_wire(
+    value,
+    expected_type=None,
+    *,
+    decimal_policy: DecimalPolicy = DEFAULT_DECIMAL_POLICY,
+):
     if expected_type is None:
         if not isinstance(value, dict) or value.get("$type") not in _registry():
             raise ValueError("unknown wire record")
         expected_type = _registry()[value["$type"]]
-    return _decode(value, expected_type)
+    return _decode(value, expected_type, decimal_policy)
 
 
-def dumps(value, *, canonical: bool = True) -> bytes:
+def dumps(
+    value,
+    *,
+    canonical: bool = True,
+    decimal_policy: DecimalPolicy = DEFAULT_DECIMAL_POLICY,
+) -> bytes:
     return json.dumps(
         {
             "schema_version": WIRE_SCHEMA_VERSION,
-            "value": to_wire(value, canonical=canonical),
+            "value": to_wire(value, canonical=canonical, decimal_policy=decimal_policy),
         },
         sort_keys=True,
         separators=(",", ":"),
@@ -174,7 +209,13 @@ def dumps(value, *, canonical: bool = True) -> bytes:
     ).encode("utf-8")
 
 
-def loads(payload: bytes | str, expected_type=None, *, max_bytes: int = 268_435_456):
+def loads(
+    payload: bytes | str,
+    expected_type=None,
+    *,
+    max_bytes: int = 268_435_456,
+    decimal_policy: DecimalPolicy = DEFAULT_DECIMAL_POLICY,
+):
     value = exact_json_loads(payload, max_bytes=max_bytes)
     if (
         not isinstance(value, dict)
@@ -183,4 +224,4 @@ def loads(payload: bytes | str, expected_type=None, *, max_bytes: int = 268_435_
         or value["schema_version"] != WIRE_SCHEMA_VERSION
     ):
         raise ValueError("unsupported wire schema")
-    return from_wire(value["value"], expected_type)
+    return from_wire(value["value"], expected_type, decimal_policy=decimal_policy)

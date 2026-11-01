@@ -190,13 +190,18 @@ def test_capture_loss_is_sticky_manifest_evidence(tmp_path):
         source_mode="ws_snapshot",
     )
     recorder.append_events((gap,))
+    assert not recorder.health.terminal_failure
+    raw, event = fixture_message(spec, 9)
+    recorder.append_raw(raw)
+    recorder.append_events((event,))
     manifest = asyncio.run(recorder.finalize())
     assert not manifest.complete
     assert manifest.gaps == (gap,)
+    assert not recorder.health.terminal_failure
     with pytest.raises(RecordingError, match="incomplete"):
         RecordingReader(recorder.path)
     with RecordingReader(recorder.path, allow_incomplete=True) as reader:
-        assert next(reader.iter_batches()).events == (gap,)
+        assert [batch.events for batch in reader.iter_batches()] == [(gap,), (event,)]
 
 
 @pytest.mark.parametrize(
@@ -275,6 +280,7 @@ def test_queue_byte_overflow_is_visible_and_incomplete(tmp_path):
     with pytest.raises(RecordingError, match="capacity"):
         recorder.append_raw(fixture_message(fixture_stream())[0])
     assert recorder.health.incomplete_reasons == ("queue_overflow",)
+    assert recorder.health.terminal_failure
     manifest = asyncio.run(recorder.finalize())
     assert not manifest.complete
     assert "queue_overflow" in manifest.incomplete_reasons
@@ -303,6 +309,7 @@ def test_blocked_writer_count_bound_and_finalize_deadline(tmp_path, monkeypatch)
         manifest = asyncio.run(recorder.finalize())
         assert not manifest.complete
         assert "finalize_timeout" in manifest.incomplete_reasons
+        assert recorder.health.terminal_failure
         assert not (recorder.path / "manifest.json").exists()
         assert recover_recordings(tmp_path) == ()  # Still locked by blocked writer.
     finally:
@@ -331,6 +338,7 @@ def test_writer_exception_propagates_to_future_offers_and_final_status(
     assert any(
         "writer_failed:OSError" in reason for reason in manifest.incomplete_reasons
     )
+    assert recorder.health.terminal_failure
     with pytest.raises(RecordingError):
         recorder.append_raw(fixture_message(fixture_stream(), 2)[0])
 
@@ -938,3 +946,230 @@ def test_full_depth_periodic_checkpoints_preserve_lexical_levels_and_restore(tmp
             assert projection.books() == (book,)
             assert projection.checkpoints() == (item.checkpoint,)
             assert projection.checkpoint_state() == item.observer_state
+
+
+@pytest.mark.parametrize(
+    "reason", ["queue_overflow", "writer_failed:OSError:disk", "finalize_timeout"]
+)
+def test_terminal_failure_survives_full_incomplete_reason_capacity(tmp_path, reason):
+    recorder = recorder_at(tmp_path)
+    for index in range(64):
+        recorder.mark_incomplete(f"source_capture_lost:synthetic_{index}")
+    assert not recorder.health.terminal_failure
+    recorder.mark_incomplete(reason)
+    assert recorder.health.terminal_failure
+    assert len(recorder.health.incomplete_reasons) == 64
+    with pytest.raises(RecordingError, match="required recorder sink failed"):
+        recorder.append_raw(fixture_message(fixture_stream())[0])
+    manifest = asyncio.run(recorder.finalize())
+    assert reason in manifest.incomplete_reasons
+    assert not manifest.complete
+
+
+def test_failed_manifest_seal_is_terminal_even_at_reason_capacity(
+    tmp_path, monkeypatch
+):
+    atomic = recording._atomic
+
+    def fail_manifest(path, payload):
+        if path.name == "manifest.json":
+            raise OSError("injected manifest sealing failure")
+        return atomic(path, payload)
+
+    monkeypatch.setattr(recording, "_atomic", fail_manifest)
+    recorder = recorder_at(tmp_path)
+    raw, event = fixture_message(fixture_stream())
+    recorder.append_raw(raw)
+    recorder.append_events((event,))
+    for index in range(64):
+        recorder.mark_incomplete(f"source_gap:{index}")
+    manifest = asyncio.run(recorder.finalize())
+    assert not (recorder.path / "manifest.json").exists()
+    assert not manifest.complete
+    assert recorder.health.terminal_failure
+    assert "finalization_failed:OSError" in manifest.incomplete_reasons
+
+
+def test_queue_byte_boundary_counts_shared_immutable_fields_per_occurrence(
+    tmp_path, monkeypatch
+):
+    from dataclasses import fields, is_dataclass
+    import sys
+
+    def resident_size(value):
+        size = sys.getsizeof(value)
+        if is_dataclass(value):
+            return size + sum(
+                resident_size(getattr(value, field.name)) for field in fields(value)
+            )
+        if isinstance(value, (tuple, frozenset)):
+            return size + sum(resident_size(item) for item in value)
+        return size
+
+    raw, event = fixture_message(fixture_stream())
+    events = (event, replace(event, event_index=1, payload=Control("ack")))
+    byte_limit = resident_size(raw) + resident_size(events)
+    entered, release = threading.Event(), threading.Event()
+    original = Recorder._write_raw
+
+    def blocked(self, frame):
+        entered.set()
+        release.wait(5)
+        original(self, frame)
+
+    monkeypatch.setattr(Recorder, "_write_raw", blocked)
+    recorder = recorder_at(tmp_path, limits=RecorderLimits(queue_bytes=byte_limit))
+    try:
+        recorder.append_raw(raw)
+        assert entered.wait(2)
+        recorder.append_events(events)
+        assert recorder.health.queue_bytes == byte_limit
+        assert recorder.health.queue_count == 2
+        with pytest.raises(RecordingError, match="capacity"):
+            recorder.append_raw(fixture_message(fixture_stream(), 2)[0])
+        assert recorder.health.terminal_failure
+    finally:
+        release.set()
+        manifest = asyncio.run(recorder.finalize())
+    assert manifest.raw_count == 1
+    assert manifest.event_count == 2
+    with RecordingReader(recorder.path, allow_incomplete=True) as reader:
+        assert next(reader.iter_batches()).events == events
+
+
+@pytest.mark.parametrize("interval", [100, 1000])
+@pytest.mark.parametrize("boundary", ["gap", "source_change", "reset", "disconnect"])
+def test_sparse_periodic_checkpoints_still_retain_every_recovery_boundary(
+    tmp_path, boundary, interval
+):
+    spec = fixture_stream()
+    recorder = recorder_at(
+        tmp_path, limits=RecorderLimits(checkpoint_interval_batches=interval)
+    )
+    raw, event = fixture_message(spec)
+    recorder.append_raw(raw)
+    recorder.append_events((event,))
+    payload = (
+        Gap("synthetic_boundary", 2, 2, True, True, (spec.stream_id,))
+        if boundary == "gap"
+        else Control(boundary)
+    )
+    control = synthetic_envelope(
+        spec.instrument,
+        payload,
+        key=spec.key,
+        ordinal=2,
+        source_mode="ws_snapshot",
+    )
+    if boundary == "source_change":
+        control = replace(
+            control,
+            connection_epoch=1,
+            connection_id="next-connection",
+            segment_id="next-source-segment",
+        )
+    recorder.append_events((control,))
+    raw, event = fixture_message(spec, 3)
+    if boundary == "source_change":
+        raw = replace(
+            raw,
+            connection_epoch=control.connection_epoch,
+            connection_id=control.connection_id,
+        )
+        event = replace(
+            event,
+            connection_epoch=control.connection_epoch,
+            connection_id=control.connection_id,
+            segment_id=control.segment_id,
+            raw_ref=raw.ref(),
+        )
+    recorder.append_raw(raw)
+    recorder.append_events((event,))
+    manifest = asyncio.run(recorder.finalize())
+    assert manifest.batch_count == 3
+    assert manifest.checkpoint_count == 2
+    with RecordingReader(recorder.path, allow_incomplete=True) as reader:
+        boundary_delivery = 1 if boundary == "source_change" else 2
+        assert [item.delivery_index for item in reader.iter_checkpoints()] == [
+            3,
+            boundary_delivery,
+        ]
+        assert [batch.events[0].ingest_ordinal for batch in reader.iter_batches()] == [
+            1,
+            2,
+            3,
+        ]
+        if boundary == "source_change":
+            from src.workstation.replay import ReplaySession
+
+            session = ReplaySession(reader)
+            try:
+                session.seek_delivery(3)
+                final_hash = session.state_hash
+                assert session.books()[0].connection_epoch == 1
+                session.seek_delivery(2)
+                assert session.books() == ()
+                session.step()
+                assert session.state_hash == final_hash
+            finally:
+                session.close()
+
+
+@pytest.mark.parametrize("interval", [100, 1000])
+def test_explicit_periodic_cadence_bounds_checkpoint_seek_work(tmp_path, interval):
+    from src.workstation.replay import ReplaySession
+
+    spec = fixture_stream()
+    recorder = recorder_at(
+        tmp_path,
+        # Admit this finite test burst independently of worker scheduling.
+        limits=RecorderLimits(
+            queue_count=2 * interval + 1, checkpoint_interval_batches=interval
+        ),
+    )
+    raw, event = fixture_message(spec)
+    recorder.append_raw(raw)
+    recorder.append_events((event,))
+    for ordinal in range(2, 2 * interval + 1):
+        recorder.append_events(
+            (
+                synthetic_envelope(
+                    spec.instrument,
+                    Control("clock_tick"),
+                    key=spec.key,
+                    ordinal=ordinal,
+                    source_mode="ws_snapshot",
+                ),
+            )
+        )
+    manifest = asyncio.run(recorder.finalize())
+    assert manifest.complete, manifest.incomplete_reasons
+    assert manifest.batch_count == 2 * interval
+    assert manifest.checkpoint_count == 2
+    with RecordingReader(recorder.path) as reader:
+        assert [item.delivery_index for item in reader.iter_checkpoints()] == [
+            2 * interval,
+            interval,
+        ]
+        target = 2 * interval - 1
+        nearest = next(reader.iter_checkpoints(before_delivery=target))
+        assert nearest.delivery_index == interval
+        suffix = tuple(
+            reader.iter_batches(
+                start_delivery=nearest.delivery_index + 1, stop_delivery=target
+            )
+        )
+        assert len(suffix) == interval - 1
+        assert tuple(reader.iter_checkpoints(before_delivery=interval - 1)) == ()
+        resumed = ReplaySession(reader, checkpoint_policy="reject")
+        linear = ReplaySession(reader)
+        try:
+            resumed.seek(target)
+            linear.step(target)
+            assert resumed.checkpoint_status == "restored"
+            assert resumed.cursor == linear.cursor
+            assert resumed.book_hash == linear.book_hash
+            assert resumed.state_hash == linear.state_hash
+        finally:
+            resumed.close()
+            linear.close()

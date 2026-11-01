@@ -166,6 +166,13 @@ def assert_complete_drain(recorder, manifest, raws, instrument):
         assert tuple(event.ingest_ordinal for event in updates) == tuple(
             frame.ingest_ordinal for frame in raws
         )
+        for event in updates:
+            assert (
+                event.receive_mono_ns
+                <= event.process_start_mono_ns
+                <= event.process_end_mono_ns
+                <= event.publish_mono_ns
+            )
         assert isinstance(events[-1].payload, Gap)
         assert events[-1].payload.reason_code == "owner_stopped"
         assert all(
@@ -773,6 +780,169 @@ def test_attach_records_duplicate_trade_evidence_without_prior_history(tmp_path)
                     for event in batch.events
                 )
         finally:
+            await registry.close()
+            await recorder.finalize()
+
+    asyncio.run(scenario())
+
+
+def test_processed_delivery_is_atomic_across_streams_resets_and_owner_close(tmp_path):
+    async def scenario():
+        registry, instruments = registry_fixture(tmp_path)
+        observed = []
+
+        def observe(events, books):
+            observed.append((events, books))
+
+        registry.subscribe_processed(observe)
+        try:
+            leases = {
+                name: await registry.acquire(
+                    "observer", SubscriptionKey.for_instrument(instrument)
+                )
+                for name, instrument in instruments.items()
+            }
+            owners = {
+                name: registry._entries[lease.key].supervisor
+                for name, lease in leases.items()
+            }
+            for owner in owners.values():
+                await owner.started.get()
+            await owners["BTC"].emit(snapshot("BTC", 60000))
+            await owners["ETH"].emit(snapshot("ETH", 3000))
+            await owners["BTC"].emit(snapshot("BTC", 60005))
+            updates = [
+                {book.instrument_id: str(book.bids[0].price) for book in books}
+                for events, books in observed
+                if isinstance(events[0].payload, BookUpdate)
+            ]
+            btc, eth = (instruments[name].instrument_id for name in ("BTC", "ETH"))
+            assert updates == [
+                {btc: "60000"},
+                {btc: "60000", eth: "3000"},
+                {btc: "60005", eth: "3000"},
+            ]
+            owners["BTC"]._start_epoch(False)
+            events, books = observed[-1]
+            assert events[0].payload.kind == "source_change"
+            assert {book.instrument_id for book in books} == {eth}
+            await owners["BTC"].emit(snapshot("BTC", 60007))
+            await registry.release(leases["BTC"].lease_id)
+            events, books = observed[-1]
+            assert isinstance(events[0].payload, Gap)
+            closed_book = next(book for book in books if book.instrument_id == btc)
+            assert closed_book.bids[0].price == 60007
+            assert closed_book.quality.integrity == "invalid"
+            assert {book.instrument_id for book in registry.books()} == {eth}
+        finally:
+            await registry.close()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("failed_consumer", ["events", "processed"])
+def test_failed_consumer_cannot_hide_completed_book_or_leave_current_evidence(
+    tmp_path, failed_consumer
+):
+    async def scenario():
+        registry, instruments = registry_fixture(tmp_path)
+        observed = []
+
+        def fail(events, *unused):
+            if isinstance(events[0].payload, BookUpdate):
+                raise RuntimeError("consumer failed")
+
+        if failed_consumer == "events":
+            registry.subscribe_events(fail)
+        else:
+            registry.subscribe_processed(fail)
+        registry.subscribe_processed(
+            lambda events, books: observed.append((events, books))
+        )
+        try:
+            lease = await registry.acquire(
+                "observer", SubscriptionKey.for_instrument(instruments["BTC"])
+            )
+            owner = registry._entries[lease.key].supervisor
+            await owner.started.get()
+            with pytest.raises(ingestion.FeedFault):
+                await owner.emit(snapshot("BTC", 60000))
+            events, books = next(
+                item for item in observed if isinstance(item[0][0].payload, BookUpdate)
+            )
+            assert books[0].bids[0].price == 60000
+            assert books[0].quality.capture_complete == (failed_consumer == "processed")
+            invalidations = [
+                (events, books)
+                for events, books in observed
+                if isinstance(events[0].payload, Gap)
+            ]
+            assert invalidations[0][1][0].quality.integrity == "invalid"
+            assert invalidations[0][0][0].payload.capture_lost == (
+                failed_consumer == "events"
+            )
+            assert owner.capture_complete == (failed_consumer == "processed")
+        finally:
+            await registry.close()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("queued_count", [1, 2])
+def test_shutdown_processed_failure_only_loses_unconsumed_required_input(
+    tmp_path, queued_count
+):
+    async def scenario():
+        registry, instruments = registry_fixture(tmp_path)
+        recorder = recorder_fixture(tmp_path, registry)
+
+        def fail(events, books):
+            if isinstance(events[0].payload, BookUpdate):
+                raise RuntimeError("analytical consumer failed during drain")
+
+        registry.subscribe_processed(fail)
+        binding = await RecorderBinding.start(
+            registry,
+            recorder,
+            frozenset((SubscriptionKey.for_instrument(instruments["BTC"]),)),
+        )
+        try:
+            owner = next(iter(registry._entries.values())).supervisor
+            await owner.started.get()
+            for index in range(queued_count):
+                owner._receive(
+                    snapshot("BTC", 60000 + index),
+                    "ws",
+                    "wss://api.hyperliquid.xyz/ws",
+                    owner.epoch,
+                )
+            await binding.stop()
+            manifest = await recorder.finalize()
+            assert manifest.complete == (queued_count == 1)
+            with RecordingReader(recorder.path, allow_incomplete=True) as reader:
+                batches = tuple(reader.iter_batches())
+                updates = [
+                    event
+                    for batch in batches
+                    for event in batch.events
+                    if isinstance(event.payload, BookUpdate)
+                ]
+                assert [event.payload.changes[0].price for event in updates] == [60000]
+                gaps = [
+                    event.payload
+                    for batch in batches
+                    for event in batch.events
+                    if isinstance(event.payload, Gap)
+                ]
+                assert gaps[-1].capture_lost == (queued_count == 2)
+                if queued_count == 1:
+                    assert gaps[-1].first_missing_ordinal is None
+                else:
+                    frames = tuple(reader.iter_raw())
+                    assert gaps[-1].first_missing_ordinal == frames[-1].ingest_ordinal
+                    assert gaps[-1].last_missing_ordinal == frames[-1].ingest_ordinal
+        finally:
+            await binding.stop()
             await registry.close()
             await recorder.finalize()
 

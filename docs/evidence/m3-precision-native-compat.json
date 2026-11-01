@@ -1,0 +1,18 @@
+{
+  "command": ".venv-upgrade/bin/python -m src.workstation.cli replay data/m2-smoke/live-cli-gry1ld8s/captures/9b355ab1-b2a2-4dbb-ae67-a47710272382 --mode normalized",
+  "seconds": 17.12653456100088,
+  "exit_code": 0,
+  "capture": "data/m2-smoke/live-cli-gry1ld8s/captures/9b355ab1-b2a2-4dbb-ae67-a47710272382",
+  "capture_manifest_sha256": "c1f2b35a0f5c897679cc9aa53a2e6bece6019945e094f1daabb34b67bc237cbf",
+  "capture_complete": true,
+  "book_hash": "addf0fe4ddff4ca7e4581bcaea2f010621c36d9a3e04f799bd36f1c9a0ec1a22",
+  "state_hash": "c963b3189750d493c38b9bde20761687c0e8da09b04d388f7f3d21e0c8c9b1b0",
+  "cursor": {
+    "delivery_index": "703",
+    "event_index": "0",
+    "ordinal": "703"
+  },
+  "baseline": "docs/evidence/m2-live-capture-final.json",
+  "native_hashes_unchanged": true,
+  "concurrent_work": "M2 three-asset12-stream public recorder soak running; no latency-budget claim"
+}

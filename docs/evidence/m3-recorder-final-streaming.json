@@ -1,0 +1,3026 @@
+{
+  "schema_version": 1,
+  "kind": "managed_recording_offline_benchmark",
+  "started_wall_ns": 1793518839918762000,
+  "runtime": "3.13.5 (main, Jul 23 2025, 00:30:58) [Clang 20.1.4 ]",
+  "checkpoint_interval_batches_override": null,
+  "input_mode": "streaming_reader_and_writer",
+  "preload_byte_limit": null,
+  "tool_sha256": "84ae41fb85478187fe3938ab428e76dc77558ccda6c12ba14234d6a727830afe",
+  "hardware": {
+    "processor": "i386",
+    "machine": "x86_64",
+    "logical_cpu_count": 4,
+    "sysctl": {
+      "machdep.cpu.brand_string": "Intel(R) Core(TM) i5-7360U CPU @ 2.30GHz",
+      "hw.model": "MacBookPro14,1",
+      "hw.memsize": "8589934592"
+    }
+  },
+  "platform": "macOS-13.7.8-x86_64-i386-64bit-Mach-O",
+  "machine": "x86_64",
+  "processor": "i386",
+  "logical_cpu_count": 4,
+  "packages": {
+    "pyarrow": "26.0.0",
+    "duckdb": "2.0.0"
+  },
+  "command": [
+    "tools/benchmark_recording.py",
+    "--source",
+    "data/m2-smoke/live-cli-gry1ld8s/captures/9b355ab1-b2a2-4dbb-ae67-a47710272382",
+    "--output-root",
+    "data/m3-profile/final-complete-streaming",
+    "--max-source-records",
+    "10000",
+    "--max-source-bytes",
+    "1073741824",
+    "--max-load-seconds",
+    "180"
+  ],
+  "source_path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m2-smoke/live-cli-gry1ld8s/captures/9b355ab1-b2a2-4dbb-ae67-a47710272382",
+  "bounds": {
+    "max_source_bytes": 1073741824,
+    "max_source_records": 10000,
+    "max_load_seconds": 180.0,
+    "samples": 20000
+  },
+  "hash_encoding": "logical evidence: uint64 big-endian length-prefixed noncanonical workstation wire; raw ordinal order, normalized delivery order, checkpoints descending delivery then stream",
+  "limitations": [
+    "No network or UI. Original processing/publication timestamps are absent; receive-highwater schedules are synthetic, not original callback timing or network latency.",
+    "Default input streams with two-item lookahead. Explicit predecode mode admits the entire bounded source under its production resident-accounting cap; decoding transients/caches and whole-process RSS are separate. OS caches are not evicted.",
+    "Timing wrappers perturb the workload. Nested worker/replay stages overlap and must not be summed. Accepted-to-dispatch includes pre-dispatch disk checks, not exact deque residence.",
+    "Process CPU includes producer and worker; RSS is process lifetime highwater, not per-load allocation. Baseline, 2x burst, unpaced are sequential in the same process.",
+    "No required event is deliberately dropped, retried or backpressured. A rejected offer terminates that load and its unfinished output remains incomplete.",
+    "Source checkpoint bytes are compared with regenerated output; changed checkpoint cadence/schema may differ. Strict output checkpoint seek must reproduce its own linear state.",
+    "Unpaced finite measurement is not proof of sustained maximum capacity or a healthy live soak; if the queue never fills, saturation is not demonstrated.",
+    "Record/file byte limits bound admitted input, not total decompressed work; production decoder limits remain active. Deadlines are checked between atomic operations, not hard process termination."
+  ],
+  "source": {
+    "complete": true,
+    "incomplete_reasons": [],
+    "raw_count": 679,
+    "batch_count": 703,
+    "event_count": 826,
+    "checkpoint_count": 216,
+    "gap_count": 12,
+    "gap_reasons": {
+      "owner_stopped": 12
+    },
+    "capture_lost_gap_count": 0,
+    "limits": {
+      "queue_count": 512,
+      "queue_bytes": 134217728,
+      "raw_rotation_bytes": 16777216,
+      "parquet_batch_count": 128,
+      "parquet_batch_bytes": 16777216,
+      "max_row_bytes": 268435456,
+      "max_files": 100000,
+      "max_streams": 1024,
+      "min_free_bytes": 67108864,
+      "managed_budget_bytes": 10737418240,
+      "retention_max_sessions": 100,
+      "finalize_timeout": 30.0,
+      "checkpoint_interval_batches": 100,
+      "max_query_rows": 10000,
+      "parquet_buffer_count": 4096,
+      "reader_cache_bytes": 33554432,
+      "reader_cache_count": 8192,
+      "checkpoint_group_count": 64,
+      "checkpoint_group_bytes": 16777216
+    },
+    "session_id": "9b355ab1-b2a2-4dbb-ae67-a47710272382",
+    "manifest_sha256": "c1f2b35a0f5c897679cc9aa53a2e6bece6019945e094f1daabb34b67bc237cbf",
+    "code_revision": "workstation-source-sha256:6f5665b8342651897e66da18d4f0198f190b3b74035418a1937d776fc71df3ab",
+    "declared_file_bytes": 15619265,
+    "files": [
+      {
+        "path": "checkpoints/aux-159102bc43a303f9ecef5d90b285bdd63a1da4bd1ffba348a0d6ace0ea5b67d4.json.gz",
+        "kind": "checkpoint_aux",
+        "sha256": "aa5a17ab5c41c73b7edb0e5c7d97688f82b3ec7a0a40ab976645f693252d0fab",
+        "size_bytes": 4712,
+        "row_count": 1,
+        "first_ordinal": null,
+        "last_ordinal": null,
+        "first_delivery": null,
+        "last_delivery": null,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/00000001.jsonl.gz",
+        "kind": "checkpoint",
+        "sha256": "4018e3a8bdeba4fcd29d277ca3121d00c744ace883201c4402c065f1cb3338f4",
+        "size_bytes": 779837,
+        "row_count": 12,
+        "first_ordinal": 14,
+        "last_ordinal": 124,
+        "first_delivery": 100,
+        "last_delivery": 100,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/aux-513a15adb8aada552417a4266139145e6e03a2f3d4fb6218bea7fc1dd1e38003.json.gz",
+        "kind": "checkpoint_aux",
+        "sha256": "b2a7501d638714db6112f388edcb041f5e4d2cb45a56d9c1a3c74981180f3584",
+        "size_bytes": 4951,
+        "row_count": 1,
+        "first_ordinal": null,
+        "last_ordinal": null,
+        "first_delivery": null,
+        "last_delivery": null,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/00000002.jsonl.gz",
+        "kind": "checkpoint",
+        "sha256": "08f9cf83b8e08f865fca14a870284a60f486647bb86004316a64354634027092",
+        "size_bytes": 780421,
+        "row_count": 12,
+        "first_ordinal": 18,
+        "last_ordinal": 200,
+        "first_delivery": 200,
+        "last_delivery": 200,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/aux-1344500c2ba055c314f32e159da8643a5c7aa8bbc4af9c390e5464ec0e05ed00.json.gz",
+        "kind": "checkpoint_aux",
+        "sha256": "6c9df5bc3a6cf8f6def875e65c805dba82cb19ddc879c9c0267e2c1d67b4637f",
+        "size_bytes": 5335,
+        "row_count": 1,
+        "first_ordinal": null,
+        "last_ordinal": null,
+        "first_delivery": null,
+        "last_delivery": null,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/00000003.jsonl.gz",
+        "kind": "checkpoint",
+        "sha256": "3088bc29e9c74e7086825ed629fb5a5e07acff1724aa1488dc17563828cf60b2",
+        "size_bytes": 781015,
+        "row_count": 12,
+        "first_ordinal": 176,
+        "last_ordinal": 300,
+        "first_delivery": 300,
+        "last_delivery": 300,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/aux-2e6ffe1f2fb0e6be2452061fa1329f812b64a4d200020d7bfa332e8b9cb5c79d.json.gz",
+        "kind": "checkpoint_aux",
+        "sha256": "e99cdc463a20e0bb8b500a1f807ad991a49715c547a0925ce55774d1475b3bfd",
+        "size_bytes": 5670,
+        "row_count": 1,
+        "first_ordinal": null,
+        "last_ordinal": null,
+        "first_delivery": null,
+        "last_delivery": null,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/00000004.jsonl.gz",
+        "kind": "checkpoint",
+        "sha256": "ca3b40bb3288e3b67d2a3d5debb7366c02558878dee6804c1d595d039a18f06f",
+        "size_bytes": 781046,
+        "row_count": 12,
+        "first_ordinal": 265,
+        "last_ordinal": 400,
+        "first_delivery": 400,
+        "last_delivery": 400,
+        "stream_id": null
+      },
+      {
+        "path": "normalized/19f15b35ea76da310dbc09d3/00000001.parquet",
+        "kind": "normalized",
+        "sha256": "693342ec6ad6e148ef041e1f55228d2e32a657e8b5b31867520cd258f3febb02",
+        "size_bytes": 87019,
+        "row_count": 128,
+        "first_ordinal": 1,
+        "last_ordinal": 494,
+        "first_delivery": 1,
+        "last_delivery": 495,
+        "stream_id": "2fbdb2ec-6eba-4979-8ba5-a3a7fd714f36"
+      },
+      {
+        "path": "checkpoints/aux-8516f530afc397d400d2d6e5e47328add74036103cf636eab0af8c1d8758ae27.json.gz",
+        "kind": "checkpoint_aux",
+        "sha256": "e4f4915f8526f6ea10c4b5f504c37930ac2e494cb68212b1d50edfb657af6507",
+        "size_bytes": 5987,
+        "row_count": 1,
+        "first_ordinal": null,
+        "last_ordinal": null,
+        "first_delivery": null,
+        "last_delivery": null,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/00000005.jsonl.gz",
+        "kind": "checkpoint",
+        "sha256": "0366514b76d736f36f46e5f010e0fde8a1ecb92e48d04f2082aa6cddfd24d65d",
+        "size_bytes": 781109,
+        "row_count": 12,
+        "first_ordinal": 265,
+        "last_ordinal": 500,
+        "first_delivery": 500,
+        "last_delivery": 500,
+        "stream_id": null
+      },
+      {
+        "path": "normalized/37323b35255503a7245b8a95/00000002.parquet",
+        "kind": "normalized",
+        "sha256": "cc8c61c0bb8f45e9d1caafc4f209e3440e13c75f0b95451053246737fdb2abbc",
+        "size_bytes": 84320,
+        "row_count": 128,
+        "first_ordinal": 3,
+        "last_ordinal": 515,
+        "first_delivery": 3,
+        "last_delivery": 515,
+        "stream_id": "ba225fbd-1e54-432a-ab31-5964c898bf05"
+      },
+      {
+        "path": "checkpoints/aux-f66a82d5ac117ade33118548d19a4f8690871a01201a493ddba7d272d351e25b.json.gz",
+        "kind": "checkpoint_aux",
+        "sha256": "29f069350f86c87d6ed6074fb4406fd2a16d432075e27688183f67a243008e14",
+        "size_bytes": 6446,
+        "row_count": 1,
+        "first_ordinal": null,
+        "last_ordinal": null,
+        "first_delivery": null,
+        "last_delivery": null,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/00000006.jsonl.gz",
+        "kind": "checkpoint",
+        "sha256": "ed5416dacd441cfda153e1b3b511343afcf3d855635f9edd51581d8bcacb58ba",
+        "size_bytes": 779591,
+        "row_count": 12,
+        "first_ordinal": 508,
+        "last_ordinal": 600,
+        "first_delivery": 600,
+        "last_delivery": 600,
+        "stream_id": null
+      },
+      {
+        "path": "normalized/3ec5c518f188376f01ce8013/00000003.parquet",
+        "kind": "normalized",
+        "sha256": "3c769c52155847c702234402aa11755241b76e6d0b59380c457396894a47634b",
+        "size_bytes": 19989,
+        "row_count": 128,
+        "first_ordinal": 2,
+        "last_ordinal": 677,
+        "first_delivery": 2,
+        "last_delivery": 677,
+        "stream_id": "5d3a3325-0f8c-4c0b-a7ab-f9c9cf8caab2"
+      },
+      {
+        "path": "checkpoints/aux-7a85273d38bbbad4996cc417e5ccdf0c5b857eeb843aeca75ebc690da6bf6e44.json.gz",
+        "kind": "checkpoint_aux",
+        "sha256": "4a44b71c658e15abc54b9c4f9ed1154cd4ecd27d6949ab874867f1bd373a138a",
+        "size_bytes": 6611,
+        "row_count": 1,
+        "first_ordinal": null,
+        "last_ordinal": null,
+        "first_delivery": null,
+        "last_delivery": null,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/00000007.jsonl.gz",
+        "kind": "checkpoint",
+        "sha256": "3723f3a5ade8c44ea036a9679984f5ecbc982601e97008a3db3f9c73a1cee7dd",
+        "size_bytes": 778253,
+        "row_count": 12,
+        "first_ordinal": 514,
+        "last_ordinal": 692,
+        "first_delivery": 692,
+        "last_delivery": 692,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/aux-c9fdadefdc4ffd6602df2c624e0fdd3f2ff4f352b37357a252f5178f9e85c0c5.json.gz",
+        "kind": "checkpoint_aux",
+        "sha256": "8124967e59776ad20704e5b084ec72a382b9dff34ab8e67ff59b303dc0f16f5f",
+        "size_bytes": 6607,
+        "row_count": 1,
+        "first_ordinal": null,
+        "last_ordinal": null,
+        "first_delivery": null,
+        "last_delivery": null,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/00000008.jsonl.gz",
+        "kind": "checkpoint",
+        "sha256": "d967d872b554d0a41a436b2ad0de2d490cdf2f6392240b3c20449f541c3fefe8",
+        "size_bytes": 778684,
+        "row_count": 12,
+        "first_ordinal": 544,
+        "last_ordinal": 693,
+        "first_delivery": 693,
+        "last_delivery": 693,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/aux-0c49ab21526818d966d4cf7e39e60dac96603eedec1189c39db47b66119b86e0.json.gz",
+        "kind": "checkpoint_aux",
+        "sha256": "2f47f1b3921a0bcc213c03f4eca4b6502f06fdf32244a169999e320ad63987f7",
+        "size_bytes": 6615,
+        "row_count": 1,
+        "first_ordinal": null,
+        "last_ordinal": null,
+        "first_delivery": null,
+        "last_delivery": null,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/00000009.jsonl.gz",
+        "kind": "checkpoint",
+        "sha256": "5a6fc23f01ff4ddc32533ec1d85889a6800b12ec15f50541bf8e852bf6b878af",
+        "size_bytes": 778497,
+        "row_count": 12,
+        "first_ordinal": 544,
+        "last_ordinal": 694,
+        "first_delivery": 694,
+        "last_delivery": 694,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/aux-1112b9f09933e8f148448714b707f703e091609470e6fac6e2d81688b7588166.json.gz",
+        "kind": "checkpoint_aux",
+        "sha256": "c776ed63773934800a27e4d182ddd0b214acece37901c42309e4ed137754a08d",
+        "size_bytes": 6613,
+        "row_count": 1,
+        "first_ordinal": null,
+        "last_ordinal": null,
+        "first_delivery": null,
+        "last_delivery": null,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/00000010.jsonl.gz",
+        "kind": "checkpoint",
+        "sha256": "958ca65adfdca7b5b285036f3a780b235e82662fa4113f1b5d8fbb5f7accfae9",
+        "size_bytes": 778006,
+        "row_count": 12,
+        "first_ordinal": 586,
+        "last_ordinal": 695,
+        "first_delivery": 695,
+        "last_delivery": 695,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/aux-c9a9988882fb6e90d349db51fcd57ea909a049a0e9f62d147e7a2f2deb5b30ec.json.gz",
+        "kind": "checkpoint_aux",
+        "sha256": "1d21622703a4ac485b30159b482910429f4a4c7f058a6f981424a82afe827122",
+        "size_bytes": 6612,
+        "row_count": 1,
+        "first_ordinal": null,
+        "last_ordinal": null,
+        "first_delivery": null,
+        "last_delivery": null,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/00000011.jsonl.gz",
+        "kind": "checkpoint",
+        "sha256": "a21bb9461852aaae2146cce95b7bf1c51a617d960df32a481b83ec86680b27ef",
+        "size_bytes": 777439,
+        "row_count": 12,
+        "first_ordinal": 587,
+        "last_ordinal": 696,
+        "first_delivery": 696,
+        "last_delivery": 696,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/aux-28b7c191dd3da95cac0df4b1be4af2760550fcfa174ea0227828026eb7c820e2.json.gz",
+        "kind": "checkpoint_aux",
+        "sha256": "579bcb60b4e7202869c5732f6de09a2ba952dea6248518efa0d8cfee9e3df6cf",
+        "size_bytes": 6604,
+        "row_count": 1,
+        "first_ordinal": null,
+        "last_ordinal": null,
+        "first_delivery": null,
+        "last_delivery": null,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/00000012.jsonl.gz",
+        "kind": "checkpoint",
+        "sha256": "c11fa3468b10c4f2053258b0b06182def4d1ddb54e88f27ba519793761573acb",
+        "size_bytes": 776852,
+        "row_count": 12,
+        "first_ordinal": 672,
+        "last_ordinal": 697,
+        "first_delivery": 697,
+        "last_delivery": 697,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/aux-e6c7bbb4e12c0d4e9b6121d193b84025aeb34d508bd3f05853b0e8b4acb53f98.json.gz",
+        "kind": "checkpoint_aux",
+        "sha256": "915965f82769ffdcba0a23b63b120fdb834e87bc2c60c8ded67c5b1aa1fc6624",
+        "size_bytes": 6609,
+        "row_count": 1,
+        "first_ordinal": null,
+        "last_ordinal": null,
+        "first_delivery": null,
+        "last_delivery": null,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/00000013.jsonl.gz",
+        "kind": "checkpoint",
+        "sha256": "98fb67388fda2aa15b178101445427573452bc1fa6953a32c057ae9eb926f627",
+        "size_bytes": 777099,
+        "row_count": 12,
+        "first_ordinal": 672,
+        "last_ordinal": 698,
+        "first_delivery": 698,
+        "last_delivery": 698,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/aux-fc6ec0f8b6dd3a0f34ec409dca8b53ba47e52c49841515131ed60ba421f5633f.json.gz",
+        "kind": "checkpoint_aux",
+        "sha256": "daec9249201f722ac2a588063d617567c5961b29f9a092ae1cb350b0ae738496",
+        "size_bytes": 6606,
+        "row_count": 1,
+        "first_ordinal": null,
+        "last_ordinal": null,
+        "first_delivery": null,
+        "last_delivery": null,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/00000014.jsonl.gz",
+        "kind": "checkpoint",
+        "sha256": "d560b0a47f41afa6f8228fe900923867370c78fbf6e4f87abc13d81facc371f1",
+        "size_bytes": 776706,
+        "row_count": 12,
+        "first_ordinal": 672,
+        "last_ordinal": 699,
+        "first_delivery": 699,
+        "last_delivery": 699,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/aux-e0c0677f70e68736627b0e034a36f9019759d7710c4ee59f94ce3249a842701e.json.gz",
+        "kind": "checkpoint_aux",
+        "sha256": "abd6ef59f80283e39e821f58418d0af477dc4411f671cf87ce942a0a755ab108",
+        "size_bytes": 6608,
+        "row_count": 1,
+        "first_ordinal": null,
+        "last_ordinal": null,
+        "first_delivery": null,
+        "last_delivery": null,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/00000015.jsonl.gz",
+        "kind": "checkpoint",
+        "sha256": "6fe4a484df54b110eabd0c5a7807d92de6bb93471f457250702ca80bdc71ebf3",
+        "size_bytes": 777244,
+        "row_count": 12,
+        "first_ordinal": 672,
+        "last_ordinal": 700,
+        "first_delivery": 700,
+        "last_delivery": 700,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/aux-ce005f7cb0e3a642fe56e70ac960c21ed6a36f812d019d2d02b05459da3bf052.json.gz",
+        "kind": "checkpoint_aux",
+        "sha256": "5783e96d09bed52de246e560beb46ef8f6904ec22fed984df44365edc9666a37",
+        "size_bytes": 6617,
+        "row_count": 1,
+        "first_ordinal": null,
+        "last_ordinal": null,
+        "first_delivery": null,
+        "last_delivery": null,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/00000016.jsonl.gz",
+        "kind": "checkpoint",
+        "sha256": "3417de822a8ae47c63419e9d3d286713e04daf77e304501d63a1c4def4892c37",
+        "size_bytes": 777319,
+        "row_count": 12,
+        "first_ordinal": 672,
+        "last_ordinal": 701,
+        "first_delivery": 701,
+        "last_delivery": 701,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/aux-0ade5f4f61b67a9c93e936d672e1ee090a6dc972839e29e2c049104b8538159d.json.gz",
+        "kind": "checkpoint_aux",
+        "sha256": "36489c09d43ecafd6a008170e769f9fde15958ddf8eb5603f5b9939cbd5a57a4",
+        "size_bytes": 6615,
+        "row_count": 1,
+        "first_ordinal": null,
+        "last_ordinal": null,
+        "first_delivery": null,
+        "last_delivery": null,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/00000017.jsonl.gz",
+        "kind": "checkpoint",
+        "sha256": "0634ce2fa3d0f107443f3bb05c8075e5423c891d6073aa88fb98f56fc9b40225",
+        "size_bytes": 777247,
+        "row_count": 12,
+        "first_ordinal": 672,
+        "last_ordinal": 702,
+        "first_delivery": 702,
+        "last_delivery": 702,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/aux-ea97cfb07453b4a4877398ade4fd029f268704d6dfee3aadaf49dee0a224ec7c.json.gz",
+        "kind": "checkpoint_aux",
+        "sha256": "5a24017c2ee6cfc49c6060cfe84c183554bae311450cdeaad23d03ce9ce10aaf",
+        "size_bytes": 6614,
+        "row_count": 1,
+        "first_ordinal": null,
+        "last_ordinal": null,
+        "first_delivery": null,
+        "last_delivery": null,
+        "stream_id": null
+      },
+      {
+        "path": "checkpoints/00000018.jsonl.gz",
+        "kind": "checkpoint",
+        "sha256": "99b5fa727bf96ccf2bb952c297ffcb25192efaf425da227ea7279d3d587e1157",
+        "size_bytes": 777662,
+        "row_count": 12,
+        "first_ordinal": 692,
+        "last_ordinal": 703,
+        "first_delivery": 703,
+        "last_delivery": 703,
+        "stream_id": null
+      },
+      {
+        "path": "normalized/544260bc7bcce59f7850a75b/00000004.parquet",
+        "kind": "normalized",
+        "sha256": "491cc7fa59b15c4928483ffb09490a894e0cf2fd12dd030055b4d1b79849be4f",
+        "size_bytes": 12128,
+        "row_count": 15,
+        "first_ordinal": 4,
+        "last_ordinal": 701,
+        "first_delivery": 4,
+        "last_delivery": 701,
+        "stream_id": "19a00c06-dfc8-4050-be9c-d365652ffba0"
+      },
+      {
+        "path": "normalized/0eb144829c4228aa308fbd09/00000005.parquet",
+        "kind": "normalized",
+        "sha256": "16fa779d9a90b99c1ff1184eaf112118585bb3de89509c57925717b79c6a4bd6",
+        "size_bytes": 91987,
+        "row_count": 102,
+        "first_ordinal": 5,
+        "last_ordinal": 702,
+        "first_delivery": 5,
+        "last_delivery": 702,
+        "stream_id": "94c871e1-78b5-4230-b6ee-08238f9676c5"
+      },
+      {
+        "path": "normalized/1326500d8a3697e3f0c01ecf/00000006.parquet",
+        "kind": "normalized",
+        "sha256": "6f7d208e9df985dd62d32f3561a7b84752b378176dafc397be1723845ac8e826",
+        "size_bytes": 12285,
+        "row_count": 17,
+        "first_ordinal": 6,
+        "last_ordinal": 703,
+        "first_delivery": 6,
+        "last_delivery": 703,
+        "stream_id": "94ee92d9-61a8-4bc1-8e8b-766ff842c7ae"
+      },
+      {
+        "path": "normalized/c58484ffe1c6e4b8c61f2911/00000007.parquet",
+        "kind": "normalized",
+        "sha256": "49a137ef4cb02d97fd58b894e27316ab666c4cea80fb5a192096d846be18a5be",
+        "size_bytes": 8827,
+        "row_count": 7,
+        "first_ordinal": 7,
+        "last_ordinal": 697,
+        "first_delivery": 7,
+        "last_delivery": 697,
+        "stream_id": "b0210ff3-2527-49ba-8e92-b679642e9687"
+      },
+      {
+        "path": "normalized/2fb7e7e9d82d6a6891314f22/00000008.parquet",
+        "kind": "normalized",
+        "sha256": "4a23e2ded6f45f591c9b914b5ad9e43a4ab1471020ca5f2cd20b638905a9f909",
+        "size_bytes": 11416,
+        "row_count": 25,
+        "first_ordinal": 8,
+        "last_ordinal": 694,
+        "first_delivery": 8,
+        "last_delivery": 694,
+        "stream_id": "9a5400b0-9607-46f5-a993-0c3e0bb81d54"
+      },
+      {
+        "path": "normalized/7d5e99184ffe169a77b03792/00000009.parquet",
+        "kind": "normalized",
+        "sha256": "c27a509a2c91dfe502ac3b24709e49be520f77facc3fe1c6bb7a770b8fb71882",
+        "size_bytes": 8997,
+        "row_count": 7,
+        "first_ordinal": 9,
+        "last_ordinal": 692,
+        "first_delivery": 9,
+        "last_delivery": 692,
+        "stream_id": "abbf9522-9042-4958-8367-ec5415a0459d"
+      },
+      {
+        "path": "normalized/fe3224fae660a0185b0428bd/00000010.parquet",
+        "kind": "normalized",
+        "sha256": "062aa98ffe2ef8dba0658d9a65a44b9574299bf5e18d963f46b31391a8ec9d6f",
+        "size_bytes": 10423,
+        "row_count": 11,
+        "first_ordinal": 10,
+        "last_ordinal": 695,
+        "first_delivery": 10,
+        "last_delivery": 695,
+        "stream_id": "1a8f5794-e13f-4b00-a4b9-cffae56c275a"
+      },
+      {
+        "path": "normalized/87f081eec380ef0a4c4e85bf/00000011.parquet",
+        "kind": "normalized",
+        "sha256": "c279f9b4163222707362fc7d31d35333ab11bdc02a64fd59e6bff6889650e5c7",
+        "size_bytes": 9010,
+        "row_count": 7,
+        "first_ordinal": 11,
+        "last_ordinal": 696,
+        "first_delivery": 11,
+        "last_delivery": 696,
+        "stream_id": "6ccc4081-58b4-4e78-9c38-d1fe15b8b525"
+      },
+      {
+        "path": "normalized/4f03e881a782d743c7550c36/00000012.parquet",
+        "kind": "normalized",
+        "sha256": "c3627c946a4304f1e7f633dc3056839e109decc49de0d8c11572299eadec33c3",
+        "size_bytes": 9340,
+        "row_count": 6,
+        "first_ordinal": 12,
+        "last_ordinal": 693,
+        "first_delivery": 12,
+        "last_delivery": 693,
+        "stream_id": "09424353-51c7-496d-bef8-284e22536779"
+      },
+      {
+        "path": "normalized/19f15b35ea76da310dbc09d3/00000013.parquet",
+        "kind": "normalized",
+        "sha256": "1f9028a81f8cfd47c5d2c7edad26ccb61d3006d28dec37a241661a0b9264d66b",
+        "size_bytes": 20416,
+        "row_count": 64,
+        "first_ordinal": 497,
+        "last_ordinal": 698,
+        "first_delivery": 497,
+        "last_delivery": 698,
+        "stream_id": "2fbdb2ec-6eba-4979-8ba5-a3a7fd714f36"
+      },
+      {
+        "path": "normalized/37323b35255503a7245b8a95/00000014.parquet",
+        "kind": "normalized",
+        "sha256": "c242bd7b6ae3d5e1cce4b4702dd2491b6ce0dec906e71701b0ea8f832aae3b23",
+        "size_bytes": 16729,
+        "row_count": 54,
+        "first_ordinal": 518,
+        "last_ordinal": 700,
+        "first_delivery": 518,
+        "last_delivery": 700,
+        "stream_id": "ba225fbd-1e54-432a-ab31-5964c898bf05"
+      },
+      {
+        "path": "normalized/3ec5c518f188376f01ce8013/00000015.parquet",
+        "kind": "normalized",
+        "sha256": "5a14022693db6ae964974d04f148b4d3fbffd6b94ae6801d951b1e6dd0af278c",
+        "size_bytes": 11032,
+        "row_count": 4,
+        "first_ordinal": 680,
+        "last_ordinal": 699,
+        "first_delivery": 680,
+        "last_delivery": 699,
+        "stream_id": "5d3a3325-0f8c-4c0b-a7ab-f9c9cf8caab2"
+      },
+      {
+        "path": "raw/00000001.jsonl.gz",
+        "kind": "raw",
+        "sha256": "b960df6bfa31e744e8dc4c9e173b4b39f2daffabb3fd212a6ce5163d0311a76e",
+        "size_bytes": 677480,
+        "row_count": 679,
+        "first_ordinal": 13,
+        "last_ordinal": 691,
+        "first_delivery": null,
+        "last_delivery": null,
+        "stream_id": null
+      },
+      {
+        "path": "index.sqlite3",
+        "kind": "catalog",
+        "sha256": "598aa1d223911086108a8eecfb0fb22cbd45881dc02560deeae79c26f983f02a",
+        "size_bytes": 401408,
+        "row_count": 1598,
+        "first_ordinal": null,
+        "last_ordinal": null,
+        "first_delivery": null,
+        "last_delivery": null,
+        "stream_id": null
+      }
+    ],
+    "original_dropped_event_count": null,
+    "original_queue_highwaters": null,
+    "streams": [
+      {
+        "stream_id": "2fbdb2ec-6eba-4979-8ba5-a3a7fd714f36",
+        "instrument": {
+          "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+          "metadata_version": "cfa67abe4eceffa08b9cd0e5eddb86af98a50cb7212be9646497dc3993b3178a:1793512299412424000",
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "native_symbol": "BTCUSDT",
+          "base": {
+            "asset_id": "BTC",
+            "ticker": "BTC",
+            "native_token_id": "BTC",
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "quote": {
+            "asset_id": "USDT",
+            "ticker": "USDT",
+            "native_token_id": "USDT",
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "tick_size": "0.01000000",
+          "lot_size": "0.00001000",
+          "native_asset_id": null,
+          "dex_namespace": null,
+          "settlement": null,
+          "market_type": "spot",
+          "expiry_wall_ns": null,
+          "constraints": {
+            "min_base": "0.00001000",
+            "max_base": "9000.00000000",
+            "min_notional": "5.00000000",
+            "max_notional": "9000000.00000000",
+            "min_notional_currency": "USDT",
+            "price_rule": "fixed_tick",
+            "size_rule": "fixed_lot",
+            "max_limit_base": null,
+            "max_market_base": null
+          },
+          "contract_multiplier": "1",
+          "quantity_unit": "base",
+          "contract_value_currency": null,
+          "inverse": false,
+          "status": "active",
+          "data_access": "unknown",
+          "execution_access": "unknown",
+          "metadata_asof_wall_ns": 1793512299412424000,
+          "metadata_source": "https://data-api.binance.vision/api/v3/exchangeInfo",
+          "reference_multiplier": null,
+          "settlement_conversion": "unknown",
+          "contract_specification_source": null
+        },
+        "key": {
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+          "channel": "book",
+          "depth": 5000,
+          "aggregation": []
+        },
+        "adapter_revision": "binance-v2",
+        "config_hash": "default",
+        "adapter_config": []
+      },
+      {
+        "stream_id": "5d3a3325-0f8c-4c0b-a7ab-f9c9cf8caab2",
+        "instrument": {
+          "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+          "metadata_version": "cfa67abe4eceffa08b9cd0e5eddb86af98a50cb7212be9646497dc3993b3178a:1793512299412424000",
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "native_symbol": "BTCUSDT",
+          "base": {
+            "asset_id": "BTC",
+            "ticker": "BTC",
+            "native_token_id": "BTC",
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "quote": {
+            "asset_id": "USDT",
+            "ticker": "USDT",
+            "native_token_id": "USDT",
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "tick_size": "0.01000000",
+          "lot_size": "0.00001000",
+          "native_asset_id": null,
+          "dex_namespace": null,
+          "settlement": null,
+          "market_type": "spot",
+          "expiry_wall_ns": null,
+          "constraints": {
+            "min_base": "0.00001000",
+            "max_base": "9000.00000000",
+            "min_notional": "5.00000000",
+            "max_notional": "9000000.00000000",
+            "min_notional_currency": "USDT",
+            "price_rule": "fixed_tick",
+            "size_rule": "fixed_lot",
+            "max_limit_base": null,
+            "max_market_base": null
+          },
+          "contract_multiplier": "1",
+          "quantity_unit": "base",
+          "contract_value_currency": null,
+          "inverse": false,
+          "status": "active",
+          "data_access": "unknown",
+          "execution_access": "unknown",
+          "metadata_asof_wall_ns": 1793512299412424000,
+          "metadata_source": "https://data-api.binance.vision/api/v3/exchangeInfo",
+          "reference_multiplier": null,
+          "settlement_conversion": "unknown",
+          "contract_specification_source": null
+        },
+        "key": {
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+          "channel": "trades",
+          "depth": null,
+          "aggregation": []
+        },
+        "adapter_revision": "binance-v1",
+        "config_hash": "default",
+        "adapter_config": []
+      },
+      {
+        "stream_id": "ba225fbd-1e54-432a-ab31-5964c898bf05",
+        "instrument": {
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+          "metadata_version": "cfa67abe4eceffa08b9cd0e5eddb86af98a50cb7212be9646497dc3993b3178a:1793512299412424000",
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "native_symbol": "ETHUSDT",
+          "base": {
+            "asset_id": "ETH",
+            "ticker": "ETH",
+            "native_token_id": "ETH",
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "quote": {
+            "asset_id": "USDT",
+            "ticker": "USDT",
+            "native_token_id": "USDT",
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "tick_size": "0.01000000",
+          "lot_size": "0.00010000",
+          "native_asset_id": null,
+          "dex_namespace": null,
+          "settlement": null,
+          "market_type": "spot",
+          "expiry_wall_ns": null,
+          "constraints": {
+            "min_base": "0.00010000",
+            "max_base": "9000.00000000",
+            "min_notional": "5.00000000",
+            "max_notional": "9000000.00000000",
+            "min_notional_currency": "USDT",
+            "price_rule": "fixed_tick",
+            "size_rule": "fixed_lot",
+            "max_limit_base": null,
+            "max_market_base": null
+          },
+          "contract_multiplier": "1",
+          "quantity_unit": "base",
+          "contract_value_currency": null,
+          "inverse": false,
+          "status": "active",
+          "data_access": "unknown",
+          "execution_access": "unknown",
+          "metadata_asof_wall_ns": 1793512299412424000,
+          "metadata_source": "https://data-api.binance.vision/api/v3/exchangeInfo",
+          "reference_multiplier": null,
+          "settlement_conversion": "unknown",
+          "contract_specification_source": null
+        },
+        "key": {
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+          "channel": "book",
+          "depth": 5000,
+          "aggregation": []
+        },
+        "adapter_revision": "binance-v2",
+        "config_hash": "default",
+        "adapter_config": []
+      },
+      {
+        "stream_id": "19a00c06-dfc8-4050-be9c-d365652ffba0",
+        "instrument": {
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+          "metadata_version": "cfa67abe4eceffa08b9cd0e5eddb86af98a50cb7212be9646497dc3993b3178a:1793512299412424000",
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "native_symbol": "ETHUSDT",
+          "base": {
+            "asset_id": "ETH",
+            "ticker": "ETH",
+            "native_token_id": "ETH",
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "quote": {
+            "asset_id": "USDT",
+            "ticker": "USDT",
+            "native_token_id": "USDT",
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "tick_size": "0.01000000",
+          "lot_size": "0.00010000",
+          "native_asset_id": null,
+          "dex_namespace": null,
+          "settlement": null,
+          "market_type": "spot",
+          "expiry_wall_ns": null,
+          "constraints": {
+            "min_base": "0.00010000",
+            "max_base": "9000.00000000",
+            "min_notional": "5.00000000",
+            "max_notional": "9000000.00000000",
+            "min_notional_currency": "USDT",
+            "price_rule": "fixed_tick",
+            "size_rule": "fixed_lot",
+            "max_limit_base": null,
+            "max_market_base": null
+          },
+          "contract_multiplier": "1",
+          "quantity_unit": "base",
+          "contract_value_currency": null,
+          "inverse": false,
+          "status": "active",
+          "data_access": "unknown",
+          "execution_access": "unknown",
+          "metadata_asof_wall_ns": 1793512299412424000,
+          "metadata_source": "https://data-api.binance.vision/api/v3/exchangeInfo",
+          "reference_multiplier": null,
+          "settlement_conversion": "unknown",
+          "contract_specification_source": null
+        },
+        "key": {
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+          "channel": "trades",
+          "depth": null,
+          "aggregation": []
+        },
+        "adapter_revision": "binance-v1",
+        "config_hash": "default",
+        "adapter_config": []
+      },
+      {
+        "stream_id": "94c871e1-78b5-4230-b6ee-08238f9676c5",
+        "instrument": {
+          "instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+          "metadata_version": "cfa67abe4eceffa08b9cd0e5eddb86af98a50cb7212be9646497dc3993b3178a:1793512299412424000",
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "native_symbol": "SOLUSDT",
+          "base": {
+            "asset_id": "SOL",
+            "ticker": "SOL",
+            "native_token_id": "SOL",
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "quote": {
+            "asset_id": "USDT",
+            "ticker": "USDT",
+            "native_token_id": "USDT",
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "tick_size": "0.01000000",
+          "lot_size": "0.00100000",
+          "native_asset_id": null,
+          "dex_namespace": null,
+          "settlement": null,
+          "market_type": "spot",
+          "expiry_wall_ns": null,
+          "constraints": {
+            "min_base": "0.00100000",
+            "max_base": "90000.00000000",
+            "min_notional": "5.00000000",
+            "max_notional": "9000000.00000000",
+            "min_notional_currency": "USDT",
+            "price_rule": "fixed_tick",
+            "size_rule": "fixed_lot",
+            "max_limit_base": null,
+            "max_market_base": null
+          },
+          "contract_multiplier": "1",
+          "quantity_unit": "base",
+          "contract_value_currency": null,
+          "inverse": false,
+          "status": "active",
+          "data_access": "unknown",
+          "execution_access": "unknown",
+          "metadata_asof_wall_ns": 1793512299412424000,
+          "metadata_source": "https://data-api.binance.vision/api/v3/exchangeInfo",
+          "reference_multiplier": null,
+          "settlement_conversion": "unknown",
+          "contract_specification_source": null
+        },
+        "key": {
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+          "channel": "book",
+          "depth": 5000,
+          "aggregation": []
+        },
+        "adapter_revision": "binance-v2",
+        "config_hash": "default",
+        "adapter_config": []
+      },
+      {
+        "stream_id": "94ee92d9-61a8-4bc1-8e8b-766ff842c7ae",
+        "instrument": {
+          "instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+          "metadata_version": "cfa67abe4eceffa08b9cd0e5eddb86af98a50cb7212be9646497dc3993b3178a:1793512299412424000",
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "native_symbol": "SOLUSDT",
+          "base": {
+            "asset_id": "SOL",
+            "ticker": "SOL",
+            "native_token_id": "SOL",
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "quote": {
+            "asset_id": "USDT",
+            "ticker": "USDT",
+            "native_token_id": "USDT",
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "tick_size": "0.01000000",
+          "lot_size": "0.00100000",
+          "native_asset_id": null,
+          "dex_namespace": null,
+          "settlement": null,
+          "market_type": "spot",
+          "expiry_wall_ns": null,
+          "constraints": {
+            "min_base": "0.00100000",
+            "max_base": "90000.00000000",
+            "min_notional": "5.00000000",
+            "max_notional": "9000000.00000000",
+            "min_notional_currency": "USDT",
+            "price_rule": "fixed_tick",
+            "size_rule": "fixed_lot",
+            "max_limit_base": null,
+            "max_market_base": null
+          },
+          "contract_multiplier": "1",
+          "quantity_unit": "base",
+          "contract_value_currency": null,
+          "inverse": false,
+          "status": "active",
+          "data_access": "unknown",
+          "execution_access": "unknown",
+          "metadata_asof_wall_ns": 1793512299412424000,
+          "metadata_source": "https://data-api.binance.vision/api/v3/exchangeInfo",
+          "reference_multiplier": null,
+          "settlement_conversion": "unknown",
+          "contract_specification_source": null
+        },
+        "key": {
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "instrument_id": "binance-global:spot-v3:spot:SOLUSDT",
+          "channel": "trades",
+          "depth": null,
+          "aggregation": []
+        },
+        "adapter_revision": "binance-v1",
+        "config_hash": "default",
+        "adapter_config": []
+      },
+      {
+        "stream_id": "b0210ff3-2527-49ba-8e92-b679642e9687",
+        "instrument": {
+          "instrument_id": "hyperliquid:info:perpetual:BTC",
+          "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793512301921272000:hyperliquid-denomination-v2",
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "native_symbol": "BTC",
+          "base": {
+            "asset_id": "BTC",
+            "ticker": "BTC",
+            "native_token_id": null,
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "quote": {
+            "asset_id": "USDT",
+            "ticker": "USDT",
+            "native_token_id": null,
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "tick_size": null,
+          "lot_size": "0.00001",
+          "native_asset_id": "0",
+          "dex_namespace": "default",
+          "settlement": {
+            "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+            "ticker": "USDC",
+            "native_token_id": "0",
+            "network": "hypercore",
+            "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+            "reference_asset_id": null
+          },
+          "market_type": "perpetual",
+          "expiry_wall_ns": null,
+          "constraints": {
+            "min_base": "0.00001",
+            "max_base": null,
+            "min_notional": null,
+            "max_notional": null,
+            "min_notional_currency": null,
+            "price_rule": "hyperliquid_significant_digits",
+            "size_rule": "fixed_lot",
+            "max_limit_base": null,
+            "max_market_base": null
+          },
+          "contract_multiplier": "1",
+          "quantity_unit": "base",
+          "contract_value_currency": "BTC",
+          "inverse": false,
+          "status": "active",
+          "data_access": "unknown",
+          "execution_access": "unknown",
+          "metadata_asof_wall_ns": 1793512301921272000,
+          "metadata_source": "https://api.hyperliquid.xyz/info",
+          "reference_multiplier": null,
+          "settlement_conversion": "quanto_no_fx",
+          "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+        },
+        "key": {
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "instrument_id": "hyperliquid:info:perpetual:BTC",
+          "channel": "book",
+          "depth": 20,
+          "aggregation": []
+        },
+        "adapter_revision": "hyperliquid-v1",
+        "config_hash": "default",
+        "adapter_config": [
+          [
+            "dex",
+            ""
+          ]
+        ]
+      },
+      {
+        "stream_id": "9a5400b0-9607-46f5-a993-0c3e0bb81d54",
+        "instrument": {
+          "instrument_id": "hyperliquid:info:perpetual:BTC",
+          "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793512301921272000:hyperliquid-denomination-v2",
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "native_symbol": "BTC",
+          "base": {
+            "asset_id": "BTC",
+            "ticker": "BTC",
+            "native_token_id": null,
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "quote": {
+            "asset_id": "USDT",
+            "ticker": "USDT",
+            "native_token_id": null,
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "tick_size": null,
+          "lot_size": "0.00001",
+          "native_asset_id": "0",
+          "dex_namespace": "default",
+          "settlement": {
+            "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+            "ticker": "USDC",
+            "native_token_id": "0",
+            "network": "hypercore",
+            "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+            "reference_asset_id": null
+          },
+          "market_type": "perpetual",
+          "expiry_wall_ns": null,
+          "constraints": {
+            "min_base": "0.00001",
+            "max_base": null,
+            "min_notional": null,
+            "max_notional": null,
+            "min_notional_currency": null,
+            "price_rule": "hyperliquid_significant_digits",
+            "size_rule": "fixed_lot",
+            "max_limit_base": null,
+            "max_market_base": null
+          },
+          "contract_multiplier": "1",
+          "quantity_unit": "base",
+          "contract_value_currency": "BTC",
+          "inverse": false,
+          "status": "active",
+          "data_access": "unknown",
+          "execution_access": "unknown",
+          "metadata_asof_wall_ns": 1793512301921272000,
+          "metadata_source": "https://api.hyperliquid.xyz/info",
+          "reference_multiplier": null,
+          "settlement_conversion": "quanto_no_fx",
+          "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+        },
+        "key": {
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "instrument_id": "hyperliquid:info:perpetual:BTC",
+          "channel": "trades",
+          "depth": null,
+          "aggregation": []
+        },
+        "adapter_revision": "hyperliquid-v1",
+        "config_hash": "default",
+        "adapter_config": [
+          [
+            "dex",
+            ""
+          ]
+        ]
+      },
+      {
+        "stream_id": "abbf9522-9042-4958-8367-ec5415a0459d",
+        "instrument": {
+          "instrument_id": "hyperliquid:info:perpetual:ETH",
+          "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793512301921272000:hyperliquid-denomination-v2",
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "native_symbol": "ETH",
+          "base": {
+            "asset_id": "ETH",
+            "ticker": "ETH",
+            "native_token_id": null,
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "quote": {
+            "asset_id": "USDT",
+            "ticker": "USDT",
+            "native_token_id": null,
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "tick_size": null,
+          "lot_size": "0.0001",
+          "native_asset_id": "1",
+          "dex_namespace": "default",
+          "settlement": {
+            "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+            "ticker": "USDC",
+            "native_token_id": "0",
+            "network": "hypercore",
+            "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+            "reference_asset_id": null
+          },
+          "market_type": "perpetual",
+          "expiry_wall_ns": null,
+          "constraints": {
+            "min_base": "0.0001",
+            "max_base": null,
+            "min_notional": null,
+            "max_notional": null,
+            "min_notional_currency": null,
+            "price_rule": "hyperliquid_significant_digits",
+            "size_rule": "fixed_lot",
+            "max_limit_base": null,
+            "max_market_base": null
+          },
+          "contract_multiplier": "1",
+          "quantity_unit": "base",
+          "contract_value_currency": "ETH",
+          "inverse": false,
+          "status": "active",
+          "data_access": "unknown",
+          "execution_access": "unknown",
+          "metadata_asof_wall_ns": 1793512301921272000,
+          "metadata_source": "https://api.hyperliquid.xyz/info",
+          "reference_multiplier": null,
+          "settlement_conversion": "quanto_no_fx",
+          "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+        },
+        "key": {
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "instrument_id": "hyperliquid:info:perpetual:ETH",
+          "channel": "book",
+          "depth": 20,
+          "aggregation": []
+        },
+        "adapter_revision": "hyperliquid-v1",
+        "config_hash": "default",
+        "adapter_config": [
+          [
+            "dex",
+            ""
+          ]
+        ]
+      },
+      {
+        "stream_id": "1a8f5794-e13f-4b00-a4b9-cffae56c275a",
+        "instrument": {
+          "instrument_id": "hyperliquid:info:perpetual:ETH",
+          "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793512301921272000:hyperliquid-denomination-v2",
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "native_symbol": "ETH",
+          "base": {
+            "asset_id": "ETH",
+            "ticker": "ETH",
+            "native_token_id": null,
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "quote": {
+            "asset_id": "USDT",
+            "ticker": "USDT",
+            "native_token_id": null,
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "tick_size": null,
+          "lot_size": "0.0001",
+          "native_asset_id": "1",
+          "dex_namespace": "default",
+          "settlement": {
+            "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+            "ticker": "USDC",
+            "native_token_id": "0",
+            "network": "hypercore",
+            "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+            "reference_asset_id": null
+          },
+          "market_type": "perpetual",
+          "expiry_wall_ns": null,
+          "constraints": {
+            "min_base": "0.0001",
+            "max_base": null,
+            "min_notional": null,
+            "max_notional": null,
+            "min_notional_currency": null,
+            "price_rule": "hyperliquid_significant_digits",
+            "size_rule": "fixed_lot",
+            "max_limit_base": null,
+            "max_market_base": null
+          },
+          "contract_multiplier": "1",
+          "quantity_unit": "base",
+          "contract_value_currency": "ETH",
+          "inverse": false,
+          "status": "active",
+          "data_access": "unknown",
+          "execution_access": "unknown",
+          "metadata_asof_wall_ns": 1793512301921272000,
+          "metadata_source": "https://api.hyperliquid.xyz/info",
+          "reference_multiplier": null,
+          "settlement_conversion": "quanto_no_fx",
+          "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+        },
+        "key": {
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "instrument_id": "hyperliquid:info:perpetual:ETH",
+          "channel": "trades",
+          "depth": null,
+          "aggregation": []
+        },
+        "adapter_revision": "hyperliquid-v1",
+        "config_hash": "default",
+        "adapter_config": [
+          [
+            "dex",
+            ""
+          ]
+        ]
+      },
+      {
+        "stream_id": "6ccc4081-58b4-4e78-9c38-d1fe15b8b525",
+        "instrument": {
+          "instrument_id": "hyperliquid:info:perpetual:SOL",
+          "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793512301921272000:hyperliquid-denomination-v2",
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "native_symbol": "SOL",
+          "base": {
+            "asset_id": "SOL",
+            "ticker": "SOL",
+            "native_token_id": null,
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "quote": {
+            "asset_id": "USDT",
+            "ticker": "USDT",
+            "native_token_id": null,
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "tick_size": null,
+          "lot_size": "0.01",
+          "native_asset_id": "5",
+          "dex_namespace": "default",
+          "settlement": {
+            "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+            "ticker": "USDC",
+            "native_token_id": "0",
+            "network": "hypercore",
+            "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+            "reference_asset_id": null
+          },
+          "market_type": "perpetual",
+          "expiry_wall_ns": null,
+          "constraints": {
+            "min_base": "0.01",
+            "max_base": null,
+            "min_notional": null,
+            "max_notional": null,
+            "min_notional_currency": null,
+            "price_rule": "hyperliquid_significant_digits",
+            "size_rule": "fixed_lot",
+            "max_limit_base": null,
+            "max_market_base": null
+          },
+          "contract_multiplier": "1",
+          "quantity_unit": "base",
+          "contract_value_currency": "SOL",
+          "inverse": false,
+          "status": "active",
+          "data_access": "unknown",
+          "execution_access": "unknown",
+          "metadata_asof_wall_ns": 1793512301921272000,
+          "metadata_source": "https://api.hyperliquid.xyz/info",
+          "reference_multiplier": null,
+          "settlement_conversion": "quanto_no_fx",
+          "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+        },
+        "key": {
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "instrument_id": "hyperliquid:info:perpetual:SOL",
+          "channel": "book",
+          "depth": 20,
+          "aggregation": []
+        },
+        "adapter_revision": "hyperliquid-v1",
+        "config_hash": "default",
+        "adapter_config": [
+          [
+            "dex",
+            ""
+          ]
+        ]
+      },
+      {
+        "stream_id": "09424353-51c7-496d-bef8-284e22536779",
+        "instrument": {
+          "instrument_id": "hyperliquid:info:perpetual:SOL",
+          "metadata_version": "28af2240bb3c49ff0ffe5ceed643f2d1b2c4d6ffb887f88b6364a3d4e3bfd9f7:1793512301921272000:hyperliquid-denomination-v2",
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "native_symbol": "SOL",
+          "base": {
+            "asset_id": "SOL",
+            "ticker": "SOL",
+            "native_token_id": null,
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "quote": {
+            "asset_id": "USDT",
+            "ticker": "USDT",
+            "native_token_id": null,
+            "network": null,
+            "contract_address": null,
+            "reference_asset_id": null
+          },
+          "tick_size": null,
+          "lot_size": "0.01",
+          "native_asset_id": "5",
+          "dex_namespace": "default",
+          "settlement": {
+            "asset_id": "hyperliquid:hypercore:token:0x6d1e7cde53ba9467b783cb7c530ce054",
+            "ticker": "USDC",
+            "native_token_id": "0",
+            "network": "hypercore",
+            "contract_address": "0x6b9e773128f453f5c2c60935ee2de2cbc5390a24",
+            "reference_asset_id": null
+          },
+          "market_type": "perpetual",
+          "expiry_wall_ns": null,
+          "constraints": {
+            "min_base": "0.01",
+            "max_base": null,
+            "min_notional": null,
+            "max_notional": null,
+            "min_notional_currency": null,
+            "price_rule": "hyperliquid_significant_digits",
+            "size_rule": "fixed_lot",
+            "max_limit_base": null,
+            "max_market_base": null
+          },
+          "contract_multiplier": "1",
+          "quantity_unit": "base",
+          "contract_value_currency": "SOL",
+          "inverse": false,
+          "status": "active",
+          "data_access": "unknown",
+          "execution_access": "unknown",
+          "metadata_asof_wall_ns": 1793512301921272000,
+          "metadata_source": "https://api.hyperliquid.xyz/info",
+          "reference_multiplier": null,
+          "settlement_conversion": "quanto_no_fx",
+          "contract_specification_source": "https://hyperliquid.gitbook.io/hyperliquid-docs/trading/contract-specifications"
+        },
+        "key": {
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "instrument_id": "hyperliquid:info:perpetual:SOL",
+          "channel": "trades",
+          "depth": null,
+          "aggregation": []
+        },
+        "adapter_revision": "hyperliquid-v1",
+        "config_hash": "default",
+        "adapter_config": [
+          [
+            "dex",
+            ""
+          ]
+        ]
+      }
+    ],
+    "evidence": {
+      "raw": {
+        "sha256": "2dc265b9d3bcc859963a90e43f547f0c00b1241328d34edb8b40600112da6301",
+        "records": 679,
+        "encoded_bytes": 1904052
+      },
+      "normalized": {
+        "sha256": "61a382494964933a04f4af7bbd92596563000c707a0398da8df1f1109ce668c6",
+        "records": 703,
+        "encoded_bytes": 5959988
+      },
+      "checkpoints": {
+        "sha256": "06fc46a13cbc0e84260555a7cec79d79e6319863bb66284ff30318c4be423c8b",
+        "records": 216,
+        "encoded_bytes": 141274561
+      },
+      "raw_receive": {
+        "span_seconds": 19.329841287,
+        "payload_bytes": 1141224,
+        "average_frames_per_second": 35.12703440853658,
+        "peak_frames_per_receive_highwater_aligned_second": 81
+      }
+    }
+  },
+  "source_verification_and_hashing": {
+    "wall_seconds": 27.23370684000838,
+    "cpu_seconds": 26.34385,
+    "cpu_percent_one_core": 96.73251663742992,
+    "process_lifetime_peak_rss_bytes": 175419392
+  },
+  "source_normalized_replay": {
+    "mode": "normalized",
+    "deliveries": 703,
+    "book_sha256": "addf0fe4ddff4ca7e4581bcaea2f010621c36d9a3e04f799bd36f1c9a0ec1a22",
+    "state_sha256": "c963b3189750d493c38b9bde20761687c0e8da09b04d388f7f3d21e0c8c9b1b0",
+    "clock_sha256": "5b17631c8f7955cb15ca272a54722e922e810f71e5696b9f365efd25cf20e506",
+    "dataset": {
+      "event_mix": {
+        "Control": 24,
+        "BookUpdate": 479,
+        "Trade": 311,
+        "Gap": 12
+      },
+      "book_updates": {
+        "snapshot": 15,
+        "level_changes": 32348,
+        "delta": 464
+      },
+      "source_modes": {
+        "ws_delta": 476,
+        "ws_snapshot": 350
+      },
+      "maximum_connection_epoch": {
+        "2fbdb2ec-6eba-4979-8ba5-a3a7fd714f36": 1,
+        "5d3a3325-0f8c-4c0b-a7ab-f9c9cf8caab2": 1,
+        "ba225fbd-1e54-432a-ab31-5964c898bf05": 1,
+        "19a00c06-dfc8-4050-be9c-d365652ffba0": 1,
+        "94c871e1-78b5-4230-b6ee-08238f9676c5": 1,
+        "94ee92d9-61a8-4bc1-8e8b-766ff842c7ae": 1,
+        "b0210ff3-2527-49ba-8e92-b679642e9687": 1,
+        "9a5400b0-9607-46f5-a993-0c3e0bb81d54": 1,
+        "abbf9522-9042-4958-8367-ec5415a0459d": 1,
+        "1a8f5794-e13f-4b00-a4b9-cffae56c275a": 1,
+        "6ccc4081-58b4-4e78-9c38-d1fe15b8b525": 1,
+        "09424353-51c7-496d-bef8-284e22536779": 1
+      },
+      "native_retained_depths": {
+        "b0210ff3-2527-49ba-8e92-b679642e9687": {
+          "max_bid_levels": 20,
+          "max_ask_levels": 20
+        },
+        "abbf9522-9042-4958-8367-ec5415a0459d": {
+          "max_bid_levels": 20,
+          "max_ask_levels": 20
+        },
+        "6ccc4081-58b4-4e78-9c38-d1fe15b8b525": {
+          "max_bid_levels": 20,
+          "max_ask_levels": 20
+        },
+        "2fbdb2ec-6eba-4979-8ba5-a3a7fd714f36": {
+          "max_bid_levels": 5004,
+          "max_ask_levels": 5008
+        },
+        "94c871e1-78b5-4230-b6ee-08238f9676c5": {
+          "max_bid_levels": 4844,
+          "max_ask_levels": 5000
+        },
+        "ba225fbd-1e54-432a-ab31-5964c898bf05": {
+          "max_bid_levels": 5002,
+          "max_ask_levels": 5002
+        }
+      },
+      "receive_mono_span_seconds": 25.016050864,
+      "average_batches_per_receive_span_second": 28.1019575720351,
+      "peak_batches_per_receive_highwater_aligned_second": 81
+    },
+    "wall_seconds": 5.151513381002587,
+    "cpu_seconds": 5.047809000000001,
+    "cpu_percent_one_core": 97.98691426513574,
+    "process_lifetime_peak_rss_bytes": 175419392,
+    "stages": {
+      "reader_batch_next": {
+        "count": 704,
+        "retained_samples": 704,
+        "quantile_method": "nearest-rank all observations",
+        "total_seconds": 1.406026909,
+        "max_ms": 324.575489,
+        "p50_ms": 0.582697,
+        "p95_ms": 1.494935,
+        "p99_ms": 5.948761
+      },
+      "replay_projection_apply": {
+        "count": 703,
+        "retained_samples": 703,
+        "quantile_method": "nearest-rank all observations",
+        "total_seconds": 1.723505526,
+        "max_ms": 293.718571,
+        "p50_ms": 1.282206,
+        "p95_ms": 3.170918,
+        "p99_ms": 4.439515
+      },
+      "replay_step_inclusive": {
+        "count": 704,
+        "retained_samples": 704,
+        "quantile_method": "nearest-rank all observations",
+        "total_seconds": 3.150248303,
+        "max_ms": 596.133963,
+        "p50_ms": 2.106351,
+        "p95_ms": 4.373125,
+        "p99_ms": 6.77475
+      }
+    }
+  },
+  "source_raw_replay": {
+    "mode": "raw",
+    "deliveries": 703,
+    "book_sha256": "addf0fe4ddff4ca7e4581bcaea2f010621c36d9a3e04f799bd36f1c9a0ec1a22",
+    "state_sha256": "c963b3189750d493c38b9bde20761687c0e8da09b04d388f7f3d21e0c8c9b1b0",
+    "clock_sha256": "5b17631c8f7955cb15ca272a54722e922e810f71e5696b9f365efd25cf20e506",
+    "wall_seconds": 7.280741067996132,
+    "cpu_seconds": 7.120784999999998,
+    "cpu_percent_one_core": 97.80302490498872,
+    "process_lifetime_peak_rss_bytes": 180625408,
+    "stages": {
+      "reader_batch_next": {
+        "count": 704,
+        "retained_samples": 704,
+        "quantile_method": "nearest-rank all observations",
+        "total_seconds": 1.370795845,
+        "max_ms": 291.711912,
+        "p50_ms": 0.57939,
+        "p95_ms": 1.419531,
+        "p99_ms": 5.368065
+      },
+      "reader_raw_lookup": {
+        "count": 703,
+        "retained_samples": 703,
+        "quantile_method": "nearest-rank all observations",
+        "total_seconds": 0.376190486,
+        "max_ms": 4.305187,
+        "p50_ms": 0.492077,
+        "p95_ms": 0.783302,
+        "p99_ms": 1.041977
+      },
+      "replay_projection_apply": {
+        "count": 24,
+        "retained_samples": 24,
+        "quantile_method": "nearest-rank all observations",
+        "total_seconds": 0.001841738,
+        "max_ms": 0.170197,
+        "p50_ms": 0.072542,
+        "p95_ms": 0.147688,
+        "p99_ms": 0.170197
+      },
+      "replay_raw_decode_and_projection": {
+        "count": 679,
+        "retained_samples": 679,
+        "quantile_method": "nearest-rank all observations",
+        "total_seconds": 2.762100498,
+        "max_ms": 597.919466,
+        "p50_ms": 1.847431,
+        "p95_ms": 4.016999,
+        "p99_ms": 5.946509
+      },
+      "replay_step_inclusive": {
+        "count": 704,
+        "retained_samples": 704,
+        "quantile_method": "nearest-rank all observations",
+        "total_seconds": 5.180533522,
+        "max_ms": 1054.266652,
+        "p50_ms": 3.12671,
+        "p95_ms": 6.021504,
+        "p99_ms": 10.176588
+      }
+    }
+  },
+  "source_raw_normalized_state_exact": true,
+  "source_checkpoint_seek": {
+    "checkpoint_status": "restored",
+    "book_sha256": "addf0fe4ddff4ca7e4581bcaea2f010621c36d9a3e04f799bd36f1c9a0ec1a22",
+    "state_sha256": "c963b3189750d493c38b9bde20761687c0e8da09b04d388f7f3d21e0c8c9b1b0",
+    "book_exact": true,
+    "state_exact": true,
+    "wall_seconds": 7.617055160997552,
+    "cpu_seconds": 7.417698999999999,
+    "cpu_percent_one_core": 97.38276595372004,
+    "process_lifetime_peak_rss_bytes": 209235968
+  },
+  "source_files_sha256": {
+    "src/workstation/__init__.py": "d32a38cc280c6e747e68e7e64e27ebbe9aef3e3ac4e19fca2e7d8f7fb54f9ac8",
+    "src/workstation/adapter_catalog.py": "82d22123e418ebbb5f56da499805b4fef7671bcf29039124355431855519dba2",
+    "src/workstation/adapters/__init__.py": "ebfb09d028b47872e3ede6cdaea00ff7903029c37ed000f5308741abc23665e8",
+    "src/workstation/adapters/base.py": "078cc7da780e21c11b065a62436986b48664ae244c4a38326a5e9f3ad4e12d45",
+    "src/workstation/adapters/binance.py": "ce02eb26c3ab8b4cebe975240201f9d1fc7403391cffdaab947cc3758d8853ca",
+    "src/workstation/adapters/hyperliquid.py": "c1f3a558c73f9c9f5831c401bb8f978ba3d8f7bee931de3aed59232ad088b7c3",
+    "src/workstation/analytics.py": "5e4371590747399200b048a72e15ff0c542f0f68748f1c4962d369e92fcb5813",
+    "src/workstation/book.py": "f908201f41719b1d7726af4a38df0a3a166660c7312d21c4e9428e63053e4a74",
+    "src/workstation/costs.py": "1b249341e6e0373e84c9f2c4077d60354950fd96a9a482e26fdcb8d69779a40a",
+    "src/workstation/events.py": "63edc89a304a2272e2999708a30153aef2e99dfd10b22c718933f8722a18727d",
+    "src/workstation/ingestion.py": "84f2dcbc759f9e1119df693aa699b46bf7909f436dad2e252412ae59616a552e",
+    "src/workstation/instruments.py": "188e11494cd470414cff1ec3fd96024c528f0a6ae51289a2d2dcab77bf3a27a9",
+    "src/workstation/precision.py": "abee27115d3d86d88cb32e99627e9b7ec48bdaa13c453b5be30331463ad25edc",
+    "src/workstation/projection.py": "f36753759de852eea545932a1723b749257e74b013f01c057be447de6bb101b8",
+    "src/workstation/quality.py": "e49ea4fd531d2e42c9baf31133876610df8ec205e7f62770dca254ad9b279071",
+    "src/workstation/recording.py": "11bc8046eb9acf90f8d3c22e7d2a8ca595f231ca8f6a9edc9e8490b75771afef",
+    "src/workstation/replay.py": "1f3592b0ea9e30e1c88bf49424886e63f1df72070bc8c40c1436649f114220d1",
+    "src/workstation/transport.py": "3b706b8140f456a9a7f8b54b13ed69be0d01d29b744704e65614cfe79502b530",
+    "src/workstation/wire.py": "addafd6a9e6d677751cba2fc0d4613bcb571b4b03dd81dc1d28e25faad012737"
+  },
+  "loads": [
+    {
+      "name": "baseline",
+      "speed_multiplier": 1,
+      "input_mode": "streaming_reader_and_writer",
+      "visited_prefix_scheduled_span_seconds": 25.016050864,
+      "schedule": "synthetic receive-mono highwater; raw ordinal merge before normalized callback delivery",
+      "source_publication_timestamps_available": false,
+      "source_local_processing_latency": null,
+      "output_path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m3-profile/final-complete-streaming/baseline/9b355ab1-b2a2-4dbb-ae67-a47710272382",
+      "offered_raw": 679,
+      "offered_batches": 703,
+      "offered_events": 826,
+      "rejected_offer_count": 0,
+      "unoffered_raw": 0,
+      "unoffered_batches": 0,
+      "accepted_but_not_written_raw": 0,
+      "accepted_but_not_written_batches": 0,
+      "intentional_drops": 0,
+      "failure": null,
+      "producer_seconds": 25.036045845001354,
+      "finalize_drain_and_seal_seconds": 2.1754085319989827,
+      "worker_thread_cpu_seconds": 7.634103795,
+      "worker_thread_wall_seconds": 27.206572256,
+      "achieved_offered_batches_per_second": 28.079514007614726,
+      "capture": {
+        "complete": true,
+        "incomplete_reasons": [],
+        "raw_count": 679,
+        "batch_count": 703,
+        "event_count": 826,
+        "checkpoint_count": 144,
+        "gap_count": 12,
+        "gap_reasons": {
+          "owner_stopped": 12
+        },
+        "capture_lost_gap_count": 0,
+        "limits": {
+          "queue_count": 512,
+          "queue_bytes": 134217728,
+          "raw_rotation_bytes": 16777216,
+          "parquet_batch_count": 128,
+          "parquet_batch_bytes": 16777216,
+          "max_row_bytes": 268435456,
+          "max_files": 100000,
+          "max_streams": 1024,
+          "min_free_bytes": 67108864,
+          "managed_budget_bytes": 10737418240,
+          "retention_max_sessions": 100,
+          "finalize_timeout": 30.0,
+          "checkpoint_interval_batches": 1000,
+          "max_query_rows": 10000,
+          "parquet_buffer_count": 4096,
+          "reader_cache_bytes": 33554432,
+          "reader_cache_count": 8192,
+          "checkpoint_group_count": 64,
+          "checkpoint_group_bytes": 16777216
+        }
+      },
+      "checkpoint_cadence": {
+        "source_interval_batches": 100,
+        "effective_writer_interval_batches": 1000,
+        "matches_source": false
+      },
+      "health": {
+        "state": "finalized",
+        "queue_count": 0,
+        "queue_bytes": 0,
+        "high_water_count": 51,
+        "high_water_bytes": 8060356,
+        "incomplete_reasons": [],
+        "written_bytes": 10501737,
+        "terminal_failure": false
+      },
+      "stages": {
+        "accepted_to_worker_dispatch_events_inclusive": {
+          "count": 703,
+          "retained_samples": 703,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 27.90011335,
+          "max_ms": 2120.957695,
+          "p50_ms": 0.178368,
+          "p95_ms": 337.588481,
+          "p99_ms": 706.423162
+        },
+        "accepted_to_worker_dispatch_raw": {
+          "count": 679,
+          "retained_samples": 679,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 17.061607969,
+          "max_ms": 714.031863,
+          "p50_ms": 0.112102,
+          "p95_ms": 186.757462,
+          "p99_ms": 631.11507
+        },
+        "load_generator_next_inclusive": {
+          "count": 1383,
+          "retained_samples": 1383,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 5.278813841,
+          "max_ms": 549.516185,
+          "p50_ms": 1.643422,
+          "p95_ms": 7.901707,
+          "p99_ms": 32.593848
+        },
+        "producer_append_events_inclusive": {
+          "count": 703,
+          "retained_samples": 703,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.208315026,
+          "max_ms": 63.436523,
+          "p50_ms": 0.099384,
+          "p95_ms": 0.294849,
+          "p99_ms": 0.651506
+        },
+        "producer_append_raw_inclusive": {
+          "count": 679,
+          "retained_samples": 679,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.067381708,
+          "max_ms": 0.987487,
+          "p50_ms": 0.059136,
+          "p95_ms": 0.262941,
+          "p99_ms": 0.458643
+        },
+        "producer_queue_offer_events": {
+          "count": 703,
+          "retained_samples": 703,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.021788083,
+          "max_ms": 7.601278,
+          "p50_ms": 0.015961,
+          "p95_ms": 0.051148,
+          "p99_ms": 0.122208
+        },
+        "producer_queue_offer_raw": {
+          "count": 679,
+          "retained_samples": 679,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.02310003,
+          "max_ms": 0.887952,
+          "p50_ms": 0.022103,
+          "p95_ms": 0.076571,
+          "p99_ms": 0.170546
+        },
+        "reader_batch_next": {
+          "count": 704,
+          "retained_samples": 704,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 3.399438125,
+          "max_ms": 549.50877,
+          "p50_ms": 2.498591,
+          "p95_ms": 7.991259,
+          "p99_ms": 13.081798
+        },
+        "reader_raw_lookup": {
+          "count": 679,
+          "retained_samples": 679,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 1.676996102,
+          "max_ms": 53.910065,
+          "p50_ms": 1.221277,
+          "p95_ms": 6.417946,
+          "p99_ms": 41.894473
+        },
+        "synthetic_schedule_lateness": {
+          "count": 1382,
+          "retained_samples": 1382,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 120.604528855,
+          "max_ms": 1153.476271,
+          "p50_ms": 10.218452,
+          "p95_ms": 733.454754,
+          "p99_ms": 1028.207627
+        },
+        "worker_checkpoint_group": {
+          "count": 13,
+          "retained_samples": 13,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 3.96350694,
+          "max_ms": 743.521548,
+          "p50_ms": 281.083581,
+          "p95_ms": 743.521548,
+          "p99_ms": 743.521548
+        },
+        "worker_events_inclusive": {
+          "count": 703,
+          "retained_samples": 703,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 8.615105972,
+          "max_ms": 804.488559,
+          "p50_ms": 2.122506,
+          "p95_ms": 7.826831,
+          "p99_ms": 381.947967
+        },
+        "worker_flush_events": {
+          "count": 4,
+          "retained_samples": 4,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.892862768,
+          "max_ms": 799.571237,
+          "p50_ms": 13.485943,
+          "p95_ms": 799.571237,
+          "p99_ms": 799.571237
+        },
+        "worker_projection_apply": {
+          "count": 703,
+          "retained_samples": 703,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 2.496161758,
+          "max_ms": 500.21591,
+          "p50_ms": 1.642532,
+          "p95_ms": 5.979411,
+          "p99_ms": 8.973232
+        },
+        "worker_raw": {
+          "count": 679,
+          "retained_samples": 679,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.537224603,
+          "max_ms": 25.503471,
+          "p50_ms": 0.44267,
+          "p95_ms": 1.314196,
+          "p99_ms": 11.269728
+        },
+        "worker_save_projection_inclusive": {
+          "count": 37,
+          "retained_samples": 37,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 4.699724804,
+          "max_ms": 744.869277,
+          "p50_ms": 0.153255,
+          "p95_ms": 621.880669,
+          "p99_ms": 744.869277
+        }
+      },
+      "wall_seconds": 27.532486386000528,
+      "cpu_seconds": 10.500819,
+      "cpu_percent_one_core": 38.13974100551762,
+      "process_lifetime_peak_rss_bytes": 227713024,
+      "written_batches_per_second_including_startup_drain_seal": 25.533473081365262,
+      "parity": {
+        "manifest_sha256": "899c8095b49182c7de3a95c6c223998b54d06d510a3276d49f16bfd874bb31cb",
+        "evidence": {
+          "raw": {
+            "sha256": "2dc265b9d3bcc859963a90e43f547f0c00b1241328d34edb8b40600112da6301",
+            "records": 679,
+            "encoded_bytes": 1904052
+          },
+          "normalized": {
+            "sha256": "61a382494964933a04f4af7bbd92596563000c707a0398da8df1f1109ce668c6",
+            "records": 703,
+            "encoded_bytes": 5959988
+          },
+          "checkpoints": {
+            "sha256": "211e8dc2abe1fb419165959ce498401c68928d5c778d19687f79d4ba24e808f2",
+            "records": 144,
+            "encoded_bytes": 94907525
+          },
+          "raw_receive": {
+            "span_seconds": 19.329841287,
+            "payload_bytes": 1141224,
+            "average_frames_per_second": 35.12703440853658,
+            "peak_frames_per_receive_highwater_aligned_second": 81
+          }
+        },
+        "raw_exact": true,
+        "normalized_exact": true,
+        "regenerated_checkpoints_exact": false,
+        "normalized_replay": {
+          "mode": "normalized",
+          "deliveries": 703,
+          "book_sha256": "addf0fe4ddff4ca7e4581bcaea2f010621c36d9a3e04f799bd36f1c9a0ec1a22",
+          "state_sha256": "c963b3189750d493c38b9bde20761687c0e8da09b04d388f7f3d21e0c8c9b1b0",
+          "clock_sha256": "5b17631c8f7955cb15ca272a54722e922e810f71e5696b9f365efd25cf20e506",
+          "wall_seconds": 5.205112222000025,
+          "cpu_seconds": 5.109843999999995,
+          "cpu_percent_one_core": 98.16971819363727,
+          "process_lifetime_peak_rss_bytes": 262225920,
+          "stages": {
+            "reader_batch_next": {
+              "count": 704,
+              "retained_samples": 704,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 1.369540098,
+              "max_ms": 291.63201,
+              "p50_ms": 0.577809,
+              "p95_ms": 1.435174,
+              "p99_ms": 4.426643
+            },
+            "replay_projection_apply": {
+              "count": 703,
+              "retained_samples": 703,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 1.756153386,
+              "max_ms": 303.555943,
+              "p50_ms": 1.235079,
+              "p95_ms": 3.255561,
+              "p99_ms": 4.196368
+            },
+            "replay_step_inclusive": {
+              "count": 704,
+              "retained_samples": 704,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 3.147495788,
+              "max_ms": 591.568673,
+              "p50_ms": 2.09969,
+              "p95_ms": 4.337063,
+              "p99_ms": 6.323036
+            }
+          }
+        },
+        "raw_replay": {
+          "mode": "raw",
+          "deliveries": 703,
+          "book_sha256": "addf0fe4ddff4ca7e4581bcaea2f010621c36d9a3e04f799bd36f1c9a0ec1a22",
+          "state_sha256": "c963b3189750d493c38b9bde20761687c0e8da09b04d388f7f3d21e0c8c9b1b0",
+          "clock_sha256": "5b17631c8f7955cb15ca272a54722e922e810f71e5696b9f365efd25cf20e506",
+          "wall_seconds": 7.406817969997064,
+          "cpu_seconds": 7.186314999999993,
+          "cpu_percent_one_core": 97.02297301094387,
+          "process_lifetime_peak_rss_bytes": 262225920,
+          "stages": {
+            "reader_batch_next": {
+              "count": 704,
+              "retained_samples": 704,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 1.35939262,
+              "max_ms": 292.365421,
+              "p50_ms": 0.585719,
+              "p95_ms": 1.423737,
+              "p99_ms": 4.066704
+            },
+            "reader_raw_lookup": {
+              "count": 703,
+              "retained_samples": 703,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 0.362027559,
+              "max_ms": 4.317867,
+              "p50_ms": 0.479823,
+              "p95_ms": 0.716563,
+              "p99_ms": 0.839526
+            },
+            "replay_projection_apply": {
+              "count": 24,
+              "retained_samples": 24,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 0.001918094,
+              "max_ms": 0.21817,
+              "p50_ms": 0.069384,
+              "p95_ms": 0.129464,
+              "p99_ms": 0.21817
+            },
+            "replay_raw_decode_and_projection": {
+              "count": 679,
+              "retained_samples": 679,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 2.827356871,
+              "max_ms": 624.485651,
+              "p50_ms": 1.846589,
+              "p95_ms": 3.702524,
+              "p99_ms": 5.201757
+            },
+            "replay_step_inclusive": {
+              "count": 704,
+              "retained_samples": 704,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 5.212719792,
+              "max_ms": 1071.209716,
+              "p50_ms": 3.162583,
+              "p95_ms": 5.620961,
+              "p99_ms": 9.602463
+            }
+          }
+        },
+        "source_final_state_exact": true,
+        "source_final_book_exact": true,
+        "raw_normalized_state_exact": true,
+        "checkpoint_seek": {
+          "checkpoint_status": "restored",
+          "book_sha256": "addf0fe4ddff4ca7e4581bcaea2f010621c36d9a3e04f799bd36f1c9a0ec1a22",
+          "state_sha256": "c963b3189750d493c38b9bde20761687c0e8da09b04d388f7f3d21e0c8c9b1b0",
+          "book_exact": true,
+          "state_exact": true,
+          "wall_seconds": 7.48539555699972,
+          "cpu_seconds": 7.339269999999999,
+          "cpu_percent_one_core": 98.04785791362654,
+          "process_lifetime_peak_rss_bytes": 269381632
+        },
+        "verification_and_parity_usage": {
+          "wall_seconds": 38.872752565002884,
+          "cpu_seconds": 37.845746000000005,
+          "cpu_percent_one_core": 97.3580297323028,
+          "process_lifetime_peak_rss_bytes": 269381632
+        }
+      }
+    },
+    {
+      "name": "burst_2x",
+      "speed_multiplier": 2,
+      "input_mode": "streaming_reader_and_writer",
+      "visited_prefix_scheduled_span_seconds": 12.508025432,
+      "schedule": "synthetic receive-mono highwater; raw ordinal merge before normalized callback delivery",
+      "source_publication_timestamps_available": false,
+      "source_local_processing_latency": null,
+      "output_path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m3-profile/final-complete-streaming/burst_2x/9b355ab1-b2a2-4dbb-ae67-a47710272382",
+      "offered_raw": 679,
+      "offered_batches": 703,
+      "offered_events": 826,
+      "rejected_offer_count": 0,
+      "unoffered_raw": 0,
+      "unoffered_batches": 0,
+      "accepted_but_not_written_raw": 0,
+      "accepted_but_not_written_batches": 0,
+      "intentional_drops": 0,
+      "failure": null,
+      "producer_seconds": 12.598483854002552,
+      "finalize_drain_and_seal_seconds": 1.9297812709992286,
+      "worker_thread_cpu_seconds": 6.773880643,
+      "worker_thread_wall_seconds": 14.52359449,
+      "achieved_offered_batches_per_second": 55.800365198440616,
+      "capture": {
+        "complete": true,
+        "incomplete_reasons": [],
+        "raw_count": 679,
+        "batch_count": 703,
+        "event_count": 826,
+        "checkpoint_count": 144,
+        "gap_count": 12,
+        "gap_reasons": {
+          "owner_stopped": 12
+        },
+        "capture_lost_gap_count": 0,
+        "limits": {
+          "queue_count": 512,
+          "queue_bytes": 134217728,
+          "raw_rotation_bytes": 16777216,
+          "parquet_batch_count": 128,
+          "parquet_batch_bytes": 16777216,
+          "max_row_bytes": 268435456,
+          "max_files": 100000,
+          "max_streams": 1024,
+          "min_free_bytes": 67108864,
+          "managed_budget_bytes": 10737418240,
+          "retention_max_sessions": 100,
+          "finalize_timeout": 30.0,
+          "checkpoint_interval_batches": 1000,
+          "max_query_rows": 10000,
+          "parquet_buffer_count": 4096,
+          "reader_cache_bytes": 33554432,
+          "reader_cache_count": 8192,
+          "checkpoint_group_count": 64,
+          "checkpoint_group_bytes": 16777216
+        }
+      },
+      "checkpoint_cadence": {
+        "source_interval_batches": 100,
+        "effective_writer_interval_batches": 1000,
+        "matches_source": false
+      },
+      "health": {
+        "state": "finalized",
+        "queue_count": 0,
+        "queue_bytes": 0,
+        "high_water_count": 27,
+        "high_water_bytes": 8047299,
+        "incomplete_reasons": [],
+        "written_bytes": 10501737,
+        "terminal_failure": false
+      },
+      "stages": {
+        "accepted_to_worker_dispatch_events_inclusive": {
+          "count": 703,
+          "retained_samples": 703,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 19.470477786,
+          "max_ms": 1702.304554,
+          "p50_ms": 0.135556,
+          "p95_ms": 11.715162,
+          "p99_ms": 1002.183962
+        },
+        "accepted_to_worker_dispatch_raw": {
+          "count": 679,
+          "retained_samples": 679,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 13.514508382,
+          "max_ms": 1048.550816,
+          "p50_ms": 0.106463,
+          "p95_ms": 30.047323,
+          "p99_ms": 496.551624
+        },
+        "load_generator_next_inclusive": {
+          "count": 1383,
+          "retained_samples": 1383,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 5.572110705,
+          "max_ms": 914.481102,
+          "p50_ms": 1.229105,
+          "p95_ms": 6.818471,
+          "p99_ms": 35.123059
+        },
+        "producer_append_events_inclusive": {
+          "count": 703,
+          "retained_samples": 703,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.308492058,
+          "max_ms": 113.141814,
+          "p50_ms": 0.081192,
+          "p95_ms": 0.230251,
+          "p99_ms": 0.658556
+        },
+        "producer_append_raw_inclusive": {
+          "count": 679,
+          "retained_samples": 679,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.043054234,
+          "max_ms": 1.551012,
+          "p50_ms": 0.036802,
+          "p95_ms": 0.185733,
+          "p99_ms": 0.294526
+        },
+        "producer_queue_offer_events": {
+          "count": 703,
+          "retained_samples": 703,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.021542167,
+          "max_ms": 8.47505,
+          "p50_ms": 0.013127,
+          "p95_ms": 0.039184,
+          "p99_ms": 0.086352
+        },
+        "producer_queue_offer_raw": {
+          "count": 679,
+          "retained_samples": 679,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.016568081,
+          "max_ms": 1.438008,
+          "p50_ms": 0.014022,
+          "p95_ms": 0.060589,
+          "p99_ms": 0.127075
+        },
+        "reader_batch_next": {
+          "count": 704,
+          "retained_samples": 704,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 4.029568835,
+          "max_ms": 914.469614,
+          "p50_ms": 2.292424,
+          "p95_ms": 7.272424,
+          "p99_ms": 18.6566
+        },
+        "reader_raw_lookup": {
+          "count": 679,
+          "retained_samples": 679,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 1.417424678,
+          "max_ms": 81.038,
+          "p50_ms": 0.885136,
+          "p95_ms": 5.045962,
+          "p99_ms": 41.500689
+        },
+        "synthetic_schedule_lateness": {
+          "count": 1382,
+          "retained_samples": 1382,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 757.519729234,
+          "max_ms": 2374.118285,
+          "p50_ms": 18.042132,
+          "p95_ms": 2223.5646,
+          "p99_ms": 2308.597188
+        },
+        "worker_checkpoint_group": {
+          "count": 13,
+          "retained_samples": 13,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 3.246283519,
+          "max_ms": 324.629033,
+          "p50_ms": 260.986468,
+          "p95_ms": 324.629033,
+          "p99_ms": 324.629033
+        },
+        "worker_events_inclusive": {
+          "count": 703,
+          "retained_samples": 703,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 7.701712089,
+          "max_ms": 1035.412948,
+          "p50_ms": 2.04696,
+          "p95_ms": 6.373307,
+          "p99_ms": 326.018316
+        },
+        "worker_flush_events": {
+          "count": 4,
+          "retained_samples": 4,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.102873961,
+          "max_ms": 51.733059,
+          "p50_ms": 14.786358,
+          "p95_ms": 51.733059,
+          "p99_ms": 51.733059
+        },
+        "worker_projection_apply": {
+          "count": 703,
+          "retained_samples": 703,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 3.031591613,
+          "max_ms": 856.964903,
+          "p50_ms": 1.574394,
+          "p95_ms": 4.829704,
+          "p99_ms": 9.297384
+        },
+        "worker_raw": {
+          "count": 679,
+          "retained_samples": 679,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.526048555,
+          "max_ms": 74.104882,
+          "p50_ms": 0.292367,
+          "p95_ms": 1.604879,
+          "p99_ms": 12.98254
+        },
+        "worker_save_projection_inclusive": {
+          "count": 37,
+          "retained_samples": 37,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 3.971058285,
+          "max_ms": 618.126791,
+          "p50_ms": 0.155753,
+          "p95_ms": 393.345162,
+          "p99_ms": 618.126791
+        }
+      },
+      "wall_seconds": 14.550702968001133,
+      "cpu_seconds": 9.437453000000005,
+      "cpu_percent_one_core": 64.85908633248977,
+      "process_lifetime_peak_rss_bytes": 269381632,
+      "written_batches_per_second_including_startup_drain_seal": 48.313816971316605,
+      "parity": {
+        "manifest_sha256": "9da9fa27d6261bd539733ba93ace7cb0fe20a9cd4c476afcc3662eab9a9254af",
+        "evidence": {
+          "raw": {
+            "sha256": "2dc265b9d3bcc859963a90e43f547f0c00b1241328d34edb8b40600112da6301",
+            "records": 679,
+            "encoded_bytes": 1904052
+          },
+          "normalized": {
+            "sha256": "61a382494964933a04f4af7bbd92596563000c707a0398da8df1f1109ce668c6",
+            "records": 703,
+            "encoded_bytes": 5959988
+          },
+          "checkpoints": {
+            "sha256": "211e8dc2abe1fb419165959ce498401c68928d5c778d19687f79d4ba24e808f2",
+            "records": 144,
+            "encoded_bytes": 94907525
+          },
+          "raw_receive": {
+            "span_seconds": 19.329841287,
+            "payload_bytes": 1141224,
+            "average_frames_per_second": 35.12703440853658,
+            "peak_frames_per_receive_highwater_aligned_second": 81
+          }
+        },
+        "raw_exact": true,
+        "normalized_exact": true,
+        "regenerated_checkpoints_exact": false,
+        "normalized_replay": {
+          "mode": "normalized",
+          "deliveries": 703,
+          "book_sha256": "addf0fe4ddff4ca7e4581bcaea2f010621c36d9a3e04f799bd36f1c9a0ec1a22",
+          "state_sha256": "c963b3189750d493c38b9bde20761687c0e8da09b04d388f7f3d21e0c8c9b1b0",
+          "clock_sha256": "5b17631c8f7955cb15ca272a54722e922e810f71e5696b9f365efd25cf20e506",
+          "wall_seconds": 5.2447351700102445,
+          "cpu_seconds": 5.149369000000007,
+          "cpu_percent_one_core": 98.1816780653569,
+          "process_lifetime_peak_rss_bytes": 292032512,
+          "stages": {
+            "reader_batch_next": {
+              "count": 704,
+              "retained_samples": 704,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 1.372848508,
+              "max_ms": 288.985485,
+              "p50_ms": 0.577802,
+              "p95_ms": 1.454711,
+              "p99_ms": 5.509078
+            },
+            "replay_projection_apply": {
+              "count": 703,
+              "retained_samples": 703,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 1.7358533,
+              "max_ms": 308.227941,
+              "p50_ms": 1.158891,
+              "p95_ms": 3.246749,
+              "p99_ms": 4.054178
+            },
+            "replay_step_inclusive": {
+              "count": 704,
+              "retained_samples": 704,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 3.129757601,
+              "max_ms": 597.256763,
+              "p50_ms": 2.088495,
+              "p95_ms": 4.33105,
+              "p99_ms": 6.806428
+            }
+          }
+        },
+        "raw_replay": {
+          "mode": "raw",
+          "deliveries": 703,
+          "book_sha256": "addf0fe4ddff4ca7e4581bcaea2f010621c36d9a3e04f799bd36f1c9a0ec1a22",
+          "state_sha256": "c963b3189750d493c38b9bde20761687c0e8da09b04d388f7f3d21e0c8c9b1b0",
+          "clock_sha256": "5b17631c8f7955cb15ca272a54722e922e810f71e5696b9f365efd25cf20e506",
+          "wall_seconds": 7.38414485300018,
+          "cpu_seconds": 7.03231199999999,
+          "cpu_percent_one_core": 95.23529318554417,
+          "process_lifetime_peak_rss_bytes": 292032512,
+          "stages": {
+            "reader_batch_next": {
+              "count": 704,
+              "retained_samples": 704,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 1.535612405,
+              "max_ms": 390.068757,
+              "p50_ms": 0.586388,
+              "p95_ms": 1.385557,
+              "p99_ms": 6.55899
+            },
+            "reader_raw_lookup": {
+              "count": 703,
+              "retained_samples": 703,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 0.371676902,
+              "max_ms": 11.701204,
+              "p50_ms": 0.467289,
+              "p95_ms": 0.733548,
+              "p99_ms": 1.16242
+            },
+            "replay_projection_apply": {
+              "count": 24,
+              "retained_samples": 24,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 0.002074015,
+              "max_ms": 0.242046,
+              "p50_ms": 0.074094,
+              "p95_ms": 0.162706,
+              "p99_ms": 0.242046
+            },
+            "replay_raw_decode_and_projection": {
+              "count": 679,
+              "retained_samples": 679,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 2.817166406,
+              "max_ms": 679.0102,
+              "p50_ms": 1.85542,
+              "p95_ms": 3.792874,
+              "p99_ms": 5.983551
+            },
+            "replay_step_inclusive": {
+              "count": 704,
+              "retained_samples": 704,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 5.397652864,
+              "max_ms": 1238.075167,
+              "p50_ms": 3.126068,
+              "p95_ms": 5.618399,
+              "p99_ms": 13.492776
+            }
+          }
+        },
+        "source_final_state_exact": true,
+        "source_final_book_exact": true,
+        "raw_normalized_state_exact": true,
+        "checkpoint_seek": {
+          "checkpoint_status": "restored",
+          "book_sha256": "addf0fe4ddff4ca7e4581bcaea2f010621c36d9a3e04f799bd36f1c9a0ec1a22",
+          "state_sha256": "c963b3189750d493c38b9bde20761687c0e8da09b04d388f7f3d21e0c8c9b1b0",
+          "book_exact": true,
+          "state_exact": true,
+          "wall_seconds": 7.619203284994001,
+          "cpu_seconds": 7.434121000000005,
+          "cpu_percent_one_core": 97.5708446399046,
+          "process_lifetime_peak_rss_bytes": 292032512
+        },
+        "verification_and_parity_usage": {
+          "wall_seconds": 38.98175252700457,
+          "cpu_seconds": 37.803067999999996,
+          "cpu_percent_one_core": 96.97631724949245,
+          "process_lifetime_peak_rss_bytes": 292032512
+        }
+      }
+    },
+    {
+      "name": "unpaced_saturation",
+      "speed_multiplier": 0,
+      "input_mode": "streaming_reader_and_writer",
+      "visited_prefix_scheduled_span_seconds": null,
+      "schedule": "unpaced finite saturation attempt; file-generation limited",
+      "source_publication_timestamps_available": false,
+      "source_local_processing_latency": null,
+      "output_path": "/Users/dakariantoine/Developer/personal/limit-orderbook/data/m3-profile/final-complete-streaming/unpaced_saturation/9b355ab1-b2a2-4dbb-ae67-a47710272382",
+      "offered_raw": 679,
+      "offered_batches": 703,
+      "offered_events": 826,
+      "rejected_offer_count": 0,
+      "unoffered_raw": 0,
+      "unoffered_batches": 0,
+      "accepted_but_not_written_raw": 0,
+      "accepted_but_not_written_batches": 0,
+      "intentional_drops": 0,
+      "failure": null,
+      "producer_seconds": 4.390803027010406,
+      "finalize_drain_and_seal_seconds": 4.112639601997216,
+      "worker_thread_cpu_seconds": 6.285471474,
+      "worker_thread_wall_seconds": 8.498564335,
+      "achieved_offered_batches_per_second": 160.1073871169885,
+      "capture": {
+        "complete": true,
+        "incomplete_reasons": [],
+        "raw_count": 679,
+        "batch_count": 703,
+        "event_count": 826,
+        "checkpoint_count": 144,
+        "gap_count": 12,
+        "gap_reasons": {
+          "owner_stopped": 12
+        },
+        "capture_lost_gap_count": 0,
+        "limits": {
+          "queue_count": 512,
+          "queue_bytes": 134217728,
+          "raw_rotation_bytes": 16777216,
+          "parquet_batch_count": 128,
+          "parquet_batch_bytes": 16777216,
+          "max_row_bytes": 268435456,
+          "max_files": 100000,
+          "max_streams": 1024,
+          "min_free_bytes": 67108864,
+          "managed_budget_bytes": 10737418240,
+          "retention_max_sessions": 100,
+          "finalize_timeout": 30.0,
+          "checkpoint_interval_batches": 1000,
+          "max_query_rows": 10000,
+          "parquet_buffer_count": 4096,
+          "reader_cache_bytes": 33554432,
+          "reader_cache_count": 8192,
+          "checkpoint_group_count": 64,
+          "checkpoint_group_bytes": 16777216
+        }
+      },
+      "checkpoint_cadence": {
+        "source_interval_batches": 100,
+        "effective_writer_interval_batches": 1000,
+        "matches_source": false
+      },
+      "health": {
+        "state": "finalized",
+        "queue_count": 0,
+        "queue_bytes": 0,
+        "high_water_count": 90,
+        "high_water_bytes": 4261491,
+        "incomplete_reasons": [],
+        "written_bytes": 10501737,
+        "terminal_failure": false
+      },
+      "stages": {
+        "accepted_to_worker_dispatch_events_inclusive": {
+          "count": 703,
+          "retained_samples": 703,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 52.240791552,
+          "max_ms": 3768.374057,
+          "p50_ms": 0.144151,
+          "p95_ms": 440.023307,
+          "p99_ms": 1511.403019
+        },
+        "accepted_to_worker_dispatch_raw": {
+          "count": 679,
+          "retained_samples": 679,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 23.580638744,
+          "max_ms": 696.797859,
+          "p50_ms": 0.160553,
+          "p95_ms": 328.866404,
+          "p99_ms": 431.715071
+        },
+        "load_generator_next_inclusive": {
+          "count": 1383,
+          "retained_samples": 1383,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 4.178279921,
+          "max_ms": 612.288374,
+          "p50_ms": 0.778384,
+          "p95_ms": 5.575507,
+          "p99_ms": 31.60803
+        },
+        "producer_append_events_inclusive": {
+          "count": 703,
+          "retained_samples": 703,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.16618211,
+          "max_ms": 47.887208,
+          "p50_ms": 0.060602,
+          "p95_ms": 0.153739,
+          "p99_ms": 0.633522
+        },
+        "producer_append_raw_inclusive": {
+          "count": 679,
+          "retained_samples": 679,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.019298344,
+          "max_ms": 0.224201,
+          "p50_ms": 0.02677,
+          "p95_ms": 0.041597,
+          "p99_ms": 0.072672
+        },
+        "producer_queue_offer_events": {
+          "count": 703,
+          "retained_samples": 703,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.007660741,
+          "max_ms": 0.292325,
+          "p50_ms": 0.010272,
+          "p95_ms": 0.020392,
+          "p99_ms": 0.029349
+        },
+        "producer_queue_offer_raw": {
+          "count": 679,
+          "retained_samples": 679,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.006871998,
+          "max_ms": 0.071627,
+          "p50_ms": 0.009871,
+          "p95_ms": 0.01764,
+          "p99_ms": 0.027432
+        },
+        "reader_batch_next": {
+          "count": 704,
+          "retained_samples": 704,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 2.638467187,
+          "max_ms": 612.279829,
+          "p50_ms": 1.020643,
+          "p95_ms": 5.105857,
+          "p99_ms": 13.390113
+        },
+        "reader_raw_lookup": {
+          "count": 679,
+          "retained_samples": 679,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 1.481411989,
+          "max_ms": 56.981767,
+          "p50_ms": 0.687833,
+          "p95_ms": 8.138283,
+          "p99_ms": 33.435424
+        },
+        "worker_checkpoint_group": {
+          "count": 13,
+          "retained_samples": 13,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 3.278297497,
+          "max_ms": 315.129246,
+          "p50_ms": 265.991161,
+          "p95_ms": 315.129246,
+          "p99_ms": 315.129246
+        },
+        "worker_events_inclusive": {
+          "count": 703,
+          "retained_samples": 703,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 6.734872117,
+          "max_ms": 686.802783,
+          "p50_ms": 1.719726,
+          "p95_ms": 4.196662,
+          "p99_ms": 316.585717
+        },
+        "worker_flush_events": {
+          "count": 4,
+          "retained_samples": 4,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.160050495,
+          "max_ms": 56.086486,
+          "p50_ms": 35.999324,
+          "p95_ms": 56.086486,
+          "p99_ms": 56.086486
+        },
+        "worker_projection_apply": {
+          "count": 703,
+          "retained_samples": 703,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 2.098878172,
+          "max_ms": 592.37246,
+          "p50_ms": 1.122329,
+          "p95_ms": 3.420216,
+          "p99_ms": 4.568456
+        },
+        "worker_raw": {
+          "count": 679,
+          "retained_samples": 679,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 0.353362852,
+          "max_ms": 17.120342,
+          "p50_ms": 0.195836,
+          "p95_ms": 1.425244,
+          "p99_ms": 7.703181
+        },
+        "worker_save_projection_inclusive": {
+          "count": 37,
+          "retained_samples": 37,
+          "quantile_method": "nearest-rank all observations",
+          "total_seconds": 3.997890756,
+          "max_ms": 624.434125,
+          "p50_ms": 0.150135,
+          "p95_ms": 429.027451,
+          "p99_ms": 624.434125
+        }
+      },
+      "wall_seconds": 8.524502148007741,
+      "cpu_seconds": 8.416690999999986,
+      "cpu_percent_one_core": 98.73527924404416,
+      "process_lifetime_peak_rss_bytes": 292032512,
+      "written_batches_per_second_including_startup_drain_seal": 82.46815917153566,
+      "saturation_observation": "not_demonstrated; finite input or reader/producer may limit throughput",
+      "parity": {
+        "manifest_sha256": "a00a057f41653272c49b15b6d8c2b2e07fa985771b98cd6d322dba5a9a795597",
+        "evidence": {
+          "raw": {
+            "sha256": "2dc265b9d3bcc859963a90e43f547f0c00b1241328d34edb8b40600112da6301",
+            "records": 679,
+            "encoded_bytes": 1904052
+          },
+          "normalized": {
+            "sha256": "61a382494964933a04f4af7bbd92596563000c707a0398da8df1f1109ce668c6",
+            "records": 703,
+            "encoded_bytes": 5959988
+          },
+          "checkpoints": {
+            "sha256": "211e8dc2abe1fb419165959ce498401c68928d5c778d19687f79d4ba24e808f2",
+            "records": 144,
+            "encoded_bytes": 94907525
+          },
+          "raw_receive": {
+            "span_seconds": 19.329841287,
+            "payload_bytes": 1141224,
+            "average_frames_per_second": 35.12703440853658,
+            "peak_frames_per_receive_highwater_aligned_second": 81
+          }
+        },
+        "raw_exact": true,
+        "normalized_exact": true,
+        "regenerated_checkpoints_exact": false,
+        "normalized_replay": {
+          "mode": "normalized",
+          "deliveries": 703,
+          "book_sha256": "addf0fe4ddff4ca7e4581bcaea2f010621c36d9a3e04f799bd36f1c9a0ec1a22",
+          "state_sha256": "c963b3189750d493c38b9bde20761687c0e8da09b04d388f7f3d21e0c8c9b1b0",
+          "clock_sha256": "5b17631c8f7955cb15ca272a54722e922e810f71e5696b9f365efd25cf20e506",
+          "wall_seconds": 5.175796836003428,
+          "cpu_seconds": 5.070647000000008,
+          "cpu_percent_one_core": 97.96843192777611,
+          "process_lifetime_peak_rss_bytes": 299999232,
+          "stages": {
+            "reader_batch_next": {
+              "count": 704,
+              "retained_samples": 704,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 1.368269349,
+              "max_ms": 287.644898,
+              "p50_ms": 0.590293,
+              "p95_ms": 1.571145,
+              "p99_ms": 4.566345
+            },
+            "replay_projection_apply": {
+              "count": 703,
+              "retained_samples": 703,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 1.749552,
+              "max_ms": 281.375293,
+              "p50_ms": 1.176195,
+              "p95_ms": 3.239584,
+              "p99_ms": 4.082912
+            },
+            "replay_step_inclusive": {
+              "count": 704,
+              "retained_samples": 704,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 3.139098163,
+              "max_ms": 567.498246,
+              "p50_ms": 2.131175,
+              "p95_ms": 4.355477,
+              "p99_ms": 6.992627
+            }
+          }
+        },
+        "raw_replay": {
+          "mode": "raw",
+          "deliveries": 703,
+          "book_sha256": "addf0fe4ddff4ca7e4581bcaea2f010621c36d9a3e04f799bd36f1c9a0ec1a22",
+          "state_sha256": "c963b3189750d493c38b9bde20761687c0e8da09b04d388f7f3d21e0c8c9b1b0",
+          "clock_sha256": "5b17631c8f7955cb15ca272a54722e922e810f71e5696b9f365efd25cf20e506",
+          "wall_seconds": 7.291406274991459,
+          "cpu_seconds": 7.120409999999993,
+          "cpu_percent_one_core": 97.65482448045776,
+          "process_lifetime_peak_rss_bytes": 299999232,
+          "stages": {
+            "reader_batch_next": {
+              "count": 704,
+              "retained_samples": 704,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 1.373463051,
+              "max_ms": 287.966777,
+              "p50_ms": 0.605236,
+              "p95_ms": 1.432818,
+              "p99_ms": 4.493524
+            },
+            "reader_raw_lookup": {
+              "count": 703,
+              "retained_samples": 703,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 0.362703683,
+              "max_ms": 4.790984,
+              "p50_ms": 0.466673,
+              "p95_ms": 0.743629,
+              "p99_ms": 1.023679
+            },
+            "replay_projection_apply": {
+              "count": 24,
+              "retained_samples": 24,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 0.001809591,
+              "max_ms": 0.121437,
+              "p50_ms": 0.071314,
+              "p95_ms": 0.120011,
+              "p99_ms": 0.121437
+            },
+            "replay_raw_decode_and_projection": {
+              "count": 679,
+              "retained_samples": 679,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 2.77580408,
+              "max_ms": 581.665433,
+              "p50_ms": 1.880041,
+              "p95_ms": 4.018264,
+              "p99_ms": 5.517907
+            },
+            "replay_step_inclusive": {
+              "count": 704,
+              "retained_samples": 704,
+              "quantile_method": "nearest-rank all observations",
+              "total_seconds": 5.172739315,
+              "max_ms": 1031.973637,
+              "p50_ms": 3.214731,
+              "p95_ms": 6.447285,
+              "p99_ms": 9.978881
+            }
+          }
+        },
+        "source_final_state_exact": true,
+        "source_final_book_exact": true,
+        "raw_normalized_state_exact": true,
+        "checkpoint_seek": {
+          "checkpoint_status": "restored",
+          "book_sha256": "addf0fe4ddff4ca7e4581bcaea2f010621c36d9a3e04f799bd36f1c9a0ec1a22",
+          "state_sha256": "c963b3189750d493c38b9bde20761687c0e8da09b04d388f7f3d21e0c8c9b1b0",
+          "book_exact": true,
+          "state_exact": true,
+          "wall_seconds": 7.466894106997643,
+          "cpu_seconds": 7.330117000000001,
+          "cpu_percent_one_core": 98.16821954298963,
+          "process_lifetime_peak_rss_bytes": 299999232
+        },
+        "verification_and_parity_usage": {
+          "wall_seconds": 38.351131295989035,
+          "cpu_seconds": 37.580319,
+          "cpu_percent_one_core": 97.9901184920987,
+          "process_lifetime_peak_rss_bytes": 299999232
+        }
+      }
+    }
+  ],
+  "status": "completed",
+  "source_remains_incomplete": false
+}

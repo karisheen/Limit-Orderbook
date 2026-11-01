@@ -1,9 +1,9 @@
 # Crypto Limit Order Book
 
-A runnable **Streamlit** dashboard for public cryptocurrency order books, with a
-ladder, depth chart, spread history, depth heatmap and quality-gated venue
-comparison. The existing app is being upgraded into a local market-data research
-workstation; the planned terminal is **not** the current Streamlit application.
+A local public-market research workstation with an exact Python core and a
+React/TypeScript terminal: instrument-specific book/tape, quality-gated analytics,
+size-aware costs, independent sessions and deterministic replay. The older
+Streamlit dashboard remains runnable until the terminal's M4 visualization cutover.
 
 ## Upgrade progress
 
@@ -16,8 +16,10 @@ workstation; the planned terminal is **not** the current Streamlit application.
 - **M2:** durable raw/normalized capture, verified manifests/checkpoints, deterministic
   replay and an explicitly synthetic offline demo implemented. Integration and
   Git delivery evidence are tracked in the handoff.
-- **M3–M6:** **not done**. Shared analytics/cost models, the React/TypeScript terminal,
-  alerts/paper trading/research and final operational/performance acceptance remain.
+- **M3:** analytics, exact costs and the end-to-end terminal are implemented and
+  verified locally. Recorder load/soak integration and milestone merge remain open.
+- **M4–M6:** **not done**. Historical liquidity visualization, full workspace
+  interactions, alerts/paper/journal/research and final operational acceptance remain.
 
 This is an interim progress summary; later milestone documentation will replace
 it as implementation and acceptance evidence land. See the
@@ -26,6 +28,30 @@ it as implementation and acceptance evidence land. See the
 [architecture decisions](docs/ARCHITECTURE.md) and
 [exact contracts](docs/CONTRACTS.md). Neither fixture tests nor successful access
 probes establish complete live-feed correctness or trading readiness.
+
+## Run the terminal
+
+Use Python 3.13.5, uv 0.8.4 and Node 22.22.0/npm 10.9.4:
+
+```sh
+uv sync --locked --python 3.13.5 --group dev
+npm --prefix frontend ci
+npm --prefix frontend run build
+uv run --locked --offline --no-sync python -m src.workstation.cli serve
+```
+
+Open `http://127.0.0.1:8000`. This default is an explicitly **synthetic offline
+demo**, not a live feed or a recording. The full 180-second/24-stream scenario
+reached usable HTTP data in **2.642 s** in one cold-process sample; no durable
+capture is generated on startup. Health distinguishes process liveness from
+synchronized session data.
+
+Use `serve --capture data/workstation/SESSION_ID` for verified recorded replay,
+or `serve --network` to opt into public live discovery/collection. Do not run a
+second live collector beside a recorder. Unknown fees, missing depth, stale
+inputs and incompatible quotes remain explicit exclusions. No order is sent
+to an exchange. See [terminal controls](docs/TERMINAL.md),
+[API](docs/API.md), [analytics](docs/ANALYTICS.md) and [costs](docs/COSTS.md).
 
 ## New headless feeds
 
@@ -78,8 +104,8 @@ Incomplete/corrupt captures are not silently accepted. The recorder owns its
 subscription leases independently of browser clients; capture starts before
 synchronization, and CLI readiness labels that distinction.
 
-The complete cold synthetic build took **16.307 s** on the measured workstation;
-this is not yet an instant terminal startup. M3 owns first-usable-data UI startup.
+The complete **durable** synthetic build took **16.307 s** on the measured
+workstation; the terminal's independent memory-backed startup is described above.
 See [recording](docs/RECORDING.md), [replay](docs/REPLAY.md), [demo/CLI](docs/DEMO.md)
 and the handoff for exact evidence, budgets, recovery and source limitations.
 

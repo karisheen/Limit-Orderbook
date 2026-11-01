@@ -8,11 +8,38 @@ from itertools import groupby
 from typing import Iterator, Protocol
 
 from .book import Book
-from .events import EventEnvelope, is_local_control
+from .events import EventEnvelope, RawFrame, is_local_control
 from .projection import RecordingProjection
 from .quality import ClockReading
-from .recording import RecordedBatch, RecordingReader
+from .recording import RecordedBatch, RecordingReader, StreamSpec
 from .wire import dumps, loads
+
+
+@dataclass(frozen=True)
+class ReplaySourceDescriptor:
+    """Replay provenance without pretending an ephemeral source is a recording."""
+
+    source_id: str
+    streams: tuple[StreamSpec, ...]
+    config: tuple[tuple[str, str], ...] = ()
+    synthetic: bool = False
+    recording: bool = False
+    provenance: str = ""
+
+
+class ReplaySource(Protocol):
+    @property
+    def descriptor(self) -> ReplaySourceDescriptor: ...
+
+    @property
+    def total_deliveries(self) -> int: ...
+
+    def iter_batches(
+        self, *, start_delivery: int = 1, stop_delivery: int | None = None
+    ) -> Iterator[RecordedBatch]: ...
+    def raw_frame(self, stream_id: str, ordinal: int) -> RawFrame | None: ...
+    def resolve_delivery(self, ordinal: int, event_index: int = 0) -> int: ...
+    def iter_checkpoints(self, *, before_delivery: int): ...
 
 
 @dataclass(frozen=True)
@@ -147,7 +174,7 @@ class ReplaySession:
 
     def __init__(
         self,
-        reader: RecordingReader,
+        reader: RecordingReader | ReplaySource,
         *,
         mode: str = "normalized",
         observers: tuple[ReplayObserver, ...] = (),
@@ -160,6 +187,17 @@ class ReplaySession:
         if len({observer.observer_id for observer in observers}) != len(observers):
             raise ValueError("duplicate observer identity")
         self.reader, self.mode = reader, mode
+        if isinstance(reader, RecordingReader):
+            manifest = reader.manifest
+            self.source = ReplaySourceDescriptor(
+                str(manifest.session_id),
+                manifest.streams,
+                manifest.config,
+                recording=True,
+                provenance=manifest.provenance,
+            )
+        else:
+            self.source = reader.descriptor
         self.observers, self.checkpoint_policy = tuple(observers), checkpoint_policy
         self.clock = ReplayClock()
         self.cursor = ReplayCursor()
@@ -172,10 +210,18 @@ class ReplaySession:
         self._pending: RecordedBatch | None = None
         self._reset()
 
+    @property
+    def total_deliveries(self) -> int:
+        return (
+            self.reader.manifest.batch_count
+            if isinstance(self.reader, RecordingReader)
+            else self.reader.total_deliveries
+        )
+
     def _new_projection(self) -> RecordingProjection:
-        config = dict(self.reader.manifest.config)
+        config = dict(self.source.config)
         projection = RecordingProjection(
-            self.reader.manifest.streams,
+            self.source.streams,
             dedup_capacity=int(config.get("dedup_capacity", "50000")),
             poll_interval=float(config.get("poll_interval", "2.0")),
         )
@@ -263,6 +309,32 @@ class ReplaySession:
                 break
             delivered.append(self._apply(batch))
         return tuple(delivered)
+
+    def next_delay_ns(self) -> int | None:
+        """Owner-only lookahead for off-loop paced delivery; never exposes evidence."""
+        batch = self._peek()
+        return None if batch is None else self.clock.delay_ns(batch.events[0])
+
+    def seek_delivery(self, delivery_index: int) -> ReplayCursor:
+        if type(delivery_index) is not int or delivery_index < 0:
+            raise ValueError("invalid delivery index")
+        if not delivery_index:
+            return self.seek(0)
+        batches = iter(
+            self.reader.iter_batches(
+                start_delivery=delivery_index, stop_delivery=delivery_index
+            )
+        )
+        try:
+            batch = next(batches, None)
+        finally:
+            close = getattr(batches, "close", None)
+            if close is not None:
+                close()
+        if batch is None or batch.delivery_index != delivery_index:
+            raise ValueError("seek target beyond recorded deliveries")
+        last = batch.events[-1]
+        return self.seek(last.ingest_ordinal, last.event_index)
 
     async def play(self, speed: Decimal = Decimal("1")) -> None:
         if self._playing:

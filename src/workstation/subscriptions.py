@@ -22,6 +22,7 @@ from .adapter_catalog import AdapterCatalog
 from .book import Book
 from .events import (
     ClientId,
+    Control,
     EventEnvelope,
     LeaseId,
     RawFrame,
@@ -29,7 +30,13 @@ from .events import (
     StreamId,
     SubscriptionKey,
 )
-from .ingestion import FeedCallbacks, FeedSupervisor, ReceiveBoundary, SupervisorConfig
+from .ingestion import (
+    FeedCallbacks,
+    FeedSupervisor,
+    ProcessingObservation,
+    ReceiveBoundary,
+    SupervisorConfig,
+)
 
 if TYPE_CHECKING:
     from .recording import Recorder, SessionManifest, StreamSpec
@@ -55,6 +62,10 @@ class SubscriptionStatus:
     queue_bytes: int
     reason: str
     capture_complete: bool
+    last_processing: ProcessingObservation | None = None
+    processed_frames: int = 0
+    queue_highwater_count: int = 0
+    queue_highwater_bytes: int = 0
 
 
 @dataclass(frozen=True)
@@ -181,6 +192,9 @@ class SubscriptionRegistry:
         self._books: dict[SubscriptionKey, Book] = {}
         self._raw_sinks: list[Callable[[RawFrame], None]] = []
         self._event_sinks: list[Callable[[tuple[EventEnvelope, ...]], None]] = []
+        self._processed_sinks: list[
+            Callable[[tuple[EventEnvelope, ...], tuple[Book, ...]], None]
+        ] = []
         self._closing: set[asyncio.Task] = set()
         self._closed = False
         self._close_task: asyncio.Task | None = None
@@ -298,6 +312,14 @@ class SubscriptionRegistry:
         self._event_sinks.append(callback)
         return lambda: self._remove_sink(self._event_sinks, callback)
 
+    def subscribe_processed(
+        self,
+        callback: Callable[[tuple[EventEnvelope, ...], tuple[Book, ...]], None],
+    ) -> Callable[[], None]:
+        """Observe current books at the exact completed source-message boundary."""
+        self._processed_sinks.append(callback)
+        return lambda: self._remove_sink(self._processed_sinks, callback)
+
     @staticmethod
     def _remove_sink(sinks, callback) -> None:
         if callback in sinks:
@@ -318,6 +340,33 @@ class SubscriptionRegistry:
         for sink in tuple(self._event_sinks):
             try:
                 sink(events)
+            except Exception as exc:
+                failure = exc
+        if failure is not None:
+            raise failure
+
+    def _processed(self, events: tuple[EventEnvelope, ...], book: Book | None) -> None:
+        first = events[0]
+        entry = self._entries.get(first.key)
+        if (
+            entry is None
+            or first.stream_id != entry.supervisor.stream_id
+            or first.connection_epoch != entry.supervisor.epoch
+        ):
+            return
+        # Closing owners still publish their final invalidating boundary. The
+        # ordinary presentation queue may already be detached at this point.
+        if book is not None:
+            self._books[first.key] = book
+        elif (
+            isinstance(first.payload, Control) and first.payload.kind == "source_change"
+        ):
+            self._books.pop(first.key, None)
+        books = self.books()
+        failure = None
+        for sink in tuple(self._processed_sinks):
+            try:
+                sink(events, books)
             except Exception as exc:
                 failure = exc
         if failure is not None:
@@ -402,7 +451,10 @@ class SubscriptionRegistry:
                             key,
                             boundary=self.boundary,
                             callbacks=FeedCallbacks(
-                                raw=self._raw, events=self._events, book=self._book
+                                raw=self._raw,
+                                events=self._events,
+                                book=self._book,
+                                processed=self._processed,
                             ),
                             config=self.config,
                             trade_dedup=self._trade_dedup,
@@ -582,6 +634,10 @@ class SubscriptionRegistry:
                 entry.supervisor.queued_bytes,
                 entry.supervisor.reason,
                 entry.supervisor.capture_complete,
+                entry.supervisor.last_processing,
+                entry.supervisor.processed_frames,
+                entry.supervisor.queue_highwater_count,
+                entry.supervisor.queue_highwater_bytes,
             )
             for key, entry in self._entries.items()
         )

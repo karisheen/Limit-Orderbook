@@ -13,7 +13,7 @@ The recorded baseline is [m1-core-initial-benchmark.json](evidence/m1-core-initi
 
 The baseline dataset SHA-256 is `24a7a27e39a718517ddc7449010266ac52c016dba82b286112b4a381b1f7e131`. This is core-only synthetic evidence, not ingest-to-publication or browser latency. The normal-workload p95 target is **25 ms or less**; the recorded baseline does not meet it. Thirty samples provide only preliminary tail-latency evidence.
 
-No profiler, benchmark, test, type checker, or formatter was run during this source optimization. There is no measured post-change speedup or claim that the latency target is now met.
+The implementation worker did not run measurements during concurrent source edits. Subsequent integration measured the same initial workload at snapshot **937.89 ms**, delta p50 **3.51 ms**, p95 **8.49 ms**, p99 **10.55 ms** (`m1-core-optimized-benchmark.json`). A larger finite workload then measured normal-load p95 **9.43 ms** and 2× burst p95 **30.08 ms** (`m1-core-benchmark.json`). These remain core-only results; cold snapshots and end-to-end queue/render/capture are separate.
 
 ## Source-level diagnosis and changes
 
@@ -114,3 +114,116 @@ print(json.dumps({
 ```
 
 Integration should run the core consumer suite and core type checks once after concurrent changes land, then run this benchmark in the same environment before deciding whether further data-structure work is justified. Preserve new measurements separately from the original evidence. A convincing latency acceptance result additionally requires representative live workloads and a larger sample population.
+
+## Finite managed-recording benchmark
+
+`tools/benchmark_recording.py` complements the synthetic reducer benchmark. It reads an explicitly selected finalized managed capture and exercises the production `RecordingReader`, `Recorder` worker, `RecordingProjection`, and both raw and normalized `ReplaySession` paths. It does not import a toy reducer, open exchange connections, replace the source capture, or claim original network/publication latency.
+
+Run with the repository's recording dependencies installed. Both source and output arguments are required; the source is a **session directory**, not its containing store. The output root must not exist and cannot be inside the source session. Each invocation creates its own `baseline`, `burst_2x`, and `unpaced_saturation` managed stores plus `report.json`. Choose a new root for every comparison; do not reuse or remove the evidence from an earlier run.
+
+The two retained full-depth inputs can be exercised with:
+
+```sh
+.venv-upgrade/bin/python tools/benchmark_recording.py \
+  --source data/m2-smoke/live-cli-gry1ld8s/captures/9b355ab1-b2a2-4dbb-ae67-a47710272382 \
+  --output-root data/m3-profile/complete-recording-benchmark \
+  --max-source-records 10000 --max-source-bytes 1073741824 \
+  --max-load-seconds 180
+
+.venv-upgrade/bin/python tools/benchmark_recording.py \
+  --source data/m2-soak/run-1793513547763496000/store/51d3dc95-be2e-4210-ad4a-b1b29e84476c \
+  --allow-incomplete \
+  --output-root data/m3-profile/incomplete-prefix-benchmark \
+  --max-source-records 10000 --max-source-bytes 1073741824 \
+  --max-load-seconds 180
+```
+
+The retained complete source's manifest SHA-256 is `c1f2b35a0f5c897679cc9aa53a2e6bece6019945e094f1daabb34b67bc237cbf`. The failed soak prefix's manifest SHA-256 is `f970da57bf56929251420243cb46be2d901445d31622d194cfe31dffcbfadc64`: 609 raw frames, 522 normalized events, 432 batches, and 60 checkpoints. Its original `queue_overflow` makes it **incomplete**, regardless of whether every retained byte is subsequently copied. The long collector command duration is not a healthy capture duration. A missing retained Gap does not establish that no input was lost.
+
+These are command recipes, not new measured results or a claim that the failure is fixed. Public capture files remain local/ignored and are not redistributable fixtures. Integration must run the commands after all production changes land and preserve both reports when comparing revisions.
+
+Final-code streaming run: `data/m3-profile/final-complete-streaming/report.json`, retained as [`m3-recorder-final-streaming.json`](evidence/m3-recorder-final-streaming.json). All three finite loads retained **679 raw / 703 batches / 826 events**, with exact raw/normalized records, original final book/state, raw-versus-normalized replay, and strict checkpoint-seek parity. Effective periodic cadence1000 intentionally differs from the source's100; regenerated checkpoint bytes are therefore not identical. Required boundaries produced144 checkpoints. Hardware: MacBookPro14,1, Intel i5-7360U2.30GHz,4 logical CPUs,8GiB RAM; Python3.13.5,macOS13.7.8.
+
+| Final streaming load | Scheduled span s | Producer s | Queue high-water | Writer projection p95 ms | Accepted→worker p95 ms |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Baseline | 25.016 | 25.036 | 51 | 5.979 | 337.588 |
+| 2× | 12.508 | 12.598 | 27 | 4.830 | 11.715 |
+| Unpaced finite input | — | 4.391 | 90 | 3.420 | 440.023 |
+
+These are recorder-path timings, not receive→valid or live-network latency. Cold snapshots/checkpoint serialization produce long tails: baseline accepted→worker p99 **706.423 ms**, writer-event-inclusive p99 **381.948 ms**. Zero rejected/unoffered inputs does not establish low latency. Streaming generation limits the unpaced load, so peak sustainable throughput/saturation is **not demonstrated**. Full stage distributions, CPU/RSS, event/depth mix and hashes are retained in the report. The separate bounded predecoded arrival-isolation run is required before claiming the writer handles intended burst arrivals.
+
+Final bounded-predecoded run is retained in [`m3-recorder-final-predecoded.json`](evidence/m3-recorder-final-predecoded.json). The failed soak's original incompleteness remains sticky. Baseline and 2× both retained the entire available **609-raw/432-batch** prefix with exact raw/event/final book/state and checkpoint-seek parity. Baseline producer **6.785 s** versus scheduled **6.773 s**, queue high-water **228**; 2× producer **3.400 s** versus **3.387 s**, queue high-water **256**, synthetic lateness p95 **15.355 ms** / p99 **48.767 ms**. This confirms finite writer-arrival absorption, not a live-pipeline guarantee. Unpaced offers reached the unchanged512-item limit in **0.118 s**, with one rejected offer and **281 raw / 232 batches unoffered**. That truncated output is explicitly incomplete; raw/normalized replay still agreed on its retained prefix. Do not report the unpaced case as full-source parity.
+
+### Workload and resource contract
+
+All three loads use the source's exact session/clock identity, stream specifications, configuration, raw bytes, normalized transaction boundaries, and delivery ordering. The writer regenerates checkpoints through its normal projection. Production queue limits (512 items / 128 MiB), subscribed native depths, and required-event handling are unchanged. The report includes stream/assets/venue metadata, source-mode/event/update mix, maximum observed retained bid/ask levels by stream, receive-time spans, aligned-second peak rates, and measured achieved rates.
+
+The baseline follows a **synthetic receive-monotonic-highwater schedule**. Raw frames are streamed in ingest-ordinal order ahead of the normalized batch that requires them; batches remain in callback delivery order, even when their receive ordinals regress. The schedule advances only to a new receive-time highwater. The 2x burst uses the same input/order with all schedule offsets divided by two. Old captures do not contain actual processing/publication timestamps, so neither schedule is a reconstruction of original callback publication timing. Input read/decoding cost and producer overhead can make deadlines late; that lateness is explicitly reported rather than hidden by per-item relative sleeps.
+
+The third load offers the same finite source without pacing. It measures a finite saturation **attempt**, not a universal throughput limit. `queue_capacity_reached` is reported only for actual `queue_overflow`; otherwise saturation remains unproven because file generation, the producer, or short input may be limiting. A rejected offer ends that load without retrying, discarding required events, enlarging the queue, or silently slowing the source.
+
+Admission defaults are 2 GiB of declared source files and 100,000 source records (the sum of raw frames, normalized batches, normalized events, and checkpoints). Larger sources are rejected before full verification, not silently truncated. After admission, the source receives full production verification. By default, processing retains only streaming iterator lookahead, production bounded reader caches/state, and a bounded timing reservoir (default 20,000 samples per stage; configurable with `--samples`). These are admission/history bounds, not a promise that decompressed resident memory equals compressed file size.
+
+`--max-load-seconds` defaults to 180 seconds per producer schedule, followed by the production finalization deadline. It is checked between atomic operations and before sleeping to the next due item; it is not a hard process kill deadline. Source verification, hashing, replay/parity passes, a single synchronous decode, and file-system operations are outside that producer deadline. The CLI is finite because it traverses only the admitted recording; it is not a live collector or unbounded workload.
+
+#### Bounded predecoded writer-arrival isolation
+
+A reader-limited 2x run does not prove that the writer absorbed the intended 2x arrival rate. Preserve that streaming result, then use an explicitly separate writer-only arrival-isolation run:
+
+```sh
+.venv-upgrade/bin/python tools/benchmark_recording.py \
+  --source data/m2-soak/run-1793513547763496000/store/51d3dc95-be2e-4210-ad4a-b1b29e84476c \
+  --allow-incomplete \
+  --output-root data/m3-profile/predecoded-cadence-1000 \
+  --preload-byte-limit 134217728 --checkpoint-interval-batches 1000 \
+  --max-source-records 10000 --max-source-bytes 1073741824 \
+  --max-load-seconds 180
+```
+
+Repeat with `--checkpoint-interval-batches 100` and another fresh output root for a same-source comparison. `--preload-byte-limit` is opt-in and may not exceed **128 MiB**; the mode also enforces an independent **100,000 raw-frame-plus-batch item maximum**. The entire already-admitted source must fit both bounds. It is rejected rather than truncated when it does not. The tool accounts fixed list storage plus the production recorder's resident-size accounting for each retained immutable item, conservatively counting shared objects per item. Transient decoding allocations, production reader caches, and other process memory remain separate; this is an accounted retained-workload cap, not an RSS hard limit.
+
+The preload/read/accounting pass runs once before any load timer and is reported separately with wall/CPU/RSS, item/byte totals and stage observations. Its reader is closed before the writer loads. Each load reuses those exact immutable raw frames and batches in the same order, without file generation on the timed arrival path. Public append validation/sizing, production queue limits, writer projection/persistence, output verification, and raw/normalized/checkpoint parity are unchanged. The report labels this mode `bounded_predecoded_writer_isolation`, not end-to-end capture. The same receive-highwater schedule is still **synthetic**; producer overhead/GIL contention can still produce measured lateness. Inspect scheduled span versus actual producer duration and lateness before drawing an absorption conclusion. Keep streaming and predecoded results separate, and do not edit benchmark/production source while a comparison run captures its hashes.
+
+
+### What is actually timed
+
+The JSON contains runtime/OS/CPU details, dependency versions, invocation/bounds, the tool hash, loaded workstation source-file hashes, source manifest/file hashes, and logical evidence hashes. Record hashing uses length-prefixed workstation wire bytes, preserving raw payload bytes and lexical normalized/checkpoint content while remaining independent of compressed file grouping. No Git state is altered.
+
+| Report stage | Included work |
+| --- | --- |
+| `source_verification_and_hashing` | Managed integrity verification and streaming logical evidence hashing, outside load timing |
+| `reader_batch_next`, `reader_raw_lookup` | Actual production reader calls, including bounded caches, file access and decoding where incurred |
+| `load_generator_next_inclusive` | Streaming interleaving/reader work by default; traversal of retained immutable items in explicitly labeled predecoded mode |
+| `producer_append_*_inclusive` | Public append validation, resident-size accounting and queue offer; **not** worker completion |
+| `producer_queue_offer_*` | Actual production `_offer` call under its existing condition |
+| `accepted_to_worker_dispatch_*` | Accepted item timestamp to writer method entry, including the worker's pre-dispatch disk check; not exact deque residence |
+| `worker_raw`, `worker_events_inclusive` | Actual production write methods; event work includes nested projection/checkpoint/flush operations |
+| `worker_projection_apply` | Actual writer-side projection application, not a copied implementation |
+| `worker_flush_events`, `worker_save_projection_inclusive`, `worker_checkpoint_group` | Production Parquet flush/checkpoint stages; nested stages overlap |
+| `replay_step_inclusive` | Production replay step including input lookup, projection, provenance/parity work and cursor updates |
+| `replay_projection_apply`, `replay_raw_decode_and_projection` | Production normalized projection or raw decoding/projection respectively |
+| `finalize_drain_and_seal_seconds` | Queue drain and managed output sealing, outside producer elapsed time |
+| `worker_thread_wall_seconds`, `worker_thread_cpu_seconds` | Actual production worker lifetime and thread CPU; worker wall includes waiting for input and finalization, not just busy service |
+
+Observed distributions report count, retained sample count, exact sum/max, and nearest-rank p50/p95/p99. All observations are retained until the reservoir cap; thereafter quantiles use a deterministic reservoir and are explicitly labeled sampled. Iterator/step timings include their final end-of-input call. Missing observations are not fabricated. Timing wrappers, locks and sampling perturb the benchmark; nested timings must **not** be summed as independent work.
+
+Each load reports wall time, whole-process CPU, worker-thread CPU when the worker has terminated, process-lifetime peak RSS, queue count/byte highwaters, written/accepted/unoffered/rejected counts, terminal failure, gaps and incomplete reasons. RSS is not isolated per-load allocation; process CPU includes producer and worker. The three loads run sequentially in the same process, without evicting OS caches. Original capture drop counts and queue highwaters are unavailable from the manifest and are reported as unknown, not zero.
+
+### Parity and incomplete evidence
+
+The source is replayed from the beginning in normalized and raw modes. Each finalized benchmark output is independently verified, hashed, replayed in both modes, and sought to its end with strict checkpoint restoration (`checkpoint_policy="reject"`). Reports distinguish:
+
+- Exact retained raw evidence and normalized delivery evidence.
+- Exact regenerated checkpoint evidence, including observer state and checkpoint positions.
+- Final source/output book and state parity, and raw/normalized replay state parity.
+- Checkpoint-restored final state versus that output's own linear replay.
+
+An output copied from an incomplete source is marked `benchmark_source_incomplete`. Exact original source reasons are stored separately in manifest configuration as `benchmark_source_incomplete_reason_count` and indexed `benchmark_source_incomplete_reason_00`… entries; the new writer's bounded64 diagnostic slots remain available for its own failures. Original source configuration pairs remain unchanged. Inputs whose combined configuration/provenance exceeds256 pairs, or already uses this reserved namespace, are rejected before writer creation rather than losing metadata. An old fatal source reason does not falsely mark the new writer terminal, and successful copying never upgrades an incomplete source. A failure or deadline produces an explicitly incomplete output; unoffered and accepted-but-not-written counts remain visible.
+
+Earlier retained benchmark reports used `source:`-prefixed diagnostic reasons. Their source had fewer than64 reasons, so those recorded measurements remain intact. Final review exposed loss of the64th source reason at maximum capacity; the separate manifest-configuration representation fixes that boundary without changing market inputs, queue/depth limits or successful writer processing. Measurements remain tied to the exact code/tool hashes in each report.
+
+Exit zero means the baseline and 2x loads completed with the required evidence/state/checkpoint parity and without a new terminal recorder failure. It does not mean the input was complete, prove saturation, or certify a live soak. Saturation rejection is an observation and does not by itself fail successful paced-load acceptance. A paced failure or parity discrepancy returns nonzero with `report.json` retained.
+
+For an explicit checkpoint storage/seek tradeoff experiment, append `--checkpoint-interval-batches 100` or `--checkpoint-interval-batches 1000` and use distinct fresh output roots. Omitting the flag uses the production default of **1000 batches**; this tool never changes that default. The report records the optional override, actual output limits, source interval, effective writer interval, and whether those intervals match. The comparison uses the **effective output cadence**, whether selected by the production default or an explicit override. If it differs from the source (including older 100-batch captures), checkpoint byte/position identity is still reported truthfully but is not an acceptance requirement. Matching cadence still requires exact regenerated checkpoint evidence. Raw/normalized evidence, final book/state parity, and strict output checkpoint-to-linear state parity remain mandatory in both cases. Compare file bytes/checkpoint counts and seek time as well as worker throughput when evaluating the tradeoff. Recovery-boundary checkpoints remain governed by production code.
+
+No tests, builds, linters, formatters, live collection, or benchmark acceptance runs were executed as part of implementing this tool. Integration owns those gates and the corrected live soak.

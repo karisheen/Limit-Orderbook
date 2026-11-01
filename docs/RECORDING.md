@@ -146,16 +146,38 @@ it validates each retained lexical spelling once without equating `"1.00"` with
 `"1.000"`, and releases the memo after the call. Mutable encoded records are not
 cached. These optimizations change neither allowed schemas nor lexical payloads.
 
+An advancing source change checkpoints the complete preceding projection at
+`delivery_index - 1` before resetting it. The source-change transaction itself is
+always retained. A completely pristine post-reset reducer has no native event
+identity and therefore no invented position-bearing checkpoint; seeking applies
+the recorded reset after the preceding checkpoint and exposes no old-epoch book.
+Post-boundary checkpoints are also retained when native states remain indexable,
+including other streams. Gap/reset/disconnect checkpoints retain their existing
+post-transaction position. This preserves schema 2 and existing reducer hashes.
+
 ## Writer bounds and checkpoint ownership
 
 Offers are synchronous count/byte-bounded enqueue operations. They perform no
 serialization, compression, filesystem writes or database work. Immutable event
 resident size is conservatively counted by walking fields; raw accounting includes
-the original bytes and all provenance fields. Both queued and currently in-flight
-items count against the queue limits. Overflow raises `RecordingError`, records
-`queue_overflow` out of band, and prevents further required offers. No loss-intolerant
-stream is coalesced. `health` exposes state, queue counts/bytes, count/byte high-water
-marks, written sealed-file bytes and incomplete reasons.
+the original bytes and all provenance fields. A bounded 128-type cache retains
+immutable field names, not event instances, encoded values, or computed sizes.
+Each occurrence of a shared field is still counted, preserving the queue's exact
+accounting and rejection boundary. Both queued and currently in-flight items count
+against the queue limits. Overflow raises `RecordingError`, records `queue_overflow`
+out of band, and prevents further required offers. No loss-intolerant stream is
+coalesced. `health` exposes state, queue counts/bytes, count/byte high-water marks,
+written sealed-file bytes and incomplete reasons.
+
+The read-only `health.terminal_failure` distinguishes a dead required sink
+(`queue_overflow`, `writer_failed:*`, `finalize_timeout`, or `finalization_failed:*`)
+from truthful but nonterminal source gaps. Supervisors must stop a terminal capture rather than
+reconnect sources against the failed sink. A source capture-loss gap alone keeps
+`terminal_failure=False`: subsequent raw and normalized evidence remains writable,
+but cannot make the manifest complete again. If the bounded 64-reason diagnostic
+list is already full, its last entry is replaced by the first terminal reason so
+a dead sink cannot be concealed by earlier source diagnostics.
+Manifest/catalog/final sealing failures are also terminal: no readable finalized capture exists. This classification is retained even when earlier source diagnostics already occupy all64 reason slots.
 
 One daemon worker owns compression, SQLite, file writes and the shared deterministic
 projection. It applies delivered normalized transactions rather than reading the
@@ -175,8 +197,8 @@ incomplete 12-stream capture
 normalized batches (533 events), and 60 complete logical checkpoints. Its
 5000-level Binance books exposed repeated exact-wire conversion and reducer
 checkpoint/restore work, rather than gzip checkpoint I/O, as the dominant writer
-cost. Queue capacities, full book depth, checkpoint cadence and source boundaries
-are not reduced to address this cost. Offline profiling of that prefix remains
+cost. That earlier codec/native-state correction did not change queue capacities,
+full book depth, checkpoint cadence or source boundaries. Its offline profiling remains
 explicitly incomplete and preserves its source loss reasons; it cannot establish
 live capture throughput or repair the missing source evidence.
 
@@ -198,6 +220,83 @@ This requires the retained local capture, which is not redistributed. A label
 does not restore historical code; new runs report the current source. Writer
 profiling output remains explicitly incomplete, like the original source prefix.
 
+The later failed full-scope soak retained only a prefix:
+`51d3dc95-be2e-4210-ad4a-b1b29e84476c`, manifest SHA256
+`f970da57bf56929251420243cb46be2d901445d31622d194cfe31dffcbfadc64`.
+Its 609 raw frames span 6.083854537 seconds of receive time; 432 normalized
+batches span 6.773025957 seconds including initial local controls. Peak rolling
+one-second counts are 243 raw frames and 145 batches. Its 522 events comprise
+24 controls, 157 book updates and 341 trades; full 5,000-level-per-side Binance
+bootstrap books remain present. The command's roughly 30-minute lifetime is not
+30 minutes of healthy capture, and the retained prefix has no `Gap` envelope
+that could retrospectively account for the missing history.
+
+For this same prefix, owned-worker cProfile observed 22.848 seconds before and
+15.991 seconds after the resident-accounting change, with identical raw,
+normalized and checkpoint/auxiliary hashes and 609/522/432/60 counts. This total
+change is **not** attributed solely to sizing: unchanged codec/checkpoint stages
+also varied with runtime contention. A separate paired experiment alternated old
+and new sizing six times over all 1,041 offered objects, excluding source reads:
+median thread CPU was 0.199886 versus 0.129981 seconds, a 34.97% reduction, with
+exactly the same 15,869,406 summed resident bytes and per-item sizing hash.
+It establishes cheaper producer accounting, not sustained capture capacity.
+Exact profiles, source/output hashes and executed scratch workloads are retained
+under `data/m3-profile-writer/`; raw public input is not redistributed.
+
+`tools/benchmark_recording.py` is the reusable finite actual-path workload; see
+`docs/CORE_PERFORMANCE.md` for invocation and stage definitions. It separates
+reader/load-generation work, offers, queue dispatch, worker projection/checkpoint/
+flush work and native raw/normalized replay. Incomplete-source benchmarking
+requires explicit opt-in and never turns an available prefix into complete
+history. Synthetic receive-highwater schedules do not recreate absent original
+processing or publication clocks, and a late file-backed generator cannot prove
+that the requested burst rate reached the queue.
+
+An explicit 100-versus-1,000-batch cadence experiment used the same 1,041
+predecoded raw/batch objects (15,910,622 conservatively accounted bytes), admitted
+under a 128 MiB retained-byte cap and 100,000-item cap. The separate source
+admission cap was 2,000 records/128 MiB of declared files. No source was truncated,
+no book depth was reduced, and the queue stayed at 512 items/128 MiB.
+Predecoding happened before load timing: these measurements isolate the actual
+writer and producer offer/size checks, not upstream adapter decode or networking.
+The file-backed mode was also measured, but missed its requested burst timing
+because load generation competed with the worker.
+
+| Bounded predecoded workload | Cadence 100 | Cadence 1,000 |
+| --- | ---: | ---: |
+| Baseline worker thread CPU / queue high-water items | 4.750 s / 311 | 2.780 s / 246 |
+| 2x producer duration (requested 3.386513 s) | 3.409 s | 3.398 s |
+| 2x worker thread wall / CPU | 5.646 s / 4.173 s | 4.102 s / 2.270 s |
+| 2x queue high-water items | 512, overflow | 274, no rejected offers |
+| 2x retained raw / normalized batches | 609 / 430 | 609 / 432 |
+| 2x synthetic schedule lateness p99 | 42.856 ms | 55.668 ms |
+| Full-prefix logical checkpoints | 60 | 12 |
+| Full-prefix sealed data bytes | 4,673,512 | 1,768,232 |
+
+With cadence 1,000, both paced schedules retained all 609 raw frames, 432 atomic
+batches and 522 events. Raw bytes, normalized evidence, native raw-versus-normalized
+final book/state, and strict checkpoint-seek-versus-linear state matched. Overall
+checkpoint hashes intentionally differ: cadence 100 has twelve checkpoints at
+deliveries 100, 200, 300, 400 and 432, while cadence 1,000 has twelve at final
+delivery 432. Recovery boundaries and finalization still force checkpoints
+regardless of the periodic interval. The default is now explicitly 1,000 batches
+as a measured storage/seek tradeoff. For compatible observer-free checkpoint
+seeks, this permits up to 999 rather than 99 transactions after the nearest
+periodic checkpoint, with intervening recovery checkpoints reducing that work.
+Observers requiring unpersisted history still recompute from the beginning.
+Existing schema-2 captures retain their declared cadence and remain readable.
+Both unpaced workloads still reached the queue limit and explicitly rejected an
+offer; no unlimited/sustained capacity is claimed.
+Worker wall includes scheduled idle/drain time; CPU is measured on the worker
+thread. The 2x lateness values are synthetic scheduling observations, not network
+latency. Reports and exact hashes are retained in
+`data/m3-profile-writer/{cadence100,cadence1000,predecoded100,predecoded1000}/report.json`.
+All outputs remain incomplete because the original source is incomplete. This
+finite experiment is not a corrected live-soak claim.
+The combined `data/m3-profile-writer/evidence.json` retains both streaming and
+predecoded observations, failed loads, exact commands, tool/source hashes and
+the source text of removed scratch profiling workloads.
+
 | Limit | Default |
 | --- | --- |
 | Queue items / resident bytes (including in-flight) | 512 / 128 MiB |
@@ -211,7 +310,7 @@ profiling output remains explicitly incomplete, like the original source prefix.
 | Managed root budget | 10 GiB |
 | Retained finalized sessions | 100 |
 | Finalization deadline | 30 seconds |
-| Periodic checkpoint cadence | 100 batches |
+| Periodic checkpoint cadence | 1,000 batches |
 | History query result ceiling | 10,000 envelopes |
 | Manifest / retained gap evidence | 16 MiB / 1,024 gaps |
 
@@ -281,6 +380,17 @@ fail subsequent offers, and prevent a complete manifest. Finalization/storage
 failures are likewise explicit; some incomplete sessions contain unreadable
 partials and are deliberately not presented as replayable histories.
 
+The headless `record` command checks `RecorderHealth.terminal_failure` approximately
+every 250 ms and stops/finalizes a failed required sink instead of spending the
+remaining capture duration reconnecting against it. This is an event-loop polling
+interval, not a hard real-time deadline: scheduling and atomic work can delay it.
+It emits periodic `recording_health` JSON on stderr approximately every five
+seconds, an explicit `recording_failed` diagnostic on terminal failure, and a
+`terminal_recorder_failure` field in the final result. Source-only capture gaps do
+not trigger this early stop. Source shutdown/drain and recorder finalization still
+use their configured bounds; an unreadable timeout-abandoned directory is not
+reported as a healthy capture.
+
 `RecordingReader` verifies by default before trusting a session: catalog integrity
 and provenance; declared paths and absence of symlink escapes; SHA256/size of every
 file; catalog/manifest descriptors and counts; Parquet schema/row groups; indexed
@@ -349,6 +459,9 @@ raw/Parquet/checkpoint/catalog corruption and truncation, traversal/symlink reje
 rotation/index lookup, count/byte overflow, blocked-writer finalization, worker
 exceptions, low disk/budget, active/open-reader retention, interrupted recovery,
 grouped-row atomicity, shared checkpoint auxiliary state, warm-cache symlink faults,
-cache limits, schema cutover, rollback-journal retention and idempotent finalization.
+cache limits, schema cutover, rollback-journal retention, idempotent finalization,
+exact shared-field queue-byte boundaries, and fatal diagnostics after the bounded
+reason list fills. CLI regressions distinguish terminal writer failure from a
+nonfatal source capture gap.
 The integration owner should run these with replay and CLI tests, then real
 fixture/live-capture/corruption smoke. No test-gate result is asserted here.

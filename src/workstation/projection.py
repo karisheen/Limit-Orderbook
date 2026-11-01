@@ -193,6 +193,21 @@ class RecordingProjection:
             SegmentId(segment_id),
             source_mode,
         )
+        if recorded_events is not None:
+            if len(events) != len(recorded_events):
+                raise ValueError("recorded transaction length differs from source")
+            # Local processing observations are not present in exchange bytes.
+            # Restore them before reduction so staged-event checkpoints match
+            # normalized replay; the caller still compares all native evidence.
+            events = tuple(
+                replace(
+                    event,
+                    process_start_mono_ns=recorded.process_start_mono_ns,
+                    process_end_mono_ns=recorded.process_end_mono_ns,
+                    publish_mono_ns=recorded.publish_mono_ns,
+                )
+                for event, recorded in zip(events, recorded_events, strict=True)
+            )
         return self.apply_events(events, decoded=True, recorded_events=recorded_events)
 
     def books(self) -> tuple[Book, ...]:

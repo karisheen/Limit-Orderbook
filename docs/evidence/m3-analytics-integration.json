@@ -1,0 +1,337 @@
+{
+  "command": ".venv-upgrade/bin/python data/m3-smoke/analytics_smoke.py",
+  "python": "3.13.5 (main, Jul 23 2025, 00:30:58) [Clang 20.1.4 ]",
+  "platform": "macOS-13.7.8-x86_64-i386-64bit-Mach-O",
+  "demo_preparation_seconds": 2.029682635999052,
+  "demo_deliveries": 4410,
+  "demo_raw_frames": 4368,
+  "demo_fixture_sha256": "5faf342c4d518f7b81563eb283bf0b28748b144ccb626acaee5eecac1444a2b9",
+  "recorded_manifest_sha256": "c1f2b35a0f5c897679cc9aa53a2e6bece6019945e094f1daabb34b67bc237cbf",
+  "code_sha256": {
+    "src/workstation/analytics.py": "5af014def74f051bb93c671cc171153f25d6c8921e237d4815f72012bbee6c88",
+    "src/workstation/quality.py": "e49ea4fd531d2e42c9baf31133876610df8ec205e7f62770dca254ad9b279071",
+    "src/workstation/replay.py": "1f3592b0ea9e30e1c88bf49424886e63f1df72070bc8c40c1436649f114220d1",
+    "src/workstation/projection.py": "f36753759de852eea545932a1723b749257e74b013f01c057be447de6bb101b8",
+    "src/workstation/demo_memory.py": "d70167e4dc9ad2b498e3c49f73867e5d3fc5e8ad646c6f011c30ca5dd4334aa4",
+    "src/workstation/wire.py": "addafd6a9e6d677751cba2fc0d4613bcb571b4b03dd81dc1d28e25faad012737"
+  },
+  "results": [
+    {
+      "source": "full_180_second_24_stream_synthetic_demo",
+      "runs": [
+        {
+          "mode": "normalized",
+          "pacing_speed": null,
+          "elapsed_seconds": 5.294950940995477,
+          "prefix": {
+            "cursor": 100,
+            "book_hash": "b677fcec3ae772eef0557d2330064a396d5fb59e328aea35000c21e41f5f07e1",
+            "state_with_analytics_hash": "e5d51a2e30d35487740392e851654d608ffa32835cc33b956923dc48353deb63",
+            "analytics_hash": "5fbff1429ead65ad589e6d97071a6b5fb9b5223216a1c1dabf9d1401796623bc",
+            "clock_hash": "a8eb1d7e6d31f5011b7987187ddb4db1634d3023eb96014ecc9a9a261d696de3",
+            "snapshot_hash": "1075de31815ccf781cea40772973353e888a1b45c361edd6f261ab8df2948efa",
+            "metric_availability": {
+              "available": 288,
+              "unavailable": 204
+            },
+            "unavailable_reasons": {
+              "book_window_warming": 84,
+              "event_flow_source_use_event_ofi": 9,
+              "trade_window_warming": 84,
+              "incomplete_depth_band": 60,
+              "missing_exact_event_flow": 3,
+              "no_event_continuity": 3
+            }
+          },
+          "final": {
+            "cursor": 4410,
+            "book_hash": "d6551567f5fd85ab56933327e0af2a8a6f6d1c7125d0dee97b63f4b9d4721d65",
+            "state_with_analytics_hash": "319b64bddd04a929886406e39a6cce2782788adce5ceb27e7a85d91bcdbc53b3",
+            "analytics_hash": "219fde6eed4039a9fb6256ba21c66afb057b23dc18af0ddd9e1d01456139e17c",
+            "clock_hash": "8282e625336d2e42e2d15d61ef330be6706f138b8599db6b0b76deb995bda8da",
+            "snapshot_hash": "c00e0c67fde14dc81febe2efec81b82c6c2ed92393a7abbb3cfcd1631ee96b66",
+            "metric_availability": {
+              "available": 402,
+              "unavailable": 90
+            },
+            "unavailable_reasons": {
+              "event_flow_source_use_event_ofi": 9,
+              "incomplete_depth_band": 60,
+              "book_window_warming": 21,
+              "missing_exact_event_flow": 3,
+              "no_event_continuity": 3
+            }
+          },
+          "backward_seek_reset_restore": "passed"
+        },
+        {
+          "mode": "raw",
+          "pacing_speed": null,
+          "elapsed_seconds": 10.158256637994782,
+          "prefix": {
+            "cursor": 100,
+            "book_hash": "b677fcec3ae772eef0557d2330064a396d5fb59e328aea35000c21e41f5f07e1",
+            "state_with_analytics_hash": "e5d51a2e30d35487740392e851654d608ffa32835cc33b956923dc48353deb63",
+            "analytics_hash": "5fbff1429ead65ad589e6d97071a6b5fb9b5223216a1c1dabf9d1401796623bc",
+            "clock_hash": "a8eb1d7e6d31f5011b7987187ddb4db1634d3023eb96014ecc9a9a261d696de3",
+            "snapshot_hash": "1075de31815ccf781cea40772973353e888a1b45c361edd6f261ab8df2948efa",
+            "metric_availability": {
+              "available": 288,
+              "unavailable": 204
+            },
+            "unavailable_reasons": {
+              "book_window_warming": 84,
+              "event_flow_source_use_event_ofi": 9,
+              "trade_window_warming": 84,
+              "incomplete_depth_band": 60,
+              "missing_exact_event_flow": 3,
+              "no_event_continuity": 3
+            }
+          },
+          "final": {
+            "cursor": 4410,
+            "book_hash": "d6551567f5fd85ab56933327e0af2a8a6f6d1c7125d0dee97b63f4b9d4721d65",
+            "state_with_analytics_hash": "319b64bddd04a929886406e39a6cce2782788adce5ceb27e7a85d91bcdbc53b3",
+            "analytics_hash": "219fde6eed4039a9fb6256ba21c66afb057b23dc18af0ddd9e1d01456139e17c",
+            "clock_hash": "8282e625336d2e42e2d15d61ef330be6706f138b8599db6b0b76deb995bda8da",
+            "snapshot_hash": "c00e0c67fde14dc81febe2efec81b82c6c2ed92393a7abbb3cfcd1631ee96b66",
+            "metric_availability": {
+              "available": 402,
+              "unavailable": 90
+            },
+            "unavailable_reasons": {
+              "event_flow_source_use_event_ofi": 9,
+              "incomplete_depth_band": 60,
+              "book_window_warming": 21,
+              "missing_exact_event_flow": 3,
+              "no_event_continuity": 3
+            }
+          },
+          "backward_seek_reset_restore": "passed"
+        },
+        {
+          "mode": "normalized",
+          "pacing_speed": "2",
+          "elapsed_seconds": 96.33034673599468,
+          "prefix": {
+            "cursor": 100,
+            "book_hash": "b677fcec3ae772eef0557d2330064a396d5fb59e328aea35000c21e41f5f07e1",
+            "state_with_analytics_hash": "e5d51a2e30d35487740392e851654d608ffa32835cc33b956923dc48353deb63",
+            "analytics_hash": "5fbff1429ead65ad589e6d97071a6b5fb9b5223216a1c1dabf9d1401796623bc",
+            "clock_hash": "a8eb1d7e6d31f5011b7987187ddb4db1634d3023eb96014ecc9a9a261d696de3",
+            "snapshot_hash": "1075de31815ccf781cea40772973353e888a1b45c361edd6f261ab8df2948efa",
+            "metric_availability": {
+              "available": 288,
+              "unavailable": 204
+            },
+            "unavailable_reasons": {
+              "book_window_warming": 84,
+              "event_flow_source_use_event_ofi": 9,
+              "trade_window_warming": 84,
+              "incomplete_depth_band": 60,
+              "missing_exact_event_flow": 3,
+              "no_event_continuity": 3
+            }
+          },
+          "final": {
+            "cursor": 4410,
+            "book_hash": "d6551567f5fd85ab56933327e0af2a8a6f6d1c7125d0dee97b63f4b9d4721d65",
+            "state_with_analytics_hash": "319b64bddd04a929886406e39a6cce2782788adce5ceb27e7a85d91bcdbc53b3",
+            "analytics_hash": "219fde6eed4039a9fb6256ba21c66afb057b23dc18af0ddd9e1d01456139e17c",
+            "clock_hash": "8282e625336d2e42e2d15d61ef330be6706f138b8599db6b0b76deb995bda8da",
+            "snapshot_hash": "c00e0c67fde14dc81febe2efec81b82c6c2ed92393a7abbb3cfcd1631ee96b66",
+            "metric_availability": {
+              "available": 402,
+              "unavailable": 90
+            },
+            "unavailable_reasons": {
+              "event_flow_source_use_event_ofi": 9,
+              "incomplete_depth_band": 60,
+              "book_window_warming": 21,
+              "missing_exact_event_flow": 3,
+              "no_event_continuity": 3
+            }
+          },
+          "backward_seek_reset_restore": "passed"
+        },
+        {
+          "mode": "raw",
+          "pacing_speed": "20",
+          "elapsed_seconds": 20.485744332996546,
+          "prefix": {
+            "cursor": 100,
+            "book_hash": "b677fcec3ae772eef0557d2330064a396d5fb59e328aea35000c21e41f5f07e1",
+            "state_with_analytics_hash": "e5d51a2e30d35487740392e851654d608ffa32835cc33b956923dc48353deb63",
+            "analytics_hash": "5fbff1429ead65ad589e6d97071a6b5fb9b5223216a1c1dabf9d1401796623bc",
+            "clock_hash": "a8eb1d7e6d31f5011b7987187ddb4db1634d3023eb96014ecc9a9a261d696de3",
+            "snapshot_hash": "1075de31815ccf781cea40772973353e888a1b45c361edd6f261ab8df2948efa",
+            "metric_availability": {
+              "available": 288,
+              "unavailable": 204
+            },
+            "unavailable_reasons": {
+              "book_window_warming": 84,
+              "event_flow_source_use_event_ofi": 9,
+              "trade_window_warming": 84,
+              "incomplete_depth_band": 60,
+              "missing_exact_event_flow": 3,
+              "no_event_continuity": 3
+            }
+          },
+          "final": {
+            "cursor": 4410,
+            "book_hash": "d6551567f5fd85ab56933327e0af2a8a6f6d1c7125d0dee97b63f4b9d4721d65",
+            "state_with_analytics_hash": "319b64bddd04a929886406e39a6cce2782788adce5ceb27e7a85d91bcdbc53b3",
+            "analytics_hash": "219fde6eed4039a9fb6256ba21c66afb057b23dc18af0ddd9e1d01456139e17c",
+            "clock_hash": "8282e625336d2e42e2d15d61ef330be6706f138b8599db6b0b76deb995bda8da",
+            "snapshot_hash": "c00e0c67fde14dc81febe2efec81b82c6c2ed92393a7abbb3cfcd1631ee96b66",
+            "metric_availability": {
+              "available": 402,
+              "unavailable": 90
+            },
+            "unavailable_reasons": {
+              "event_flow_source_use_event_ofi": 9,
+              "incomplete_depth_band": 60,
+              "book_window_warming": 21,
+              "missing_exact_event_flow": 3,
+              "no_event_continuity": 3
+            }
+          },
+          "backward_seek_reset_restore": "passed"
+        }
+      ]
+    },
+    {
+      "source": "released_complete_12_stream_binance_global_hyperliquid_capture",
+      "runs": [
+        {
+          "mode": "normalized",
+          "pacing_speed": null,
+          "elapsed_seconds": 27.83147336100228,
+          "prefix": {
+            "cursor": 100,
+            "book_hash": "adb519cec7c98aef890399b4d639f1534efe75cc5c45cde71c0fb8163a7ad044",
+            "state_with_analytics_hash": "9fac5e6ed989448e7171c5c2b2a696ba924aba8292aa326f3094be1eaefee75e",
+            "analytics_hash": "fc940aea70f31efca5e567252d9ab87983ee215c943d1f443a136ebc6cb98f18",
+            "clock_hash": "b3290e3785a46beb121f96389e21b67b53de7e126b443ee99459fabb2bc915b1",
+            "snapshot_hash": "210b6e0b7e304f9ac6a16f9da1cec92c29f87818a04bfd54496d7eee59ab1e62",
+            "metric_availability": {
+              "available": 125,
+              "unavailable": 121
+            },
+            "unavailable_reasons": {
+              "book_window_warming": 42,
+              "event_flow_source_use_event_ofi": 3,
+              "trade_window_warming": 42,
+              "data_access_unknown": 12,
+              "trade_history_unanchored": 12,
+              "trade_channel_unhealthy": 12,
+              "trade_continuity_reset": 12,
+              "no_validated_trade_observation": 12,
+              "quiet_trade_interval_unproven": 12,
+              "no_observed_trades": 5,
+              "incomplete_depth_band": 44,
+              "missing_exact_event_flow": 3,
+              "no_event_continuity": 3
+            }
+          },
+          "final": {
+            "cursor": 703,
+            "book_hash": "addf0fe4ddff4ca7e4581bcaea2f010621c36d9a3e04f799bd36f1c9a0ec1a22",
+            "state_with_analytics_hash": "90c3bdeaa0f8655d62e8b9cd1824f3d4d7cfe5da5d0334df3efeeee908924e6b",
+            "analytics_hash": "f62349d45ae92130f553f30e193c9fc5a912442871730f5e937b065f8486a5d9",
+            "clock_hash": "5b17631c8f7955cb15ca272a54722e922e810f71e5696b9f365efd25cf20e506",
+            "snapshot_hash": "cc491e12c43bccdb076bf002867408b0903cb00b489192b54606305e537e5e2e",
+            "metric_availability": {
+              "unavailable": 246
+            },
+            "unavailable_reasons": {
+              "data_access_unknown": 246,
+              "integrity_invalid": 186,
+              "lifecycle_resynchronizing": 186,
+              "stale": 186,
+              "book_window_warming": 42,
+              "no_event_continuity": 6,
+              "event_flow_source_use_event_ofi": 3,
+              "trade_history_unanchored": 72,
+              "trade_channel_unhealthy": 72,
+              "trade_continuity_reset": 72,
+              "stale_trade_channel": 72,
+              "trade_window_warming": 42,
+              "quiet_trade_interval_unproven": 72,
+              "no_observed_trades": 30,
+              "missing_exact_event_flow": 3
+            }
+          },
+          "backward_seek_reset_restore": "passed"
+        },
+        {
+          "mode": "raw",
+          "pacing_speed": null,
+          "elapsed_seconds": 28.27829128400481,
+          "prefix": {
+            "cursor": 100,
+            "book_hash": "adb519cec7c98aef890399b4d639f1534efe75cc5c45cde71c0fb8163a7ad044",
+            "state_with_analytics_hash": "9fac5e6ed989448e7171c5c2b2a696ba924aba8292aa326f3094be1eaefee75e",
+            "analytics_hash": "fc940aea70f31efca5e567252d9ab87983ee215c943d1f443a136ebc6cb98f18",
+            "clock_hash": "b3290e3785a46beb121f96389e21b67b53de7e126b443ee99459fabb2bc915b1",
+            "snapshot_hash": "210b6e0b7e304f9ac6a16f9da1cec92c29f87818a04bfd54496d7eee59ab1e62",
+            "metric_availability": {
+              "available": 125,
+              "unavailable": 121
+            },
+            "unavailable_reasons": {
+              "book_window_warming": 42,
+              "event_flow_source_use_event_ofi": 3,
+              "trade_window_warming": 42,
+              "data_access_unknown": 12,
+              "trade_history_unanchored": 12,
+              "trade_channel_unhealthy": 12,
+              "trade_continuity_reset": 12,
+              "no_validated_trade_observation": 12,
+              "quiet_trade_interval_unproven": 12,
+              "no_observed_trades": 5,
+              "incomplete_depth_band": 44,
+              "missing_exact_event_flow": 3,
+              "no_event_continuity": 3
+            }
+          },
+          "final": {
+            "cursor": 703,
+            "book_hash": "addf0fe4ddff4ca7e4581bcaea2f010621c36d9a3e04f799bd36f1c9a0ec1a22",
+            "state_with_analytics_hash": "90c3bdeaa0f8655d62e8b9cd1824f3d4d7cfe5da5d0334df3efeeee908924e6b",
+            "analytics_hash": "f62349d45ae92130f553f30e193c9fc5a912442871730f5e937b065f8486a5d9",
+            "clock_hash": "5b17631c8f7955cb15ca272a54722e922e810f71e5696b9f365efd25cf20e506",
+            "snapshot_hash": "cc491e12c43bccdb076bf002867408b0903cb00b489192b54606305e537e5e2e",
+            "metric_availability": {
+              "unavailable": 246
+            },
+            "unavailable_reasons": {
+              "data_access_unknown": 246,
+              "integrity_invalid": 186,
+              "lifecycle_resynchronizing": 186,
+              "stale": 186,
+              "book_window_warming": 42,
+              "no_event_continuity": 6,
+              "event_flow_source_use_event_ofi": 3,
+              "trade_history_unanchored": 72,
+              "trade_channel_unhealthy": 72,
+              "trade_continuity_reset": 72,
+              "stale_trade_channel": 72,
+              "trade_window_warming": 42,
+              "quiet_trade_interval_unproven": 72,
+              "no_observed_trades": 30,
+              "missing_exact_event_flow": 3
+            }
+          },
+          "backward_seek_reset_restore": "passed"
+        }
+      ]
+    }
+  ],
+  "elapsed_seconds": 205.42990449999343,
+  "limitations": [
+    "Replay pacing is a determinism check, not a sustained capture or browser-latency benchmark.",
+    "Synthetic demo provenance is retained; no historical market data or profitability is claimed."
+  ]
+}

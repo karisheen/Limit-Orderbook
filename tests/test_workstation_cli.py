@@ -316,3 +316,137 @@ def test_demo_reader_retention_lifetime_and_failed_cache_cleanup(tmp_path, monke
     with active_path.open("rb") as active:
         fcntl.flock(active, fcntl.LOCK_EX | fcntl.LOCK_NB)
         fcntl.flock(active, fcntl.LOCK_UN)
+
+
+@pytest.mark.parametrize("fatal_disk_failure", [False, True])
+def test_record_stops_failed_sink_but_not_ordinary_source_gap(
+    tmp_path, capsys, monkeypatch, fatal_disk_failure
+):
+    """A real writer failure ends a long capture; a source gap does not."""
+    from src.workstation.adapters.hyperliquid import HyperliquidAdapter
+    from src.workstation.ingestion import FeedSupervisor
+    from src.workstation.recording import RecorderLimits
+    from src.workstation import subscriptions
+
+    adapter = HyperliquidAdapter()
+    metadata = adapter.parse_metadata(
+        {"collateralToken": 0, "universe": [{"name": "BTC", "szDecimals": 5}]},
+        {
+            "tokens": [
+                {"name": "USDC", "index": 0, "tokenId": "0xusdc", "szDecimals": 8}
+            ],
+            "universe": [],
+        },
+        fetch_wall_ns=123,
+        payload_hash="synthetic-cli-writer-failure-fixture",
+    )
+
+    async def discover(self):
+        return metadata
+
+    class OfflineSupervisor(FeedSupervisor):
+        async def run(self):
+            self._running = True
+            try:
+                self._start_epoch(False)
+                if self.key.channel == "book":
+                    payload = {
+                        "channel": "l2Book",
+                        "data": {
+                            "coin": "BTC",
+                            "time": 1700000000000,
+                            "levels": [
+                                [{"px": "60000", "sz": "1.00000", "n": 1}],
+                                [{"px": "60001", "sz": "2.00000", "n": 1}],
+                            ],
+                        },
+                    }
+                else:
+                    payload = {
+                        "channel": "trades",
+                        "data": [
+                            {
+                                "coin": "BTC",
+                                "side": "B",
+                                "px": "60000",
+                                "sz": "0.00010",
+                                "time": 1700000000000,
+                                "tid": 7,
+                                "hash": "synthetic-cli-trade",
+                            }
+                        ],
+                    }
+                self._receive(
+                    json.dumps(payload).encode(),
+                    "ws",
+                    "wss://api.hyperliquid.xyz/ws",
+                    self.epoch,
+                )
+                frame = self.queue.get_nowait()
+                self.queued_bytes -= len(frame.payload)
+                await self._process(frame)
+                await asyncio.Event().wait()
+            finally:
+                await self._shutdown()
+
+    original_registry = subscriptions.SubscriptionRegistry
+    registries = []
+
+    def registry(catalog):
+        result = original_registry(
+            catalog,
+            supervisor_factory=OfflineSupervisor,
+            lock_path=tmp_path / "collector",
+        )
+        registries.append(result)
+        return result
+
+    original_init = Recorder.__init__
+
+    def initialize(self, *args, **kwargs):
+        original_init(self, *args, **kwargs, limits=RecorderLimits(min_free_bytes=0))
+        if not fatal_disk_failure:
+            self.mark_incomplete("source_capture_lost:injected")
+
+    def disk_failure(self, frame):
+        raise OSError("injected disk failure")
+
+    monkeypatch.setattr(HyperliquidAdapter, "discover", discover)
+    monkeypatch.setattr(subscriptions, "SubscriptionRegistry", registry)
+    monkeypatch.setattr(Recorder, "__init__", initialize)
+    if fatal_disk_failure:
+        monkeypatch.setattr(Recorder, "_write_raw", disk_failure)
+
+    async def run():
+        args = cli.parser().parse_args(
+            [
+                "record",
+                "--network",
+                "--root",
+                str(tmp_path / "captures"),
+                "--venue",
+                "hyperliquid",
+                "--assets",
+                "BTC",
+                "--duration",
+                "30" if fatal_disk_failure else "0.35",
+            ]
+        )
+        start = asyncio.get_running_loop().time()
+        result = await asyncio.wait_for(cli._record(args), timeout=10)
+        elapsed = asyncio.get_running_loop().time() - start
+        assert result == cli.INCOMPLETE
+        if not fatal_disk_failure:
+            assert elapsed >= 0.35
+        assert not registries[0].snapshot()
+        assert not registries[0].books()
+
+    asyncio.run(run())
+    result = report(capsys)
+    assert result["terminal_recorder_failure"] is fatal_disk_failure
+    reasons = result["manifest"]["incomplete_reasons"]
+    if fatal_disk_failure:
+        assert any(reason.startswith("writer_failed:OSError") for reason in reasons)
+    else:
+        assert "source_capture_lost:injected" in reasons
+        assert result["manifest"]["raw_count"] == "2"

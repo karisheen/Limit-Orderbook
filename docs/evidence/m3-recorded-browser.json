@@ -1,0 +1,101 @@
+{
+  "scenario": "Actual released public capture at delivery300 after provenance correction",
+  "capture_manifest_sha256": "c1f2b35a0f5c897679cc9aa53a2e6bece6019945e094f1daabb34b67bc237cbf",
+  "result": {
+    "source": {
+      "id": "7b0866a72e424c09b728c56fb1b61cb2",
+      "mode": "replay",
+      "label": "9b355ab1-b2a2-4dbb-ae67-a47710272382",
+      "status": "ready",
+      "synthetic": false,
+      "recording": true,
+      "duration_ns": null,
+      "streams": 12,
+      "reasons": []
+    },
+    "cursor": {
+      "delivery_index": "300",
+      "ordinal": "300",
+      "event_index": "0"
+    },
+    "health": {
+      "ready": true,
+      "reasons": []
+    },
+    "selection": {
+      "instrument_id": "binance-global:spot-v3:spot:BTCUSDT"
+    },
+    "book": {
+      "bid": {
+        "price": "77896.31",
+        "quantity": "7.8364"
+      },
+      "ask": {
+        "price": "77896.32",
+        "quantity": "0.05256"
+      },
+      "bid_levels": 4997,
+      "ask_levels": 5005,
+      "quality": {
+        "lifecycle": "live",
+        "integrity": "valid",
+        "transport_alive": true,
+        "source_mode": "ws_delta",
+        "recorded_source_mode": null,
+        "last_transport_mono_ns": "90375756459114",
+        "last_book_observation_mono_ns": "90375756459114",
+        "last_book_change_mono_ns": "90375756459114",
+        "last_healthy_observation_mono_ns": "90375756459114",
+        "clock_id": "1c2a8715-221b-424f-be2e-768f81280f05",
+        "coverage": {
+          "subscribed_depth": "5000",
+          "retained_bid_levels": "4997",
+          "retained_ask_levels": "5005",
+          "worst_bid": "76726.27",
+          "worst_ask": "78688.21",
+          "full_depth": false,
+          "source_aggregation": [],
+          "expected_cadence_ns": null
+        },
+        "capabilities": {
+          "snapshot": true,
+          "deltas": true,
+          "trades": false,
+          "sequence_scope": "binance-global:spot-v3:spot:BTCUSDT:depth",
+          "checksum_scope": null,
+          "exact_event_flow": true,
+          "reference_prices": [],
+          "asset_context": []
+        },
+        "continuous_since_ordinal": "51",
+        "reason_codes": [],
+        "capture_complete": true
+      }
+    },
+    "telemetry": {
+      "queue_depth": 0,
+      "queue_highwater": 0,
+      "coalesced": 0,
+      "overflows": 0,
+      "ack_expired": 0,
+      "observer_duration_ms": null,
+      "queue_wait_ms": null,
+      "publish_to_ack_upper_bound_ms": 104.201388,
+      "browser_receive_to_paint_ms": 42.099999994039536,
+      "published_mono_ns": "97734989359317",
+      "ingestion": []
+    },
+    "source_banner": "REPLAY\n9b355ab1-b2a2-4dbb-ae67-a47710272382\nRecorded capture · playback\nRequired data ready\nPAUSED",
+    "viewport": {
+      "width": 1440,
+      "height": 900,
+      "overflow": false
+    }
+  },
+  "screenshot": "m3-recorded-label-after.png",
+  "before_screenshot": "m3-recorded-label-before.png",
+  "limitations": [
+    "Single browser observation; ACK includes round trip and is not a latency percentile.",
+    "Source is finalized recorded replay; no active recorder."
+  ]
+}

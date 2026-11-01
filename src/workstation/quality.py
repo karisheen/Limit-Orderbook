@@ -328,3 +328,83 @@ def evaluate_cohort(
         tuple(reasons),
         members,
     )
+
+
+@dataclass(frozen=True)
+class TradeEvidence:
+    """Independent public trade-channel evidence; never a fabricated book."""
+
+    instrument_id: str
+    metadata_version: str
+    stream_id: str
+    clock_id: str
+    connection_epoch: int
+    established_mono_ns: int | None = None
+    last_validated_mono_ns: int | None = None
+    healthy: bool = False
+    reason_codes: tuple[str, ...] = ()
+    continuity_scope: str = "validated_public_channel_not_matching_engine"
+
+    def __post_init__(self):
+        for value in (
+            self.instrument_id,
+            self.metadata_version,
+            self.stream_id,
+            self.clock_id,
+            self.continuity_scope,
+        ):
+            text(value)
+        nonnegative_int(self.connection_epoch)
+        for clock_ns in (self.established_mono_ns, self.last_validated_mono_ns):
+            if clock_ns is not None:
+                nonnegative_int(clock_ns)
+        if type(self.healthy) is not bool:
+            raise ValueError("invalid trade evidence health")
+        if self.healthy and (
+            self.established_mono_ns is None or self.last_validated_mono_ns is None
+        ):
+            raise ValueError("healthy trade evidence requires establishment")
+        object.__setattr__(self, "reason_codes", tuple(self.reason_codes))
+        for reason in self.reason_codes:
+            text(reason)
+
+
+def evaluate_trades(
+    evidence: TradeEvidence | None,
+    instrument: "Instrument",
+    now: ClockReading,
+    policy: EligibilityPolicy = EligibilityPolicy(),
+) -> Eligibility:
+    """Gate actual validated trades, independently of book availability."""
+    reasons: list[str] = []
+    if instrument.status != "active":
+        reasons.append("instrument_" + instrument.status)
+    established = evidence is not None and evidence.established_mono_ns is not None
+    if instrument.data_access in ("blocked", "unsupported") or (
+        instrument.data_access == "unknown" and not established
+    ):
+        reasons.append("data_access_" + instrument.data_access)
+    if evidence is None:
+        reasons.append("no_trade_evidence")
+    else:
+        if (evidence.instrument_id, evidence.metadata_version) != (
+            instrument.instrument_id,
+            instrument.metadata_version,
+        ):
+            reasons.append("instrument_mismatch")
+        if not established:
+            reasons.append("trade_history_unanchored")
+        if not evidence.healthy:
+            reasons.append("trade_channel_unhealthy")
+        reasons.extend(evidence.reason_codes)
+        if evidence.clock_id != now.clock_id:
+            reasons.append("clock_mismatch")
+        elif evidence.last_validated_mono_ns is None:
+            reasons.append("no_validated_trade_observation")
+        elif evidence.last_validated_mono_ns > now.mono_ns:
+            reasons.append("clock_regression")
+        elif now.mono_ns - evidence.last_validated_mono_ns > policy.max_age_ns:
+            reasons.append("stale_trade_channel")
+    return Eligibility(
+        not reasons, tuple(dict.fromkeys(reasons)), now.mono_ns, policy.version
+    )
