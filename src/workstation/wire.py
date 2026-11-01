@@ -1,0 +1,161 @@
+"""Explicit tagged schema: decimal and integer fields are JSON strings, never floats."""
+
+import base64
+import binascii
+from dataclasses import fields, is_dataclass
+from decimal import Decimal
+import json
+import types
+from typing import Union, get_args, get_origin, get_type_hints
+
+from .precision import canonical_decimal, decimal, exact_json_loads
+
+WIRE_SCHEMA_VERSION = 1
+
+
+def _registry():
+    from . import book, events, instruments, precision, quality
+
+    result = {}
+    for module in (book, events, instruments, precision, quality):
+        for name, cls in vars(module).items():
+            if (
+                isinstance(cls, type)
+                and is_dataclass(cls)
+                and cls.__module__ == module.__name__
+            ):
+                result[name] = cls
+    return result
+
+
+def to_wire(value, *, canonical: bool = True):
+    if value is None or isinstance(value, (bool, str)):
+        return value
+    if isinstance(value, Decimal):
+        # Public wire is canonical; checkpoints explicitly retain scale/exponent.
+        return canonical_decimal(value) if canonical else str(decimal(value))
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, bytes):
+        return {"$bytes": base64.b64encode(value).decode("ascii")}
+    if (
+        is_dataclass(value)
+        and type(value).__name__ in _registry()
+        and _registry()[type(value).__name__] is type(value)
+    ):
+        return {
+            "$type": type(value).__name__,
+            **{
+                field.name: to_wire(getattr(value, field.name), canonical=canonical)
+                for field in fields(value)
+            },
+        }
+    if isinstance(value, (tuple, frozenset)):
+        items = sorted(value) if isinstance(value, frozenset) else value
+        return [to_wire(item, canonical=canonical) for item in items]
+    raise ValueError(f"unsupported wire type: {type(value).__name__}")
+
+
+def _decode(value, expected):
+    origin, args = get_origin(expected), get_args(expected)
+    if origin in (Union, types.UnionType):
+        for option in args:
+            try:
+                return _decode(value, option)
+            except (ValueError, TypeError):
+                continue
+        raise ValueError("wire value does not match union")
+    if expected is type(None):
+        if value is not None:
+            raise ValueError("expected null")
+        return None
+    if origin is not None and str(origin) == "typing.Literal":
+        if value not in args:
+            raise ValueError("invalid literal")
+        return value
+    if origin in (tuple, frozenset):
+        if not isinstance(value, list):
+            raise ValueError("expected wire array")
+        if origin is frozenset:
+            result = frozenset(_decode(item, args[0]) for item in value)
+            if len(result) != len(value):
+                raise ValueError("duplicate set member")
+            return result
+        if len(args) == 2 and args[1] is Ellipsis:
+            return tuple(_decode(item, args[0]) for item in value)
+        if len(value) != len(args):
+            raise ValueError("tuple length mismatch")
+        return tuple(
+            _decode(item, kind) for item, kind in zip(value, args, strict=True)
+        )
+    if expected is Decimal:
+        if not isinstance(value, str):
+            raise ValueError("decimal wire value must be text")
+        return decimal(value)
+    if expected is bytes:
+        if not isinstance(value, dict) or set(value) != {"$bytes"}:
+            raise ValueError("expected encoded bytes")
+        try:
+            return base64.b64decode(value["$bytes"], validate=True)
+        except (ValueError, TypeError, binascii.Error) as exc:
+            raise ValueError("invalid bytes") from exc
+    if isinstance(expected, type) and issubclass(expected, bool):
+        if type(value) is not bool:
+            raise ValueError("expected boolean")
+        return value
+    if isinstance(expected, type) and issubclass(expected, int):
+        if (
+            not isinstance(value, str)
+            or len(value) > 128
+            or not value
+            or (value[0] == "-" and not value[1:].isascii())
+            or not value.lstrip("-").isdigit()
+        ):
+            raise ValueError("integer wire value must be decimal text")
+        return expected(int(value))
+    if isinstance(expected, type) and issubclass(expected, str):
+        if not isinstance(value, str):
+            raise ValueError("expected text")
+        return expected(value)
+    if isinstance(expected, type) and is_dataclass(expected):
+        if not isinstance(value, dict) or value.get("$type") != expected.__name__:
+            raise ValueError("incorrect wire record type")
+        names = {field.name for field in fields(expected)}
+        if set(value) != names | {"$type"}:
+            raise ValueError("missing/unknown wire fields")
+        hints = get_type_hints(expected)
+        return expected(**{name: _decode(value[name], hints[name]) for name in names})
+    raise ValueError(f"unsupported wire annotation: {expected}")
+
+
+def from_wire(value, expected_type=None):
+    if expected_type is None:
+        if not isinstance(value, dict) or value.get("$type") not in _registry():
+            raise ValueError("unknown wire record")
+        expected_type = _registry()[value["$type"]]
+    return _decode(value, expected_type)
+
+
+def dumps(value, *, canonical: bool = True) -> bytes:
+    return json.dumps(
+        {
+            "schema_version": WIRE_SCHEMA_VERSION,
+            "value": to_wire(value, canonical=canonical),
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        allow_nan=False,
+    ).encode("utf-8")
+
+
+def loads(payload: bytes | str, expected_type=None, *, max_bytes: int = 268_435_456):
+    value = exact_json_loads(payload, max_bytes=max_bytes)
+    if (
+        not isinstance(value, dict)
+        or set(value) != {"schema_version", "value"}
+        or type(value["schema_version"]) is not int
+        or value["schema_version"] != WIRE_SCHEMA_VERSION
+    ):
+        raise ValueError("unsupported wire schema")
+    return from_wire(value["value"], expected_type)

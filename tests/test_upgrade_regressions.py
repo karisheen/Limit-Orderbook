@@ -1,12 +1,12 @@
-"""M0 safety contracts against the legacy API; remove each xfail with its fix.
+"""Deterministic safety contracts for legacy precision, UI and supervision.
 
-Synthetic inputs only. Transport, clocks, and thread starts are controlled; the
-actual normalizer, adapter, renderer, and supervision code remain under test.
-Strict xfails catch AssertionError only, so unrelated API/import/parser errors
-are failures rather than silently accepted evidence of a known bug.
+Synthetic inputs only. Transport, clocks and thread starts are controlled;
+the real normalizer, adapter, renderer and supervision remain under test.
 """
 
 import json
+import zlib
+from decimal import Decimal
 from unittest.mock import Mock
 
 import pytest
@@ -20,10 +20,6 @@ from src.domain.orderbook_service import FeedWorker, OrderBookService
 from src.ui import components
 
 
-def known_bug(reason):
-    return pytest.mark.xfail(strict=True, raises=AssertionError, reason=reason)
-
-
 def assert_snapshot_rejected(bids, asks):
     try:
         make_snapshot("Kraken", "BTC/USD", bids, asks)
@@ -32,7 +28,6 @@ def assert_snapshot_rejected(bids, asks):
     raise AssertionError("unsafe snapshot must raise ValueError")
 
 
-@known_bug("M1: positive infinity passes the legacy positivity-only filter")
 @pytest.mark.parametrize("side", ["bids", "asks"])
 @pytest.mark.parametrize("field", [0, 1], ids=["price", "quantity"])
 def test_nonfinite_snapshot_is_rejected(side, field):
@@ -41,7 +36,6 @@ def test_nonfinite_snapshot_is_rejected(side, field):
     assert_snapshot_rejected(**rows)
 
 
-@known_bug("M1: duplicate snapshot prices are retained and double-count depth")
 @pytest.mark.parametrize("side", ["bids", "asks"])
 def test_duplicate_snapshot_prices_are_rejected(side):
     rows = {"bids": [["100", "1"]], "asks": [["101", "1"]]}
@@ -51,7 +45,6 @@ def test_duplicate_snapshot_prices_are_rejected(side):
     assert_snapshot_rejected(**rows)
 
 
-@known_bug("M1: NaN delta fields enter float-keyed mutable book state")
 @pytest.mark.parametrize("side", ["bids", "asks"])
 @pytest.mark.parametrize("field", [0, 1], ids=["price", "quantity"])
 def test_nan_delta_is_rejected_before_mutating_book(side, field):
@@ -70,12 +63,11 @@ def test_nan_delta_is_rejected_before_mutating_book(side, field):
     raise AssertionError("nonfinite delta must raise ValueError before mutation")
 
 
-@known_bug("M1: internally crossed venue snapshots are accepted")
 def test_internally_crossed_snapshot_is_rejected():
     assert_snapshot_rejected([["102", "1"]], [["101", "1"]])
 
 
-def kraken_message(kind, bids, asks):
+def kraken_message(kind, bids, asks, checksum=None):
     return json.dumps(
         {
             "channel": "book",
@@ -83,6 +75,9 @@ def kraken_message(kind, bids, asks):
             "data": [
                 {
                     "symbol": "BTC/USD",
+                    "checksum": checksum
+                    if checksum is not None
+                    else kraken_checksum(bids, asks),
                     "bids": [{"price": price, "qty": qty} for price, qty in bids],
                     "asks": [{"price": price, "qty": qty} for price, qty in asks],
                 }
@@ -91,7 +86,14 @@ def kraken_message(kind, bids, asks):
     )
 
 
-@known_bug("M1: Kraken subscribes at 25 but retains LiveBook's default 200")
+def kraken_checksum(bids, asks):
+    def digits(value):
+        return format(Decimal(str(value)), "f").replace(".", "").lstrip("0")
+
+    levels = sorted(asks)[:10] + sorted(bids, reverse=True)[:10]
+    return zlib.crc32("".join(digits(p) + digits(q) for p, q in levels).encode())
+
+
 @pytest.mark.parametrize("side", ["bids", "asks"])
 def test_kraken_truncates_each_update_to_subscription_depth(side):
     adapter = KrakenAdapter()
@@ -102,7 +104,14 @@ def test_kraken_truncates_each_update_to_subscription_depth(side):
     assert initial is not None and len(getattr(initial, side)) == depth
     update = {"bids": [], "asks": []}
     update[side] = [(101 if side == "bids" else 109, 1)]
-    snapshot = adapter.handle_ws_message(kraken_message("update", **update), "BTC")
+    next_bids = sorted(bids + update["bids"], reverse=True)[:depth]
+    next_asks = sorted(asks + update["asks"])[:depth]
+    snapshot = adapter.handle_ws_message(
+        kraken_message(
+            "update", **update, checksum=kraken_checksum(next_bids, next_asks)
+        ),
+        "BTC",
+    )
     assert snapshot is not None
     # Check stored state too: slicing only the published view leaves ghost
     # liquidity that can reappear when a better price is subsequently deleted.
@@ -144,7 +153,6 @@ def snapshot(venue, symbol="BTC/USD", bid="100", ask="101", timestamp=1000.0):
     return make_snapshot(venue, symbol, [[bid, "1"]], [[ask, "1"]], timestamp=timestamp)
 
 
-@known_bug("M1: comparison ranks stored books even when their feed is ineligible")
 @pytest.mark.parametrize("state", [FeedState.DEGRADED, FeedState.DISCONNECTED])
 def test_comparison_does_not_select_unhealthy_venue(
     comparison_output, state, monkeypatch
@@ -164,7 +172,6 @@ def test_comparison_does_not_select_unhealthy_venue(
     assert all(venue != "Coinbase" for _, _, venue in comparison_output.metrics)
 
 
-@known_bug("M1: comparison trusts CONNECTED without checking freshness or as-of skew")
 def test_comparison_does_not_select_old_connected_snapshot(
     comparison_output, monkeypatch
 ):
@@ -183,7 +190,6 @@ def test_comparison_does_not_select_old_connected_snapshot(
     assert all(venue != "Coinbase" for _, _, venue in comparison_output.metrics)
 
 
-@known_bug("M1: USD and USDT quotes form a single synthetic best bid/ask")
 def test_comparison_does_not_combine_different_quote_currencies(
     comparison_output, monkeypatch
 ):
@@ -208,24 +214,37 @@ def test_comparison_does_not_combine_different_quote_currencies(
 @pytest.fixture
 def heartbeat_socket(monkeypatch):
     class HeartbeatSocket:
-        def __init__(self, url, on_open, on_message, on_error):
-            self.on_open = on_open
-            self.on_message = on_message
+        def __init__(self):
+            self.frames = [
+                (
+                    clients.websocket.ABNF.OPCODE_TEXT,
+                    json.dumps({"channel": "heartbeat"}),
+                ),
+                (clients.websocket.ABNF.OPCODE_CLOSE, ""),
+            ]
+
+        def settimeout(self, timeout):
+            pass
 
         def send(self, message):
             pass
 
-        def run_forever(self, **kwargs):
-            self.on_open(self)
-            self.on_message(self, json.dumps({"channel": "heartbeat"}))
+        def recv_data(self, **kwargs):
+            return self.frames.pop(0)
 
         def close(self):
             pass
 
-    monkeypatch.setattr(clients.websocket, "WebSocketApp", HeartbeatSocket)
+        def shutdown(self):
+            pass
+
+    monkeypatch.setattr(
+        clients.websocket,
+        "create_connection",
+        lambda *args, **kwargs: HeartbeatSocket(),
+    )
 
 
-@known_bug("M1: arbitrary websocket frames are counted as successful book recovery")
 def test_heartbeat_only_session_is_not_successful_book_data(heartbeat_socket):
     service = OrderBookService()
     worker = FeedWorker(service, KrakenAdapter(), "BTC", service._generation)
@@ -253,18 +272,16 @@ class VirtualStopEvent:
         return self.is_set()
 
 
-@known_bug("M1: repeated heartbeat-only sessions reset failure budget forever")
 def test_heartbeat_only_reconnects_eventually_fall_back(heartbeat_socket, monkeypatch):
     service = OrderBookService()
     worker = FeedWorker(service, KrakenAdapter(), "BTC", service._generation)
     worker._stop_event = VirtualStopEvent(60.0)
-    fallback = Mock()
+    fallback = Mock(side_effect=worker._stop_event.set)
     monkeypatch.setattr(worker, "_run_rest_loop", fallback)
     worker._run_ws_with_fallback()
     assert fallback.call_count == 1
 
 
-@known_bug("M1: REST fallback never probes websocket recovery")
 def test_rest_fallback_probes_websocket_within_five_virtual_minutes(monkeypatch):
     service = OrderBookService()
     worker = FeedWorker(service, KrakenAdapter(), "BTC", service._generation)
@@ -288,6 +305,7 @@ def test_rest_fallback_probes_websocket_within_five_virtual_minutes(monkeypatch)
 
 @pytest.fixture
 def inert_workers(monkeypatch):
+    monkeypatch.setattr(service_module.time, "time", lambda: 1000.0)
     workers = []
 
     class InertWorker:
@@ -311,12 +329,14 @@ def inert_workers(monkeypatch):
     return workers
 
 
-@known_bug("M1: cached global service has only one mutable subscription")
 def test_second_browser_consumer_does_not_destroy_first_consumers_book(inert_workers):
-    # crypto_lob.get_service is @st.cache_resource with no session key. Model
-    # its shared return value directly; importing the entrypoint starts UI/feed
-    # work. This is an ownership regression, not a browser end-to-end test.
-    first_consumer = second_consumer = OrderBookService()
+    # Exercise the exact session-state factory used by the entrypoint without
+    # importing Streamlit's executable page or creating real feed threads.
+    first_state, second_state = {}, {}
+    first_consumer = service_module.get_session_service(first_state)
+    second_consumer = service_module.get_session_service(second_state)
+    assert first_consumer is service_module.get_session_service(first_state)
+    assert first_consumer is not second_consumer
     first_consumer.set_subscription("BTC", ["Kraken"])
     btc = snapshot("Kraken")
     first_consumer._record_snapshot(btc, "websocket", first_consumer._generation)
@@ -324,9 +344,6 @@ def test_second_browser_consumer_does_not_destroy_first_consumers_book(inert_wor
     assert first_consumer.get_snapshot("Kraken") == btc
 
 
-@known_bug(
-    "M1: subscription replacement/shutdown requests stop without joining workers"
-)
 @pytest.mark.parametrize("operation", ["replace", "shutdown"])
 def test_service_waits_for_old_worker_shutdown(inert_workers, operation):
     service = OrderBookService()
@@ -340,7 +357,6 @@ def test_service_waits_for_old_worker_shutdown(inert_workers, operation):
     assert old_worker.joined is True
 
 
-@known_bug("M1: superseded set_subscription drops ownership of a just-started worker")
 def test_overlapping_subscription_replacement_does_not_orphan_worker(monkeypatch):
     workers = []
 
@@ -368,3 +384,126 @@ def test_overlapping_subscription_replacement_does_not_orphan_worker(monkeypatch
     service.set_subscription("BTC", ["Kraken"])
     service.stop()
     assert all(worker.stopped for worker in workers)
+
+
+@pytest.mark.parametrize(
+    "venue,symbol",
+    [
+        ("Unknown", "BTCUSD"),
+        ("Kraken", "BTC/USDC"),
+        ("Coinbase", "NOTBTC-USD"),
+    ],
+)
+def test_comparison_unknown_mapping_is_excluded(venue, symbol):
+    cohorts, excluded = service_module.comparable_snapshots(
+        {venue: snapshot(venue, symbol)},
+        {venue: FeedStatus(FeedState.CONNECTED, "websocket", 1000)},
+        now=1000,
+    )
+    assert cohorts == {}
+    assert excluded[venue] == "unknown instrument mapping"
+
+
+def test_comparison_enforces_configurable_skew_within_freshness_window():
+    books = {
+        "Kraken": snapshot("Kraken"),
+        "Coinbase": snapshot("Coinbase", "BTC-USD", "105", "106", timestamp=995),
+    }
+    statuses = {
+        name: FeedStatus(FeedState.CONNECTED, "websocket", 1000) for name in books
+    }
+    cohorts, excluded = service_module.comparable_snapshots(
+        books, statuses, now=1000, max_skew=2
+    )
+    assert set(cohorts[("BTC", "USD")]) == {"Kraken"}
+    assert "skew" in excluded["Coinbase"]
+    cohorts, excluded = service_module.comparable_snapshots(
+        books, statuses, now=1000, max_skew=5
+    )
+    assert set(cohorts[("BTC", "USD")]) == {"Kraken", "Coinbase"}
+    assert not excluded
+
+
+def test_fresh_status_cannot_resurrect_old_snapshot():
+    cohorts, excluded = service_module.comparable_snapshots(
+        {"Kraken": snapshot("Kraken", timestamp=900)},
+        {"Kraken": FeedStatus(FeedState.CONNECTED, "websocket", 1000)},
+        now=1000,
+    )
+    assert not cohorts
+    assert "stale" in excluded["Kraken"]
+
+
+def test_comparison_keeps_different_bases_separate():
+    books = {
+        "Kraken": snapshot("Kraken"),
+        "Coinbase": snapshot("Coinbase", "ETH-USD"),
+    }
+    statuses = {
+        name: FeedStatus(FeedState.CONNECTED, "websocket", 1000) for name in books
+    }
+    cohorts, _ = service_module.comparable_snapshots(books, statuses, now=1000)
+    assert set(cohorts) == {("BTC", "USD"), ("ETH", "USD")}
+
+
+def test_decimal_ladder_and_plotting_boundaries(monkeypatch):
+    book = snapshot(
+        "Kraken", bid="100.000000000000000001", ask="101.000000000000000001"
+    )
+    assert "100.00" in components.ladder_html(book)
+    plots = []
+    output = ComparisonOutput()
+    output.plotly_chart = plots.append
+    monkeypatch.setattr(components, "st", output)
+    components.render_depth_chart(book)
+    components.render_spread_history(
+        [
+            (1000 + i, book.best_bid, book.best_ask, book.spread_bps, book.mid_price)
+            for i in range(3)
+        ]
+    )
+    components.render_heatmap([(1000 + i, book) for i in range(3)])
+    assert len(plots) == 3
+    assert book.best_bid == Decimal("100.000000000000000001")
+
+
+def test_subscription_rejects_wrong_asset_and_obsolete_callbacks(inert_workers):
+    service = OrderBookService()
+    service.set_subscription("BTC", ["Kraken"])
+    old_generation = service._generation
+    assert service._record_snapshot(snapshot("Kraken"), "websocket", old_generation)
+    service.set_subscription("ETH", ["Kraken"])
+    assert not service._record_snapshot(snapshot("Kraken"), "websocket", old_generation)
+    assert not service._record_snapshot(
+        snapshot("Kraken"), "websocket", service._generation
+    )
+    assert service.get_snapshot("Kraken") is None
+    assert service._record_snapshot(
+        snapshot("Kraken", "ETH/USD"), "websocket", service._generation
+    )
+
+
+def test_stopped_service_can_restart_same_subscription(inert_workers):
+    service = OrderBookService()
+    service.set_subscription("BTC", ["Kraken"])
+    service.stop()
+    service.set_subscription("BTC", ["Kraken"])
+    assert len(inert_workers) == 2
+    assert inert_workers[0].stopped
+    assert inert_workers[1].started
+
+
+def test_invalid_service_snapshot_does_not_establish_health():
+    service = OrderBookService()
+    assert not service._record_snapshot(None, "websocket", 0)
+    assert not service.get_statuses()
+
+
+def test_stale_snapshot_cannot_mark_feed_healthy(monkeypatch):
+    monkeypatch.setattr(service_module.time, "time", lambda: 1000.0)
+    service = OrderBookService()
+    assert not service._record_snapshot(
+        snapshot("Kraken", timestamp=900), "websocket", 0
+    )
+    assert service.get_snapshot("Kraken") is None
+    assert service.get_statuses()["Kraken"].state == FeedState.DISCONNECTED

@@ -1,103 +1,123 @@
 # Crypto Limit Order Book
 
-A **Streamlit** dashboard that shows live limit order books for major cryptocurrencies
-across multiple exchanges — websocket-first with automatic REST fallback, styled after
-pro trading UIs (ladder, depth chart, spread history, depth heatmap, venue comparison).
+A runnable **Streamlit** dashboard for public cryptocurrency order books, with a
+ladder, depth chart, spread history, depth heatmap and quality-gated venue
+comparison. The existing app is being upgraded into a local market-data research
+workstation; the planned terminal is **not** the current Streamlit application.
 
-## Features
+## Upgrade progress
 
-- **Real order book data** from free public APIs on every supported venue (no synthetic books).
-- **Websocket-first ingestion** with reconnect supervision and automatic REST-polling fallback.
-- **Hyperliquid-style ladder**: cumulative depth bars, mid-price/spread row, bid/ask coloring.
-- **Depth chart**: classic cumulative bid/ask area chart around the mid.
-- **Spread history**: rolling spread (bps) and mid-price drift.
-- **Depth heatmap**: liquidity at price levels over time for the primary venue.
-- **Multi-exchange comparison**: per-venue best bid/ask, spread, top-of-book size, and a synthetic NBBO.
-- **Feed health banners**: connected / degraded / disconnected per venue, with data age and last error.
-- **No-crash guarantee**: every network call has timeouts, retries with exponential backoff + jitter, and typed failure paths.
+- **M0:** baseline audit, architecture decisions, contracts and acceptance backlog
+  recorded. Historical audit observations describe the starting code, not all
+  current behavior.
+- **M1:** exact core implemented, with legacy feed-integrity and session-safety
+  safeguards. **Full feed integration and M1 acceptance remain pending**; core
+  implementation is not evidence that every venue is integrated or validated live.
+- **M2–M6:** **not done**. Durable recording/replay, shared analytics and cost
+  models, the new React/TypeScript terminal, alerts/paper trading/research, and
+  final operational/performance acceptance remain milestone work.
 
-## Exchange Support Matrix
+This is an interim progress summary; later milestone documentation will replace
+it as implementation and acceptance evidence land. See the
+[full acceptance backlog](docs/UPGRADE_BACKLOG.md),
+[delivery/evidence handoff](docs/OMP_UPGRADE_HANDOFF.md),
+[architecture decisions](docs/ARCHITECTURE.md) and
+[exact contracts](docs/CONTRACTS.md). Neither fixture tests nor successful access
+probes establish complete live-feed correctness or trading readiness.
 
-| Venue      | Pair quoted | Live source            | Fallback     | Notes |
-|------------|-------------|------------------------|--------------|-------|
-| Binance.US | `BTCUSDT`   | Websocket (depth20)    | REST polling | Partial-book stream, 1s cadence |
-| Kraken     | `BTC/USD`   | Websocket v2 (book)    | REST polling | Snapshot + delta maintenance |
-| Coinbase   | `BTC-USD`   | REST polling (level 2) | —            | Level-2 WS now requires auth |
-| KuCoin     | `BTC-USDT`  | REST polling           | —            | WS needs token bootstrap; REST is simpler |
-| Bybit      | `BTCUSDT`   | Websocket (orderbook.50)| REST polling| Geo-blocked in the US (shows disconnected) |
+## Run the current Streamlit app
 
-Venues quote different pairs (USD vs USDT), so the cross-venue NBBO is approximate.
+Use **Python 3.13** (reproducible interpreter: **3.13.5**) and **uv 0.8.4**.
+Python 3.14+ is not currently supported. From the repository root:
 
-## Getting Started
-
-1. **Create a virtual environment** (recommended):
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate  # macOS/Linux
-   # or: .venv\Scripts\activate  # Windows
-   ```
-
-2. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Run the app**:
-   ```bash
-   streamlit run crypto_lob.py
-   ```
-
-4. **In the browser sidebar**:
-   - Pick the **asset** (BTC, ETH, SOL, …) and the **exchanges** to watch.
-   - Choose the **primary venue** for the ladder and heatmap.
-   - Toggle panels (depth chart, spread history, heatmap, comparison).
-   - Adjust the UI refresh rate; data ingestion runs continuously in the background.
-
-## Architecture
-
-```
-crypto_lob.py                     # Streamlit UI entrypoint (controls + layout only)
-src/
-├── data/
-│   ├── clients.py                # HttpClient (retry/backoff/timeouts) + WsConnection
-│   └── adapters/                 # One connector per exchange, normalized output
-│       ├── base.py               # Adapter contract + LiveBook (diff-stream maintenance)
-│       ├── binance.py  kraken.py  coinbase.py  kucoin.py  bybit.py
-├── domain/
-│   ├── models.py                 # OrderBookSnapshot, FeedStatus, normalization
-│   ├── symbols.py                # Canonical asset list + per-venue pair mapping
-│   └── orderbook_service.py      # Feed workers, failover, thread-safe state + history
-└── ui/
-    └── components.py             # Ladder, depth chart, spread history, heatmap, comparison
-tests/
-├── test_models.py                # Normalizer + symbol registry
-├── test_adapters.py              # Adapter contract tests with canned payloads
-├── test_resilience.py            # Timeout/429/proxy failures, degraded states
-└── smoke_live.py                 # Manual live REST check across all venues
+```sh
+uv python install 3.13.5
+uv sync --locked --python 3.13.5 --group dev
+uv run --locked --offline --no-sync python -m streamlit run crypto_lob.py --server.address 127.0.0.1
 ```
 
-### Reliability behavior
+Dependency setup may download packages. The launch command starts a **live-data
+UI**, not an offline demo: it can contact public exchange endpoints even though
+uv uses `--offline` for dependency management. No exchange credentials or wallet
+are required. See [native development](docs/DEVELOPMENT.md) for environment
+selection, lock policy and checks.
 
-- Each REST call: 3 attempts, exponential backoff with jitter, 10s timeout.
-  Retryable: proxy/connection errors, timeouts, HTTP 429/5xx, malformed JSON.
-  Other 4xx fail fast.
-- Websocket feeds: reconnect with capped backoff; after 3 failed sessions the
-  worker permanently falls back to REST polling for that subscription.
-- A feed with data older than 15s is reported **degraded** (stale); a feed with
-  no data is **disconnected**. The UI keeps rendering whatever venues are healthy.
-- History buffers are bounded (spread: 1200 points, depth: 300 snapshots) so
-  long sessions don't grow memory unboundedly.
+In the sidebar, choose an asset, venues, a primary venue, display depth and
+panels. The UI refresh setting controls rendering, not background ingestion.
+Each Streamlit session owns independent legacy subscriptions and histories;
+this temporary isolation is **not** the planned shared subscription registry.
 
-## Tests
+## Current legacy venue support
 
-```bash
-python -m pytest tests/          # unit + contract + resilience tests (no network)
-python tests/smoke_live.py       # optional: live REST smoke check for every venue
+These are the adapters used by `crypto_lob.py`, not the full new-workstation
+integration matrix. Listed BTC pairs illustrate the native quote identities;
+availability varies by product, region and venue.
+
+| Venue | Example pair | Public live source | REST source / limits |
+| --- | --- | --- | --- |
+| Binance.US | `BTCUSDT` | Partial depth20 WebSocket snapshots, not a diff stream | Binance.US depth snapshots; separate from Binance global |
+| Kraken | `BTC/USD` | WebSocket v2 book, depth 25, exact-decimal top-10 CRC32 validation | Kraken depth snapshots |
+| Coinbase | `BTC-USD` | Advanced Trade public WebSocket `level2` / `l2_data` plus heartbeats; no JWT required | **Coinbase Exchange** REST level 2 fallback, explicitly a different API family |
+| KuCoin | `BTC-USDT` | REST polling only in the legacy adapter | Public level2_100 snapshots; no claim of event continuity |
+| Bybit | `BTCUSDT` | v5 spot `orderbook.50`, snapshot/delta with reset and ordering checks | Bybit depth snapshots; access restrictions remain visible |
+
+REST modes are labeled **degraded/snapshot**, and Binance.US partial books are
+independent snapshots. **Snapshot modes are not continuous event streams and
+cannot establish continuous OFI.** A successful transport connection or heartbeat
+alone does not establish a valid book.
+
+## Legacy safeguards and limitations
+
+- Prices and quantities are validated as `Decimal`; malformed, nonfinite,
+  negative, duplicate or crossed snapshot data is rejected rather than silently
+  repaired. Exact JSON decimal decoding preserves Kraken checksum precision.
+- Kraken applies an entire book message, retains the subscribed depth and checks
+  CRC32. Bybit validates identity, reset and monotonic ordering semantics without
+  inventing contiguous update IDs. Coinbase validates its Advanced Trade stream
+  separately from its Exchange REST fallback.
+- Feed workers use bounded transport attempts, deadlines and reconnect backoff.
+  REST fallback periodically retries WebSocket recovery; only valid book data
+  establishes recovery. Source transitions segment legacy history.
+- Comparison uses **best observed comparable bid/ask**, not a market-wide NBBO.
+  Conservative quality, freshness, quote identity and observation-skew exclusions
+  are shown. USD and USDT are never silently combined; degraded REST and stale
+  last-known books are diagnostic displays, not comparison inputs.
+- Session-owned workers are stopped/joined and obsolete generations cannot
+  publish into replacement subscriptions. This does not provide the future
+  backend registry's cross-client leases or headless collection lifecycle.
+- The legacy heatmap and float-based presentation are not the planned stable
+  historical terminal or an exact analytics engine. No crash-free, complete
+  liquidity, live venue validation or performance guarantee is made here.
+
+[Legacy behavior and operational limits](docs/LEGACY.md) describes these
+safeguards in detail. The source docstrings and regression fixtures define the
+implemented behavior; the acceptance backlog defines remaining work.
+
+## Repository layout
+
+- `crypto_lob.py`: current Streamlit entrypoint.
+- `src/data/`, `src/domain/`, `src/ui/`: legacy adapters, service and presentation.
+- `src/workstation/`: exact M1 core and new adapter work; not a claim of full
+  end-to-end feed integration into the current UI.
+- `tests/`: offline contracts/regressions and explicitly separate live checks.
+- `docs/`: development instructions, contracts, acceptance and evidence.
+
+## Checks and live access
+
+After synchronizing the environment, use the documented offline gate:
+
+```sh
+./tools/check.sh
 ```
 
-## Known free-tier limitations
+The gate and its environment-selection rules are explained in
+[DEVELOPMENT.md](docs/DEVELOPMENT.md#offline-checks-and-quality-scope).
+`tests/smoke_live.py` is a separate manual REST probe that contacts real services;
+it is not synchronized WebSocket validation. Actual executed checks, access
+observations and remaining blockers belong in the
+[handoff](docs/OMP_UPGRADE_HANDOFF.md), not inferred pass counts in this README.
 
-- **Bybit** blocks US IPs on its public API (CloudFront 403) — the venue will simply show as disconnected.
-- **Coinbase/KuCoin** run on REST polling (2–3s cadence), so their books update slower than websocket venues.
-- Public endpoints are rate limited; if you see 429 errors, reduce the number of subscribed venues.
-- **Disclaimer**: educational project — not trading advice; data quality/availability can change.
+Public endpoints may rate-limit, block regional access, suspend products or
+change their protocols. This is an educational/research project, not trading
+advice. No live order execution, private credentials, signing or withdrawals are
+implemented or authorized by this upgrade.

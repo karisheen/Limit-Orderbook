@@ -4,6 +4,7 @@ Canonical assets are plain base symbols ("BTC"). Each venue formats its own
 pair string; venue-specific base renames (e.g. Kraken's XBT) live here so
 adapters stay declarative.
 """
+
 from __future__ import annotations
 
 from typing import Callable, Dict, Tuple
@@ -41,6 +42,7 @@ def pair_for(venue_key: str, base: str) -> str:
     """Return the venue-native pair string for a canonical base asset."""
     rule = PAIR_RULES.get(venue_key)
     if rule is None:
-        # Fallback rule: plain USD pair.
-        return f"{base}USD"
+        raise ValueError(f"Unknown venue mapping: {venue_key}")
+    if base not in CANONICAL_ASSETS:
+        raise ValueError(f"Unknown canonical asset: {base}")
     return rule(base)
