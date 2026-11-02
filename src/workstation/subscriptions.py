@@ -7,7 +7,7 @@ callbacks. Headless clients hold ordinary leases without presentation queues.
 
 import asyncio
 from collections import OrderedDict, deque
-from collections.abc import Iterable
+from collections.abc import Awaitable, Iterable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field, replace
 import fcntl
@@ -541,7 +541,13 @@ class SubscriptionRegistry:
             await self._release(lease_id)
 
     async def replace(
-        self, client_id: ClientId, keys: frozenset[SubscriptionKey], generation: int
+        self,
+        client_id: ClientId,
+        keys: frozenset[SubscriptionKey],
+        generation: int,
+        *,
+        on_commit: Callable[[tuple[SubscriptionLease, ...]], Awaitable[None]]
+        | None = None,
     ) -> tuple[SubscriptionLease, ...]:
         client_id = ClientId(client_id)
         if type(generation) is not int or generation < 0:
@@ -558,6 +564,8 @@ class SubscriptionRegistry:
             ):
                 raise ValueError("obsolete client generation")
             if generation == current:
+                if on_commit is not None:
+                    await on_commit(previous)
                 return previous
             acquired = []
             try:
@@ -593,7 +601,14 @@ class SubscriptionRegistry:
                     tuple(lease.lease_id for lease in previous if lease.key not in keys)
                 )
             )
-            await _join_cleanup(cleanup)
+            try:
+                if on_commit is not None:
+                    await on_commit(tuple(result))
+            finally:
+                # New owners may already deliver while departed transports close.
+                # Consumers can initialize at commit, but replacement still joins
+                # every old owner before returning, including on cancellation.
+                await _join_cleanup(cleanup)
             return tuple(result)
 
     async def _release_many(self, lease_ids: tuple[LeaseId, ...]) -> None:

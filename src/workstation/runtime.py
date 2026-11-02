@@ -7,12 +7,13 @@ The event loop owns lifecycle locks and pacing, never SQLite or heavy seek work.
 import asyncio
 from collections import OrderedDict, deque
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, nullcontext
 from dataclasses import fields, is_dataclass, replace
 from datetime import datetime, timezone
 from decimal import Decimal, localcontext
-from functools import partial
+from functools import lru_cache, partial
 from hashlib import sha256
+import json
 import os
 from pathlib import Path
 import time
@@ -20,11 +21,13 @@ from tempfile import TemporaryDirectory
 from typing import (
     AsyncIterator,
     Callable,
+    Hashable,
     Iterable,
     ParamSpec,
     TypeAlias,
     TypeVar,
     TypedDict,
+    cast,
 )
 from uuid import uuid4
 
@@ -42,7 +45,7 @@ from .precision import DERIVED_DECIMAL_POLICY, canonical_decimal, decimal
 from .quality import ClockReading, EligibilityPolicy, evaluate
 from .recording import RecordedBatch, RecordingReader, SessionManifest, StreamSpec
 from .replay import ReplayClock, ReplayPacer, ReplaySession, ReplaySource
-from .subscriptions import SubscriptionRegistry
+from .subscriptions import SubscriptionLease, SubscriptionRegistry
 from .visuals import VisualHistory, grouped_ladder, proposal_risk
 from .wire import dumps
 
@@ -88,8 +91,17 @@ class SourceStatus(TypedDict):
     reasons: list[str]
 
 
+@lru_cache(maxsize=128)
+def _dto_field_names(kind):
+    return tuple(field.name for field in fields(kind))
+
+
 def dto(value):
-    """Plain exact domain JSON, deliberately separate from persisted wire schemas."""
+    """Exact HTTP JSON; immutable provenance is converted once per call."""
+    return _dto_value(value, {})
+
+
+def _dto_value(value, memo):
     if value is None or isinstance(value, (str, bool)):
         return value
     if isinstance(value, Decimal):
@@ -99,11 +111,20 @@ def dto(value):
     if isinstance(value, float):
         return value
     if is_dataclass(value):
-        return {field.name: dto(getattr(value, field.name)) for field in fields(value)}
+        identity = id(value)
+        prior = memo.get(identity)
+        if prior is not None:
+            return prior
+        result = {
+            name: _dto_value(getattr(value, name), memo)
+            for name in _dto_field_names(cast(Hashable, type(value)))
+        }
+        memo[identity] = result
+        return result
     if isinstance(value, dict):
-        return {str(key): dto(item) for key, item in value.items()}
+        return {str(key): _dto_value(item, memo) for key, item in value.items()}
     if isinstance(value, (tuple, list, set, frozenset)):
-        return [dto(item) for item in value]
+        return [_dto_value(item, memo) for item in value]
     raise TypeError(f"unsupported terminal DTO: {type(value).__name__}")
 
 
@@ -989,19 +1010,21 @@ class ClientSession:
             if events:
                 self._apply_live(events, books, event_bytes)
 
-    async def consume_live(self) -> None:
+    async def consume_live(self, *, bootstrap: bool = False) -> None:
         try:
             while True:
                 batch = self._take_live_batch(await self.live_queue.get())
                 try:
-                    async with self.lock:
-                        if self.status != "live":
+                    # Bootstrap is private creation or runs under the selecting
+                    # caller's lock; waiting for that lock would deadlock cutover.
+                    async with nullcontext() if bootstrap else self.lock:
+                        if self.status != ("loading" if bootstrap else "live"):
                             continue
                         self.telemetry["queue_wait_ms"] = (
                             time.monotonic_ns() - batch[0][2]
                         ) / 1_000_000
                         start = time.monotonic_ns()
-                        await self.work(self._apply_live_batch, batch)
+                        await self.work(self._apply_live_batch, batch, bootstrap)
                         self.telemetry["observer_duration_ms"] = (
                             time.monotonic_ns() - start
                         ) / 1_000_000
@@ -1065,10 +1088,14 @@ class ClientSession:
             "truncated": truncated or range_truncated,
         }
 
-    def _visualization(self, request):
+    def _visual_snapshot(self):
         if self.visuals is None:
             raise RuntimeFailure(409, "visualization observer unavailable")
-        result = self.visuals.query(request, str(self.generation))
+        return self.visuals.query_snapshot()
+
+    def _publish_visualization(self, snapshot, result):
+        if self.visuals is None or not self.visuals.accept_query(snapshot):
+            raise RuntimeFailure(409, "visualization source changed during query")
         published = time.monotonic_ns()
         view_id = uuid4().hex
         while self.pending_views and (
@@ -1702,6 +1729,9 @@ class TerminalRuntime:
         self.catalog_executor = ThreadPoolExecutor(
             max_workers=1, thread_name_prefix="terminal-catalog"
         )
+        self.visual_executor = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="terminal-visual"
+        )
         self.demo: ReplaySource | None = None
         self.demo_task: asyncio.Task[None] | None = None
         self.demo_ready = asyncio.Event()
@@ -1716,6 +1746,7 @@ class TerminalRuntime:
         ] = {}
         self.instruments: dict[str, Instrument] = {}
         self.source_instruments: dict[str, tuple[Instrument, ...]] = {}
+        self._catalog_cache: tuple[object, bytes] | None = None
         self.closed = False
 
     def _research_query(self, request):
@@ -1761,11 +1792,44 @@ class TerminalRuntime:
         finally:
             store.close()
 
+    def _catalog_response(self, instruments, sources, preferred_source_id):
+        # One encoded catalog, owned by the catalog worker. Source snapshots
+        # include readiness/reasons, not just immutable instrument metadata.
+        identity = (instruments, sources, preferred_source_id)
+        if self._catalog_cache is not None and self._catalog_cache[0] == identity:
+            return self._catalog_cache[1]
+        encoded = json.dumps(
+            {
+                "version": "1",
+                "instruments": dto(instruments),
+                "sources": sources,
+                "preferred_source_id": preferred_source_id,
+            },
+            ensure_ascii=False,
+            allow_nan=False,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        self._catalog_cache = (identity, encoded)
+        return encoded
+
     async def _catalog_work(
         self, fn: Callable[P, R], *args: P.args, **kwargs: P.kwargs
     ) -> R:
         future = asyncio.get_running_loop().run_in_executor(
             self.catalog_executor, partial(fn, *args, **kwargs)
+        )
+        try:
+            return await asyncio.shield(future)
+        except asyncio.CancelledError:
+            await future
+            raise
+
+    async def _visual_work(
+        self, fn: Callable[P, R], *args: P.args, **kwargs: P.kwargs
+    ) -> R:
+        # Per-session lifecycle actions admit at most one bounded snapshot each.
+        future = asyncio.get_running_loop().run_in_executor(
+            self.visual_executor, partial(fn, *args, **kwargs)
         )
         try:
             return await asyncio.shield(future)
@@ -1981,6 +2045,7 @@ class TerminalRuntime:
     async def _select_live(self, session: ClientSession, instrument_id: str) -> None:
         if self.registry is None:
             raise RuntimeFailure(503, "live registry is unavailable")
+        registry = self.registry
         instrument = self.registry.catalog.instruments.get(instrument_id)
         # Subscribe the selected base cohort, not all products. Same base is not
         # claimed comparable: the cost engine still excludes quote/market mismatch.
@@ -2030,7 +2095,8 @@ class TerminalRuntime:
 
         # Subscribe and sample the already-completed boundary without an await.
         # This is not a pre-publication callback read or a deferred book sample.
-        session.unsubscribe = self.registry.subscribe_processed(bootstrap)
+        unsubscribe_bootstrap = registry.subscribe_processed(bootstrap)
+        session.unsubscribe = unsubscribe_bootstrap
         baseline = tuple(book for book in self.registry.books() if book.key in keys)
         baseline_owners = {
             status.key: status.stream_id
@@ -2040,34 +2106,49 @@ class TerminalRuntime:
         session.live_stream_keys.update(
             (stream_id, key) for key, stream_id in baseline_owners.items()
         )
-        try:
-            await session.work(session._retain_live_observation, keys)
-            leases = await self.registry.replace(
-                ClientId(session.id), keys, session.generation
-            )
-            streams = tuple(self.registry.describe(lease) for lease in leases)
+        bootstrap_task: asyncio.Task[None] | None = None
+
+        async def initialize(leases: tuple[SubscriptionLease, ...]) -> None:
+            nonlocal bootstrap_task
+            streams = tuple(registry.describe(lease) for lease in leases)
             session.live_stream_ids = frozenset(spec.stream_id for spec in streams)
             session.live_stream_keys = {spec.stream_id: spec.key for spec in streams}
             current_owners = {spec.key: spec.stream_id for spec in streams}
-            baseline = tuple(
+            owned_baseline = tuple(
                 book
                 for book in baseline
                 if baseline_owners.get(book.key) == current_owners.get(book.key)
             )
-            if session.status == "unavailable":
+            if session.status in ("unavailable", "error"):
                 raise RuntimeFailure(503, session.error or "live bootstrap unavailable")
             await session.work(
                 session._initialize_live,
                 streams,
                 instrument_id,
-                baseline,
-                self.registry.clock_id,
+                owned_baseline,
+                registry.clock_id,
             )
-            if session.status == "unavailable":
+            if session.status in ("unavailable", "error"):
                 raise RuntimeFailure(503, session.error or "live bootstrap unavailable")
-            session.unsubscribe()
-            session.live_stream_keys = {spec.stream_id: spec.key for spec in streams}
-            session.unsubscribe = self.registry.subscribe_processed(session.offer)
+            unsubscribe_bootstrap()
+            session.unsubscribe = registry.subscribe_processed(session.offer)
+            bootstrap_task = asyncio.create_task(session.consume_live(bootstrap=True))
+
+        try:
+            await session.work(session._retain_live_observation, keys)
+            try:
+                await registry.replace(
+                    ClientId(session.id),
+                    keys,
+                    session.generation,
+                    on_commit=initialize,
+                )
+            finally:
+                if bootstrap_task is not None:
+                    bootstrap_task.cancel()
+                    await asyncio.gather(bootstrap_task, return_exceptions=True)
+            if session.status in ("unavailable", "error"):
+                raise RuntimeFailure(503, session.error or "live bootstrap unavailable")
             remaining = session.live_queue.qsize()
             while remaining:
                 batch = session._take_live_batch(
@@ -2197,5 +2278,6 @@ class TerminalRuntime:
         if self.registry is not None and self.owns_registry:
             await self.registry.close()
         self.catalog_executor.shutdown(wait=True, cancel_futures=True)
+        self.visual_executor.shutdown(wait=True, cancel_futures=True)
         if self._temporary_state is not None:
             self._temporary_state.cleanup()

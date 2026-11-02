@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page, Request, Response } from '@playwright/test';
 import type { Catalog, Costs, Frame, GroupedLadder, ProposalRisk, VisualGrid } from '../src/api';
+import { plotArea } from '../src/market-charts-model';
 
 // These scenarios use the actual server's explicitly synthetic demo and replay
 // controls. No intercepted routes, substituted frames, or browser-side economics.
@@ -76,6 +77,78 @@ async function selectEther(page: Page, catalog: Catalog) {
   expect(frame.selection.instrument_id).toBe(instrument.instrument_id);
   return frame;
 }
+
+test('latest visibility in a batched notification resumes actual canvas painting', async ({ page }) => {
+  // Real Chromium produced this hidden/visible batch during a rapid viewport
+  // transition. Control only notification batching, never native market data.
+  await page.addInitScript(() => {
+    const NativeObserver = window.IntersectionObserver;
+    window.IntersectionObserver = class extends NativeObserver {
+      constructor(callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+        super((entries, observer) => {
+          const latest = entries.at(-1);
+          if (latest?.isIntersecting && latest.target.classList.contains('m4-chart-plot')) {
+            const hidden: IntersectionObserverEntry = {
+              target: latest.target, time: latest.time, isIntersecting: false, intersectionRatio: 0,
+              boundingClientRect: latest.boundingClientRect, intersectionRect: latest.intersectionRect,
+              rootBounds: latest.rootBounds,
+            };
+            callback([hidden, ...entries], observer);
+          } else callback(entries, observer);
+        }, options);
+      }
+    };
+  });
+  const firstResponse = nextResponse(page, 'visualization');
+  const { frame, catalog } = await openDemo(page);
+  const first = await body<VisualGrid>(firstResponse);
+  const chart = page.getByTestId('market-charts');
+  const canvas = page.getByTestId('liquidity-canvas');
+  await expect(chart).toHaveAttribute('data-painted-view-id', first.view_id);
+  const before = await canvas.evaluate(node => (node as HTMLCanvasElement).toDataURL());
+  const next = nextResponse(page, 'visualization', request => request.generation !== frame.generation);
+  const selected = await selectEther(page, catalog);
+  const changed = await body<VisualGrid>(next);
+  expect(changed.instrument_id).toBe(selected.selection.instrument_id);
+  await expect(chart).toHaveAttribute('data-painted-view-id', changed.view_id);
+  expect(await canvas.evaluate(node => (node as HTMLCanvasElement).toDataURL())).not.toBe(before);
+});
+
+test('one-sided native liquidity occupies the whole time bucket without false temporal gaps', async ({ page }) => {
+  await openDemo(page);
+  const response = nextResponse(page, 'visualization', request => request.recenter === true);
+  await page.getByTestId('view-recenter').click();
+  const view = await body<VisualGrid>(response);
+  await expect(page.getByTestId('market-charts')).toHaveAttribute('data-painted-view-id', view.view_id);
+  const canvas = page.getByTestId('liquidity-canvas');
+  const bounds = await canvas.boundingBox();
+  if (!bounds) throw new Error('Native liquidity canvas is not visible');
+  const area = plotArea(Math.floor(bounds.width), Math.floor(bounds.height));
+  const samples = await canvas.evaluate((node, { view, area }) => {
+    const canvas = node as HTMLCanvasElement;
+    const context = canvas.getContext('2d')!;
+    const ratio = canvas.width / Math.floor(canvas.getBoundingClientRect().width);
+    const pixel = (x: number, y: number) => [...context.getImageData(Math.floor(x * ratio), Math.floor(y * ratio), 1, 1).data];
+    const start = BigInt(view.start_ns);
+    const span = Number(BigInt(view.end_ns) - start);
+    const sides = [0, 1].map(side => {
+      const column = view.columns.find(column => column.eligible
+        && BigInt(column.time_ns) >= start && BigInt(column.end_ns) <= BigInt(view.end_ns)
+        && column.cells.some(cell => cell[side] != null && cell[side] !== '0' && cell[1 - side] === '0'));
+      if (!column) throw new Error(`Native fixture has no covered one-sided liquidity for side ${side}`);
+      const row = column.cells.findIndex(cell => cell[side] != null && cell[side] !== '0' && cell[1 - side] === '0');
+      const left = area.x + Number(BigInt(column.time_ns) - start) / span * area.width;
+      const width = Number(BigInt(column.end_ns) - BigInt(column.time_ns)) / span * area.width;
+      const y = area.y + area.height * (1 - (row + 0.5) / view.rows);
+      return { side, firstHalf: pixel(left + width * 0.25, y), secondHalf: pixel(left + width * 0.75, y) };
+    });
+    return { background: pixel(0, 0), sides };
+  }, { view, area });
+  for (const sample of samples.sides) {
+    expect(sample.firstHalf, `side ${sample.side} must visibly contain native liquidity`).not.toEqual(samples.background);
+    expect(sample.secondHalf, `side ${sample.side} must cover the same observed time bucket`).toEqual(sample.firstHalf);
+  }
+});
 
 test('exact instrument selection, grouped cumulative depth and pinned time range use server evidence', async ({ page }) => {
   const { catalog, latestFrame } = await openDemo(page);

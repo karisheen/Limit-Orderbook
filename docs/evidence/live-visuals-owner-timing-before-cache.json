@@ -1,0 +1,94 @@
+{
+  "harness_source": "\"\"\"Throwaway timing of real owner calls; no source, queue or depth changes.\"\"\"\nimport json\nimport sys\nimport time\nfrom collections import defaultdict, deque\nfrom pathlib import Path\n\nsys.path.insert(0, str(Path(__file__).resolve().parents[1]))\nfrom src.workstation.runtime import ClientSession\nfrom src.workstation.cli import main\n\noriginal = ClientSession._owned_call\nrows = defaultdict(lambda: deque(maxlen=512))\ncounts = defaultdict(int)\nmaxima = defaultdict(float)\n\n\ndef measured(self, fn, closing):\n    key = (self.id, getattr(getattr(fn, \"func\", fn), \"__name__\", \"unknown\"))\n    wall, cpu = time.perf_counter(), time.thread_time()\n    try:\n        return original(self, fn, closing)\n    finally:\n        elapsed = (time.perf_counter() - wall) * 1000\n        elapsed_cpu = (time.thread_time() - cpu) * 1000\n        counts[key] += 1\n        maxima[key] = max(maxima[key], elapsed)\n        rows[key].append({\"wall_ms\": elapsed, \"thread_cpu_ms\": elapsed_cpu})\n\n\nClientSession._owned_call = measured\ntry:\n    main()\nfinally:\n    report = {\n        \"harness_source\": Path(__file__).read_text(),\n        \"limitations\": \"Real owner-call elapsed/thread CPU observations with timer overhead; last512 rows per operation and all-call maxima. No cProfile attribution, throughput certification, queue/depth/cohort changes or substituted market data.\",\n        \"operations\": [\n            {\"session\": key[0], \"operation\": key[1], \"calls\": counts[key],\n             \"max_wall_ms\": maxima[key], \"last_measurements\": list(values)}\n            for key, values in rows.items()\n        ],\n    }\n    Path(\"docs/evidence/live-visuals-owner-timing-after.json\").write_text(\n        json.dumps(report, indent=2) + \"\\n\"\n    )\n",
+  "limitations": "Real owner-call elapsed/thread CPU observations with timer overhead; last512 rows per operation and all-call maxima. No cProfile attribution, throughput certification, queue/depth/cohort changes or substituted market data. Quantiles summarize the retained last512 samples only; maximum wall time covers all calls.",
+  "operations": [
+    {
+      "session": "ea798d9d190845548710faad3a10fb55",
+      "operation": "_retain_live_observation",
+      "calls": 2,
+      "retained_measurements": 2,
+      "max_wall_ms": 0.4216599918436259,
+      "retained_median_wall_ms": 0.4216599918436259,
+      "retained_p95_wall_ms": 0.4216599918436259,
+      "retained_median_cpu_ms": 0.3581779999999868,
+      "retained_p95_cpu_ms": 0.3581779999999868
+    },
+    {
+      "session": "ea798d9d190845548710faad3a10fb55",
+      "operation": "_initialize_live",
+      "calls": 2,
+      "retained_measurements": 2,
+      "max_wall_ms": 29.33437199681066,
+      "retained_median_wall_ms": 29.33437199681066,
+      "retained_p95_wall_ms": 29.33437199681066,
+      "retained_median_cpu_ms": 22.484484000000002,
+      "retained_p95_cpu_ms": 22.484484000000002
+    },
+    {
+      "session": "ea798d9d190845548710faad3a10fb55",
+      "operation": "_apply_live_batch",
+      "calls": 12990,
+      "retained_measurements": 512,
+      "max_wall_ms": 58.85078202118166,
+      "retained_median_wall_ms": 0.48064198927022517,
+      "retained_p95_wall_ms": 4.061329003889114,
+      "retained_median_cpu_ms": 0.4680169999957684,
+      "retained_p95_cpu_ms": 3.785817999997221
+    },
+    {
+      "session": "ea798d9d190845548710faad3a10fb55",
+      "operation": "_view",
+      "calls": 516,
+      "retained_measurements": 512,
+      "max_wall_ms": 234.25661801593378,
+      "retained_median_wall_ms": 10.798016999615356,
+      "retained_p95_wall_ms": 20.17208799952641,
+      "retained_median_cpu_ms": 9.282137999999662,
+      "retained_p95_cpu_ms": 16.073008999999416
+    },
+    {
+      "session": "ea798d9d190845548710faad3a10fb55",
+      "operation": "_visualization",
+      "calls": 133,
+      "retained_measurements": 133,
+      "max_wall_ms": 649.2406710167415,
+      "retained_median_wall_ms": 133.89272699714638,
+      "retained_p95_wall_ms": 373.794563987758,
+      "retained_median_cpu_ms": 95.99049200000032,
+      "retained_p95_cpu_ms": 354.05873500000064
+    },
+    {
+      "session": "ea798d9d190845548710faad3a10fb55",
+      "operation": "_ladder",
+      "calls": 191,
+      "retained_measurements": 191,
+      "max_wall_ms": 14.468057022895664,
+      "retained_median_wall_ms": 0.3869280044455081,
+      "retained_p95_wall_ms": 1.1336210009176284,
+      "retained_median_cpu_ms": 0.37394900000009557,
+      "retained_p95_cpu_ms": 0.7392660000000717
+    },
+    {
+      "session": "ea798d9d190845548710faad3a10fb55",
+      "operation": "_visual_ack",
+      "calls": 131,
+      "retained_measurements": 131,
+      "max_wall_ms": 0.17192601808346808,
+      "retained_median_wall_ms": 0.01763401087373495,
+      "retained_p95_wall_ms": 0.054956995882093906,
+      "retained_median_cpu_ms": 0.01729400000000103,
+      "retained_p95_cpu_ms": 0.03227100000202654
+    },
+    {
+      "session": "ea798d9d190845548710faad3a10fb55",
+      "operation": "_close_worker",
+      "calls": 1,
+      "retained_measurements": 1,
+      "max_wall_ms": 38.89273101231083,
+      "retained_median_wall_ms": 38.89273101231083,
+      "retained_p95_wall_ms": 38.89273101231083,
+      "retained_median_cpu_ms": 37.58822399999673,
+      "retained_p95_cpu_ms": 37.58822399999673
+    }
+  ]
+}

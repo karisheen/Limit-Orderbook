@@ -1099,6 +1099,9 @@ class AnalyticsEngine:
                                     break
                                 base += b
                                 quote += q
+                            else:
+                                # Native sides are sorted best-outward.
+                                break
                         state.depth_totals[cache_key] = (base, quote, tuple(reasons))
                     else:
                         base, quote, cached_reasons = cached

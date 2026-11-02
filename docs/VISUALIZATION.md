@@ -26,17 +26,36 @@ reasons rather than inventing cross-clock alignment. Source/gap transitions have
 separate segment identities; multi-segment candle/footprint buckets are omitted
 and report `interval_segment_discontinuity`.
 
-Price origin is always zero. Exact Decimal display steps are explicit options;
-known fixed ticks supply compatible multiples, while variable/unknown ticks
-report `display_quantum_not_native_tick`. A display quantum is not an executable
-price rule. The initial midpoint anchor persists during streaming until explicit
-recenter or instrument selection. Replay rewind/reset clears this evidence-derived
-anchor and reconstructs it from the available prefix; a future midpoint cannot
-survive at an earlier cursor. Price panning changes the viewport, not economic bins.
+Price origin is always zero. Exact Decimal display steps use source-compatible
+quanta; known fixed ticks supply multiples, while variable/unknown ticks report
+`display_quantum_not_native_tick`. A display quantum is not an executable price
+rule. Without an explicit step, the first eligible two-sided book fits nearby
+native depth (up to one quarter of the requested rows per side) and admitted
+in-window trade prices. The fit uses exact 1/5-decade tick multiples and leaves
+edge room; coarse fitted steps remain selectable by chart and ladder.
+Unavailable bootstrap does not freeze a fallback step or zero price anchor.
+The fitted midpoint/quantum persist during streaming until explicit recenter,
+Auto-fit re-entry or instrument selection. The terminal also refits unpanned
+automatic views when switching between its 32-row footprint/profile and 128-row
+other modes; this keeps executed cells legible without browser-side aggregation.
+Explicit steps and panning remain authoritative. Replay rewind/reset clears the evidence-derived anchor and reused
+step, reconstructing from the available prefix; future scale cannot survive at
+an earlier cursor. Clients retain explicit aggregation by sending it on each
+query. Panning changes the viewport, not economic bins.
 The base sampling quantum is one second; explicit five- and ten-second requests
 select retained exact boundary evidence. No incoming range or percentile
 changes a historical price grid or liquidity hash. Color transfer belongs to
 explicit frontend presentation controls, not server normalization.
+
+The **Fixed contrast** slider selects a full-intensity base quantity on a
+logarithmic control spanning `1e-12` through `1e12`. Color intensity itself stays
+linear from zero to that fixed quantity; incoming liquidity never rescales old
+cells. This makes both small BTC quantities and large SOL quantities visible
+without clipping everything at the former 10-unit control ceiling. For example,
+an explicitly selected 1,000-SOL scale reveals differences among 100–1,000-SOL
+levels. The legend and accessible slider value state the actual quantity/unit.
+The selected quantity survives preference reload; adjust it when changing base
+assets. This is presentation only, not a change to native prices or quantities.
 
 The immutable native `Book` at a sample is shared, not copied for each delivery.
 Explicit price reprojection reads those retained exact native levels. It never
@@ -47,6 +66,11 @@ can coexist with eligible covered cells and reports its limitation. Best quotes
 remain exact native prices. CVD and event OFI retain the shared analytics metric
 provenance, formula, window, and eligibility; snapshot sources are not relabeled
 as event OFI.
+
+The heatmap fills the complete time bucket when only one side has positive
+quantity and the other is known zero. Splitting every bucket into bid/ask halves
+would falsely suggest a temporal gap. Mixed-side bins remain split; unknown
+side coverage remains visibly unknown rather than being filled from its neighbor.
 
 Executed-trade overlays, candles, profiles, and footprints consume the existing
 analytics admission/deduplication/valuation path. Admission alone is not proof
@@ -83,14 +107,21 @@ and partial trailing windows remain explicit.
 Each selected-instrument history has a 32 MiB accounted budget, at most 1,800
 base samples, 1,800 flow-quality intervals, and 4,096 trades. Accounting charges shared native books once
 (`32,768 + 512 * native levels`), sample/metric evidence conservatively from its
-encoded size, trade and flow-quality evidence conservatively from encoded size,
-and a 256 KiB reserve for bounded query identity and discontinuity state. Oldest evidence is evicted;
+encoded size, cached exact metric JSON bytes plus per-entry overhead, trade and
+flow-quality evidence conservatively from encoded size, and a 256 KiB reserve
+for bounded query identity and discontinuity state. Oldest evidence is evicted;
 retained start and truncation are exposed. A native book too large for a sampled
 history budget produces an unavailable sample, never a clipped native book.
 These are maximum capacities, not a promised retained duration: deep native books
 can exhaust the conservative byte budget well before the requested time range.
 The real Binance benchmark visibly shows that truncation rather than filling
 evicted history with zero or current depth.
+Omitted start bounds use the observed/retained history floor, aligned to the
+requested bucket and capped at a 180-second lookback. The default chart therefore
+expands as observations arrive rather than reserving most pixels for uncollected
+or evicted history. Actual returned bounds, initial partial buckets and retention
+truncation remain explicit. User-requested start bounds are not shortened;
+unavailable portions stay unknown/hatched.
 The native reducer, recorder, raw schemas, and live collection remain unchanged.
 The current owner already holds the current full native book; this module does
 not create a second current-depth reconstruction.
@@ -111,12 +142,38 @@ explicit; closed aligned historical windows can report complete coverage.
 Read queries never advance playback or open
 another reader.
 
+The session owner captures one shallow query snapshot of immutable evidence and
+bounded history containers. A single runtime-wide visual worker projects that
+completed prefix without holding the session lock or occupying the ingestion
+worker. It neither opens a reader nor calls the financial engine. Live delivery
+may advance or evict history while the snapshot remains valid; responses retain
+the captured native clock rather than claiming the latest arrival.
+
+Lifecycle actions admit at most one snapshot per session. Each pins one bounded
+history prefix and its selected current book until completion, in addition to
+the advancing owner's history and bounded response work; this is not a whole-
+process RSS guarantee. Cancellation joins the visual job before releasing the
+lifecycle action. Publication commits only presentation preferences and the
+incremental fingerprint, and rejects source-clock changes; it cannot overwrite
+new evidence or survive selection/removal. Session admission bounds outstanding
+snapshots, and runtime close joins and shuts down the visual executor.
+
 One bounded prior-query fingerprint map supports opaque `after_column` tokens.
 Matching geometry, generation and retained continuity can return changed/new
 columns with `replace=false`; incompatible caches, evictions, source/quantum
 changes or obsolete tokens return a replacement. Trade/profile/footprint
 responses describe the requested visible window, with explicit incompleteness
 when history or output limits prevent that claim.
+
+Exact HTTP column scalars are canonically encoded once for both their byte-budget
+charge and incremental hash. The owner does not recursively copy and serialize
+the same provenance tree a second time. Hash identity and output bounds remain
+unchanged; this is not a larger queue, shallower native book or omitted evidence.
+Closed metric provenance is encoded once per retained sample, within that same
+32 MiB budget. Queries decode fresh containers, so consumer mutation cannot
+alter native history or later responses. Eviction/reset removes the derived
+bytes; checkpoint restoration rebuilds them without changing the checkpoint
+schema or native metric values.
 
 Replay seek/reset uses the existing replay reset/recompute path. Selection
 rebuilds actual observations through the same owned reader to the existing

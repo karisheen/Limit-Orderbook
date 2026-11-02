@@ -38,15 +38,14 @@ test('exact selection, costs, replay and visible API errors', async ({ page }) =
   await expect(page.locator('.costs-panel').filter({ has: page.getByRole('heading', { name: 'Proposed order & comparable venue costs', exact: true }) }).getByRole('alert')).toContainText('HTTP');
 });
 
-test('documents own independent sessions and closing releases one owner', async ({ browser, request }) => {
-  const context = await browser.newContext();
+test('documents own independent sessions and closing releases one owner', async ({ context, request }) => {
   const first = await context.newPage();
   const second = await context.newPage();
   const firstCreated = first.waitForResponse(response => response.url().endsWith('/api/v1/sessions') && response.request().method() === 'POST');
-  await first.goto('http://127.0.0.1:8000');
+  await first.goto('/');
   const firstFrame = await (await firstCreated).json() as Frame;
   const secondCreated = second.waitForResponse(response => response.url().endsWith('/api/v1/sessions') && response.request().method() === 'POST');
-  await second.goto('http://127.0.0.1:8000');
+  await second.goto('/');
   const secondFrame = await (await secondCreated).json() as Frame;
   expect(firstFrame.session_id).not.toBe(secondFrame.session_id);
   await expect(first.locator('.status')).toHaveText('Connected');
@@ -61,7 +60,6 @@ test('documents own independent sessions and closing releases one owner', async 
     return body.sessions.map(session => session.id);
   }).not.toContain(firstFrame.session_id);
   await expect(second.locator('.status')).toHaveText('Connected');
-  await context.close();
 });
 
 test('laptop workspace retains controls and reconnect replaces a session', async ({ page }) => {

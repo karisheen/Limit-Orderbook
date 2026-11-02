@@ -248,6 +248,215 @@ Feature integration `366e68ad6784a6ec54a17c9e5c3eeacae636e600` was committed and
 - Final M6 head `e3447f224e0eed64575a11387ad8d48b004d4ba7` was pushed and verified on origin. Both exact-head jobs succeeded: [124958709708](https://github.com/karisheen/Limit-Orderbook/actions/runs/41343633218/job/124958709708),6m10s; [124958719077](https://github.com/karisheen/Limit-Orderbook/actions/runs/41343636408/job/124958719077),6m43s. `gh pr merge 7 --repo karisheen/Limit-Orderbook --merge --match-head-commit e3447f224e0eed64575a11387ad8d48b004d4ba7` succeeded normally, without force/admin bypass. GitHub returned merged state, main base and merge `612309c905c311310e620563c764e97304465d98` at2026-11-01T19:56:20Z.
 - Local main fast-forwarded from verified origin to integrated M6. The documentation-only `upgrade/m6-delivery-receipt` branch records that now-known merge SHA and closes the delivery ledger through a separate PR, rather than rewriting the milestone or bypassing its checks. No native engine, frontend, benchmark algorithm or retained measurement changes in this receipt.
 
+## Post-upgrade live terminal visuals
+
+The reported screenshots were paused synthetic-demo sessions, not low-volume
+public books. The correction branches from `cabbc0ad8fd4b1cedbfa5ae74595f7f111b62dc9`
+on `fix/live-terminal-visuals`.
+
+- Explicit network startup prefers live; URL and explicit saved source choices
+  remain authoritative. Legacy automatic demo preferences migrate visibly.
+  Startup chooses an exact active native instrument before creating a live
+  session; unavailable live never substitutes synthetic evidence.
+- Initial/recenter price fitting covers genuine nearby book levels and admitted
+  prints, using exact native-compatible quanta. Default time bounds follow the
+  actually retained source-clock history. Rewind discards future fitted scale.
+  Explicit aggregation and manual panning remain authoritative.
+- Instrument buttons are bounded to 100 per page without restricting full
+  catalog search or native collection. DOM layout changes restore the quote
+  boundary; normal updates preserve user scrolling without native scroll-anchor
+  jumps. Native retained depth, bounded frame rows and displayed L2 aggregates
+  are distinguished from individual orders and executed prints.
+- Footprint/profile use 32 native price rows for legibility. Other modes retain
+  128; changing density refits only automatic unpanned views.
+- Actual Chromium reproduced a stale canvas with a batched `false, true`
+  intersection notification. The old callback retained its first entry and
+  stopped painting despite advancing view IDs. It now consumes the final
+  entry. `live-visuals-intersection-before.json` retains actual geometry and
+  notifications; the regression checks changed canvas pixels after a native
+  instrument change, not only request wiring.
+- One-sided heatmap liquidity fills the full observed time bucket when the
+  opposite side is known zero. Mixed-side and unknown-side cells retain their
+  separate evidence; the browser regression samples actual native canvas pixels.
+- Live Hyperliquid BTC → Binance SOL selection reproduced
+  `analytical_queue_overflow`: new deliveries accumulated while old collectors
+  shut down, before the new observer could consume them. Consumer initialization
+  now occurs at lease commit and drains during departed-owner cleanup. Selection
+  still joins old owners, cancellation joins the charged bootstrap consumer, and
+  queue/depth bounds remain unchanged. The regression injects 300 real-schema
+  snapshots while old cleanup is held, checks the exact final quantity, and
+  covers cancellation. The focused native run passed **140 tests in 61.76s**.
+- `bash tools/check.sh -q --tb=short` passed **1,179 native tests in 298.85s**
+  and Ruff/format (71 files), then exposed an optional-disposer mypy error.
+  Retaining the explicitly owned bootstrap disposer corrected the type/lifetime
+  ambiguity. The follow-up passed **140 focused tests in 57.42s**, Ruff,
+  formatting, and mypy (35 modules). Earlier failed runs and commands are
+  retained in `docs/evidence/live-visuals-validation.json`.
+- That frontend lint, **20 unit tests**, TypeScript and production build passed;
+  assets are `index-Ch9eMnhW.js` and `index-oTep9C8S.css`. Build output remains
+  uncommitted. The real paused-demo screenshot now explicitly explains fixture
+  sparsity, pause state, and the operator's live-network requirement.
+- A later concurrent-client check reached the unchanged analytical queue bound
+  and correctly became unavailable. `live-visuals-live-overflow-before.json`
+  retains that failure. Diagnostic owner timing ran separately on port 8001;
+  its cProfile records also contain unrelated asynchronous activity and cannot
+  establish per-operation cumulative CPU attribution. No queue/depth/cohort
+  bound was relaxed, no stale warning was suppressed, and no general sustained
+  capacity improvement is claimed.
+- A five-minute Hyperliquid check initially failed after **187.76s**, despite
+  continued painting. Real owner timings isolated visualization calls up to
+  **649.24ms**; `live-visuals-live-progress-before-cache.json` and
+  `live-visuals-owner-timing-before-cache.json` retain that failure. Reusing
+  canonical column bytes alone was insufficient. Closed native metric
+  provenance is now encoded once per sample, charged to the unchanged history
+  budget, decoded into independent query containers, and removed/rebuilt on
+  eviction/reset/restore. The **63 visual regressions passed in 12.10s**,
+  including consumer-mutation isolation and checkpoint restoration.
+- Real Hyperliquid DOM recovery was exercised from two coarse native buckets
+  (no scrolling) back to 30 displayed rows: both sides recentered at scroll
+  offset 214. Ordinary updates still preserve deliberate manual scrolling.
+  Final frontend lint, 20 unit tests, TypeScript and build passed with
+  `index-imMpJONh.js`; the CSS asset remains `index-oTep9C8S.css`.
+- Caching alone still failed the real Hyperliquid run after **156.24s / 70
+  observations**; `live-visuals-live-progress-after-cache-failure.json` and
+  `live-visuals-owner-timing-after-cache-failure.json` retain its failure and
+  measured timings. The ingestion owner was still blocked by the whole chart
+  query, not merely duplicate serialization.
+- Chart projection now runs on one runtime-wide read worker over a bounded,
+  shallow immutable-evidence snapshot, without holding the session lock or
+  ingestion worker. Source/generation/lifecycle fences remain authoritative;
+  publication transfers only presentation state, never newer native history.
+  Cancellation joins the query before session removal. The held-query
+  regression failed both cases before the ownership change, then passed both
+  cases in **2.27s** while 300 real-schema Hyperliquid updates advanced to their
+  exact final quantity with zero overflow.
+- The complete post-snapshot gate, `bash tools/check.sh -q --tb=short`,
+  passed **1,183 native tests in 291.47s**, Ruff/format (71 files), mypy
+  (35 modules), frontend lint, **20 frontend tests**, TypeScript and the
+  production build (**312.48s** overall). The only native warning is the
+  dependency's existing Starlette/httpx TestClient deprecation. The four focused
+  snapshot/cache regressions passed first in **2.23s**, including eviction of
+  the live owner's old history and rejection of a changed source clock.
+- Sustained post-snapshot Hyperliquid verification passed **300.50s / 123 native
+  observations**, with advancing revisions and zero overflow. Real Hyperliquid
+  BTC → Binance SOL cutover also retained the session, advanced generation and
+  showed **4,685 bid / 4,987 ask levels** with zero overflow.
+- At the snapshot-only checkpoint, Binance BTC still overflowed after **58.82s /
+  27 observations**. `live-visuals-binance-after-snapshot-failure.json` retains
+  that failure; merging was held until the closure below. Real-thread component
+  timing measured analytical DTO conversion up to **242.72ms** and a complete
+  owner view up to **586.29ms** across the observed runs.
+- Incremental Git checkpoint: branch `fix/live-terminal-visuals`, commit
+  `1bfd81f43ededbda40224328d69be0fc02b7be65`, pushed to the verified origin.
+  The first push received HTTP 400; command-scoped HTTP/1.1 with a 10 MiB
+  non-chunked request buffer succeeded without changing persistent Git config.
+  [PR #9](https://github.com/karisheen/Limit-Orderbook/pull/9) was opened as a
+  draft against `main`, with integration held for the sustained Binance gate.
+- The remaining investigation also found catalog conversion and framework JSON
+  serialization running directly on the ingestion event loop. The new
+  production-path regression failed before the change (**6.54s**): an actual
+  normalized book update could not advance until held catalog work released.
+  Catalog encoding now runs on the existing catalog worker and retains one
+  response keyed by exact metadata plus copied readiness/reasons. The ingestion
+  and metadata/readiness-invalidation regressions passed together (**6.34s**).
+- Repeated immutable provenance conversion is now per-call memoized, with a
+  bounded field-name cache; sorted depth-band scans stop beyond their boundary.
+  **133 native API/analytics/visual regressions passed in 73.43s**. The corrected
+  cache-key typing passed mypy (35 modules), Ruff and formatting. The standalone
+  native-demo benchmark retained an identical **282,124-byte / 41-metric**
+  payload hash while using **796 rather than 1,586** transient containers.
+  Interleaved 50-run median conversion CPU was **3.76ms versus 8.18ms**.
+  This synthetic-domain measurement is not live-feed capacity certification.
+  The actual post-change venue checks below are the functional acceptance.
+- Final-code live checks passed in one actual Chromium session:
+  Binance BTC **300.01s / 140 observations**, Hyperliquid BTC **300.01s / 141**,
+  and Hyperliquid → Binance BTC return **120.01s / 54**. Each had advancing
+  native revisions and **zero analytical overflows**. Selection retained the
+  session through generations 1 → 2 → 3 → 4, ending with Binance SOL; the
+  diagnostic component harness also recorded no overflow.
+- All six Binance BTC modes painted current native responses; Hyperliquid
+  heatmap/candles/profile and Binance SOL heatmap/footprint were captured with
+  both DOM sides visible. The SOL capture retained **4,742 bid / 5,000 ask**
+  native levels; Hyperliquid retained its honest **20 / 20** slow-feed scope.
+  Display row limits are not ingestion limits or counts of individual orders.
+- Completed screenshots and exact response/UI identities are indexed in
+  [`live-visuals-completed-proof.json`](evidence/live-visuals-completed-proof.json).
+  Representative surfaces:
+  [Binance BTC heatmap](evidence/live-visuals-binance-btc-heatmap-complete.png),
+  [Hyperliquid candles](evidence/live-visuals-hyperliquid-btc-candles-complete.png),
+  [Binance SOL footprint](evidence/live-visuals-binance-sol-footprint-complete.png).
+  Each venue's `live-progress` report retains first/last native observations,
+  every sampled progress row and the read-only observation harness.
+- These are finite functional checks, not a 24-hour soak, isolated-host
+  throughput certification, or uninterrupted venue-global coverage. Full-depth
+  Binance history remains bounded by the unchanged 32 MiB visual budget; a
+  requested 180-second range does not fabricate absent retained history.
+  Hyperliquid slow20 snapshots are not exact event-flow deltas, so unavailable
+  event OFI remains unavailable. No queue/depth/cohort bound was increased.
+- The final native sweep passed **1,185 tests in 306.12s** before Ruff found an
+  obsolete `api.dto` import. Removing that import also exposed the regression's
+  obsolete hook for the old API binding; the test now holds only the actual
+  runtime conversion entrypoint. The post-cleanup command
+  `bash tools/check.sh -q --tb=short -k 'catalog_serialization or catalog_refresh'`
+  passed both catalog regressions (**3.79s**), Ruff/format (71 files), mypy
+  (35 modules), frontend lint, **20 frontend tests**, TypeScript and production
+  build (**20.04s** overall). The assets remain `index-imMpJONh.js` and
+  `index-oTep9C8S.css`; generated build output is not committed.
+- Pre-contrast offline Chromium suite: `npm --prefix frontend run test:e2e` passed
+  **28 tests / 1 expected network-only skip in 144.71s**. This covers actual
+  source selection, replay, chart pixels, viewport/lifecycle and workspace
+  workflows; no public live source was substituted with fixture frames.
+- Public-live source/DOM browser suite subsequently passed **4 tests in 44.7s**
+  (**52.02s** including lint). A prior run failed an incidental CSS assertion
+  requiring an explicit `option[value]` attribute; the options correctly derive
+  their submitted value from text. That assertion was deleted, not re-pinned;
+  actual coarse aggregation, shallow → scrollable DOM recovery and both-side
+  visibility remain exercised.
+- Final screenshot review exposed a separate SOL scale limitation: **101 of
+  128** positive native cells exceeded even the old 10-unit contrast ceiling.
+  The fixed full-intensity quantity now uses a logarithmic `1e-12`–`1e12`
+  slider, with quantity/unit announced accessibly; transfer remains linear and
+  never follows incoming maxima. Preference validation preserves that range.
+  The new reload-boundary regression failed before (**1,000 became 10**) and
+  passed afterward. Frontend lint, **21 tests**, TypeScript and production build
+  passed in **21.68s**, producing `index-Dou23D6P.js` and the unchanged CSS.
+- On the plain native server at `http://127.0.0.1:8000/?source=live`, trusted
+  keyboard interaction selected **1,000 SOL**. After the existing preference
+  write settled, a real reload restored exactly that quantity. The refreshed
+  SOL heatmap shows differentiated liquidity with **4,668 bid / 5,003 ask**
+  native levels and zero overflow. The evidence index distinguishes this final
+  contrast capture from the earlier, otherwise unchanged chart-mode captures.
+  This native server is left persistent, without diagnostic monkeypatches.
+- Runtime closure checkpoint committed and pushed separately as
+  `e2b3c49487ebfa1605e03dcab3de1b264ade8807`
+  (`fix(runtime): isolate catalog encoding from live ingestion`), preserving
+  the first visibility/ownership checkpoint. PR #9 remains the integration
+  boundary; the final UI/evidence increment follows its browser gates.
+- Final post-contrast integration gate passed frontend lint, **28 offline
+  browser tests / 1 expected network-only skip (2.4m)**, then **4 actual public
+  live browser tests (53.9s)**; combined command wall time was **205.03s**.
+  Offline verification used the existing Playwright config with only baseURL
+  overridden to port 8002, leaving the operator's live port 8000 available.
+  That isolation exposed an old test's hardcoded origin; it now uses the
+  configured context fixture and relative URLs, retaining its session-owner
+  assertions. The temporary config and diagnostic scripts were removed;
+  reproducible harness sources and failures remain in the evidence reports.
+- Final UI/evidence checkpoint committed and pushed as
+  `009ba53b886bdfd1c9be4c5732af137846cd0ad6`. Its push CI passed
+  ([run 41369220865](https://github.com/karisheen/Limit-Orderbook/actions/runs/41369220865));
+  its independent PR CI exposed a fixture startup race
+  ([run 41369228240](https://github.com/karisheen/Limit-Orderbook/actions/runs/41369228240)):
+  **1,184 native tests passed / 1 failed** with `obsolete_ordinal`.
+  The cutover test injected messages directly while its fixture could still
+  initialize the same source epoch and decode the first snapshot. It now waits
+  for that first completed native transaction before taking over injection.
+  All **300 updates**, held departed-collector cleanup, exact final quantity,
+  cancellation and zero-overflow assertions remain. Production ingestion and
+  queue limits are unchanged; the failed run is retained, not retried away.
+  The corrected runtime/API suite passed **27 tests in 60.24s**, followed by
+  Ruff/format, mypy, frontend lint, **21 frontend tests**, TypeScript and the
+  unchanged production bundle; total gate wall time **77.50s**.
+
 ## Decisions and next action
 
 Use one local asyncio backend worker, exact immutable domain contracts, explicit quality gates, direct venue adapters, a React/TypeScript terminal, native Canvas heatmap, Parquet/raw compressed recording and SQLite metadata. Preserve the legacy entrypoint during cutover; do not duplicate analytics. Detailed decisions/contracts/backlog are in the accompanying M0 documents.

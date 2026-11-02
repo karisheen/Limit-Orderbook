@@ -1,0 +1,660 @@
+{
+  "session": {
+    "id": "ac64d76b0100429e80f79fc5e8165aaa",
+    "generation": "1",
+    "mode": "live",
+    "source_id": "live",
+    "status": "live"
+  },
+  "frame": {
+    "selection": {
+      "instrument_id": "binance-global:spot-v3:spot:ETHUSDT"
+    },
+    "status": "live",
+    "health": {
+      "ready": true,
+      "reasons": []
+    },
+    "quality": {
+      "lifecycle": "live",
+      "integrity": "valid",
+      "transport_alive": true,
+      "source_mode": "ws_delta",
+      "recorded_source_mode": null,
+      "last_transport_mono_ns": "143446615325436",
+      "last_book_observation_mono_ns": "143446615325436",
+      "last_book_change_mono_ns": "143446615325436",
+      "last_healthy_observation_mono_ns": "143446615325436",
+      "clock_id": "3dc13bc0-77a7-4a86-b0af-66b493df9841",
+      "coverage": {
+        "subscribed_depth": "5000",
+        "retained_bid_levels": "5024",
+        "retained_ask_levels": "4984",
+        "worst_bid": "2154.6",
+        "worst_ask": "2361.82",
+        "full_depth": false,
+        "source_aggregation": [],
+        "expected_cadence_ns": null
+      },
+      "capabilities": {
+        "snapshot": true,
+        "deltas": true,
+        "trades": false,
+        "sequence_scope": "binance-global:spot-v3:spot:ETHUSDT:depth",
+        "checksum_scope": null,
+        "exact_event_flow": true,
+        "reference_prices": [],
+        "asset_context": []
+      },
+      "continuous_since_ordinal": "521",
+      "reason_codes": [],
+      "capture_complete": true
+    },
+    "presentation": {
+      "depth_limit": 100,
+      "bids_omitted": 4924,
+      "asks_omitted": 4884
+    },
+    "asof": {
+      "session_id": "2d560e41-18ed-4a1e-8f81-7addaae01176",
+      "ingest_ordinal": "17387",
+      "event_index": "0",
+      "exchange_event_wall_ns": "1793565399315000000",
+      "receive_wall_ns": "1793565399359127000",
+      "receive_mono_ns": "143446615325436",
+      "clock_id": "3dc13bc0-77a7-4a86-b0af-66b493df9841"
+    },
+    "revision": "963",
+    "bestBid": {
+      "price": "2261.35",
+      "quantity": "73.9018"
+    },
+    "bestAsk": {
+      "price": "2261.36",
+      "quantity": "0.0208"
+    },
+    "tapeCount": 100,
+    "ingestion": [
+      {
+        "key": {
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "instrument_id": "binance-global:spot-v3:spot:ETHBRL",
+          "channel": "book",
+          "depth": "5000",
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "424",
+        "queue": "0",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "instrument_id": "binance-global:spot-v3:spot:ETHBRL",
+          "channel": "trades",
+          "depth": null,
+          "aggregation": []
+        },
+        "epoch": "4",
+        "processed": "10",
+        "queue": "0",
+        "reason": "ws_recovery_probe"
+      },
+      {
+        "key": {
+          "venue": "coinbase",
+          "api_family": "advanced-trade",
+          "instrument_id": "coinbase:advanced-trade:spot:ETH-EUR",
+          "channel": "trades",
+          "depth": null,
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "137",
+        "queue": "0",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+          "channel": "book",
+          "depth": "5000",
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "985",
+        "queue": "0",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "kucoin",
+          "api_family": "classic-spot",
+          "instrument_id": "kucoin:classic-spot:spot:ETH-USDT",
+          "channel": "trades",
+          "depth": null,
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "28",
+        "queue": "0",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "kucoin",
+          "api_family": "classic-spot",
+          "instrument_id": "kucoin:classic-spot:spot:ETH-BTC",
+          "channel": "trades",
+          "depth": null,
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "26",
+        "queue": "0",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "instrument_id": "hyperliquid:info:perpetual:SOL",
+          "channel": "context",
+          "depth": null,
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "109",
+        "queue": "0",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "instrument_id": "hyperliquid:info:perpetual:SOL",
+          "channel": "reference",
+          "depth": null,
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "26",
+        "queue": "0",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "instrument_id": "hyperliquid:info:perpetual:BTC",
+          "channel": "reference",
+          "depth": null,
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "26",
+        "queue": "0",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "coinbase",
+          "api_family": "advanced-trade",
+          "instrument_id": "coinbase:advanced-trade:spot:ETH-USDT",
+          "channel": "book",
+          "depth": null,
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "582",
+        "queue": "0",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "kucoin",
+          "api_family": "classic-spot",
+          "instrument_id": "kucoin:classic-spot:spot:ETH-EUR",
+          "channel": "trades",
+          "depth": null,
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "27",
+        "queue": "0",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "instrument_id": "binance-global:spot-v3:spot:ETHARS",
+          "channel": "trades",
+          "depth": null,
+          "aggregation": []
+        },
+        "epoch": "4",
+        "processed": "10",
+        "queue": "0",
+        "reason": "ws_recovery_probe"
+      },
+      {
+        "key": {
+          "venue": "kraken",
+          "api_family": "spot-v2",
+          "instrument_id": "kraken:spot-v2:spot:ETH/AUD",
+          "channel": "book",
+          "depth": "25",
+          "aggregation": []
+        },
+        "epoch": "3",
+        "processed": "1309",
+        "queue": "195",
+        "reason": "required_queue_overflow"
+      },
+      {
+        "key": {
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "instrument_id": "hyperliquid:info:perpetual:BTC",
+          "channel": "context",
+          "depth": null,
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "109",
+        "queue": "0",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "kraken",
+          "api_family": "spot-v2",
+          "instrument_id": "kraken:spot-v2:spot:ETH/CAD",
+          "channel": "trades",
+          "depth": null,
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "108",
+        "queue": "0",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "instrument_id": "hyperliquid:info:perpetual:ETH",
+          "channel": "reference",
+          "depth": null,
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "26",
+        "queue": "0",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "instrument_id": "binance-global:spot-v3:spot:ETHARS",
+          "channel": "book",
+          "depth": "5000",
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "150",
+        "queue": "0",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "instrument_id": "hyperliquid:info:perpetual:HYPE",
+          "channel": "reference",
+          "depth": null,
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "26",
+        "queue": "0",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "kraken",
+          "api_family": "spot-v2",
+          "instrument_id": "kraken:spot-v2:spot:ETH/USDT",
+          "channel": "trades",
+          "depth": null,
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "108",
+        "queue": "0",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "coinbase",
+          "api_family": "advanced-trade",
+          "instrument_id": "coinbase:advanced-trade:spot:ETH-USDT",
+          "channel": "trades",
+          "depth": null,
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "113",
+        "queue": "0",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "instrument_id": "hyperliquid:info:perpetual:ETH",
+          "channel": "context",
+          "depth": null,
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "109",
+        "queue": "0",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "coinbase",
+          "api_family": "advanced-trade",
+          "instrument_id": "coinbase:advanced-trade:spot:ETH-BTC",
+          "channel": "book",
+          "depth": null,
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "660",
+        "queue": "0",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "kucoin",
+          "api_family": "classic-spot",
+          "instrument_id": "kucoin:classic-spot:spot:ETH-EUR",
+          "channel": "book",
+          "depth": "20",
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "28",
+        "queue": "0",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "kraken",
+          "api_family": "spot-v2",
+          "instrument_id": "kraken:spot-v2:spot:ETH/BTC",
+          "channel": "trades",
+          "depth": null,
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "107",
+        "queue": "0",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "instrument_id": "binance-global:spot-v3:spot:ETHBTC",
+          "channel": "book",
+          "depth": "5000",
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "266",
+        "queue": "0",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "kucoin",
+          "api_family": "classic-spot",
+          "instrument_id": "kucoin:classic-spot:spot:ETH-BTC",
+          "channel": "book",
+          "depth": "20",
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "28",
+        "queue": "0",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "kraken",
+          "api_family": "spot-v2",
+          "instrument_id": "kraken:spot-v2:spot:ETH/AUD",
+          "channel": "trades",
+          "depth": null,
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "108",
+        "queue": "0",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "instrument_id": "hyperliquid:info:perpetual:HYPE",
+          "channel": "context",
+          "depth": null,
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "109",
+        "queue": "0",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "instrument_id": "binance-global:spot-v3:spot:ETHUSDT",
+          "channel": "trades",
+          "depth": null,
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "908",
+        "queue": "0",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "coinbase",
+          "api_family": "advanced-trade",
+          "instrument_id": "coinbase:advanced-trade:spot:ETH-EUR",
+          "channel": "book",
+          "depth": null,
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "973",
+        "queue": "2",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "binance-global",
+          "api_family": "spot-v3",
+          "instrument_id": "binance-global:spot-v3:spot:ETHBTC",
+          "channel": "trades",
+          "depth": null,
+          "aggregation": []
+        },
+        "epoch": "4",
+        "processed": "9",
+        "queue": "0",
+        "reason": "ws_recovery_probe"
+      },
+      {
+        "key": {
+          "venue": "kraken",
+          "api_family": "spot-v2",
+          "instrument_id": "kraken:spot-v2:spot:ETH/CAD",
+          "channel": "book",
+          "depth": "25",
+          "aggregation": []
+        },
+        "epoch": "3",
+        "processed": "1275",
+        "queue": "54",
+        "reason": "required_queue_overflow"
+      },
+      {
+        "key": {
+          "venue": "coinbase",
+          "api_family": "advanced-trade",
+          "instrument_id": "coinbase:advanced-trade:spot:ETH-GBP",
+          "channel": "book",
+          "depth": null,
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "874",
+        "queue": "2",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "kraken",
+          "api_family": "spot-v2",
+          "instrument_id": "kraken:spot-v2:spot:ETH/BTC",
+          "channel": "book",
+          "depth": "25",
+          "aggregation": []
+        },
+        "epoch": "3",
+        "processed": "1249",
+        "queue": "96",
+        "reason": "required_queue_overflow"
+      },
+      {
+        "key": {
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "instrument_id": "hyperliquid:info:perpetual:ETH",
+          "channel": "trades",
+          "depth": null,
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "57",
+        "queue": "0",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "kucoin",
+          "api_family": "classic-spot",
+          "instrument_id": "kucoin:classic-spot:spot:ETH-USDT",
+          "channel": "book",
+          "depth": "20",
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "28",
+        "queue": "0",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "kraken",
+          "api_family": "spot-v2",
+          "instrument_id": "kraken:spot-v2:spot:ETH/USDT",
+          "channel": "book",
+          "depth": "25",
+          "aggregation": []
+        },
+        "epoch": "4",
+        "processed": "1034",
+        "queue": "72",
+        "reason": "required_queue_overflow"
+      },
+      {
+        "key": {
+          "venue": "hyperliquid",
+          "api_family": "info",
+          "instrument_id": "hyperliquid:info:perpetual:ETH",
+          "channel": "book",
+          "depth": "20",
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "26",
+        "queue": "0",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "coinbase",
+          "api_family": "advanced-trade",
+          "instrument_id": "coinbase:advanced-trade:spot:ETH-GBP",
+          "channel": "trades",
+          "depth": null,
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "120",
+        "queue": "0",
+        "reason": "starting"
+      },
+      {
+        "key": {
+          "venue": "coinbase",
+          "api_family": "advanced-trade",
+          "instrument_id": "coinbase:advanced-trade:spot:ETH-BTC",
+          "channel": "trades",
+          "depth": null,
+          "aggregation": []
+        },
+        "epoch": "1",
+        "processed": "107",
+        "queue": "0",
+        "reason": "starting"
+      }
+    ]
+  },
+  "chart": {
+    "testid": "market-charts",
+    "mode": "heatmap",
+    "viewId": "c37f20af24cf4abc81d304098bfde539",
+    "paintedViewId": "c37f20af24cf4abc81d304098bfde539",
+    "startNs": "143351449855395",
+    "endNs": "143531449855395",
+    "priceMin": "2260.34",
+    "priceStep": "0.01",
+    "drawMs": "1.300",
+    "tileCount": "204",
+    "tileAllocations": "206",
+    "dirtyColumns": "7",
+    "overlayPoints": "0",
+    "pixelWidth": "1588",
+    "pixelHeight": "225",
+    "receiveToPaintMs": "119.800"
+  },
+  "details": "Exact data / quality · 143444000000000 ns · price 2260.98",
+  "scope": "Old loaded backend/frontend before fix; actual shared public live ETH. Native reconstruction is full retained source; frame is bounded presentation. Nonselected venue recovery/overflow statuses remain disclosed."
+}

@@ -8,7 +8,7 @@ Install the repository's locked Python environment and build `frontend/` using i
 python -m src.workstation.cli serve
 ```
 
-Open `http://127.0.0.1:8000`. The default is offline: no network discovery, collector lock, exchange socket, recorder, or durable demo generation. It generates the complete **180-second / 24-stream synthetic scenario** in a bounded immutable memory source, then feeds the same `ReplaySession`, projection, analytics observer and cost engine used by recorded replay. This is not a historical market recording. The source descriptor says `synthetic: true`, `recording: false`; native exchange/source identity is not rewritten. Initial presentation consumes bootstrap/early deliveries and pauses; remaining scenario data is available through replay controls, not leaked into current windows.
+Open `http://127.0.0.1:8000`. The default is offline: no network discovery, collector lock, exchange socket, recorder, or durable demo generation. It generates a complete **180-second multi-venue synthetic scenario** in a bounded immutable memory source, then feeds the same `ReplaySession`, projection, analytics observer and cost engine used by recorded replay. This deliberately sparse fixture is not a historical market recording or a full exchange book. The source descriptor says `synthetic: true`, `recording: false`; native exchange/source identity is not rewritten. Initial presentation consumes bootstrap/early deliveries and pauses; remaining scenario data is available through replay controls, not leaked into current windows.
 
 `/health/live` is available while memory preparation runs. Source catalog status is `loading` until generation finishes. Creating a demo session waits for that preparation, not durable capture generation or verification. This removes the durable path from first-data startup; it is not a measured startup-time guarantee.
 
@@ -19,6 +19,18 @@ python -m src.workstation.cli serve --capture data/workstation/CAPTURE_ID
 # Explicit network opt-in: one shared live SubscriptionRegistry.
 python -m src.workstation.cli serve --network
 ```
+
+`serve --network` declares `preferred_source_id: 'live'`; offline startup declares
+the managed demo ID. This preference does not create a live session, override
+source readiness, or authorize network access on an offline server. The browser
+uses URL `?source=<catalog ID>`, then an explicit saved source, then this server
+preference. `http://127.0.0.1:8000/?source=live` explicitly requests public live
+data; unavailable requests retain their error instead of substituting demo.
+Live session creation still requires an exact native instrument ID. When no
+instrument was explicitly saved for that source, the browser resolves one from
+the source-filtered catalog, preferring accessible active Binance-global
+BTCUSDT spot, then Hyperliquid BTC perpetual, then another active native entry.
+It never sends a foreign demo instrument or weakens the API identity requirement.
 
 `--capture` may be repeated. The catalog verifies each capture using the released `RecordingReader`; incomplete/corrupt/unfinalized captures become unavailable with reasons, never healthy. Each client opens its own verified reader on its dedicated owner thread. Readers, SQLite connections, caches and iterators are never shared between threads or clients. There is no `verify=False` terminal path. Catalog IDs are opaque and valid for this server lifetime; HTTP never accepts paths or SQL.
 
@@ -53,7 +65,7 @@ Requests reject unknown fields, numeric JSON economics, nonfinite decimals, exce
 |---|---|---|
 | GET | `/health/live` | Process liveness only, `{live}`. |
 | GET | `/health/ready` | `{ready,reasons,sources}`; 503 until a ready source and synchronized active session exist, and whenever a required active session is ineligible. Reads completed immutable health evidence without publishing Frames, creating ACKs, changing access times, or treating a busy history/cost worker as a market-data fault. |
-| GET | `/instruments` | `{version:'1',instruments: Instrument[],sources: Source[]}`. Optional `source_id` query selects that source's exact metadata versions; use it for active presentation. The unfiltered union is discovery only and must not override replay/live session metadata. |
+| GET | `/instruments` | `{version:'1',instruments: Instrument[],sources: Source[],preferred_source_id:string}`. Optional `source_id` query selects that source's exact metadata versions; use it for active presentation. The unfiltered union is discovery only and must not override replay/live session metadata. Server preference is a startup hint, not a readiness claim. |
 | GET | `/sessions` | Bounded active summaries `{sessions:[{id,generation,mode,source_id,status}]}`. |
 | POST | `/sessions` | `{mode:'demo'|'replay'|'live',source_id?,instrument_id?}` → complete Frame, 201. Demo defaults to Coinbase BTC if present, otherwise first unambiguous book. Live requires exact instrument. Explicit unavailable selection is rejected, not silently replaced. |
 | GET | `/sessions/{id}` | Complete current Frame. |
@@ -262,7 +274,29 @@ Response: `{version:'1',generation,estimate:ExecutionEstimate|null,matrix:PairEs
 
 ## Ownership, backpressure and instrumentation
 
-A runtime has one shared live registry, one bounded catalog worker, and at most one worker per active client. Each client owns its selection/generation, independent ReplaySession/cursor, analytics, visualization, context, alerts and paper observers plus history. Paper/journal SQLite connections are owner-thread-local; research queries use the catalog worker. Memory source data alone is shared immutably. Browser close never releases a recorder's independent lease.
+A runtime has one shared live registry, one bounded catalog worker, one bounded
+visual-query worker, and at most one ingestion/observer worker per active client.
+Each client owns its selection/generation, independent ReplaySession/cursor,
+analytics, visualization, context, alerts and paper observers plus history.
+Paper/journal SQLite connections are owner-thread-local; research queries use
+the catalog worker. Historical chart queries pin at most one immutable evidence
+prefix per session and run outside the ingestion lock; cancellation joins before
+releasing lifecycle ownership. See [Visualization](VISUALIZATION.md#ownership-bounds-and-incremental-delivery)
+for snapshot accounting and source-clock fences. Memory source data is shared
+immutably. Browser close never releases a recorder's independent lease.
+
+Instrument catalog conversion and JSON encoding also run on the catalog worker,
+not on the ingestion event loop. One encoded response is retained per runtime
+and reused only for identical metadata and copied source-readiness/reason
+snapshots. Changed versions, source scope or health produce a fresh response;
+unknown source IDs still fail explicitly. Returning the encoded response avoids
+a second recursive framework conversion of thousands of instruments.
+
+Exact DTO conversion reuses shared immutable provenance within one conversion
+only, with a bounded cache of dataclass field names. HTTP fields, exact scalar
+encodings and reference bounds are unchanged; no mutable DTO cache is shared
+between conversions. Native depth-band summation stops after crossing the
+requested boundary on the already sorted side, without reducing book depth.
 
 Creation reserves capacity privately and exposes a session ID only after initialization succeeds. Shutdown cancels and joins private initializers before disposing executors. Reaping checks active requests, action/owner fences and worker activity, then rechecks idleness under the lifecycle fence; completed requests refresh their idle deadline.
 

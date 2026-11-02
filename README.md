@@ -44,19 +44,24 @@ Use Python 3.13.5, uv 0.8.4 and Node 22.22.0/npm 10.9.4:
 uv sync --locked --python 3.13.5 --group dev
 npm --prefix frontend ci
 npm --prefix frontend run build
-uv run --locked --offline --no-sync python -m src.workstation.cli serve
+uv run --locked --offline --no-sync python -m src.workstation.cli serve --network
 ```
 
-Open `http://127.0.0.1:8000`. This default is an explicitly **synthetic offline
-demo**, not a live feed or a recording. No durable capture is generated on
-startup. Health distinguishes process liveness from synchronized session data.
+Open `http://127.0.0.1:8000/?source=live` for public exchange data. The explicit
+`--network` flag enables discovery/collection and makes live the server's preferred
+source. Binance global and Hyperliquid remain native, separately qualified feeds.
+No durable capture is generated on startup. Health distinguishes process
+liveness from synchronized session data.
 
-Use `serve --capture data/workstation/SESSION_ID` for verified recorded replay,
-or `serve --network` to opt into public live discovery/collection. Do not run a
-second live collector beside a recorder. Unknown fees, missing depth, stale
-inputs and incompatible quotes remain explicit exclusions. No order is sent
-to an exchange. See [terminal controls](docs/TERMINAL.md),
-[API](docs/API.md), [analytics](docs/ANALYTICS.md) and [costs](docs/COSTS.md).
+Omit `--network` for the deliberately sparse, initially paused **synthetic offline
+demo**; use **Play synthetic demo** to advance its fixture, not to obtain live
+orders. Use `serve --capture data/workstation/SESSION_ID` for verified recorded
+replay. A URL source overrides saved preferences; unavailable live data never
+silently becomes demo. Do not run a second live collector beside a recorder.
+Unknown fees, missing depth, stale inputs and incompatible quotes remain explicit
+exclusions. No order is sent to an exchange. See
+[terminal controls](docs/TERMINAL.md), [API](docs/API.md),
+[analytics](docs/ANALYTICS.md) and [costs](docs/COSTS.md).
 
 ## Local alerts, paper, journal and research
 

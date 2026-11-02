@@ -28,6 +28,13 @@ test('persisted valid exact quantum and source-monotonic range survive without f
   assert.equal(settings.source?.mode, 'replay');
 });
 
+test('fixed liquidity saturation survives reload for large and small base quantities', () => {
+  for (const contrast of [1000, 0.00001]) {
+    const saved = JSON.stringify(validatePreferences({ version: 1, contrast }));
+    assert.equal(validatePreferences(JSON.parse(saved)).contrast, contrast);
+  }
+});
+
 function column(time: number, hash = `immutable-${time}`): VisualColumn {
   return { id: String(time), time_ns: String(time), end_ns: String(time + 1), segment_id: 'segment', asof: null,
     eligible: false, reasons: ['missing_depth'], liquidity_hash: hash, cells: [[null, '0']], best_bid: null, best_ask: null,

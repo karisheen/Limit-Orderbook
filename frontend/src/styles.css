@@ -51,6 +51,7 @@ label { color: var(--muted); }
 button[aria-pressed="true"] { background: #2b3949; border-color: #6889a8; }
 .error-banner, .warning-banner { padding: 8px 16px; background: #382429; color: #ffd1d3; border-bottom: 1px solid #72414b; overflow-wrap: anywhere; }
 .warning-banner { background: #342e21; border-color: #6b5a35; color: var(--warning); }
+.synthetic-state { display: inline-block; width: 8ch; }
 .replay-controls { min-height: 36px; padding: 4px 10px; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid var(--line); }
 .section-label { font-size: 10px; letter-spacing: 1px; color: var(--muted); margin-right: 8px; }
 .replay-controls label { display: inline-flex; align-items: center; gap: 6px; }
@@ -132,7 +133,7 @@ tbody tr:hover { background: #1d2732; }
 .metrics-table td:last-child { min-width: 100px; }
 .metrics-table td { font-size: 10px; }
 .metrics-table tbody th { text-transform: capitalize; line-height: 1.45; }
-.ladder-scroll { flex: 1; min-height: 120px; }
+.ladder-scroll { flex: 1; min-height: 120px; overflow-anchor: none; }
 .ladder td, .ladder th { text-align: right; padding: 4px 6px; }
 .ladder .bid td:nth-child(2) { background: #182923; }
 .ladder .ask td:nth-child(2) { background: #2b2027; }
