@@ -1145,40 +1145,75 @@ def grouped_ladder(book, instrument, now, request, generation):
                         reasons.append("query_level_work_limit")
                         groups = []
                         break
-                    base, _ = _valuation(instrument, level.price, level.quantity)
-                    assert base is not None  # Valuation capability gated above.
+                    base, quote = _valuation(instrument, level.price, level.quantity)
+                    # Value each native level before outward display grouping:
+                    # the bucket price is not an execution or valuation price.
+                    assert base is not None and quote is not None
                     if not groups or groups[-1][0] != price:
-                        groups.append([price, ZERO])
+                        groups.append([price, ZERO, ZERO])
                     groups[-1][1] += base
-                cumulative = ZERO
-                for price, base in groups:
+                    groups[-1][2] += quote
+                cumulative = cumulative_quote = ZERO
+                for price, base, quote in groups:
                     cumulative += base
+                    cumulative_quote += quote
                     result.append(
                         {
                             "side": side,
                             "price": exact(price),
                             "base_quantity": exact(base),
                             "cumulative_base": exact(cumulative),
+                            "quote_notional": exact(quote),
+                            "cumulative_quote": exact(cumulative_quote),
                         }
                     )
             if not book.quality.coverage.full_depth:
                 reasons.append("partial_depth_coverage")
         if instrument.tick_size is None:
             reasons.append("display_quantum_not_native_tick")
+        eligible = not any(
+            reason not in ("partial_depth_coverage", "display_quantum_not_native_tick")
+            for reason in reasons
+        )
+        summary = None
+        if eligible and book and book.bids and book.asks:
+            best_bid, best_ask = book.bids[0].price, book.asks[0].price
+            midpoint = (best_bid + best_ask) / 2
+            spread = best_ask - best_bid
+            summary = {
+                "best_bid": exact(best_bid),
+                "best_ask": exact(best_ask),
+                "midpoint": exact(midpoint),
+                "spread": exact(spread),
+                "spread_ticks": exact(spread / instrument.tick_size)
+                if instrument.tick_size is not None
+                else None,
+                "spread_bps": exact(spread / midpoint * 10000),
+            }
+        coverage = book.quality.coverage if book else None
         return {
             "version": "1",
             "generation": str(generation),
             "instrument_id": str(instrument.instrument_id),
             "asof": exact(book.asof) if book else None,
             "step": exact(step),
+            "tick_size": exact(instrument.tick_size),
+            "step_options": exact(step_options(instrument)),
+            "quote_unit": str(instrument.quote.asset_id),
+            "coverage": {
+                "subscribed_depth": exact(coverage.subscribed_depth),
+                "retained_bid_levels": exact(coverage.retained_bid_levels),
+                "retained_ask_levels": exact(coverage.retained_ask_levels),
+                "full_depth": coverage.full_depth,
+            }
+            if coverage is not None
+            else None,
+            "source_mode": book.quality.source_mode if book else None,
+            "summary": summary,
             "unit": "unavailable"
             if "unknown_contract_valuation" in reasons
             else str(instrument.base.asset_id),
-            "eligible": not any(
-                reason
-                not in ("partial_depth_coverage", "display_quantum_not_native_tick")
-                for reason in reasons
-            ),
+            "eligible": eligible,
             "reasons": reasons,
             "rows": result,
         }

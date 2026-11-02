@@ -1100,34 +1100,63 @@ def test_grouped_ladder_exact_native_conversion_outward_rounding_and_cumulative_
     )
     result = ladder(feed)
     assert result["eligible"] and result["unit"] == "BTC"
+    assert result["quote_unit"] == "USD"
+    assert result["tick_size"] == "0.01"
+    assert result["step"] in result["step_options"]
+    assert result["summary"] == {
+        "best_bid": "99.9",
+        "best_ask": "100.1",
+        "midpoint": "100",
+        "spread": "0.2",
+        "spread_ticks": "20",
+        "spread_bps": "20",
+    }
     assert result["rows"] == [
         {
             "side": "bid",
             "price": "99",
             "base_quantity": "0.5",
             "cumulative_base": "0.5",
+            "quote_notional": "49.71",
+            "cumulative_quote": "49.71",
         },
         {
             "side": "bid",
             "price": "98",
             "base_quantity": "0.7",
             "cumulative_base": "1.2",
+            "quote_notional": "69.23",
+            "cumulative_quote": "118.94",
         },
         {
             "side": "ask",
             "price": "101",
             "base_quantity": "0.9",
             "cumulative_base": "0.9",
+            "quote_notional": "90.49",
+            "cumulative_quote": "90.49",
         },
         {
             "side": "ask",
             "price": "102",
             "base_quantity": "0.6",
             "cumulative_base": "1.5",
+            "quote_notional": "60.66",
+            "cumulative_quote": "151.15",
         },
     ]
     assert ladder(feed, rows=1)["rows"] == [result["rows"][0], result["rows"][2]]
     assert D(result["rows"][0]["price"]) < D(result["rows"][2]["price"])
+    coarse = ladder(feed, price_step="10")
+    assert coarse["summary"] == result["summary"]
+    for side in ("bid", "ask"):
+        native_total = sum(
+            D(row["quote_notional"]) for row in result["rows"] if row["side"] == side
+        )
+        grouped = next(row for row in coarse["rows"] if row["side"] == side)
+        assert D(grouped["quote_notional"]) == native_total
+        assert D(grouped["cumulative_quote"]) == native_total
+        assert D(grouped["price"]) * D(grouped["base_quantity"]) != native_total
 
 
 def test_inverse_ladder_converts_each_native_price_before_grouping():
@@ -1140,11 +1169,50 @@ def test_inverse_ladder_converts_each_native_price_before_grouping():
     result = ladder(feed, price_step="10")
     assert result["eligible"]
     assert result["rows"] == [
-        {"side": "bid", "price": "100", "base_quantity": "2", "cumulative_base": "2"},
-        {"side": "bid", "price": "50", "base_quantity": "6", "cumulative_base": "8"},
-        {"side": "ask", "price": "130", "base_quantity": "4", "cumulative_base": "4"},
-        {"side": "ask", "price": "200", "base_quantity": "4", "cumulative_base": "8"},
+        {
+            "side": "bid",
+            "price": "100",
+            "base_quantity": "2",
+            "cumulative_base": "2",
+            "quote_notional": "200",
+            "cumulative_quote": "200",
+        },
+        {
+            "side": "bid",
+            "price": "50",
+            "base_quantity": "6",
+            "cumulative_base": "8",
+            "quote_notional": "300",
+            "cumulative_quote": "500",
+        },
+        {
+            "side": "ask",
+            "price": "130",
+            "base_quantity": "4",
+            "cumulative_base": "4",
+            "quote_notional": "500",
+            "cumulative_quote": "500",
+        },
+        {
+            "side": "ask",
+            "price": "200",
+            "base_quantity": "4",
+            "cumulative_base": "8",
+            "quote_notional": "800",
+            "cumulative_quote": "1300",
+        },
     ]
+    grouped_ask = next(
+        row for row in ladder(feed, price_step="100")["rows"] if row["side"] == "ask"
+    )
+    assert grouped_ask == {
+        "side": "ask",
+        "price": "200",
+        "base_quantity": "8",
+        "cumulative_base": "8",
+        "quote_notional": "1300",
+        "cumulative_quote": "1300",
+    }
 
 
 def test_ladder_partial_depth_is_explicit_but_unknown_units_and_stale_are_unavailable():
@@ -1153,15 +1221,109 @@ def test_ladder_partial_depth_is_explicit_but_unknown_units_and_stale_are_unavai
     partial = ladder(feed)
     assert partial["eligible"] and partial["rows"]
     assert "partial_depth_coverage" in partial["reasons"]
+    assert partial["summary"] is not None
+    assert partial["coverage"] == {
+        "subscribed_depth": None,
+        "retained_bid_levels": "2",
+        "retained_ask_levels": "2",
+        "full_depth": False,
+    }
+    assert partial["source_mode"] == "ws_delta"
     feed.heartbeat(6 * SECOND)
     stale = ladder(feed)
     assert not stale["eligible"] and stale["rows"] == []
     assert "stale" in stale["reasons"]
+    assert stale["summary"] is None
+    assert stale["coverage"] == partial["coverage"]
     unknown = VisualFeed(contract_instrument(contract_specification_source=None))
     unknown.quote(0)
     unavailable = ladder(unknown)
     assert not unavailable["eligible"] and unavailable["rows"] == []
     assert "unknown_contract_valuation" in unavailable["reasons"]
+    assert unavailable["summary"] is None
+
+
+def test_ladder_unknown_tick_reports_display_steps_without_inventing_spread_ticks():
+    instrument = replace(
+        synthetic_instrument(),
+        tick_size=None,
+        constraints=OrderConstraints(price_rule="unconstrained"),
+    )
+    feed = VisualFeed(instrument)
+    feed.quote(0)
+    result = ladder(feed)
+    assert result["eligible"] and result["tick_size"] is None
+    assert "display_quantum_not_native_tick" in result["reasons"]
+    assert result["step_options"] == ["0.01", "0.1", "1", "10", "100"]
+    assert result["summary"] == {
+        "best_bid": "99",
+        "best_ask": "101",
+        "midpoint": "100",
+        "spread": "2",
+        "spread_ticks": None,
+        "spread_bps": "200",
+    }
+
+
+@pytest.mark.parametrize("missing_side", ["bids", "asks"])
+def test_ladder_one_sided_evidence_never_produces_top_of_book_summary(missing_side):
+    feed = VisualFeed()
+    feed.quote(0)
+    feed.book = replace(
+        feed.book,
+        quality=replace(feed.book.quality, integrity="invalid"),
+        **{missing_side: ()},
+    )
+    result = ladder(feed)
+    assert not result["eligible"] and result["rows"] == []
+    assert result["summary"] is None
+    assert "empty_side" in result["reasons"]
+
+
+def test_ladder_missing_evidence_keeps_metadata_without_book_claims():
+    feed = VisualFeed()
+    result = ladder(feed)
+    assert not result["eligible"] and result["rows"] == []
+    assert result["summary"] is result["coverage"] is result["source_mode"] is None
+    assert result["tick_size"] == "0.01"
+    assert result["quote_unit"] == "USD"
+    assert result["step"] in result["step_options"]
+
+
+def test_ladder_work_bound_never_exposes_partial_bucket_or_summary(monkeypatch):
+    feed = VisualFeed()
+    feed.quote(0)
+    monkeypatch.setattr(visuals, "MAX_QUERY_LEVELS", 1)
+    result = ladder(feed, price_step="10")
+    assert not result["eligible"] and result["rows"] == []
+    assert result["summary"] is None
+    assert "query_level_work_limit" in result["reasons"]
+
+
+def test_ladder_preserves_sub_float_price_spread_and_notional_precision():
+    feed = VisualFeed()
+    feed.quote(
+        0,
+        bids=(("9007199254740992.01", "0.125"),),
+        asks=(("9007199254740992.03", "0.375"),),
+    )
+    native_book = feed.book
+    with localcontext() as context:
+        context.prec = 6
+        result = ladder(feed)
+    assert result["eligible"]
+    assert feed.book is native_book
+    summary = result["summary"]
+    assert summary["best_bid"] == "9007199254740992.01"
+    assert summary["best_ask"] == "9007199254740992.03"
+    assert summary["midpoint"] == "9007199254740992.02"
+    assert summary["spread"] == "0.02"
+    assert summary["spread_ticks"] == "2"
+    with localcontext(DECIMAL_CONTEXT):
+        assert D(summary["spread_bps"]) == D("0.02") / D(summary["midpoint"]) * 10000
+        for row, level in zip(result["rows"], (*native_book.bids, *native_book.asks)):
+            assert D(row["quote_notional"]) == level.price * level.quantity
+            assert row["cumulative_quote"] == row["quote_notional"]
 
 
 @pytest.mark.parametrize("offset", [0, 1000])

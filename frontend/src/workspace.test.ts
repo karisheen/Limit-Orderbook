@@ -35,6 +35,19 @@ test('fixed liquidity saturation survives reload for large and small base quanti
   }
 });
 
+test('DOM grouping and quantity units persist independently of the chart quantum', () => {
+  const settings = validatePreferences({ version: 1, priceStep: '10', domPriceStep: '0.0000000000000000001', domUnit: 'quote', domCumulative: true });
+  const restored = validatePreferences(JSON.parse(JSON.stringify(settings)));
+  assert.equal(restored.priceStep, '10');
+  assert.equal(restored.domPriceStep, '0.0000000000000000001');
+  assert.equal(restored.domUnit, 'quote');
+  assert.equal(restored.domCumulative, true);
+  const invalid = validatePreferences({ ...settings, domPriceStep: 'NaN', domUnit: 'USD', domCumulative: 'yes' });
+  assert.equal(invalid.domPriceStep, '');
+  assert.equal(invalid.domUnit, 'base');
+  assert.equal(invalid.domCumulative, false);
+});
+
 function column(time: number, hash = `immutable-${time}`): VisualColumn {
   return { id: String(time), time_ns: String(time), end_ns: String(time + 1), segment_id: 'segment', asof: null,
     eligible: false, reasons: ['missing_depth'], liquidity_hash: hash, cells: [[null, '0']], best_bid: null, best_ask: null,

@@ -9,6 +9,7 @@ export interface WorkspacePreferences {
   mode: ChartMode; contrast: number; showTrades: boolean; showQuotes: boolean;
   priceStep: string; bucket: string; rangeSeconds: number; range: { start_ns: string; end_ns: string } | null;
   follow: boolean; paused: boolean; domFrozen: boolean; domRows: number; priceOffset: number;
+  domPriceStep: string; domUnit: 'base' | 'quote'; domCumulative: boolean;
 }
 export const preferenceKey = 'limit-orderbook.workspace.v1';
 const defaults: WorkspacePreferences = {
@@ -16,6 +17,7 @@ const defaults: WorkspacePreferences = {
   leftOpen: true, rightOpen: true, bottomOpen: true, mode: 'heatmap', contrast: 1,
   showTrades: true, showQuotes: true, priceStep: '', bucket: '1000000000', rangeSeconds: 180,
   range: null, follow: true, paused: false, domFrozen: false, domRows: 15, priceOffset: 0,
+  domPriceStep: '', domUnit: 'base', domCumulative: false,
 };
 const bounded = (value: unknown, min: number, max: number, fallback: number) => typeof value === 'number' && Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
 const text = (value: unknown, max: number) => typeof value === 'string' && value.length <= max ? value : '';
@@ -23,7 +25,7 @@ export function validatePreferences(value: unknown): WorkspacePreferences {
   if (!value || typeof value !== 'object' || !('version' in value) || value.version !== 1) return { ...defaults };
   const p = value as Record<string, unknown>;
   const next = { ...defaults };
-  for (const key of ['leftOpen', 'rightOpen', 'bottomOpen', 'showTrades', 'showQuotes', 'follow', 'paused', 'domFrozen'] as const) if (typeof p[key] === 'boolean') next[key] = p[key];
+  for (const key of ['leftOpen', 'rightOpen', 'bottomOpen', 'showTrades', 'showQuotes', 'follow', 'paused', 'domFrozen', 'domCumulative'] as const) if (typeof p[key] === 'boolean') next[key] = p[key];
   next.leftWidth = Math.round(bounded(p.leftWidth, 180, 360, defaults.leftWidth));
   next.rightWidth = Math.round(bounded(p.rightWidth, 250, 500, defaults.rightWidth));
   next.bottomHeight = Math.round(bounded(p.bottomHeight, 170, 460, defaults.bottomHeight));
@@ -34,8 +36,11 @@ export function validatePreferences(value: unknown): WorkspacePreferences {
   next.bucket = ['1000000000', '5000000000', '10000000000'].includes(p.bucket as string) ? p.bucket as string : defaults.bucket;
   if (['balanced', 'analysis', 'ladder'].includes(p.preset as string)) next.preset = p.preset as WorkspacePreferences['preset'];
   if (['heatmap', 'candles', 'footprint', 'profile', 'cvd', 'ofi'].includes(p.mode as string)) next.mode = p.mode as ChartMode;
-  const step = text(p.priceStep, 128);
-  next.priceStep = /^(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d{1,4})?$/.test(step) && /[1-9]/.test(step.split(/[eE]/)[0] ?? '') ? step : '';
+  for (const key of ['priceStep', 'domPriceStep'] as const) {
+    const step = text(p[key], 128);
+    next[key] = /^(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d{1,4})?$/.test(step) && /[1-9]/.test(step.split(/[eE]/)[0] ?? '') ? step : '';
+  }
+  if (p.domUnit === 'base' || p.domUnit === 'quote') next.domUnit = p.domUnit;
   next.instrument = text(p.instrument, 512);
   const source = p.source as Record<string, unknown> | null;
   if (source && typeof source === 'object' && ['demo', 'replay', 'live'].includes(source.mode as string) && text(source.id, 512)) next.source = { mode: source.mode as Mode, id: source.id as string };

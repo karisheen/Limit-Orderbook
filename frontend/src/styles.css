@@ -133,12 +133,59 @@ tbody tr:hover { background: #1d2732; }
 .metrics-table td:last-child { min-width: 100px; }
 .metrics-table td { font-size: 10px; }
 .metrics-table tbody th { text-transform: capitalize; line-height: 1.45; }
-.ladder-scroll { flex: 1; min-height: 120px; overflow-anchor: none; }
-.ladder td, .ladder th { text-align: right; padding: 4px 6px; }
-.ladder .bid td:nth-child(2) { background: #182923; }
-.ladder .ask td:nth-child(2) { background: #2b2027; }
-.ladder .crosshair-row { outline: 1px solid #9ab5cc; outline-offset: -1px; background: #2b3949; }
-.ladder small { font-size: 9px; }
+.depth-ladder { --dom-bid: #36cfc0; --dom-ask: #f4ab58; }
+.depth-ladder .panel-heading h2 { font-size: 11px; }
+.depth-ladder .panel-heading .tabs button { padding: 3px 4px; font-size: 9px; }
+.dom-controls { display: flex; flex-wrap: wrap; gap: 4px 7px; padding: 4px 6px; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+.dom-controls label { display: inline-flex; align-items: center; gap: 3px; min-width: 0; flex-shrink: 0; white-space: nowrap; font-size: 9px; }
+.dom-controls label:nth-child(2) { flex: 1 0 90px; }
+.dom-controls select { min-height: 22px; padding: 1px 2px; max-width: 110px; font-size: 9px; }
+.dom-controls label:nth-child(2) select { flex: 1; min-width: 54px; width: 0; }
+.dom-controls input { margin: 0; }
+.dom-status { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 6px; padding: 3px 6px; color: var(--muted); font-size: 9px; flex-shrink: 0; overflow-wrap: anywhere; }
+.dom-notice { padding: 2px 6px; margin: 0; font-size: 9px; flex-shrink: 0; overflow-wrap: anywhere; }
+.dom-scale { display: flex; align-items: center; justify-content: space-between; gap: 5px; padding: 2px 6px; color: var(--muted); font-size: 9px; flex-shrink: 0; }
+.dom-scale > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dom-scale button { min-height: 21px; padding: 2px 4px; font-size: 9px; }
+.depth-ladder .ladder-scroll { flex: 1; min-height: 120px; overflow-anchor: none; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.depth-ladder .ladder { table-layout: fixed; }
+.depth-ladder .ladder td, .depth-ladder .ladder th { text-align: right; padding: 4px 3px; height: 24px; white-space: nowrap; }
+.depth-ladder .ladder th:first-child { width: 33px; text-align: left; }
+.depth-ladder .ladder th:nth-child(2) { width: 32%; }
+.depth-ladder .ladder th { font-size: 9px; overflow: hidden; text-overflow: ellipsis; }
+.depth-ladder .ladder td:first-child { text-align: left; font-size: 9px; }
+.depth-ladder .ladder .bid { color: var(--dom-bid); }
+.depth-ladder .ladder .ask { color: var(--dom-ask); }
+.depth-ladder .ladder .dom-best { font-weight: 750; }
+.depth-ladder .ladder .dom-best td:nth-child(2) { font-size: 11px; }
+.dom-best-marker { font-size: 8px; }
+.dom-aligned { display: flex; justify-content: flex-end; min-width: 0; position: relative; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
+.dom-aligned .number { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.dom-decimal-padding { visibility: hidden; white-space: pre; flex-shrink: 0; max-width: 50%; overflow: hidden; }
+.dom-quantity { position: relative; color: #dce2e9; }
+.dom-depth-bar { position: absolute; top: 2px; bottom: 2px; right: 0; width: var(--depth-width); pointer-events: none; }
+.bid .dom-depth-bar { background: color-mix(in srgb, var(--dom-bid) 17%, transparent); }
+.ask .dom-depth-bar { background: color-mix(in srgb, var(--dom-ask) 17%, transparent); }
+.depth-ladder .ladder .dom-cumulative { color: #8e9baa; font-size: 9px; font-weight: 400; }
+.depth-ladder .dom-diagnostic tr[data-side] td { color: #89929d; }
+.depth-ladder .ladder .crosshair-row, .depth-ladder .ladder tr:focus-visible { outline: 1px solid #9ab5cc; outline-offset: -1px; background: #253342; }
+.depth-ladder .ladder .dom-spread td { padding: 6px 4px; height: 43px; text-align: center; background: #1b2530; border-block: 1px solid #435363; color: #c7d3df; white-space: normal; font-size: 9px; }
+.dom-spread td > span { display: block; line-height: 1.55; }
+.dom-spread .number { white-space: normal; overflow-wrap: anywhere; }
+.dom-addition .dom-quantity { animation: dom-increase 650ms ease-out; }
+.dom-removal .dom-quantity { animation: dom-decrease 650ms ease-out; }
+@keyframes dom-increase { from { box-shadow: inset 2px 0 #a5c8c1; } to { box-shadow: inset 2px 0 transparent; } }
+@keyframes dom-decrease { from { box-shadow: inset -2px 0 #bba991; } to { box-shadow: inset -2px 0 transparent; } }
+.dom-scope { flex-shrink: 0; padding: 4px 6px; border-top: 1px solid var(--line); }
+.dom-scope[open] { max-height: 130px; overflow: auto; }
+.dom-scope summary, .depth-ladder > .evidence summary { font-size: 9px; }
+.dom-scope .caption { padding: 4px 0; font-size: 9px; }
+.depth-ladder > .evidence { padding: 4px 6px; }
+.depth-ladder > .evidence[open] { max-height: 150px; overflow: auto; }
+@media (prefers-reduced-motion: reduce) {
+  .depth-ladder .dom-addition .dom-quantity, .depth-ladder .dom-removal .dom-quantity { animation: none; }
+  .depth-ladder .ladder-scroll { scroll-behavior: auto; }
+}
 .tape-scroll { flex: 1; min-height: 80px; }
 .tape-scroll table { white-space: nowrap; }
 .tape-scroll td { padding: 4px 6px; }

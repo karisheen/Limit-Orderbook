@@ -6,7 +6,7 @@ size-aware costs, deterministic replay, local alerts, reference context, spot IO
 paper accounting, a durable journal and offline research. The supported Streamlit
 dashboard is a thin native-API observation client, not a second market-data engine.
 
-[![Live BTC/USDT terminal showing the liquidity heatmap, executed trades, order book and time & sales](docs/evidence/live-visuals-binance-btc-heatmap-complete.png)](docs/evidence/live-visuals-binance-btc-heatmap-complete.png)
+[![Live BTC/USDT terminal showing the liquidity heatmap, depth bars, exact spread, order book and time & sales](docs/evidence/depth-ladder-binance-btc.png)](docs/evidence/depth-ladder-binance-btc.png)
 
 *Captured from the live Binance global BTC/USDT feed. Click the screenshot to view full size.*
 

@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { VisualGrid } from './api';
-import { CHART_LIMITS, columnAt, plotArea, rowAt, saturation, shiftedRange, timeAt, zoomedRange } from './market-charts-model';
+import { CHART_LIMITS, columnAt, plotArea, priceCellIndex, rowAt, saturation, shiftedRange, timeAt, zoomedRange } from './market-charts-model';
 import type { ChartCursor, ChartMode, ChartRange } from './market-charts-model';
 import { MarketRenderer } from './market-charts-renderer';
 import type { RenderReport } from './market-charts-renderer';
@@ -212,7 +212,7 @@ export function MarketCharts(props: MarketChartsProps): ReactNode {
   }, []);
 
   const column = view ? crosshair ? columnAt(view, crosshair.time_ns) : view.columns.at(-1) : undefined;
-  const row = view ? crosshair?.price ? view.prices.indexOf(crosshair.price) : Math.floor(view.rows / 2) : -1;
+  const row = view ? crosshair?.price ? priceCellIndex(view, crosshair.price) : Math.floor(view.rows / 2) : -1;
   const price = view?.prices[row];
   const cell = column?.cells[row];
   const metric = mode === 'cvd' || mode === 'ofi' ? column?.[mode] : null;
@@ -258,7 +258,8 @@ export function MarketCharts(props: MarketChartsProps): ReactNode {
       <canvas ref={cursor} aria-hidden="true" className="m4-chart-cursor" />
       {!view || !available ? <div className="m4-chart-empty">{!view ? loading ? 'Loading observed history…' : 'No visualization received.' : `No eligible ${MODE_LABEL[mode].toLowerCase()} in this window.`}<small>Missing evidence is not zero. No inferred or fixture history is drawn.</small></div> : null}
       {view && crosshair ? <div className="m4-chart-tooltip" role="tooltip">
-        <b>{crosshair.time_ns} ns</b><span>Price cell {crosshair.price ?? 'not applicable'}</span>
+        <b>{crosshair.time_ns} ns</b><span>Exact price {crosshair.price ?? 'not applicable'}</span>
+        {row >= 0 ? <span>Chart bucket {price} · step {view.price_step}</span> : null}
         {row < 0 ? <span>Price outside the current viewport; row evidence unavailable</span> : null}
         {mode === 'heatmap' ? <span>Resting B {column?.eligible ? cell?.[0] ?? 'unknown' : 'ineligible'} · A {column?.eligible ? cell?.[1] ?? 'unknown' : 'ineligible'} {view.quantity_unit}</span> : null}
         {metric ? <span>{metric.name}: {metric.eligibility.eligible ? metric.value ?? 'unavailable' : 'ineligible'} {metric.unit}</span> : null}

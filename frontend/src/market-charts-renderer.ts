@@ -1,5 +1,5 @@
 import type { VisualGrid } from './api';
-import { CHART_LIMITS, COLORS, boundedSize, intensity, liquidityTileKey, plotArea, plotNumber, priceRowProjector, saturation, sideColor, timeAt, timeFraction } from './market-charts-model';
+import { CHART_LIMITS, COLORS, boundedSize, intensity, liquidityTileKey, plotArea, plotNumber, priceCellIndex, priceRowProjector, saturation, sideColor, timeAt, timeFraction } from './market-charts-model';
 import type { ChartCursor, ChartMode, PlotArea } from './market-charts-model';
 
 type Column = VisualGrid['columns'][number];
@@ -300,9 +300,9 @@ export class MarketRenderer {
     ctx.strokeStyle = '#e2e9f3'; ctx.lineWidth = 1; ctx.setLineDash([3, 4]);
     ctx.beginPath();
     if (mode !== 'profile') { ctx.moveTo(px, area.y); ctx.lineTo(px, area.y + area.height); }
-    const row = cursor.price == null ? -1 : view.prices.indexOf(cursor.price);
-    if (row >= 0 && mode !== 'cvd' && mode !== 'ofi') {
-      const py = area.y + area.height - (row + 0.5) / view.rows * area.height;
+    const row = cursor.price == null ? -1 : priceCellIndex(view, cursor.price);
+    if (row >= 0 && cursor.price != null && mode !== 'cvd' && mode !== 'ofi') {
+      const py = area.y + area.height - priceRowProjector(view.price_min, view.price_step)(cursor.price) / view.rows * area.height;
       ctx.moveTo(area.x, py); ctx.lineTo(area.x + area.width, py);
     }
     ctx.stroke(); ctx.restore();

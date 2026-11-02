@@ -126,10 +126,16 @@ export interface VisualizationInput {
 export interface VisualizationAck {
   publish_to_ack_upper_bound_ms: number; browser_receive_to_paint_ms: number;
 }
-export interface GroupedLevel { side: 'bid' | 'ask'; price: string; base_quantity: string; cumulative_base: string }
+export interface GroupedLevel {
+  side: 'bid' | 'ask'; price: string; base_quantity: string; cumulative_base: string;
+  quote_notional: string; cumulative_quote: string;
+}
 export interface GroupedLadder {
   version: '1'; generation: string; instrument_id: string; asof: Reference | null; step: string; unit: string;
   eligible: boolean; reasons: string[]; rows: GroupedLevel[];
+  quote_unit: string; tick_size: string | null; step_options: string[];
+  coverage: Quality['coverage'] | null; source_mode: string | null;
+  summary: { best_bid: string; best_ask: string; midpoint: string; spread: string; spread_ticks: string | null; spread_bps: string } | null;
 }
 export interface LadderInput { price_step?: string; rows?: number }
 export interface ProposalRiskInput {

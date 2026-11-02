@@ -40,18 +40,29 @@ export function plotNumber(value: string | null | undefined): number | null {
   return Number.isFinite(result) ? result : null;
 }
 
+function decimalParts(text: string): { coefficient: bigint; scale: number } {
+  const match = /^([+-]?)(\d+)(?:\.(\d*))?(?:[eE]([+-]?\d+))?$/.exec(text);
+  if (!match) throw new Error('Price is not representable by the chart coordinate projector.');
+  const fraction = match[3] ?? '';
+  const scale = fraction.length - Number(match[4] ?? 0);
+  if (!Number.isSafeInteger(scale) || Math.abs(scale) > 1000) throw new Error('Price coordinate precision exceeds the bounded renderer.');
+  return { coefficient: BigInt(`${match[1] === '-' ? '-' : ''}${match[2]}${fraction}`), scale };
+}
+
+/** Exact bucket membership for a linked native price, without clamping off-screen prices. */
+export function priceCellIndex(view: Pick<VisualGrid, 'price_min' | 'price_step' | 'rows'>, price: string): number {
+  const origin = decimalParts(view.price_min), step = decimalParts(view.price_step), value = decimalParts(price);
+  const scale = Math.max(origin.scale, step.scale, value.scale);
+  const offset = value.coefficient * 10n ** BigInt(scale - value.scale) - origin.coefficient * 10n ** BigInt(scale - origin.scale);
+  const unit = step.coefficient * 10n ** BigInt(scale - step.scale);
+  if (unit <= 0n || offset < 0n || offset >= unit * BigInt(view.rows)) return -1;
+  return Number(offset / unit);
+}
+
 /** Local-origin plotting avoids collapsing adjacent prices above Number's integer range.
  * This returns pixel-coordinate input only; it never aggregates or emits economic values.
  */
 export function priceRowProjector(minimum: string, quantum: string): (price: string) => number {
-  const decimalParts = (text: string): { coefficient: bigint; scale: number } => {
-    const match = /^([+-]?)(\d+)(?:\.(\d*))?(?:[eE]([+-]?\d+))?$/.exec(text);
-    if (!match) throw new Error('Price is not representable by the chart coordinate projector.');
-    const fraction = match[3] ?? '';
-    const scale = fraction.length - Number(match[4] ?? 0);
-    if (!Number.isSafeInteger(scale) || Math.abs(scale) > 1000) throw new Error('Price coordinate precision exceeds the bounded renderer.');
-    return { coefficient: BigInt(`${match[1] === '-' ? '-' : ''}${match[2]}${fraction}`), scale };
-  };
   const origin = decimalParts(minimum);
   const step = decimalParts(quantum);
   if (step.coefficient <= 0n) throw new Error('Chart price quantum must be positive.');

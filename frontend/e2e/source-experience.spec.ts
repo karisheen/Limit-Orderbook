@@ -115,6 +115,7 @@ test('network launch migrates automatic legacy demo to actual public live with a
   await page.waitForResponse(response => response.url().endsWith('/api/v1/ladder') && response.request().method() === 'POST');
   await page.waitForResponse(response => response.url().endsWith('/api/v1/ladder') && response.request().method() === 'POST');
   expect(await scroll.evaluate(node => node.scrollTop)).toBe(50);
+  await expect(page.getByLabel('Follow midpoint', { exact: true })).not.toBeChecked();
   await scroll.evaluate(node => { node.scrollTop = 0; });
   await page.waitForResponse(response => response.url().endsWith('/api/v1/ladder') && response.request().method() === 'POST');
   await page.waitForResponse(response => response.url().endsWith('/api/v1/ladder') && response.request().method() === 'POST');
@@ -122,6 +123,9 @@ test('network launch migrates automatic legacy demo to actual public live with a
   const regrouped = page.waitForResponse(response => response.url().endsWith('/api/v1/ladder') && response.request().method() === 'POST' && response.request().postDataJSON().rows === 50);
   await page.getByLabel('Ladder rows').selectOption('50');
   expect((await regrouped).ok()).toBe(true);
+  expect(await scroll.evaluate(node => node.scrollTop)).toBe(0);
+  await page.getByRole('button', { name: 'Recenter DOM', exact: true }).click();
+  await expect(page.getByLabel('Follow midpoint', { exact: true })).toBeChecked();
   await expect(page.getByTestId('grouped-ladder').locator('tr.bid').first()).toBeInViewport();
   await expect(page.getByTestId('grouped-ladder').locator('tr.ask').last()).toBeInViewport();
   const instruments = page.locator('[data-instrument-id]');
@@ -140,12 +144,13 @@ test('network launch migrates automatic legacy demo to actual public live with a
   await page.getByLabel('Search instruments').fill('BTC');
   await page.getByLabel('Filter venue').selectOption('hyperliquid');
   await page.locator('[data-instrument-id="hyperliquid:info:perpetual:BTC"]').click();
-  await page.getByLabel('Price aggregation').selectOption('100');
+  await page.getByLabel('DOM price grouping').selectOption('100');
   await expect(page.getByTestId('grouped-ladder').locator('tr.bid').first()).toBeVisible();
   await expect(page.getByTestId('grouped-ladder').locator('tr.ask').last()).toBeVisible();
   await expect.poll(() => scroll.evaluate(node => node.scrollHeight <= node.clientHeight)).toBe(true);
-  await page.getByLabel('Price aggregation').selectOption('');
+  await page.getByLabel('DOM price grouping').selectOption('');
   await expect.poll(() => scroll.evaluate(node => node.scrollHeight > node.clientHeight)).toBe(true);
+  await expect(page.getByLabel('Follow midpoint', { exact: true })).toBeChecked();
   await expect(page.getByTestId('grouped-ladder').locator('tr.bid').first()).toBeInViewport();
   await expect(page.getByTestId('grouped-ladder').locator('tr.ask').last()).toBeInViewport();
 });

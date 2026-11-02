@@ -2,13 +2,14 @@
 
 import asyncio
 from collections import defaultdict
-from decimal import Decimal, ROUND_CEILING, ROUND_FLOOR
+from decimal import Decimal, ROUND_CEILING, ROUND_FLOOR, localcontext
 
 import pytest
 from fastapi.testclient import TestClient
 
 from src.workstation.api import create_app
 from src.workstation.demo import create_demo
+from src.workstation.precision import DECIMAL_CONTEXT
 from src.workstation.runtime import TerminalRuntime
 
 
@@ -229,28 +230,54 @@ def test_grouped_ladder_conserves_native_depth_and_side_cumulative_totals(market
     assert ladder["asof"] == before["book"]["asof"]
     assert ladder["instrument_id"] == before["book"]["instrument_id"]
     assert ladder["unit"] == "BTC"
+    assert ladder["quote_unit"] == "USD"
+    assert ladder["step"] in ladder["step_options"]
+    assert ladder["source_mode"] is not None
+    assert ladder["coverage"]["retained_bid_levels"] == str(len(before["book"]["bids"]))
+    assert ladder["coverage"]["retained_ask_levels"] == str(len(before["book"]["asks"]))
+    summary = ladder["summary"]
+    assert summary["best_bid"] == before["book"]["bids"][0]["price"]
+    assert summary["best_ask"] == before["book"]["asks"][0]["price"]
+    with localcontext(DECIMAL_CONTEXT):
+        best_bid, best_ask = Decimal(summary["best_bid"]), Decimal(summary["best_ask"])
+        midpoint = (best_bid + best_ask) / 2
+        spread = best_ask - best_bid
+        assert Decimal(summary["midpoint"]) == midpoint
+        assert Decimal(summary["spread"]) == spread
+        assert Decimal(summary["spread_ticks"]) == spread / Decimal(ladder["tick_size"])
+        assert Decimal(summary["spread_bps"]) == spread / midpoint * 10000
     for side, native_side, rounding in (
         ("bid", "bids", ROUND_FLOOR),
         ("ask", "asks", ROUND_CEILING),
     ):
         expected = defaultdict(Decimal)
+        expected_quote = defaultdict(Decimal)
         for level in before["book"][native_side]:
             price = Decimal(level["price"]).to_integral_value(rounding=rounding)
             expected[price] += Decimal(level["quantity"])
+            expected_quote[price] += Decimal(level["price"]) * Decimal(
+                level["quantity"]
+            )
         rows = [row for row in ladder["rows"] if row["side"] == side]
         assert [Decimal(row["price"]) for row in rows] == sorted(
             expected, reverse=side == "bid"
         )
         cumulative = Decimal(0)
+        cumulative_quote = Decimal(0)
         for row in rows:
             quantity = expected[Decimal(row["price"])]
             cumulative += quantity
+            quote = expected_quote[Decimal(row["price"])]
+            cumulative_quote += quote
             assert Decimal(row["base_quantity"]) == quantity
             assert Decimal(row["cumulative_base"]) == cumulative
+            assert Decimal(row["quote_notional"]) == quote
+            assert Decimal(row["cumulative_quote"]) == cumulative_quote
     bids = [Decimal(row["price"]) for row in ladder["rows"] if row["side"] == "bid"]
     asks = [Decimal(row["price"]) for row in ladder["rows"] if row["side"] == "ask"]
     assert max(bids) < min(asks)
     assert current(client, frame)["replay"]["cursor"] == before["replay"]["cursor"]
+    assert current(client, frame)["book"] == before["book"]
 
 
 def test_proposed_trade_risk_uses_exact_two_leg_fees_and_conservative_lots(market):
