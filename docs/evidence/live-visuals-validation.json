@@ -10402,7 +10402,7 @@
     },
     "contract": "Initialize at new lease commit; drain new deliveries while joining departed collectors; unchanged queue and native depth bounds"
   },
-  "status": "Corrected runtime/API and frontend gates passed; awaiting GitHub checks on the next pushed head before merge.",
+  "status": "Verified and merged through PR #9. Both final-head GitHub gates passed; native live/UI proof and prior failures retained. Plain local live server remains available. The 24-hour soak and execution readiness are not claimed.",
   "frontend_before_heatmap_coverage": {
     "lint": true,
     "unit_passed": 20,
@@ -10877,6 +10877,350 @@
       "production_build": "passed",
       "js_asset": "index-Dou23D6P.js",
       "wall_seconds": 77.5
+    }
+  },
+  "github_final_ci": [
+    {
+      "conclusion": "success",
+      "event": "push",
+      "headSha": "b7732069bf52bb83d7c5125f93c8817b259bc41c",
+      "jobs": [
+        {
+          "completedAt": "2026-11-02T01:08:16Z",
+          "conclusion": "success",
+          "databaseId": 125039287470,
+          "name": "offline",
+          "startedAt": "2026-11-02T01:02:41Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-11-02T01:02:42Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-11-02T01:02:41Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-02T01:02:51Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-11-02T01:02:42Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-02T01:02:58Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-python@v5",
+              "number": 3,
+              "startedAt": "2026-11-02T01:02:51Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-02T01:03:00Z",
+              "conclusion": "success",
+              "name": "Run astral-sh/setup-uv@v6",
+              "number": 4,
+              "startedAt": "2026-11-02T01:02:58Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-02T01:03:02Z",
+              "conclusion": "success",
+              "name": "Install locked Python dependencies",
+              "number": 5,
+              "startedAt": "2026-11-02T01:03:00Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-02T01:03:09Z",
+              "conclusion": "success",
+              "name": "Set up frontend runtime",
+              "number": 6,
+              "startedAt": "2026-11-02T01:03:02Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-02T01:03:12Z",
+              "conclusion": "success",
+              "name": "Install locked frontend dependencies",
+              "number": 7,
+              "startedAt": "2026-11-02T01:03:09Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-02T01:06:17Z",
+              "conclusion": "success",
+              "name": "Run offline tests, scoped lint, format, types and frontend build",
+              "number": 8,
+              "startedAt": "2026-11-02T01:03:12Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-02T01:06:32Z",
+              "conclusion": "success",
+              "name": "Install browser for real offline terminal workflows",
+              "number": 9,
+              "startedAt": "2026-11-02T01:06:17Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-02T01:08:13Z",
+              "conclusion": "success",
+              "name": "Exercise actual offline backend in Chromium",
+              "number": 10,
+              "startedAt": "2026-11-02T01:06:32Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-02T01:08:13Z",
+              "conclusion": "skipped",
+              "name": "Retain browser failure evidence",
+              "number": 11,
+              "startedAt": "2026-11-02T01:08:13Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-02T01:08:13Z",
+              "conclusion": "success",
+              "name": "Post Set up frontend runtime",
+              "number": 19,
+              "startedAt": "2026-11-02T01:08:13Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-02T01:08:13Z",
+              "conclusion": "success",
+              "name": "Post Run astral-sh/setup-uv@v6",
+              "number": 20,
+              "startedAt": "2026-11-02T01:08:13Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-02T01:08:13Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-python@v5",
+              "number": 21,
+              "startedAt": "2026-11-02T01:08:13Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-02T01:08:14Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 22,
+              "startedAt": "2026-11-02T01:08:13Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-02T01:08:14Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 23,
+              "startedAt": "2026-11-02T01:08:14Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/karisheen/Limit-Orderbook/actions/runs/41370351375/job/125039287470"
+        }
+      ],
+      "url": "https://github.com/karisheen/Limit-Orderbook/actions/runs/41370351375",
+      "summary_lines": [
+        "offline\tRun offline tests, scoped lint, format, types and frontend build\t2026-11-02T01:06:04.0161606Z ================= 1185 passed, 1 warning in 168.12s (0:02:48) ==================",
+        "offline\tRun offline tests, scoped lint, format, types and frontend build\t2026-11-02T01:06:06.3866891Z 71 files already formatted",
+        "offline\tRun offline tests, scoped lint, format, types and frontend build\t2026-11-02T01:06:11.3479266Z Success: no issues found in 35 source files",
+        "offline\tRun offline tests, scoped lint, format, types and frontend build\t2026-11-02T01:06:13.8185101Z # tests 21",
+        "offline\tRun offline tests, scoped lint, format, types and frontend build\t2026-11-02T01:06:13.8185697Z # pass 21",
+        "offline\tRun offline tests, scoped lint, format, types and frontend build\t2026-11-02T01:06:13.8185986Z # fail 0",
+        "offline\tExercise actual offline backend in Chromium\t2026-11-02T01:08:13.0718466Z   1 skipped",
+        "offline\tExercise actual offline backend in Chromium\t2026-11-02T01:08:13.0718796Z   28 passed (1.6m)"
+      ]
+    },
+    {
+      "conclusion": "success",
+      "event": "pull_request",
+      "headSha": "b7732069bf52bb83d7c5125f93c8817b259bc41c",
+      "jobs": [
+        {
+          "completedAt": "2026-11-02T01:08:45Z",
+          "conclusion": "success",
+          "databaseId": 125039301670,
+          "name": "offline",
+          "startedAt": "2026-11-02T01:02:44Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-11-02T01:02:47Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-11-02T01:02:45Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-02T01:02:58Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-11-02T01:02:47Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-02T01:03:06Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-python@v5",
+              "number": 3,
+              "startedAt": "2026-11-02T01:02:58Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-02T01:03:08Z",
+              "conclusion": "success",
+              "name": "Run astral-sh/setup-uv@v6",
+              "number": 4,
+              "startedAt": "2026-11-02T01:03:06Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-02T01:03:11Z",
+              "conclusion": "success",
+              "name": "Install locked Python dependencies",
+              "number": 5,
+              "startedAt": "2026-11-02T01:03:08Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-02T01:03:19Z",
+              "conclusion": "success",
+              "name": "Set up frontend runtime",
+              "number": 6,
+              "startedAt": "2026-11-02T01:03:11Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-02T01:03:21Z",
+              "conclusion": "success",
+              "name": "Install locked frontend dependencies",
+              "number": 7,
+              "startedAt": "2026-11-02T01:03:19Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-02T01:06:48Z",
+              "conclusion": "success",
+              "name": "Run offline tests, scoped lint, format, types and frontend build",
+              "number": 8,
+              "startedAt": "2026-11-02T01:03:21Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-02T01:07:04Z",
+              "conclusion": "success",
+              "name": "Install browser for real offline terminal workflows",
+              "number": 9,
+              "startedAt": "2026-11-02T01:06:48Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-02T01:08:41Z",
+              "conclusion": "success",
+              "name": "Exercise actual offline backend in Chromium",
+              "number": 10,
+              "startedAt": "2026-11-02T01:07:04Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-02T01:08:41Z",
+              "conclusion": "skipped",
+              "name": "Retain browser failure evidence",
+              "number": 11,
+              "startedAt": "2026-11-02T01:08:41Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-02T01:08:41Z",
+              "conclusion": "success",
+              "name": "Post Set up frontend runtime",
+              "number": 19,
+              "startedAt": "2026-11-02T01:08:41Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-02T01:08:41Z",
+              "conclusion": "success",
+              "name": "Post Run astral-sh/setup-uv@v6",
+              "number": 20,
+              "startedAt": "2026-11-02T01:08:41Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-02T01:08:41Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-python@v5",
+              "number": 21,
+              "startedAt": "2026-11-02T01:08:41Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-02T01:08:41Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 22,
+              "startedAt": "2026-11-02T01:08:41Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-02T01:08:41Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 23,
+              "startedAt": "2026-11-02T01:08:41Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/karisheen/Limit-Orderbook/actions/runs/41370355699/job/125039301670"
+        }
+      ],
+      "url": "https://github.com/karisheen/Limit-Orderbook/actions/runs/41370355699",
+      "summary_lines": [
+        "offline\tRun offline tests, scoped lint, format, types and frontend build\t2026-11-02T01:06:35.3729191Z ================= 1185 passed, 1 warning in 191.12s (0:03:11) ==================",
+        "offline\tRun offline tests, scoped lint, format, types and frontend build\t2026-11-02T01:06:37.8727488Z 71 files already formatted",
+        "offline\tRun offline tests, scoped lint, format, types and frontend build\t2026-11-02T01:06:42.8739505Z Success: no issues found in 35 source files",
+        "offline\tRun offline tests, scoped lint, format, types and frontend build\t2026-11-02T01:06:45.3702679Z # tests 21",
+        "offline\tRun offline tests, scoped lint, format, types and frontend build\t2026-11-02T01:06:45.3703162Z # pass 21",
+        "offline\tRun offline tests, scoped lint, format, types and frontend build\t2026-11-02T01:06:45.3703582Z # fail 0",
+        "offline\tExercise actual offline backend in Chromium\t2026-11-02T01:08:40.7093841Z   1 skipped",
+        "offline\tExercise actual offline backend in Chromium\t2026-11-02T01:08:40.7094152Z   28 passed (1.6m)"
+      ]
+    }
+  ],
+  "git_delivery": {
+    "repository": "karisheen/Limit-Orderbook",
+    "branch": "fix/live-terminal-visuals",
+    "pushed_commits": [
+      "1bfd81f43ededbda40224328d69be0fc02b7be65",
+      "e2b3c49487ebfa1605e03dcab3de1b264ade8807",
+      "009ba53b886bdfd1c9be4c5732af137846cd0ad6",
+      "b7732069bf52bb83d7c5125f93c8817b259bc41c"
+    ],
+    "push_status": "all four pushes succeeded",
+    "pull_request": "https://github.com/karisheen/Limit-Orderbook/pull/9",
+    "state": "MERGED",
+    "method": "normal merge",
+    "verified_head_sha": "b7732069bf52bb83d7c5125f93c8817b259bc41c",
+    "merge_sha": "725d821cc28f1aace71aef78a38663489bd8564b",
+    "merged_at": "2026-11-02T01:10:13Z",
+    "local_integration": "main fast-forwarded to the merge; unrelated work preserved",
+    "local_service": {
+      "url": "http://127.0.0.1:8000/?source=live",
+      "command": ".venv-upgrade/bin/python -m src.workstation.cli serve --network --port 8000",
+      "persistent": true,
+      "diagnostic_monkeypatches": false,
+      "health_response": {
+        "live": true
+      },
+      "health_checked_after_integration": true
     }
   }
 }
