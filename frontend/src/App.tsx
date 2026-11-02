@@ -4,13 +4,15 @@ import type { Analytics, CostInput, Costs, Frame, Instrument, Metric, Pair, Repl
 import { errorMessage } from './api';
 import { exact, label, milliseconds, timestamp } from './format';
 import { useTerminal } from './useTerminal';
-import { MarketCharts } from './MarketCharts';
+import { ChartPane } from './ChartPane';
+import type { ChartCursor } from './MarketCharts';
+import { Freshness } from './Freshness';
 import { DepthLadder } from './DepthLadder';
 import { ProposalRiskPanel } from './ProposalRiskPanel';
 import { useMarketView } from './useMarketView';
-import { useChartTelemetry } from './useChartTelemetry';
-import { presetLayout, useWorkspacePreferences } from './workspace';
-import type { ChartMode, WorkspacePreferences } from './workspace';
+import { chartSettings, presetLayout, useWorkspacePreferences } from './workspace';
+import type { PaneId, WorkspacePreferences } from './workspace';
+import './workstation.css';
 import { Details, Empty, Panel, Reasons, Value } from './WorkflowUI';
 import { AlertsPanel, ContextPanel, ResearchPanel } from './SignalPanels';
 import { JournalPanel, PaperPanel } from './PaperPanels';
@@ -23,6 +25,7 @@ const workflowTabs = [
 type WorkflowTab = typeof workflowTabs[number][0];
 const emptyInstruments: Instrument[] = [];
 const instrumentPageSize = 100;
+const abbreviateCaptureLabel = (value: string) => value.replace(/\b[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\b/gi, id => `${id.slice(0, 8)}…`);
 
 
 function MetricRow({ metric }: { metric: Metric }) {
@@ -53,27 +56,65 @@ function AnalyticsPanel({ analytics }: { analytics: Analytics | null }) {
 }
 
 
-function ResizeHandle({ axis, value, min, max, reverse = false, onChange, name }: {
-  axis: 'horizontal' | 'vertical'; value: number; min: number; max: number; reverse?: boolean; onChange: (value: number) => void; name: string;
+function ResizeHandle({ axis, value, min, max, reverse = false, proportional = false, onChange, name }: {
+  axis: 'horizontal' | 'vertical'; value: number; min: number; max: number; reverse?: boolean; proportional?: boolean; onChange: (value: number) => void; name: string;
 }) {
-  const drag = useRef<{ position: number; value: number } | null>(null);
+  const drag = useRef<{ position: number; value: number; extent: number } | null>(null);
   return <div className={`resize-handle resize-${axis}`} role="separator" aria-label={name} aria-orientation={axis === 'horizontal' ? 'vertical' : 'horizontal'} aria-valuemin={min} aria-valuemax={max} aria-valuenow={value} tabIndex={0}
-    onPointerDown={event => { event.preventDefault(); event.currentTarget.focus(); drag.current = { position: axis === 'horizontal' ? event.clientX : event.clientY, value }; event.currentTarget.setPointerCapture(event.pointerId); }}
+    onPointerDown={event => { event.preventDefault(); event.currentTarget.focus(); drag.current = { position: axis === 'horizontal' ? event.clientX : event.clientY, value, extent: event.currentTarget.parentElement?.parentElement?.clientHeight ?? 1 }; event.currentTarget.setPointerCapture(event.pointerId); }}
     onPointerMove={event => {
       if (!drag.current) return;
       const distance = (axis === 'horizontal' ? event.clientX : event.clientY) - drag.current.position;
-      const size = drag.current.value + distance * (reverse ? -1 : 1);
+      const size = drag.current.value + distance * (reverse ? -1 : 1) * (proportional ? 100 / Math.max(1, drag.current.extent) : 1);
       onChange(Math.round(Math.max(min, Math.min(max, size))));
     }}
     onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }} onLostPointerCapture={() => { drag.current = null; }}
-    onKeyDown={event => { if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) { event.preventDefault(); onChange(Math.max(min, Math.min(max, value + (['ArrowRight', 'ArrowDown'].includes(event.key) ? 10 : -10) * (reverse ? -1 : 1)))); } }} />;
+    onKeyDown={event => {
+      const decrement = axis === 'horizontal' ? 'ArrowLeft' : 'ArrowUp';
+      const increment = axis === 'horizontal' ? 'ArrowRight' : 'ArrowDown';
+      if ([decrement, increment, 'Home', 'End'].includes(event.key)) {
+        event.preventDefault();
+        onChange(event.key === 'Home' ? min : event.key === 'End' ? max : Math.max(min, Math.min(max, value + (event.key === increment ? 1 : -1) * (proportional ? 2 : 10) * (reverse ? -1 : 1))));
+      }
+    }} />;
 }
 
-function Tape({ analytics, instrument, synthetic }: { analytics: Analytics | null; instrument?: Instrument; synthetic: boolean }) {
-  const prints = analytics?.tape.slice(-100).reverse() ?? [];
-  return <Panel title="Time & sales" className="tape-panel" extra={<span className="muted">Last {prints.length} · receive UTC</span>}>
-    <p className="caption">{synthetic ? 'Synthetic fixture prints, not live executions' : 'Public executed trade prints, not resting L2 orders'} · subscription history labeled, excluded from default live flow.</p>
-    <div className="scroll tape-scroll">{!prints.length ? <Empty>No public trades observed at this cursor. No past prints are invented.</Empty> : <table><thead><tr><th>Time</th><th>Side</th><th>Price {instrument?.quote.ticker}</th><th>Base size</th><th>Origin</th></tr></thead><tbody>{prints.map(item => <tr key={`${item.stream_id}:${item.trade.dedup_key}`}><td title={`Receive ${item.asof.receive_wall_ns}; exchange ${exact(item.asof.exchange_event_wall_ns)}`}>{timestamp(item.asof.receive_wall_ns)}</td><td className={item.trade.taker_side === 'buy' ? 'bid' : item.trade.taker_side === 'sell' ? 'ask' : 'muted'} title={item.trade.side_provenance}>{item.trade.taker_side}</td><td><Value value={item.trade.price} /></td><td><Value value={item.base_quantity} /></td><td>{item.trade.is_subscription_history ? <span className="warning">History</span> : 'Observed'}</td></tr>)}</tbody></table>}</div>
+function PaneActions({ pane, linked, onLinked, maximized, onMaximize }: { pane: string; linked: boolean; onLinked: () => void; maximized: boolean; onMaximize: () => void }) {
+  return <span className="pane-actions"><button aria-label={`Link ${pane} cursor`} aria-pressed={linked} onClick={onLinked}>Link</button><button aria-label={`${maximized ? 'Restore' : 'Maximize'} ${pane}`} onClick={onMaximize}>{maximized ? 'Restore' : 'Max'}</button></span>;
+}
+
+function Tape({ frame, connected, instrument, preferences: p, update, crosshair, onCrosshair, maximized, onMaximize }: {
+  frame: Frame | null; connected: boolean; instrument?: Instrument; preferences: WorkspacePreferences;
+  update: (value: Partial<WorkspacePreferences>) => void; crosshair: ChartCursor | null;
+  onCrosshair: (value: ChartCursor | null) => void; maximized: boolean; onMaximize: () => void;
+}) {
+  const [snapshot, setSnapshot] = useState<Analytics['tape'] | null>(null);
+  const [localCursor, setLocalCursor] = useState<ChartCursor | null>(null);
+  const tapeCursor = p.links.tape ? crosshair : localCursor;
+  const setTapeCursor = p.links.tape ? onCrosshair : setLocalCursor;
+  const available = connected && !!frame && !['seeking', 'unavailable', 'error', 'loading'].includes(frame.status);
+  useEffect(() => {
+    if (!p.tapeFrozen) setSnapshot(null);
+    else if (available && frame?.analytics && snapshot === null) setSnapshot(frame.analytics.tape);
+  }, [p.tapeFrozen, available, frame?.analytics, snapshot]);
+  const tape = available ? (p.tapeFrozen ? snapshot : frame?.analytics?.tape) ?? [] : [];
+  const prints = tape.filter(item => p.tapeSide === 'all' || (p.tapeSide === 'unknown' ? !['buy', 'sell'].includes(item.trade.taker_side) : item.trade.taker_side === p.tapeSide)).slice(-p.tapeRows).reverse();
+  return <Panel title="Time & sales" className="tape-panel" extra={<PaneActions pane="tape" linked={p.links.tape} onLinked={() => { onCrosshair(null); setLocalCursor(null); update({ links: { ...p.links, tape: !p.links.tape } }); }} maximized={maximized} onMaximize={onMaximize} />}>
+    <div className="tape-toolbar"><button aria-pressed={p.tapeFrozen} onClick={() => { setSnapshot(p.tapeFrozen || !available ? null : frame?.analytics?.tape ?? null); update({ tapeFrozen: !p.tapeFrozen }); }}>{p.tapeFrozen ? 'Resume tape' : 'Freeze tape'}</button>
+      <label>Rows<select aria-label="Tape rows" value={p.tapeRows} onChange={event => update({ tapeRows: Number(event.target.value) })}>{[25, 50, 100].map(rows => <option key={rows}>{rows}</option>)}</select></label>
+      <label>Side<select aria-label="Tape side" value={p.tapeSide} onChange={event => update({ tapeSide: event.target.value as WorkspacePreferences['tapeSide'] })}>{['all', 'buy', 'sell', 'unknown'].map(side => <option key={side}>{side}</option>)}</select></label>
+    </div>
+    <Freshness frame={frame} reference={prints[0]?.asof ?? null} connected={connected} label="Trades" frozen={p.tapeFrozen} />
+    <div className="scroll tape-scroll">{!prints.length ? <Empty>{available ? 'No public trades observed at this cursor. No past prints are invented.' : 'Stream evidence unavailable.'}</Empty> : <table>
+      <thead><tr><th>Receive UTC</th><th>Side</th><th>Price {instrument?.quote.ticker}</th><th>Base size</th><th>Origin</th></tr></thead>
+      <tbody>{prints.map(item => <tr key={`${item.stream_id}:${item.trade.dedup_key}`} className={tapeCursor?.price === item.trade.price ? 'cursor-linked' : ''}
+        onPointerEnter={() => setTapeCursor({ time_ns: item.asof.receive_mono_ns, price: item.trade.price })} onPointerLeave={() => setTapeCursor(null)}>
+        <td title={`Receive ${item.asof.receive_wall_ns}; exchange ${exact(item.asof.exchange_event_wall_ns)}`}>{timestamp(item.asof.receive_wall_ns)}</td>
+        <td className={item.trade.taker_side === 'buy' ? 'bid' : item.trade.taker_side === 'sell' ? 'ask' : 'muted'} title={item.trade.side_provenance}>{item.trade.taker_side}</td>
+        <td className="numeric"><button className="tape-price" aria-label={`Link trade price ${item.trade.price}`}
+          onFocus={() => setTapeCursor({ time_ns: item.asof.receive_mono_ns, price: item.trade.price })} onBlur={() => setTapeCursor(null)}><Value value={item.trade.price} /></button></td>
+        <td className="numeric"><Value value={item.base_quantity} /></td><td>{item.trade.is_subscription_history ? <span className="warning">History</span> : frame?.source.synthetic ? 'Synthetic' : 'Observed'}</td>
+      </tr>)}</tbody></table>}</div>
   </Panel>;
 }
 
@@ -155,7 +196,7 @@ function CostsPanel({ frame, instruments, connected, calculate }: { frame: Frame
 }
 
 export default function App() {
-  const { preferences: p, setPreferences, storageError } = useWorkspacePreferences();
+  const { preferences: p, setPreferences, storageError, slots, saveSlot, loadSlot } = useWorkspacePreferences();
   const terminal = useTerminal(p);
   const { catalog, frame, select } = terminal;
   const [query, setQuery] = useState('');
@@ -164,8 +205,16 @@ export default function App() {
   const [market, setMarket] = useState('');
   const [instrumentPage, setInstrumentPage] = useState(0);
   const [bottomTab, setBottomTab] = useState<WorkflowTab>('costs');
-  const [crosshair, setCrosshair] = useState<{ time_ns: string; price: string | null } | null>(null);
-  const [recenter, setRecenter] = useState(0);
+  const [maximized, setMaximized] = useState<PaneId | null>(null);
+  const [slot, setSlot] = useState(0);
+  const [slotNotice, setSlotNotice] = useState('');
+  const fence = frame ? `${frame.session_id}:${frame.generation}:${frame.source.id}:${frame.selection.instrument_id}` : '';
+  const attachedFence = useRef<string | null>(null);
+  const initialSource = useRef(p.source);
+  const [cursor, setCursor] = useState<{ fence: string; value: ChartCursor | null } | null>(null);
+  const [domCursor, setDomCursor] = useState<{ fence: string; price: string | null } | null>(null);
+  const crosshair = cursor?.fence === fence ? cursor.value : null;
+  const setCrosshair = useCallback((value: ChartCursor | null) => setCursor({ fence, value }), [fence]);
   const search = useRef<HTMLInputElement | null>(null);
   const instruments = catalog?.instruments ?? emptyInstruments;
   const selected = instruments.find(item => item.instrument_id === frame?.selection.instrument_id);
@@ -183,10 +232,18 @@ export default function App() {
   const page = Math.min(instrumentPage, pageCount - 1);
   const pageInstruments = filtered.slice(page * instrumentPageSize, (page + 1) * instrumentPageSize);
   const connected = terminal.connection === 'Connected';
-  const usable = connected && frame?.status !== 'seeking';
+  const usable = connected && !!frame && !['seeking', 'unavailable', 'error', 'loading'].includes(frame.status);
   const update = useCallback((value: Partial<WorkspacePreferences>) => setPreferences(previous => ({ ...previous, ...value })), [setPreferences]);
+  const updateSecondary = useCallback((value: Partial<WorkspacePreferences>) => setPreferences(previous => ({
+    ...previous, secondary: chartSettings({ ...previous.secondary, ...value }),
+  })), [setPreferences]);
+  const resetViews = useCallback(() => setPreferences(previous => ({
+    ...previous, priceStep: '', domPriceStep: '', range: null, follow: true, priceOffset: 0, paused: false, domFrozen: false, tapeFrozen: false,
+    secondary: { ...previous.secondary, priceStep: '', range: null, follow: true, priceOffset: 0, paused: false },
+  })), [setPreferences]);
   const changeSource = (source: Source) => {
-    update({ source: { mode: source.mode, id: source.id }, sourceExplicit: true, priceStep: '', domPriceStep: '', range: null, follow: true, priceOffset: 0, paused: false, domFrozen: false });
+    resetViews();
+    update({ source: { mode: source.mode, id: source.id }, sourceExplicit: true });
     const url = new URL(window.location.href);
     if (url.searchParams.has('source')) {
       url.searchParams.set('source', source.id);
@@ -195,109 +252,115 @@ export default function App() {
     terminal.source(source.mode, source.id);
   };
   const liveSource = catalog?.sources.find(source => source.mode === 'live' && source.status === 'ready');
-  const views = useMarketView({ frame, connected, preferences: p, recenter, visualization: terminal.visualization, ladder: terminal.ladder });
-  const centerView = useCallback(() => { update({ priceOffset: 0, follow: true, range: null, paused: false }); setRecenter(value => value + 1); }, [update]);
-  const selectContextInstrument = useCallback(async (id: string) => {
-    update({ priceStep: '', domPriceStep: '', range: null, follow: true, priceOffset: 0 });
-    await select(id);
-  }, [select, update]);
-  const workflow = { frame, instruments, connected, busy: terminal.busy, request: terminal.workflow };
+  const views = useMarketView({ frame, connected: usable, preferences: p, recenter: 0, visualization: terminal.visualization, ladder: terminal.ladder, chartEnabled: false, domEnabled: p.rightOpen && (!maximized || maximized === 'dom') });
+  const selectContextInstrument = useCallback(async (id: string) => { resetViews(); await select(id); }, [select, resetViews]);
+  const workflow = { frame, instruments, connected: usable, busy: terminal.busy, request: terminal.workflow };
   const sourceId = frame?.source.id, sourceMode = frame?.source.mode, instrumentId = frame?.selection.instrument_id;
   useEffect(() => { setInstrumentPage(0); }, [query, venue, quote, market, sourceId]);
   useEffect(() => {
     if (sourceId && sourceMode) setPreferences(previous => previous.source?.id === sourceId && previous.instrument === instrumentId ? previous
-      : { ...previous, ...(previous.source && previous.source.id !== sourceId ? { priceStep: '', domPriceStep: '', range: null, follow: true, priceOffset: 0, paused: false, domFrozen: false } : {}), source: { id: sourceId, mode: sourceMode }, instrument: instrumentId ?? '' });
+      : { ...previous, source: { id: sourceId, mode: sourceMode }, instrument: instrumentId ?? '' });
   }, [sourceId, sourceMode, instrumentId, setPreferences]);
-  useEffect(() => { setCrosshair(null); }, [frame?.session_id, frame?.generation]);
+  useEffect(() => {
+    // Saved ranges and freezes belong to their source, even before this document
+    // attaches evidence. Same-source reloads retain their saved view preferences.
+    if (!fence || attachedFence.current === fence) return;
+    const replacingEvidence = attachedFence.current !== null;
+    attachedFence.current = fence;
+    if (!replacingEvidence) {
+      if (initialSource.current && (initialSource.current.id !== sourceId || initialSource.current.mode !== sourceMode)) resetViews();
+      return;
+    }
+    setCursor(null); setDomCursor(null);
+    setPreferences(previous => ({ ...previous, paused: false, domFrozen: false, tapeFrozen: false, range: null, follow: true,
+      secondary: { ...previous.secondary, paused: false, range: null, follow: true } }));
+  }, [fence, sourceId, sourceMode, resetViews, setPreferences]);
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { setMaximized(null); return; }
       const target = event.target;
       if (event.ctrlKey || event.metaKey || event.altKey || event.repeat || target instanceof Element && target.closest('input,select,textarea,button,[contenteditable]:not([contenteditable="false"]),[role="textbox"]')) return;
-      if (event.key === '/') { event.preventDefault(); search.current?.focus(); }
-      else if (event.code === 'Space') { event.preventDefault(); setPreferences(previous => ({ ...previous, paused: !previous.paused })); }
-      else if (event.key.toLowerCase() === 'r') centerView();
+      if (event.key === '/') { event.preventDefault(); update({ leftOpen: true }); search.current?.focus(); }
       else if (event.key.toLowerCase() === 'd') setPreferences(previous => ({ ...previous, domFrozen: !previous.domFrozen }));
-      else if (/^[1-6]$/.test(event.key)) update({ mode: (['heatmap', 'candles', 'footprint', 'profile', 'cvd', 'ofi'] as ChartMode[])[Number(event.key) - 1] });
     };
     window.addEventListener('keydown', keydown);
     return () => window.removeEventListener('keydown', keydown);
-  }, [centerView, setPreferences, update]);
-  const changeRange = useCallback((range: { start_ns: string; end_ns: string }) => update({ range, follow: false }), [update]);
-  const panPrice = useCallback((rows: number) => setPreferences(previous => ({ ...previous, priceOffset: Math.max(-10000, Math.min(10000, previous.priceOffset + Math.round(rows))) })), [setPreferences]);
-  const chartView = usable ? views.chart.data : null;
-  const chartTelemetry = useChartTelemetry(frame, chartView, terminal.acknowledgeVisualization);
+  }, [setPreferences, update]);
+  const toggleMaximize = (pane: PaneId) => setMaximized(previous => previous === pane ? null : pane);
+  const toggleLink = (pane: PaneId) => { setCrosshair(null); update({ links: { ...p.links, [pane]: !p.links[pane] } }); };
   const linkPrice = (price: string | null) => {
-    if (price === null) { setCrosshair(null); return; }
-    if (!chartView) return;
-    const current = crosshair?.time_ns;
-    const time = current && BigInt(current) >= BigInt(chartView.start_ns) && BigInt(current) < BigInt(chartView.end_ns)
-      ? current : chartView.columns.at(-1)?.time_ns;
-    if (time) setCrosshair({ time_ns: time, price });
+    if (!p.links.dom) { setDomCursor({ fence, price }); return; }
+    const reference = views.dom.data?.asof;
+    setCrosshair(price !== null && reference ? { time_ns: reference.receive_mono_ns, price } : null);
   };
-  const stepOptions = chartView?.step_options ?? [];
-  const style = { '--left-width': `${p.leftOpen ? p.leftWidth : 0}px`, '--right-width': `${p.rightOpen ? p.rightWidth : 0}px`, '--bottom-height': `${p.bottomOpen ? p.bottomHeight : 0}px` } as CSSProperties;
-  return <div className="terminal" style={style}>
-    <header className="topbar"><div className="brand">LIMIT<span>ORDERBOOK</span><small>RESEARCH WORKSPACE</small></div>
-      <div className="selected-identity"><strong>{selected ? `${selected.base.ticker} / ${selected.quote.ticker}` : 'Select instrument'}</strong><span>{selected ? `${selected.venue} · ${selected.market_type} · ${selected.native_symbol}` : 'Exact public-market identities'}</span></div>
+  const chartProps = { frame, connected, visualization: terminal.visualization, ladder: terminal.ladder,
+    acknowledgeVisualization: terminal.acknowledgeVisualization, crosshair, onCrosshair: setCrosshair };
+  const qualityReasons = [...new Set([...(frame?.health.reasons ?? []), ...(frame?.source.reasons ?? []), ...(frame?.book?.quality.reason_codes ?? [])])];
+  const style = { '--left-width': `${p.leftOpen ? p.leftWidth : 0}px`, '--right-width': `${p.rightOpen ? p.rightWidth : 0}px`, '--bottom-height': `${p.bottomOpen ? p.bottomHeight : 0}px`, '--chart-split': `${p.chartSplit}%`, '--tape-split': `${p.tapeSplit}%` } as CSSProperties;
+  return <div className="terminal workstation" style={style}>
+    <header className="topbar"><div className="brand">LIMIT<span>ORDERBOOK</span></div>
+      <div className="selected-identity"><strong>{selected ? `${selected.base.ticker} / ${selected.quote.ticker}` : 'Select instrument'}</strong><span title={selected ? `${selected.venue} · ${selected.market_type} · ${selected.native_symbol}` : undefined}>{selected ? `${selected.venue} · ${selected.market_type} · ${selected.native_symbol}` : 'Exact public-market identities'}</span></div>
       <input ref={search} className="top-search" aria-label="Search instruments" placeholder="Search instruments /" type="search" value={query} onChange={event => { setQuery(event.target.value); update({ leftOpen: true }); }} />
-      <label className="cohort-control">Cohort<select aria-label="Native cohort" value={quote && market ? JSON.stringify([quote, market]) : quote || market ? 'custom' : ''} onChange={event => { const [nextQuote, nextMarket] = event.target.value ? JSON.parse(event.target.value) as [string, string] : ['', '']; setQuote(nextQuote); setMarket(nextMarket); update({ leftOpen: true }); }}><option value="">All native cohorts</option>{(quote || market) && !(quote && market) && <option value="custom" disabled>Custom filters</option>}{choices.cohorts.map(([value, item]) => <option key={value} value={value}>{item.quote.ticker} · {item.market_type} · {item.quote.asset_id}</option>)}</select></label>
-      <label className="source-control">Source<select aria-label="Data source" value={frame?.source.id ?? p.source?.id ?? ''} disabled={!catalog} onChange={event => { const source = catalog?.sources.find(item => item.id === event.target.value); if (source?.status === 'ready') changeSource(source); }}>{!frame && <option value="">Choose source…</option>}{catalog?.sources.map(source => <option key={source.id} value={source.id} disabled={source.status !== 'ready'} title={source.reasons.join('; ')}>{source.label} · {source.mode} · {source.status}{source.synthetic ? ' · SYNTHETIC' : ''}{source.reasons.length ? ` · ${source.reasons.join('; ')}` : ''}</option>)}</select></label>
-      <label>Preset<select aria-label="Workspace preset" value={p.preset} onChange={event => update(presetLayout(event.target.value as WorkspacePreferences['preset']))}><option value="balanced">Balanced</option><option value="analysis">Analysis</option><option value="ladder">DOM focus</option></select></label>
+      <label className="source-control">Source<select aria-label="Data source" title={frame?.source.label} value={frame?.source.id ?? p.source?.id ?? ''} disabled={!catalog} onChange={event => { const source = catalog?.sources.find(item => item.id === event.target.value); if (source?.status === 'ready') changeSource(source); }}>{!frame && <option value="">Choose source…</option>}{catalog?.sources.map(source => <option key={source.id} value={source.id} disabled={source.status !== 'ready'} title={[source.label, ...source.reasons].join('; ')}>{abbreviateCaptureLabel(source.label)} · {source.mode} · {source.status}{source.synthetic ? ' · SYNTHETIC' : ''}{source.reasons.length ? ` · ${source.reasons.join('; ')}` : ''}</option>)}</select></label>
+      <label>Preset<select aria-label="Workspace preset" value={p.preset} onChange={event => { setMaximized(null); update(presetLayout(event.target.value as WorkspacePreferences['preset'])); }}><option value="balanced">Balanced</option><option value="analysis">Analysis</option><option value="ladder">DOM focus</option></select></label>
+      <details className="workspace-slots"><summary>Workspaces</summary><div className="workspace-slot-controls"><label>Slot<select aria-label="Workspace slot" value={slot} onChange={event => { setSlot(Number(event.target.value)); setSlotNotice(''); }}>{slots.map((saved, index) => <option key={index} value={index}>Slot {index + 1}{saved ? ' · saved' : ' · empty'}</option>)}</select></label><button onClick={() => { saveSlot(slot); setSlotNotice(`Slot ${slot + 1} captured`); }}>Save workspace</button><button disabled={!slots[slot]} onClick={() => { loadSlot(slot); setMaximized(null); setCrosshair(null); setSlotNotice(`Slot ${slot + 1} loaded`); }}>Load workspace</button><span role="status">{slotNotice}</span></div></details>
       <span className={`status ${connected ? 'positive' : 'warning'}`}>{terminal.connection}</span><button onClick={terminal.reconnect} aria-label="Reconnect terminal">Reconnect</button>
     </header>
-    <div className="source-banner"><strong>{frame?.source.synthetic ? 'SYNTHETIC DEMO' : frame?.source.mode.toUpperCase() ?? 'CONNECTING'}</strong><span>{frame?.source.label ?? 'Opening an independent session for this document'}</span><span>{frame?.source.recording ? 'Recorded capture · playback' : 'Not recording'}</span><span className={frame?.health.ready && usable ? 'positive' : 'warning'}>{frame?.health.ready && usable ? 'Required data ready' : 'Not ready / diagnostic'}</span><span>{label(frame?.status ?? 'loading')}</span>
-      <div className="pane-toggles">{(['leftOpen', 'rightOpen', 'bottomOpen'] as const).map((key, index) => <button key={key} aria-pressed={p[key]} onClick={() => update({ [key]: !p[key] })}>{['Watchlist', 'DOM / tape', 'Costs / analytics'][index]}</button>)}</div>
-    </div>
-    {frame?.source.synthetic && <div className="warning-banner" role="status" data-testid="synthetic-guidance">
-      <strong>Synthetic demo <span className="synthetic-state">{label(frame.status)}</span> — not live market data.</strong>{' '}
-      Sparse aggregate L2 levels are intentional fixture data, not a full exchange order book. Charts only show observations delivered at this replay cursor.{' '}
-      <button disabled={terminal.busy || !connected || frame.status !== 'paused'} onClick={() => void terminal.replay('play')}>Play synthetic demo</button>{' '}
-      {liveSource ? <button disabled={terminal.busy} onClick={() => changeSource(liveSource)}>Switch to public live data</button>
-        : <span>Public live data is unavailable{catalog?.sources.filter(source => source.mode === 'live').map(source => ` · ${source.status}${source.reasons.length ? `: ${source.reasons.join('; ')}` : ''}`).join('') || ' · operator must launch serve --network'}. No live data is substituted.</span>}
-    </div>}
-    {(terminal.error || frame?.error) && <div className="error-banner" role="alert">{terminal.error ?? frame?.error}</div>}
-    {(terminal.preferenceNotice || storageError) && <div className="warning-banner" role="status">{terminal.preferenceNotice ?? storageError}</div>}
-    {terminal.catalogError && <div className="warning-banner" role="status">{terminal.catalogError} · retrying automatically without replacing the current session.</div>}
-    {frame?.status === 'seeking' && <div className="warning-banner" role="status">Seeking and rebuilding analytics. Previous evidence is unavailable until reconstruction completes.</div>}
-    <ReplayControls frame={frame} busy={terminal.busy || !connected} replay={terminal.replay} />
-    <main className={`workspace ${p.leftOpen ? '' : 'left-collapsed'} ${p.rightOpen ? '' : 'right-collapsed'} ${p.bottomOpen ? '' : 'bottom-collapsed'}`} data-testid="workspace">
-      {p.leftOpen && <aside className="sidebar"><Panel title="Instruments" extra={<span className="muted">{filtered.length}</span>}>
-        <div className="instrument-filters">
-          <select aria-label="Filter venue" value={venue} onChange={event => setVenue(event.target.value)}><option value="">All venues</option>{choices.venues.map(value => <option key={value}>{value}</option>)}</select>
-          <select aria-label="Filter quote" value={quote} onChange={event => setQuote(event.target.value)}><option value="">All exact quote assets</option>{choices.quotes.map(asset => <option key={asset.asset_id} value={asset.asset_id}>{asset.ticker} · {asset.asset_id}</option>)}</select>
-          <select aria-label="Filter market" value={market} onChange={event => setMarket(event.target.value)}><option value="">All markets</option>{choices.markets.map(value => <option key={value}>{value}</option>)}</select>
-        </div>
-        <div className="instrument-list scroll" key={JSON.stringify([sourceId, query, venue, quote, market, page])}>{!filtered.length ? <Empty>{catalog ? 'No exact instruments match these filters.' : 'Loading instrument catalog…'}</Empty> : pageInstruments.map(item => <button className={`instrument ${item.instrument_id === selected?.instrument_id ? 'selected' : ''}`} key={item.instrument_id} title={item.instrument_id} data-instrument-id={item.instrument_id} aria-pressed={item.instrument_id === selected?.instrument_id} disabled={terminal.busy || !usable} onClick={() => { update({ priceStep: '', domPriceStep: '', priceOffset: 0, range: null, follow: true }); void terminal.select(item.instrument_id); }}><span><strong>{item.native_symbol}</strong><small>{item.venue}</small></span><span><small>{item.market_type} · {item.quote.ticker}</small><small>{item.status} / {item.data_access}</small></span></button>)}</div>
-        {pageCount > 1 && <nav className="panel-toolbar" aria-label="Instrument pages"><button aria-label="Previous instrument page" disabled={page === 0} onClick={() => setInstrumentPage(page - 1)}>Prev</button><span>{page + 1} / {pageCount} · {instrumentPageSize}/page</span><button aria-label="Next instrument page" disabled={page + 1 >= pageCount} onClick={() => setInstrumentPage(page + 1)}>Next</button></nav>}
-      </Panel>
-      <Panel title="Source & health" className="health-panel"><div className="health-body"><Reasons reasons={[...(frame?.health.reasons ?? []), ...(frame?.source.reasons ?? []), ...(frame?.book?.quality.reason_codes ?? [])]} />
+    <div className="source-banner"><strong>{frame?.source.synthetic ? 'SYNTHETIC DEMO' : frame?.source.recording ? 'RECORDED' : frame?.source.mode.toUpperCase() ?? 'CONNECTING'}</strong><span title={frame?.source.label}>{abbreviateCaptureLabel(frame?.source.label ?? 'Opening independent session')}</span><span className={`source-readiness ${frame?.health.ready && usable ? 'positive' : 'warning'}`} title={qualityReasons.join('; ')}>{frame?.health.ready && usable ? 'Required data ready' : 'Not ready / diagnostic'}</span><span className="source-state">{label(frame?.status ?? 'loading')}</span>
+      <div className="pane-toggles">{(['leftOpen', 'rightOpen', 'bottomOpen'] as const).map((key, index) => <button key={key} aria-pressed={p[key]} onClick={() => { setMaximized(null); update({ [key]: !p[key] }); }}>{['Watchlist', 'DOM / tape', 'Costs / analytics'][index]}</button>)}</div>
+      <details className="source-inspector"><summary>Source &amp; instrument details</summary><div className="source-inspector-body">
+        {terminal.preferenceNotice && <p role="status" className="caption" data-testid="source-preference-notice">{terminal.preferenceNotice}</p>}
+        <p>{frame?.source.recording ? 'Recorded capture · playback' : 'Not recording'}</p>
+        <p className="caption">Current source, feed and readiness reasons</p>
+        {qualityReasons.length ? <Reasons reasons={qualityReasons} /> : <p className="caption">No source quality reasons reported.</p>}
         {frame?.book && <p className="caption" data-testid="native-depth">Native retained depth: {frame.book.quality.coverage.retained_bid_levels} bid / {frame.book.quality.coverage.retained_ask_levels} ask levels · frame shows {frame.book.bids.length} / {frame.book.asks.length}. Grouped DOM and chart rows are presentation buckets, not a count of individual orders.</p>}
         <dl className="metadata"><dt>Native feed mode</dt><dd>{frame?.book?.quality.source_mode ?? 'Awaiting evidence'}</dd><dt>Recorded source mode</dt><dd>{frame?.book?.quality.recorded_source_mode ?? '—'}</dd><dt>Capture complete</dt><dd>{frame?.book ? String(frame.book.quality.capture_complete) : 'Unknown'}</dd><dt>Coverage</dt><dd>{frame?.book?.quality.coverage.full_depth ? 'Full depth' : 'Bounded / unknown outside scope'}</dd><dt>Source state</dt><dd>{frame?.source.status ?? 'Loading'}</dd><dt>Settlement</dt><dd>{selected?.settlement?.ticker ?? 'None declared'}</dd><dt>Tick / lot</dt><dd><Value value={selected?.tick_size} /> / <Value value={selected?.lot_size} /></dd><dt>Execution access</dt><dd>{selected?.execution_access ?? 'Unknown'}</dd></dl>
         {frame?.book && (frame.book.presentation.bids_omitted > 0 || frame.book.presentation.asks_omitted > 0) && <p className="caption">Frame carries the first {frame.book.presentation.depth_limit} levels per side. Native reconstruction, grouped ladder and cost walks retain full source depth.</p>}
         <Details title="Exact instrument metadata" value={selected ?? null} /><Details title="Source & capture descriptor" value={frame?.source ?? null} />
         <Details title="Available source readiness & reasons" value={catalog?.sources ?? []} /><Details title={`Live ingestion evidence · ${frame?.telemetry.ingestion.length ?? 0} streams`} value={frame?.telemetry.ingestion ?? []} />
-      </div></Panel></aside>}
-      {p.leftOpen && <div className="left-resizer"><ResizeHandle axis="horizontal" name="Watchlist width" value={p.leftWidth} min={180} max={360} onChange={leftWidth => update({ leftWidth })} /></div>}
-      <section className="panel chart-panel" aria-label="Market visualization">
-        <header className="panel-heading"><div className="tabs chart-tabs" role="tablist" aria-label="Chart view">{(['heatmap', 'candles', 'footprint', 'profile', 'cvd', 'ofi'] as ChartMode[]).map(mode => <button key={mode} role="tab" aria-selected={p.mode === mode} onClick={() => update({ mode })}>{label(mode)}</button>)}</div><button data-testid="view-freeze" aria-pressed={p.paused} onClick={() => update({ paused: !p.paused })}>{p.paused ? 'Resume view' : 'Pause view'}</button><button data-testid="view-recenter" onClick={centerView}>Recenter</button></header>
-        <div className="chart-controls">
-          <label title="Auto-fit observed depth when selected, on initial view and Recenter; presentation buckets only, native depth unchanged.">Price aggregation<select aria-label="Price aggregation" value={p.priceStep} onChange={event => { const priceStep = event.target.value; update({ priceStep, ...(priceStep ? {} : { priceOffset: 0 }) }); if (!priceStep) setRecenter(value => value + 1); }}><option value="">Auto-fit depth</option>{p.priceStep && !stepOptions.includes(p.priceStep) && <option value={p.priceStep}>{p.priceStep} · saved / validate</option>}{stepOptions.map(step => <option key={step}>{step}</option>)}</select></label>
-          <label>Time bucket<select aria-label="Time bucket" value={p.bucket} onChange={event => update({ bucket: event.target.value })}>{['1000000000', '5000000000', '10000000000'].map((value, index) => <option key={value} value={value}>{[1, 5, 10][index]}s</option>)}</select></label>
-          <label>Range<select aria-label="Chart range" value={p.rangeSeconds} onChange={event => update({ rangeSeconds: Number(event.target.value), range: null, follow: true })}>{[30, 60, 180, 300, 600].map(value => <option key={value} value={value}>{value}s</option>)}</select></label>
-          <label><input type="checkbox" checked={p.follow} onChange={event => update({ follow: event.target.checked, range: event.target.checked ? null : chartView ? { start_ns: chartView.start_ns, end_ns: chartView.end_ns } : null })} />Follow time</label>
-          <label title="Fixed base quantity at full intensity; logarithmic control. Incoming data never rescales historical colors.">Fixed contrast<input aria-label="Fixed contrast" aria-valuetext={`Saturates at ${p.contrast} ${chartView?.quantity_unit ?? 'base units'}`} type="range" min="-12" max="12" step="0.1" value={Math.log10(p.contrast)} onChange={event => update({ contrast: 10 ** Number(event.target.value) })} /></label>
-          <label><input type="checkbox" checked={p.showTrades} onChange={event => update({ showTrades: event.target.checked })} />Trades</label><label><input type="checkbox" checked={p.showQuotes} onChange={event => update({ showQuotes: event.target.checked })} />Quotes</label>
+      </div></details>
+    </div>
+    {frame?.source.synthetic && <div className="warning-banner" role="status" data-testid="synthetic-guidance">
+      <strong>Synthetic demo — not live market data.</strong>{' '}
+      Sparse fixture L2; only observations delivered at the replay cursor.{' '}
+      <button disabled={terminal.busy || !connected || frame.status !== 'paused'} onClick={() => void terminal.replay('play')}>Play synthetic demo</button>{' '}
+      {liveSource ? <button disabled={terminal.busy} onClick={() => changeSource(liveSource)}>Switch to public live data</button>
+        : <span>Public live data is unavailable{catalog?.sources.filter(source => source.mode === 'live').map(source => ` · ${source.status}${source.reasons.length ? `: ${source.reasons.join('; ')}` : ''}`).join('') || ' · operator must launch serve --network'}. No live data is substituted.</span>}
+    </div>}
+    {(terminal.error || frame?.error) && <div className="error-banner" role="alert">{terminal.error ?? frame?.error}</div>}
+    {storageError && <div className="warning-banner" role="status">{storageError}</div>}
+    {terminal.catalogError && <div className="warning-banner" role="status">{terminal.catalogError} · retrying automatically without replacing the current session.</div>}
+    {frame?.status === 'seeking' && <div className="warning-banner" role="status">Seeking and rebuilding analytics. Previous evidence is unavailable until reconstruction completes.</div>}
+    {frame?.replay && <ReplayControls frame={frame} busy={terminal.busy || !connected} replay={terminal.replay} />}
+    <main className={`workspace workstation-workspace ${p.leftOpen ? '' : 'left-collapsed'} ${p.rightOpen ? '' : 'right-collapsed'} ${p.bottomOpen ? '' : 'bottom-collapsed'}`} data-testid="workspace" data-maximized={maximized ?? ''}>
+      {p.leftOpen && <aside className="sidebar"><Panel title="Instruments" extra={<span className="muted">{filtered.length}</span>}>
+        <div className="instrument-filters">
+          <select aria-label="Filter venue" value={venue} onChange={event => setVenue(event.target.value)}><option value="">All venues</option>{choices.venues.map(value => <option key={value}>{value}</option>)}</select>
+          <select aria-label="Filter quote" value={quote} onChange={event => setQuote(event.target.value)}><option value="">All exact quote assets</option>{choices.quotes.map(asset => <option key={asset.asset_id} value={asset.asset_id}>{asset.ticker} · {asset.asset_id}</option>)}</select>
+          <select aria-label="Filter market" value={market} onChange={event => setMarket(event.target.value)}><option value="">All markets</option>{choices.markets.map(value => <option key={value}>{value}</option>)}</select>
+      <label className="cohort-control">Cohort<select aria-label="Native cohort" value={quote && market ? JSON.stringify([quote, market]) : quote || market ? 'custom' : ''} onChange={event => { const [nextQuote, nextMarket] = event.target.value ? JSON.parse(event.target.value) as [string, string] : ['', '']; setQuote(nextQuote); setMarket(nextMarket); update({ leftOpen: true }); }}><option value="">All native cohorts</option>{(quote || market) && !(quote && market) && <option value="custom" disabled>Custom filters</option>}{choices.cohorts.map(([value, item]) => <option key={value} value={value}>{item.quote.ticker} · {item.market_type} · {item.quote.asset_id}</option>)}</select></label>
         </div>
-        <div className="chart-status" role="status">{p.paused ? 'VIEW FROZEN · replay / recording unaffected' : p.follow ? 'Following observed time' : 'Pinned time window'} · {chartView?.complete_window ? 'Complete retained window' : 'Partial / unavailable history'}{chartView?.truncated ? ' · retained history truncated' : ''}{!usable ? ' · connection evidence unavailable' : ''}{chartView ? ` · ${chartView.rows} price rows × ${chartView.price_step}${p.priceStep ? '' : ' · auto-fit on Recenter'}` : ''}</div>
-        <MarketCharts view={chartView} receivedAtMs={views.chart.receivedAtMs ?? null} onPaint={chartTelemetry.onPaint} loading={views.chart.loading} error={!usable ? 'Current stream evidence is unavailable.' : views.chart.error ? `Chart unavailable / retained snapshot stale: ${views.chart.error}` : null} mode={p.mode} contrast={p.contrast} showTrades={p.showTrades} showQuotes={p.showQuotes} crosshair={crosshair} onCrosshair={setCrosshair} onRangeChange={changeRange} onPricePan={panPrice} />
-        <div className="linked-readout">Linked cursor · source monotonic ns {crosshair?.time_ns ?? '—'} · exact price {crosshair?.price ?? '—'} <span title="/ search; Space pause view; R recenter; D freeze DOM; 1–6 chart modes. Editable fields ignore shortcuts.">Keyboard shortcuts: / Space R D 1–6</span></div>
-        <div className="chart-timing" data-testid="chart-telemetry" title="Chart-specific CPU draw and two animation-frame paint opportunities; publication→ACK is a conservative round-trip upper bound, not GPU completion or one-way latency.">Chart draw {milliseconds(chartTelemetry.measurement?.draw_ms)} · Chart receive→paint {milliseconds(chartTelemetry.measurement?.receive_ms)} · Chart publish→ACK ≤ {milliseconds(chartTelemetry.measurement?.upper_bound_ms)}{chartTelemetry.measurement?.error ? ` · ACK unavailable: ${chartTelemetry.measurement.error}` : ''}</div>
+        <div className="instrument-list scroll" key={JSON.stringify([sourceId, query, venue, quote, market, page])}>{!filtered.length ? <Empty>{catalog ? 'No exact instruments match these filters.' : 'Loading instrument catalog…'}</Empty> : pageInstruments.map(item => <button className={`instrument ${item.instrument_id === selected?.instrument_id ? 'selected' : ''}`} key={item.instrument_id} title={item.instrument_id} data-instrument-id={item.instrument_id} aria-pressed={item.instrument_id === selected?.instrument_id} disabled={terminal.busy || !usable} onClick={() => void selectContextInstrument(item.instrument_id)}><span><strong>{item.native_symbol}</strong><small>{item.venue}</small></span><span><small>{item.market_type} · {item.quote.ticker}</small><small>{item.status} / {item.data_access}</small></span></button>)}</div>
+        {pageCount > 1 && <nav className="panel-toolbar" aria-label="Instrument pages"><button aria-label="Previous instrument page" disabled={page === 0} onClick={() => setInstrumentPage(page - 1)}>Prev</button><span>{page + 1} / {pageCount} · {instrumentPageSize}/page</span><button aria-label="Next instrument page" disabled={page + 1 >= pageCount} onClick={() => setInstrumentPage(page + 1)}>Next</button></nav>}
+      </Panel></aside>}
+      {p.leftOpen && <div className="left-resizer"><ResizeHandle axis="horizontal" name="Watchlist width" value={p.leftWidth} min={180} max={360} onChange={leftWidth => update({ leftWidth })} /></div>}
+      <section className="chart-stack" aria-label="Market visualizations">
+        <div className="chart-slot primary-chart" hidden={!!maximized && maximized !== 'heatmap'}><ChartPane {...chartProps} key={`heatmap:${fence}`} id="heatmap" title="Liquidity" preferences={p} update={update} linked={p.links.heatmap} onLinked={() => toggleLink('heatmap')} maximized={maximized === 'heatmap'} onMaximize={() => toggleMaximize('heatmap')} active={!maximized || maximized === 'heatmap'} /></div>
+        <div className="chart-splitter"><ResizeHandle axis="vertical" proportional name="Chart split" value={p.chartSplit} min={30} max={70} onChange={chartSplit => update({ chartSplit })} /></div>
+        <div className="chart-slot secondary-chart" hidden={!!maximized && maximized !== 'flow'}><ChartPane {...chartProps} key={`flow:${fence}`} id="flow" title="Order flow" preferences={{ ...p, ...p.secondary }} update={updateSecondary} linked={p.links.flow} onLinked={() => toggleLink('flow')} maximized={maximized === 'flow'} onMaximize={() => toggleMaximize('flow')} active={!maximized || maximized === 'flow'} /></div>
       </section>
-      {p.rightOpen && <><div className="right-resizer"><ResizeHandle axis="horizontal" reverse name="DOM width" value={p.rightWidth} min={250} max={500} onChange={rightWidth => update({ rightWidth })} /></div><aside className="book-tape"><DepthLadder key={`${frame?.session_id}:${frame?.generation}`} data={usable ? views.dom.data : null} loading={views.dom.loading} error={!usable ? 'Stream evidence unavailable' : views.dom.error} frozen={p.domFrozen} viewPaused={p.paused} rows={p.domRows} onRows={domRows => update({ domRows })} onFreeze={() => update({ domFrozen: !p.domFrozen })} crosshair={crosshair?.price ?? null} onPrice={linkPrice} priceStep={p.domPriceStep} onPriceStep={domPriceStep => update({ domPriceStep })} unit={p.domUnit} onUnit={domUnit => update({ domUnit })} cumulative={p.domCumulative} onCumulative={domCumulative => update({ domCumulative })} sourceMode={frame?.source.mode ?? 'demo'} /><Tape analytics={usable ? frame?.analytics ?? null : null} instrument={selected} synthetic={frame?.source.synthetic ?? false} /></aside></>}
+      {p.rightOpen && <><div className="right-resizer"><ResizeHandle axis="horizontal" reverse name="DOM width" value={p.rightWidth} min={250} max={500} onChange={rightWidth => update({ rightWidth })} /></div><aside className="book-tape">
+        <section className="dom-pane" data-pane="dom" hidden={!!maximized && maximized !== 'dom'}>
+          <Freshness frame={frame} reference={usable ? views.dom.data?.asof ?? null : null} connected={connected} label="Book" frozen={p.domFrozen} />
+          <DepthLadder key={fence} extra={<PaneActions pane="DOM" linked={p.links.dom} onLinked={() => toggleLink('dom')} maximized={maximized === 'dom'} onMaximize={() => toggleMaximize('dom')} />} data={usable ? views.dom.data : null} loading={views.dom.loading} error={!usable ? 'Stream evidence unavailable' : views.dom.error} frozen={p.domFrozen} viewPaused={false} rows={p.domRows} onRows={domRows => update({ domRows })} onFreeze={() => update({ domFrozen: !p.domFrozen })} crosshair={p.links.dom ? crosshair?.price ?? null : domCursor?.fence === fence ? domCursor.price : null} onPrice={linkPrice} priceStep={p.domPriceStep} onPriceStep={domPriceStep => update({ domPriceStep })} unit={p.domUnit} onUnit={domUnit => update({ domUnit })} cumulative={p.domCumulative} onCumulative={domCumulative => update({ domCumulative })} sourceMode={frame?.source.mode ?? 'demo'} />
+        </section>
+        <div className="tape-splitter"><ResizeHandle axis="vertical" proportional name="DOM and tape split" value={p.tapeSplit} min={30} max={75} onChange={tapeSplit => update({ tapeSplit })} /></div>
+        <section className="tape-pane" data-pane="tape" hidden={!!maximized && maximized !== 'tape'}><Tape key={fence} frame={frame} connected={connected} instrument={selected} preferences={p} update={update} crosshair={crosshair} onCrosshair={setCrosshair} maximized={maximized === 'tape'} onMaximize={() => toggleMaximize('tape')} /></section>
+      </aside></>}
       {p.bottomOpen && <><div className="bottom-resizer"><ResizeHandle axis="vertical" reverse name="Research pane height" value={p.bottomHeight} min={170} max={460} onChange={bottomHeight => update({ bottomHeight })} /></div><section className="research-pane">
         <div className="tabs research-tabs" role="tablist" aria-label="Research pane">{workflowTabs.map(([id, name]) => <button key={id} id={`workflow-tab-${id}`} role="tab" aria-selected={bottomTab === id} aria-controls={`workflow-panel-${id}`} onClick={() => setBottomTab(id)}>{name}</button>)}<span className="muted">Shared-core evidence · no execution</span></div>
         <div className="research-scroll">
-          <div id="workflow-panel-costs" role="tabpanel" aria-labelledby="workflow-tab-costs" hidden={bottomTab !== 'costs'}><CostsPanel frame={frame} instruments={instruments} connected={connected} calculate={terminal.costs} /><ProposalRiskPanel frame={frame} connected={connected} calculate={terminal.proposalRisk} /></div>
+          <div id="workflow-panel-costs" role="tabpanel" aria-labelledby="workflow-tab-costs" hidden={bottomTab !== 'costs'}><CostsPanel frame={frame} instruments={instruments} connected={usable} calculate={terminal.costs} /><ProposalRiskPanel frame={frame} connected={usable} calculate={terminal.proposalRisk} /></div>
           <div id="workflow-panel-analytics" role="tabpanel" aria-labelledby="workflow-tab-analytics" hidden={bottomTab !== 'analytics'}><AnalyticsPanel analytics={usable ? frame?.analytics ?? null : null} /></div>
           <div id="workflow-panel-alerts" role="tabpanel" aria-labelledby="workflow-tab-alerts" hidden={bottomTab !== 'alerts'}><AlertsPanel {...workflow} active={bottomTab === 'alerts'} /></div>
           <div id="workflow-panel-context" role="tabpanel" aria-labelledby="workflow-tab-context" hidden={bottomTab !== 'context'}><ContextPanel {...workflow} active={bottomTab === 'context'} selectInstrument={selectContextInstrument} /></div>
@@ -307,6 +370,6 @@ export default function App() {
         </div>
       </section></>}
     </main>
-    <footer className="telemetry"><span>Session {frame?.session_id.slice(0, 8) ?? '—'} · generation {frame?.generation ?? '—'}</span><span>Queue {frame?.telemetry.queue_depth ?? '—'} / high {frame?.telemetry.queue_highwater ?? '—'}</span><span>Coalesced {frame?.telemetry.coalesced ?? '—'} · overflow {frame?.telemetry.overflows ?? '—'}</span><span title="ACKs evicted from the bounded server buffer">ACK expired {frame?.telemetry.ack_expired ?? '—'}</span><span>Observer {milliseconds(frame?.telemetry.observer_duration_ms)}</span><span title="Two paint opportunities; not GPU completion">Receive→paint {milliseconds(frame?.telemetry.browser_receive_to_paint_ms)}</span><span title="Conservative round-trip upper bound">Publish→ACK ≤ {milliseconds(frame?.telemetry.publish_to_ack_upper_bound_ms)}</span></footer>
+    <details className="diagnostics"><summary>Diagnostics</summary><footer className="telemetry"><span>Session {frame?.session_id.slice(0, 8) ?? '—'} · generation {frame?.generation ?? '—'}</span><span>Queue {frame?.telemetry.queue_depth ?? '—'} / high {frame?.telemetry.queue_highwater ?? '—'}</span><span>Coalesced {frame?.telemetry.coalesced ?? '—'} · overflow {frame?.telemetry.overflows ?? '—'}</span><span title="ACKs evicted from the bounded server buffer">ACK expired {frame?.telemetry.ack_expired ?? '—'}</span><span>Observer {milliseconds(frame?.telemetry.observer_duration_ms)}</span><span title="Two paint opportunities; not GPU completion">Receive→paint {milliseconds(frame?.telemetry.browser_receive_to_paint_ms)}</span><span title="Conservative round-trip upper bound">Publish→ACK ≤ {milliseconds(frame?.telemetry.publish_to_ack_upper_bound_ms)}</span></footer><Details title={`Live ingestion evidence · ${frame?.telemetry.ingestion.length ?? 0} streams`} value={frame?.telemetry.ingestion ?? []} /></details>
   </div>;
 }

@@ -40,7 +40,7 @@ export class MarketRenderer {
 
   resize(width: number, height: number, dpr: number) {
     const next = boundedSize(width, height, dpr);
-    if (this.size.width === next.width && this.size.height === next.height && this.size.ratio === next.ratio) return;
+    if (this.size.width === next.width && this.size.height === next.height && this.size.ratio === next.ratio) return false;
     this.width = next.width;
     this.height = next.height;
     this.size = next;
@@ -51,6 +51,7 @@ export class MarketRenderer {
       context.imageSmoothingEnabled = false;
     }
     this.geometry = '';
+    return true;
   }
 
   private tile(view: VisualGrid, column: Column, contrast: number): HTMLCanvasElement {
@@ -128,6 +129,22 @@ export class MarketRenderer {
         ctx.clearRect(left, area.y, width, area.height);
         ctx.drawImage(this.tile(view, column, options.contrast), left, area.y, width, area.height);
         if (!column.eligible) this.missing(ctx, left, area.y, width, area.height);
+        else {
+          // Unknown side depth is hatched; observed zero keeps the unmarked canvas.
+          // Coalesce adjacent unknown rows so bounded tiles do not create a path per cell.
+          const height = area.height / view.rows;
+          for (let side = 0; side < 2; side++) {
+            let start = -1;
+            for (let row = 0; row <= view.rows; row++) {
+              const unknown = row < view.rows && column.cells[row]?.[side] == null;
+              if (unknown && start < 0) start = row;
+              if (!unknown && start >= 0) {
+                this.missing(ctx, left + side * width / 2, area.y + area.height - row * height, width / 2, (row - start) * height);
+                start = -1;
+              }
+            }
+          }
+        }
         dirty++;
       }
       ctx.restore();
@@ -194,9 +211,9 @@ export class MarketRenderer {
     ctx.save();
     ctx.beginPath(); ctx.rect(x, y, width, height); ctx.clip();
     ctx.fillStyle = COLORS.missing; ctx.fillRect(x, y, width, height);
-    ctx.strokeStyle = '#40334e'; ctx.lineWidth = 1;
+    ctx.strokeStyle = '#30363c'; ctx.lineWidth = 1;
     ctx.beginPath();
-    for (let offset = -height; offset < width; offset += 12) { ctx.moveTo(x + offset, y + height); ctx.lineTo(x + offset + height, y); }
+    for (let offset = -height; offset < width; offset += 18) { ctx.moveTo(x + offset, y + height); ctx.lineTo(x + offset + height, y); }
     ctx.stroke(); ctx.restore();
   }
 
@@ -207,7 +224,7 @@ export class MarketRenderer {
     const y = (value: number) => area.y + area.height / 2 - value / extent * (area.height / 2 - 14);
     ctx.strokeStyle = COLORS.grid; ctx.beginPath(); ctx.moveTo(area.x, y(0)); ctx.lineTo(area.x + area.width, y(0)); ctx.stroke();
     ctx.fillStyle = COLORS.text; ctx.font = '10px ui-monospace, monospace'; ctx.fillText(`+${extent.toPrecision(4)}`, area.x + 3, area.y + 12); ctx.fillText(`−${extent.toPrecision(4)}`, area.x + 3, area.y + area.height - 3);
-    ctx.strokeStyle = mode === 'cvd' ? COLORS.buy : '#78b7ff'; ctx.lineWidth = 1.5;
+    ctx.strokeStyle = mode === 'cvd' ? COLORS.buy : '#a6b7c4'; ctx.lineWidth = 1.5;
     let previous: Column | undefined;
     ctx.beginPath();
     for (const column of columns) {

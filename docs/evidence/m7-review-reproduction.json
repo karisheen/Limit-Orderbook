@@ -1,0 +1,116 @@
+{
+  "beforeFrozenNav": {
+    "testid": "market-charts",
+    "mode": "heatmap",
+    "viewId": "7dbeb3a2b0b8495aafcb83d41e04564c",
+    "paintedViewId": "7dbeb3a2b0b8495aafcb83d41e04564c",
+    "startNs": "104430000000000",
+    "endNs": "104435104251594",
+    "priceMin": "78037.5",
+    "priceStep": "0.5",
+    "drawMs": "0.500",
+    "tileCount": "11",
+    "tileAllocations": "11",
+    "dirtyColumns": "0",
+    "overlayPoints": "143",
+    "pixelWidth": "2000",
+    "pixelHeight": "565",
+    "receiveToPaintMs": "40.900"
+  },
+  "failedFrozenNav": {
+    "testid": "market-charts",
+    "mode": "heatmap",
+    "viewId": "7248a466a59d49ccaff6368c1d861983",
+    "paintedViewId": "7248a466a59d49ccaff6368c1d861983",
+    "startNs": "104430000000000",
+    "endNs": "104435104251594",
+    "priceMin": "78037.5",
+    "priceStep": "0.5",
+    "drawMs": "0.400",
+    "tileCount": "11",
+    "tileAllocations": "11",
+    "dirtyColumns": "0",
+    "overlayPoints": "143",
+    "pixelWidth": "2000",
+    "pixelHeight": "565",
+    "receiveToPaintMs": "35.000"
+  },
+  "clippedActions": [
+    {
+      "label": "Link Liquidity cursor",
+      "left": 52.921875,
+      "right": 88.546875,
+      "viewport": 390
+    },
+    {
+      "label": "Liquidity settings",
+      "left": 92.546875,
+      "right": 149.953125,
+      "viewport": 390
+    },
+    {
+      "label": "Liquidity Inspector",
+      "left": 153.953125,
+      "right": 217.53125,
+      "viewport": 390
+    },
+    {
+      "label": "Resume",
+      "left": 221.53125,
+      "right": 277.265625,
+      "viewport": 390
+    },
+    {
+      "label": "Recenter",
+      "left": 281.265625,
+      "right": 342.34375,
+      "viewport": 390
+    },
+    {
+      "label": "Maximize Liquidity",
+      "left": 346.34375,
+      "right": 382,
+      "viewport": 390
+    },
+    {
+      "label": "Link Order flow cursor",
+      "left": 59.3125,
+      "right": 94.9375,
+      "viewport": 390
+    },
+    {
+      "label": "Order flow settings",
+      "left": 98.9375,
+      "right": 156.34375,
+      "viewport": 390
+    },
+    {
+      "label": "Order flow Inspector",
+      "left": 160.34375,
+      "right": 223.921875,
+      "viewport": 390
+    },
+    {
+      "label": "Freeze",
+      "left": 227.921875,
+      "right": 277.265625,
+      "viewport": 390
+    },
+    {
+      "label": "Recenter",
+      "left": 281.265625,
+      "right": 342.34375,
+      "viewport": 390
+    },
+    {
+      "label": "Maximize Order flow",
+      "left": 346.34375,
+      "right": 382,
+      "viewport": 390
+    }
+  ],
+  "nativeOrigin": {
+    "before": "price_min=1e30, step=1, offset=1 returned 1000000000000000000000000000001; next pinned query rejected decimal magnitude exceeded",
+    "after": "out-of-domain pan rejected before publication; boundary origin round trip identical exact prices"
+  }
+}

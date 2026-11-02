@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mergeVisualGrid, validatePreferences } from './workspace.ts';
+import { applyWorkspaceSlot, chartSettings, mergeVisualGrid, presetLayout, validatePreferences, validateWorkspaceSlots } from './workspace.ts';
 import type { VisualColumn, VisualGrid } from './api.ts';
 
 test('persisted workspace bounds reject unsafe identity, time, quantum and dimensions without retaining sessions', () => {
@@ -46,6 +46,80 @@ test('DOM grouping and quantity units persist independently of the chart quantum
   assert.equal(invalid.domPriceStep, '');
   assert.equal(invalid.domUnit, 'base');
   assert.equal(invalid.domCumulative, false);
+});
+
+test('v1 workspaces migrate to independent chart, tape and cursor settings', () => {
+  const old = validatePreferences({ version: 1, mode: 'candles', priceStep: '0.5', bucket: '1000000000', leftWidth: 240 });
+  assert.equal(old.mode, 'candles');
+  assert.equal(old.secondary.mode, 'footprint');
+  assert.equal(old.secondary.priceStep, '');
+  assert.equal(old.secondary.bucket, '5000000000');
+  assert.equal(old.leftWidth, 240);
+  assert.equal(old.leftOpen, false);
+  assert.equal(old.bottomOpen, false);
+  assert.equal(old.rightOpen, true);
+  assert.deepEqual(old.links, { heatmap: true, flow: true, dom: true, tape: true });
+  const independent = validatePreferences({ ...old, secondary: { ...old.secondary, mode: 'candles', priceStep: '0.00000000000001', rangeSeconds: 60 }, tapeRows: 25, tapeSide: 'unknown', links: { ...old.links, flow: false } });
+  const restored = validatePreferences(JSON.parse(JSON.stringify(independent)));
+  assert.equal(restored.priceStep, '0.5');
+  assert.equal(restored.secondary.priceStep, '0.00000000000001');
+  assert.equal(restored.secondary.rangeSeconds, 60);
+  assert.equal(restored.tapeRows, 25);
+  assert.equal(restored.tapeSide, 'unknown');
+  assert.equal(restored.links.flow, false);
+});
+
+test('pane boundaries reject unsafe splits and secondary settings without retaining foreign fields', () => {
+  const settings = validatePreferences({ version: 1, chartSplit: 1e9, tapeSplit: -20, tapeRows: 10000, tapeSide: 'invented',
+    links: { heatmap: 'yes', dom: false }, secondary: { mode: 'ofi', contrast: NaN, priceStep: 'Infinity', rangeSeconds: 999,
+      session_id: 'foreign', domRows: 999, source: { mode: 'live', id: 'foreign' }, range: { start_ns: '8', end_ns: '2' } } });
+  assert.equal(settings.chartSplit, 70);
+  assert.equal(settings.tapeSplit, 30);
+  assert.equal(settings.tapeRows, 50);
+  assert.equal(settings.tapeSide, 'all');
+  assert.equal(settings.links.heatmap, true);
+  assert.equal(settings.links.dom, false);
+  assert.equal(settings.secondary.mode, 'footprint');
+  assert.equal(settings.secondary.priceStep, '');
+  assert.equal(settings.secondary.contrast, 1);
+  assert.equal(settings.secondary.range, null);
+  assert.equal('session_id' in settings.secondary, false);
+  assert.equal('source' in settings.secondary, false);
+  assert.equal('domRows' in settings.secondary, false);
+  assert.deepEqual(chartSettings(settings.secondary), settings.secondary);
+});
+
+test('four bounded workspace slots restore layout and pane settings without source or session contamination', () => {
+  const current = validatePreferences({ version: 1, source: { mode: 'live', id: 'current-live' }, sourceExplicit: true, instrument: 'exact/live' });
+  const saved = validatePreferences({ version: 1, ...presetLayout('ladder'), chartSplit: 64, tapeSplit: 70, domRows: 40,
+    tapeRows: 100, tapeSide: 'sell', domFrozen: true, tapeFrozen: true, paused: true,
+    range: { start_ns: '1', end_ns: '10' }, secondary: { mode: 'candles', bucket: '10000000000', priceStep: '0.01', paused: true },
+    source: { mode: 'demo', id: 'old-demo' }, instrument: 'old/instrument', session_id: 'never-store' });
+  const slots = validateWorkspaceSlots([saved, null, { version: 99 }, saved, saved]);
+  assert.equal(slots.length, 4);
+  assert.equal(slots[1], null);
+  assert.equal(slots[2], null);
+  assert.equal(slots[0]?.source, null);
+  assert.equal(slots[0]?.instrument, '');
+  assert.ok(!JSON.stringify(slots).includes('never-store'));
+  const restored = applyWorkspaceSlot(current, slots[0]!);
+  assert.deepEqual(restored.source, current.source);
+  assert.equal(restored.sourceExplicit, true);
+  assert.equal(restored.instrument, current.instrument);
+  assert.equal(restored.chartSplit, 64);
+  assert.equal(restored.tapeSplit, 70);
+  assert.equal(restored.rightWidth, 420);
+  assert.equal(restored.domRows, 40);
+  assert.equal(restored.tapeRows, 100);
+  assert.equal(restored.tapeSide, 'sell');
+  assert.equal(restored.secondary.mode, 'candles');
+  assert.equal(restored.secondary.bucket, '10000000000');
+  assert.equal(restored.secondary.priceStep, '0.01');
+  assert.equal(restored.paused, false);
+  assert.equal(restored.domFrozen, false);
+  assert.equal(restored.tapeFrozen, false);
+  assert.equal(restored.secondary.paused, false);
+  assert.equal(restored.range, null);
 });
 
 function column(time: number, hash = `immutable-${time}`): VisualColumn {

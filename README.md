@@ -1,14 +1,17 @@
 # Crypto Limit Order Book
 
-A local public-market research workstation with an exact Python core and a
-React/TypeScript terminal: instrument-specific book/tape, quality-gated analytics,
-size-aware costs, deterministic replay, local alerts, reference context, spot IOC
-paper accounting, a durable journal and offline research. The supported Streamlit
-dashboard is a thin native-API observation client, not a second market-data engine.
+A local public-market order-flow workstation with an exact Python core and a
+React/TypeScript terminal: simultaneous liquidity and footprint/candlestick charts,
+an aggregate-L2 depth ladder and independently controlled tape, quality-gated
+analytics, size-aware costs, deterministic replay, local alerts, reference context,
+spot IOC paper accounting, a durable journal and offline research. Charts share
+one exact instrument while keeping independent view settings and native queries.
+The supported Streamlit dashboard is a thin native-API observation client, not a
+second market-data engine.
 
-[![Live BTC/USDT terminal showing the liquidity heatmap, depth bars, exact spread, order book and time & sales](docs/evidence/depth-ladder-binance-btc.png)](docs/evidence/depth-ladder-binance-btc.png)
+[![Recorded-source workstation with simultaneous liquidity and footprint charts, depth ladder and time & sales](docs/evidence/m7-after-recorded-1440.png)](docs/evidence/m7-after-recorded-1440.png)
 
-*Captured from the live Binance global BTC/USDT feed. Click the screenshot to view full size.*
+*Recorded-source M7 workstation view, not a live-feed or latency certification. Click the screenshot to view full size; see the [evidence handoff](docs/OMP_UPGRADE_HANDOFF.md) for executed verification and capture provenance.*
 
 ## Upgrade progress
 
@@ -31,6 +34,14 @@ dashboard is a thin native-API observation client, not a second market-data engi
   a complete30-minute Binance-global/Hyperliquid capture with full replay parity,
   and measured native/rendering behavior. Evidence includes failed attempts,
   bootstrap/tail-latency limits and the explicitly unrun24-hour soak.
+- **M7:** the dedicated order-flow workstation redesign is implemented: independent
+  primary/secondary chart views, exact source-time/price cursor links, four
+  maximizable market panes, browser-local workspace slots, independent tape
+  controls, watchlist/research drawers and pinned identity, quality and freshness
+  evidence. Source-clock lag, browser evidence residency and rendering/ACK
+  measurements remain distinct. Implementation is not a gate result: current
+  verification and visual evidence belong in the
+  [delivery/evidence handoff](docs/OMP_UPGRADE_HANDOFF.md).
 
 For current acceptance status and executed evidence, see the
 [operational readiness and recovery](docs/READINESS.md),
@@ -66,6 +77,15 @@ Unknown fees, missing depth, stale inputs and incompatible quotes remain explici
 exclusions. No order is sent to an exchange. See
 [terminal controls](docs/TERMINAL.md), [API](docs/API.md),
 [analytics](docs/ANALYTICS.md) and [costs](docs/COSTS.md).
+
+The [operator guide](docs/TERMINAL.md) covers independent chart settings, explicit
+cursor links, keyboard resizing/shortcuts, four local workspace slots and source/
+diagnostics inspectors. Workspace preferences never save a mutable backend
+session; replay age is measured against its source clock, not today's wall clock.
+The visual direction references [Flowsurface](https://flowsurface.com/) and its
+[primary repository](https://github.com/flowsurface-rs/flowsurface), but the terminal
+and native Canvas renderer are independently implemented: no Flowsurface source
+or assets are copied.
 
 ## Local alerts, paper, journal and research
 
@@ -181,7 +201,7 @@ See [legacy client operation and bounds](docs/LEGACY.md), [API](docs/API.md) and
 ## Repository layout
 
 - `crypto_lob.py`, `src/ui/`: thin Streamlit observation client of the native API.
-- `frontend/`: React/TypeScript terminal and historical Canvas workspace.
+- `frontend/`: React/TypeScript order-flow workstation and independent native Canvas chart panes.
 - `src/workstation/`: exact core, public adapters, shared feed registry,
   recording/replay, analytics, visualization, alerts/context, paper/journal,
   research and versioned terminal API.

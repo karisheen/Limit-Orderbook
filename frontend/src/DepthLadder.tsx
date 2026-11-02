@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { GroupedLadder, GroupedLevel } from './api';
 import { compact, label, timestamp } from './format';
 import { Details, Empty, Panel, Reasons, Value } from './WorkflowUI';
@@ -24,13 +24,14 @@ export interface DepthLadderProps {
   cumulative: boolean;
   onCumulative: (cumulative: boolean) => void;
   sourceMode: 'demo' | 'replay' | 'live';
+  extra?: ReactNode;
 }
 
 function AlignedValue({ value, places }: { value: string; places: number }) {
   return <span className="dom-aligned"><Value value={value} /><span className="dom-decimal-padding" aria-hidden="true">{decimalPadding(value, places)}</span></span>;
 }
 
-export function DepthLadder({ data, loading, error, frozen, viewPaused, rows, onRows, onFreeze, crosshair, onPrice, priceStep, onPriceStep, unit, onUnit, cumulative, onCumulative, sourceMode }: DepthLadderProps) {
+export function DepthLadder({ data, loading, error, frozen, viewPaused, rows, onRows, onFreeze, crosshair, onPrice, priceStep, onPriceStep, unit, onUnit, cumulative, onCumulative, sourceMode, extra }: DepthLadderProps) {
   const scroll = useRef<HTMLDivElement>(null);
   const middle = useRef<HTMLTableRowElement>(null);
   const table = useRef<HTMLTableElement>(null);
@@ -155,19 +156,25 @@ export function DepthLadder({ data, loading, error, frozen, viewPaused, rows, on
     </tr>;
   };
   const stepOptions = data?.step_options ?? [];
-  return <Panel title="Order book" className="ladder-panel depth-ladder" extra={<div className="tabs"><button aria-pressed={frozen} onClick={onFreeze} data-testid="dom-freeze">{frozen ? 'Unfreeze DOM' : 'Freeze DOM'}</button><button onClick={resumeFollow}>Recenter DOM</button></div>}>
-    <div className="dom-controls">
-      <label>Rows<select aria-label="Ladder rows" value={rows} onChange={event => onRows(Number(event.target.value))}>{![10, 15, 25, 50, 100].includes(rows) && <option>{rows}</option>}{[10, 15, 25, 50, 100].map(value => <option key={value}>{value}</option>)}</select></label>
-      <label>Group<select aria-label="DOM price grouping" value={priceStep} onChange={event => onPriceStep(event.target.value)}><option value="">{data?.tick_size ? `Native tick · ${data.tick_size}` : 'Source quantum · tick unknown'}</option>{priceStep && !stepOptions.includes(priceStep) && <option value={priceStep}>{priceStep}</option>}{stepOptions.map(step => <option key={step} value={step}>{step}</option>)}</select></label>
-      <label>Size<select aria-label="DOM quantity units" value={unit} onChange={event => onUnit(event.target.value as 'base' | 'quote')}><option value="base">Base</option><option value="quote">Quote</option></select></label>
-      <label><input type="checkbox" aria-label="Cumulative depth" checked={cumulative} onChange={event => onCumulative(event.target.checked)} />Cumulative</label>
-      <label><input type="checkbox" aria-label="Follow midpoint" checked={following} onChange={event => event.target.checked ? resumeFollow() : suspendFollow()} />Follow midpoint</label>
+  return <Panel title="Order book" className="ladder-panel depth-ladder" extra={<div className="dom-header-actions"><div className="tabs"><button aria-label={frozen ? 'Unfreeze DOM' : 'Freeze DOM'} aria-pressed={frozen} onClick={onFreeze} data-testid="dom-freeze">{frozen ? 'Unfreeze' : 'Freeze'}</button><button aria-label="Recenter DOM" onClick={resumeFollow}>Recenter</button></div>{extra}</div>}>
+    <div className="dom-status" aria-busy={loading}>
+      <span className={diagnostic ? 'warning' : undefined}>{sourceMode.toUpperCase()} · {error ? 'Stale snapshot' : diagnostic ? 'Unavailable' : 'Eligible'}{held ? ' · Frozen' : ''}</span>
+      <span>{data?.coverage?.full_depth ? 'Full-depth feed' : 'Partial / bounded depth'} · {quantityUnit ?? 'unit unavailable'}</span>
     </div>
-    <div className="dom-status" aria-busy={loading}><span>{sourceMode.toUpperCase()} · {held ? 'Frozen' : error ? 'Stale snapshot' : diagnostic ? 'Unavailable' : 'Ready'} · {quantityUnit ?? 'unit unavailable'}</span><span>{ordered.bids.length} bid / {ordered.asks.length} ask · {data?.coverage?.full_depth ? 'full-depth feed' : 'partial / bounded depth'}</span></div>
     {held && <p className="dom-notice warning">Frozen DOM snapshot{viewPaused ? ' · global view paused' : ''}</p>}
     {error && <p className="dom-notice error" role="alert">DOM update unavailable · displaying retained snapshot: {error}</p>}
     {!!data?.reasons.length && <p className="dom-notice warning">{data.reasons.map(label).join(' · ')}</p>}
-    <div className="dom-scale"><span>Bar cap: <Value value={denominator} /> {quantityUnit ?? ''}</span><button onClick={() => setScaleRevision(value => value + 1)}>Rescale depth</button></div>
+    <details className="dom-settings">
+      <summary>Settings <span>{following ? 'Following midpoint' : 'Manual position'}</span></summary>
+      <div className="dom-controls">
+        <label>Group<select aria-label="DOM price grouping" value={priceStep} onChange={event => onPriceStep(event.target.value)}><option value="">{data?.tick_size ? `Native tick · ${data.tick_size}` : 'Source quantum · tick unknown'}</option>{priceStep && !stepOptions.includes(priceStep) && <option value={priceStep}>{priceStep}</option>}{stepOptions.map(step => <option key={step} value={step}>{step}</option>)}</select></label>
+        <label>Rows<select aria-label="Ladder rows" value={rows} onChange={event => onRows(Number(event.target.value))}>{![10, 15, 25, 50, 100].includes(rows) && <option>{rows}</option>}{[10, 15, 25, 50, 100].map(value => <option key={value}>{value}</option>)}</select></label>
+        <label>Size<select aria-label="DOM quantity units" value={unit} onChange={event => onUnit(event.target.value as 'base' | 'quote')}><option value="base">Base</option><option value="quote">Quote</option></select></label>
+        <label><input type="checkbox" aria-label="Cumulative depth" checked={cumulative} onChange={event => onCumulative(event.target.checked)} />Cumulative</label>
+        <label><input type="checkbox" aria-label="Follow midpoint" checked={following} onChange={event => event.target.checked ? resumeFollow() : suspendFollow()} />Follow midpoint</label>
+      </div>
+      <div className="dom-scale"><span>{diagnostic ? 'Bar scale unavailable' : <>Bar cap: <Value value={denominator} /> {quantityUnit ?? ''}</>}</span><button disabled={diagnostic || !ordered.all.length} onClick={() => setScaleRevision(value => value + 1)}>Rescale depth</button></div>
+    </details>
     <div ref={scroll} className="scroll ladder-scroll" tabIndex={0} role="region" aria-label="Order book depth"
       onWheel={suspendFollow} onTouchStart={suspendFollow}
       onPointerDown={event => { if (event.target === event.currentTarget) suspendFollow(); }}
@@ -184,12 +191,12 @@ export function DepthLadder({ data, loading, error, frozen, viewPaused, rows, on
         {ordered.bids.map(renderRow)}
       </tbody></table>}
     </div>
-    <details className="dom-scope"><summary>Scope & evidence · {data?.coverage?.full_depth ? 'full feed' : 'partial / unknown outside scope'}</summary>
+    <details className="dom-scope"><summary>Scope & provenance</summary>
       <p className="caption">Aggregated L2 resting liquidity, not individual orders or executions. DOM grouping is independent of chart grouping. Displayed row limits do not change native retained depth.</p>
-      <p className="caption">Native mode: {data?.source_mode ?? 'unknown'} · subscribed depth: {data?.coverage?.subscribed_depth ?? 'unknown'} · retained {data?.coverage?.retained_bid_levels ?? '—'} bid / {data?.coverage?.retained_ask_levels ?? '—'} ask levels. Group step <Value value={data?.step} /> · quantity {quantityUnit ?? 'unknown'}.</p>
+      <p className="caption">{data?.coverage?.full_depth ? 'Full-depth feed' : 'Partial / unknown outside scope'} · displayed {ordered.bids.length} bid / {ordered.asks.length} ask rows. Native mode: {data?.source_mode ?? 'unknown'} · subscribed depth: {data?.coverage?.subscribed_depth ?? 'unknown'} · retained {data?.coverage?.retained_bid_levels ?? '—'} bid / {data?.coverage?.retained_ask_levels ?? '—'} ask levels. Group step <Value value={data?.step} /> · quantity {quantityUnit ?? 'unknown'}.</p>
       <p className="caption">Bars share a held scale; values above the cap saturate. Rescale explicitly to the current displayed maximum. Brief left/right outlines show observed size increases/decreases at the same side and price, not trades or cancellations. Missing or newly visible rows imply no change. Native best buckets are bold; their exact native prices are in evidence.</p>
       <Reasons reasons={data?.reasons ?? []} />
+      <Details title={`${diagnostic ? 'Unavailable / diagnostic' : 'Eligible grouped evidence'} · as of ${timestamp(data?.asof?.receive_wall_ns)}`} value={data} />
     </details>
-    <Details title={`${data?.eligible ? 'Eligible grouped evidence' : 'Unavailable / diagnostic'} · as of ${timestamp(data?.asof?.receive_wall_ns)}`} value={data} />
   </Panel>;
 }

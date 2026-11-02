@@ -1,0 +1,103 @@
+{
+  "milestone": "M7 order-flow workstation",
+  "attempts": [
+    {
+      "stage": "initial frontend union",
+      "lint": "passed",
+      "unit_tests": "43 passed",
+      "build": "failed",
+      "reason": "TypeScript resolved ./Freshness to freshness.ts on the case-insensitive macOS filesystem instead of Freshness.tsx.",
+      "correction": "Renamed helper module to data-freshness.ts and updated its two consumers.",
+      "subsequent_build": "TypeScript and Vite passed; index-BDjimwjB.js / index-CWEyd-lY.css. This was the intermediate visual-inspection build, not final certification."
+    },
+    {
+      "stage": "initial targeted native viewport gate",
+      "command": ".venv-upgrade/bin/ruff format src/workstation/api.py src/workstation/visuals.py tests/test_workstation_visuals.py tests/test_workstation_visual_api.py && .venv-upgrade/bin/python -m pytest tests/test_workstation_visuals.py tests/test_workstation_visual_api.py -q --tb=short",
+      "result": "command deadline at 240 seconds; no final pytest summary, not a pass",
+      "formatting": "2 files reformatted, 2 unchanged"
+    },
+    {
+      "stage": "intermediate recorded visual inspection",
+      "source": "Actual recorded Binance-global BTCUSDT, capture 4498db3b-f4a2-4fff-a32e-a97221fa21ee, paused delivery 900",
+      "viewport": "1280x800",
+      "screenshot": "m7-intermediate-1280.png",
+      "finding": "Secondary chart content scrollHeight 290 versus clientHeight 211; quality/freshness below visible plot. Excess disclosure rows and benign URL notice consume chart space.",
+      "action": "Dispatched compact single chart inspector plus pinned quality/freshness and compact shell/DOM corrections; no screenshot acceptance claimed."
+    },
+    {
+      "stage": "source review",
+      "findings": ["Flow-only responses could lose pane origin when no depth column was eligible.", "Displayed freshness could survive renderer-cleared canvases."],
+      "action": "Independent corrective agents implemented origin retention and nullable presentation clearing plus real-native browser regressions; runtime verification pending."
+    },
+    {
+      "stage": "first complete Chromium attempt",
+      "result": "26 passed, 6 failed, 1 expected network-only skip, 5 not run after max-failures",
+      "findings": [
+        "Initial attachment reset saved paused/range state.",
+        "A costs test used an obsolete panel label.",
+        "A variable-height quality strip moved the workspace while streaming.",
+        "A compact test requested a time range before the source origin.",
+        "A narrow watchlist overlay covered global controls.",
+        "A cursor-link test assumed two bid rows in a one-bid/one-ask fixture."
+      ],
+      "correction": "Fixed lifecycle/layout behavior and migrated actual native-data test preconditions; no gate thresholds relaxed."
+    },
+    {
+      "stage": "focused corrected Chromium attempt",
+      "result": "9 passed, 1 failed",
+      "finding": "A bootstrap test required recenter on a particular request even when the actual native viewport had already fitted.",
+      "correction": "Removed incidental request-shape assertions; retained empty-evidence, changed native geometry and subsequent pinned-geometry assertions."
+    },
+    {
+      "stage": "second complete Chromium attempt",
+      "result": "34 passed, 3 failed, 1 expected network-only skip",
+      "failures": [
+        "Default-source lifecycle setup remained Connecting beyond 15 seconds.",
+        "A workflow response body was unavailable through Chromium Network.getResponseBody.",
+        "An accelerated replay did not reach the required native evidence frontier within 15 seconds."
+      ],
+      "environment": "Incorrectly targeted the capture-enabled manual-verification server at port 8002, with full native gate and live collector running concurrently.",
+      "observed_setup_evidence": "Manual recorded-session HTTP creation took 118647.5 ms, then 76986 ms after explicit reconnect.",
+      "correction": "Created a separate demo-only server at port 8004 and stopped the owned live collector for subsequent offline verification. All failures remain failures; no timeout was raised."
+    },
+    {
+      "stage": "final static review and actual reproduction",
+      "findings": [
+        "Startup source override could retain foreign source-bound view state.",
+        "Persisted tape freeze lacked an initial snapshot.",
+        "Escape dismissal lost chart-overlay keyboard focus.",
+        "Explicit nondefault following range could stop at the latest instrument observation rather than the source-clock frontier.",
+        "Frozen chart pan/zoom ignored explicit new bounds.",
+        "Trade-derived chart freshness did not consider displayed trade evidence.",
+        "Visualization response receipt was captured before the complete body arrived.",
+        "A derived pinned origin could exceed its accepted input domain.",
+        "At 320 pixels, the settings overlay's fixed top offset covered 52 pixels of the wrapped header and blocked its action buttons."
+      ],
+      "reproduction": "Frozen keyboard zoom changed view ID without changing source-time bounds. Native price_min=1e30, step=1, offset=1 returned an origin rejected by the next request.",
+      "rejected_review_claim": "Chart action clipping was not reproduced at 320 or 390 CSS pixels; controls wrapped within the viewport. A blocked navigation click targeted a still-closed Legend & navigation disclosure, not a product defect.",
+      "native_correction_smoke": "Out-of-domain derived origin rejected before publication; boundary origin resubmitted with identical exact prices."
+    },
+    {
+      "stage": "actual public-live observation",
+      "result": "Known analytical_queue_overflow boundary reached again; not a sustained-live pass.",
+      "evidence": ["m7-live-stream.json", "m7-live-1440.png"],
+      "behavior": "Charts became diagnostic with unavailable freshness; DOM and tape withheld current evidence. Native cohort, history, queue and quality limits were not relaxed."
+    },
+    {
+      "stage": "corrected-source Chromium attempt",
+      "result": "41 passed, 5 failed, 1 expected network-only skip",
+      "failures": [
+        "Decode timing test loaded the application while the concurrent full gate rebuilt frontend/dist; its captured page was the native Frontend not built response.",
+        "Four accessibility/navigation viewport cases attempted to zoom an initially paused bootstrap window shorter than the native minimum time quantum."
+      ],
+      "correction": "Serialized browser verification after all builds; navigation scenarios now seek the actual replay midpoint before exercising zoom. No timeout or threshold was relaxed.",
+      "other_results": "The clean demo server resolved the prior default-source setup, workflow response and accelerated replay failures."
+    },
+    {
+      "stage": "final manual recording setup",
+      "finding": "Restarting the native server replaced its opaque managed recording source ID. Reusing the old URL correctly showed an explicit unavailable-source error, with no demo substitution.",
+      "correction": "Selected the current recording ID from the native catalog, then verified the recorded source identity.",
+      "screenshot_collection": "An initial callback incorrectly passed viewport width outside tab.run args, producing undefined-named screenshots. Corrected argument passing, removed those temporary files, recaptured and visually inspected all three final image paths."
+    }
+  ]
+}

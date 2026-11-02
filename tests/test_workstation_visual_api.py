@@ -384,6 +384,104 @@ def test_chart_incremental_poll_bounds_and_closed_liquidity_stay_stable(market):
         assert column["liquidity_hash"] == old["liquidity_hash"]
 
 
+def test_independent_pinned_panes_keep_exact_projection_after_peer_recenter(market):
+    client, _, frame = market
+    before = current(client, frame)
+    fine_options = {"price_min": "59990", "price_step": "1", "rows": 32}
+    coarse_options = {"price_min": "59900", "price_step": "5", "rows": 64}
+    fine = visual(client, frame, **fine_options)
+    coarse = visual(client, frame, **coarse_options)
+    assert fine["price_min"] == "59990"
+    assert coarse["price_min"] == "59900"
+    assert any(
+        quantity not in (None, "0")
+        for view in (fine, coarse)
+        for column in view["columns"]
+        for cell in column["cells"]
+        for quantity in cell
+    )
+    visual(client, frame, recenter=True, price_step="10", rows=128)
+    for options, expected in (
+        (fine_options, fine),
+        (coarse_options, coarse),
+        (fine_options, fine),
+        (coarse_options, coarse),
+    ):
+        actual = visual(client, frame, **options)
+        assert economic_view(actual) == economic_view(expected)
+        assert actual["grid_id"] == expected["grid_id"]
+    panned = visual(client, frame, **fine_options, price_offset_rows=-3)
+    assert panned["price_min"] == "59987"
+    assert panned["grid_id"] == fine["grid_id"]
+    assert economic_view(visual(client, frame, **fine_options)) == economic_view(fine)
+    for offset, expected in ((3, "0.55"), (-3, "0.25"), (-8, "0"), (-9, "0")):
+        small = visual(
+            client,
+            frame,
+            price_min="0.4",
+            price_step="0.05",
+            price_offset_rows=offset,
+            rows=32,
+        )
+        assert small["price_min"] == expected
+        assert Decimal(small["prices"][-1]) == Decimal(expected) + Decimal("1.55")
+    after = current(client, frame)
+    assert after["replay"]["cursor"] == before["replay"]["cursor"]
+    assert after["book"] == before["book"]
+
+
+@pytest.mark.parametrize("action", ("reset", "seek"))
+def test_pinned_origin_is_request_scoped_across_generation_reset(market, action):
+    client, _, frame = market
+    options = {"price_min": "59990", "price_step": "1", "rows": 32}
+    original = visual(client, frame, **options)
+    target = frame["replay"]["cursor"]["delivery_index"]
+    changed = replay(
+        client, frame, action, **({"delivery_index": "0"} if action == "seek" else {})
+    )
+    assert changed["generation"] != frame["generation"]
+    stale = post(client, frame, "visualization", **options)
+    assert stale.status_code == 409, stale.text
+    fresh = visual(client, changed, **options, after_column=original["next_after"])
+    assert fresh["generation"] == changed["generation"]
+    assert fresh["replace"] is True
+    assert fresh["prices"] == original["prices"]
+    assert fresh["columns"] == fresh["trades"] == fresh["profile"] == []
+    assert visual(client, changed, price_step="1", rows=32)["price_min"] == "0"
+    restored = replay(client, changed, "seek", delivery_index=target)
+    assert economic_view(visual(client, restored, **options)) == economic_view(original)
+
+
+@pytest.mark.parametrize(
+    "options",
+    (
+        {"price_min": 60000, "price_step": "1"},
+        {"price_min": 60000.0, "price_step": "1"},
+        {"price_min": True, "price_step": "1"},
+        {"price_min": "", "price_step": "1"},
+        {"price_min": "-1", "price_step": "1"},
+        {"price_min": "NaN", "price_step": "1"},
+        {"price_min": "Infinity", "price_step": "1"},
+        {"price_min": " 60000", "price_step": "1"},
+        {"price_min": "1e39", "price_step": "1"},
+        {"price_min": "0" * 129, "price_step": "1"},
+        {"price_min": "60000.005", "price_step": "0.01"},
+        {"price_min": "60000", "price_step": "0.03"},
+        {"price_min": "60000"},
+        {"price_min": "60000", "price_step": None},
+        {"price_min": "60000", "price_step": "1", "recenter": True},
+    ),
+)
+def test_pinned_origin_validation_preserves_legacy_state(market, options):
+    client, _, frame = market
+    original = visual(client, frame, price_step="1", rows=32)
+    before = current(client, frame)["replay"]["cursor"]
+    response = post(client, frame, "visualization", **options)
+    assert response.status_code == 422, response.text
+    assert economic_view(visual(client, frame, rows=32)) == economic_view(original)
+    assert current(client, frame)["replay"]["cursor"] == before
+
+
 @pytest.mark.parametrize("transition", ("seek", "selection"))
 def test_generation_fences_every_visual_request_and_obsoletes_publications(
     market, transition

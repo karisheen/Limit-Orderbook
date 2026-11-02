@@ -123,9 +123,17 @@ class CostRequest(SessionAction):
 
 
 class VisualizationRequest(SessionAction):
+    """Optional price_min pins a pane's exact, nonnegative lower grid origin.
+
+    It must align to an explicit price_step and cannot request recenter. The
+    displayed low is max(0, price_min + price_offset_rows * price_step).
+    Omitting it retains the shared legacy auto-fit/recenter behavior.
+    """
+
     start_ns: str | None = Field(default=None, max_length=24, pattern=r"^[0-9]+$")
     end_ns: str | None = Field(default=None, max_length=24, pattern=r"^[0-9]+$")
     price_step: str | None = Field(default=None, max_length=128)
+    price_min: str | None = Field(default=None, max_length=128)
     price_offset_rows: int = Field(default=0, ge=-100000, le=100000)
     recenter: bool = False
     bucket_ns: Literal["1000000000", "5000000000", "10000000000"] | None = None
@@ -139,6 +147,16 @@ class VisualizationRequest(SessionAction):
         if value is not None:
             decimal(value, positive=True)
         return value
+
+    @model_validator(mode="after")
+    def valid_origin(self):
+        if self.price_min is not None:
+            decimal(self.price_min, nonnegative=True)
+            if self.price_step is None:
+                raise ValueError("price_min requires explicit price_step")
+            if self.recenter:
+                raise ValueError("price_min cannot be combined with recenter")
+        return self
 
 
 class LadderRequest(SessionAction):

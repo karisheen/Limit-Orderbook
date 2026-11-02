@@ -1,0 +1,3110 @@
+{
+  "source": "Actual public live Binance-global BTCUSDT spot; no recording or substituted responses",
+  "limits": "Finite thirty one-second browser observations; not isolated-host latency or sustained-capacity certification. Earlier baseline reached existing analytical queue overflow. Samples include diagnostic and ineligible windows unchanged.",
+  "samples": [
+    {
+      "at": 56713.90000000596,
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "source": [
+        "LIVE",
+        "Public live shared collector",
+        "Not ready / diagnostic",
+        "live"
+      ],
+      "telemetry": "Session 6393e296 · generation 1Queue 37 / high 78Coalesced 141 · overflow 0ACK expired 0Observer 665.5 msReceive→paint 42.0 msPublish→ACK ≤ 516.8 ms",
+      "charts": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "044835e036b14b9ca5cdcf28047104ce",
+            "paintedViewId": "044835e036b14b9ca5cdcf28047104ce",
+            "startNs": "229807000000000",
+            "endNs": "229811431993115",
+            "priceMin": "76834",
+            "priceStep": "0.5",
+            "drawMs": "1.400",
+            "tileCount": "34",
+            "tileAllocations": "34",
+            "dirtyColumns": "5",
+            "overlayPoints": "268",
+            "pixelWidth": "1400",
+            "pixelHeight": "450"
+          },
+          "age": {
+            "frameId": "48",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "sourceLagMs": "3317.492304",
+            "evidenceResidentMs": "1334.800000011921",
+            "responseResidentMs": "1832.800000011921",
+            "clockId": "80f171de-f7f1-4f28-9f2a-76dfb551d85d",
+            "evidenceNs": "229810714738359",
+            "highwaterNs": "229814032230663",
+            "viewId": "044835e036b14b9ca5cdcf28047104ce"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "fea19fccb6a04e869644e5513435a11c",
+            "paintedViewId": "fea19fccb6a04e869644e5513435a11c",
+            "startNs": "229805000000000",
+            "endNs": "229812033933632",
+            "priceMin": "76858",
+            "priceStep": "0.5",
+            "drawMs": "1.800",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "236",
+            "pixelWidth": "1400",
+            "pixelHeight": "333",
+            "receiveToPaintMs": "42.700"
+          },
+          "age": {
+            "frameId": "48",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "sourceLagMs": "4300.908197",
+            "evidenceResidentMs": "1528.0999999940395",
+            "responseResidentMs": "44.400000005960464",
+            "clockId": "80f171de-f7f1-4f28-9f2a-76dfb551d85d",
+            "evidenceNs": "229809731322466",
+            "highwaterNs": "229814032230663",
+            "viewId": "fea19fccb6a04e869644e5513435a11c"
+          }
+        }
+      ],
+      "dom": {
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "frozen": "false",
+        "frameId": "48",
+        "generation": "1",
+        "sourceId": "live",
+        "evidenceResidentMs": "2620.0999999940395",
+        "clockId": "80f171de-f7f1-4f28-9f2a-76dfb551d85d",
+        "evidenceNs": "229811032433078",
+        "sourceLagMs": "2999.797585",
+        "highwaterNs": "229814032230663"
+      },
+      "tape": {
+        "frameId": "48",
+        "generation": "1",
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "sourceId": "live",
+        "frozen": "false",
+        "sourceLagMs": "2601.545203",
+        "evidenceResidentMs": "2235.7999999821186",
+        "clockId": "80f171de-f7f1-4f28-9f2a-76dfb551d85d",
+        "evidenceNs": "229811430685460",
+        "highwaterNs": "229814032230663"
+      },
+      "errors": []
+    },
+    {
+      "at": 57791,
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "source": [
+        "LIVE",
+        "Public live shared collector",
+        "Not ready / diagnostic",
+        "live"
+      ],
+      "telemetry": "Session 6393e296 · generation 1Queue 50 / high 78Coalesced 141 · overflow 0ACK expired 0Observer 167.6 msReceive→paint 38.7 msPublish→ACK ≤ 372.7 ms",
+      "charts": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "044835e036b14b9ca5cdcf28047104ce",
+            "paintedViewId": "044835e036b14b9ca5cdcf28047104ce",
+            "startNs": "229807000000000",
+            "endNs": "229811431993115",
+            "priceMin": "76834",
+            "priceStep": "0.5",
+            "drawMs": "1.400",
+            "tileCount": "34",
+            "tileAllocations": "34",
+            "dirtyColumns": "5",
+            "overlayPoints": "268",
+            "pixelWidth": "1400",
+            "pixelHeight": "450"
+          },
+          "age": {
+            "frameId": "49",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "sourceLagMs": "3784.989197",
+            "evidenceResidentMs": "2641.7000000178814",
+            "responseResidentMs": "3139.7000000178814",
+            "clockId": "80f171de-f7f1-4f28-9f2a-76dfb551d85d",
+            "evidenceNs": "229810714738359",
+            "highwaterNs": "229814499727556",
+            "viewId": "044835e036b14b9ca5cdcf28047104ce"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "fea19fccb6a04e869644e5513435a11c",
+            "paintedViewId": "fea19fccb6a04e869644e5513435a11c",
+            "startNs": "229805000000000",
+            "endNs": "229812033933632",
+            "priceMin": "76858",
+            "priceStep": "0.5",
+            "drawMs": "1.800",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "236",
+            "pixelWidth": "1400",
+            "pixelHeight": "333",
+            "receiveToPaintMs": "42.700"
+          },
+          "age": {
+            "frameId": "49",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "sourceLagMs": "4768.40509",
+            "evidenceResidentMs": "2647.0999999940395",
+            "responseResidentMs": "1163.4000000059605",
+            "clockId": "80f171de-f7f1-4f28-9f2a-76dfb551d85d",
+            "evidenceNs": "229809731322466",
+            "highwaterNs": "229814499727556",
+            "viewId": "fea19fccb6a04e869644e5513435a11c"
+          }
+        }
+      ],
+      "dom": {
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "frozen": "false",
+        "frameId": "49",
+        "generation": "1",
+        "sourceId": "live",
+        "evidenceResidentMs": "0",
+        "clockId": "80f171de-f7f1-4f28-9f2a-76dfb551d85d",
+        "evidenceNs": "229812043928605",
+        "sourceLagMs": "2455.798951",
+        "highwaterNs": "229814499727556"
+      },
+      "tape": {
+        "frameId": "49",
+        "generation": "1",
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "sourceId": "live",
+        "frozen": "false",
+        "sourceLagMs": "3069.042096",
+        "evidenceResidentMs": "3483.699999988079",
+        "clockId": "80f171de-f7f1-4f28-9f2a-76dfb551d85d",
+        "evidenceNs": "229811430685460",
+        "highwaterNs": "229814499727556"
+      },
+      "errors": []
+    },
+    {
+      "at": 58802.5,
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "source": [
+        "LIVE",
+        "Public live shared collector",
+        "Not ready / diagnostic",
+        "live"
+      ],
+      "telemetry": "Session 6393e296 · generation 1Queue 66 / high 87Coalesced 141 · overflow 0ACK expired 0Observer 35.5 msReceive→paint 58.7 msPublish→ACK ≤ 129.1 ms",
+      "charts": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "804a62b47b244293a531606511e1214c",
+            "paintedViewId": "804a62b47b244293a531606511e1214c",
+            "startNs": "229809000000000",
+            "endNs": "229814739183403",
+            "priceMin": "76834",
+            "priceStep": "0.5",
+            "drawMs": "13.900",
+            "tileCount": "37",
+            "tileAllocations": "37",
+            "dirtyColumns": "6",
+            "overlayPoints": "201",
+            "pixelWidth": "1400",
+            "pixelHeight": "450",
+            "receiveToPaintMs": "47.900"
+          },
+          "age": {
+            "frameId": "53",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "sourceLagMs": "4151.02404",
+            "evidenceResidentMs": "610.2999999821186",
+            "responseResidentMs": "662.8999999761581",
+            "clockId": "80f171de-f7f1-4f28-9f2a-76dfb551d85d",
+            "evidenceNs": "229812058857517",
+            "highwaterNs": "229816209881557",
+            "viewId": "804a62b47b244293a531606511e1214c"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "8aee7e6e06b643ad8354217d178e4dda",
+            "paintedViewId": "8aee7e6e06b643ad8354217d178e4dda",
+            "startNs": "229810000000000",
+            "endNs": "229815555986591",
+            "priceMin": "76858",
+            "priceStep": "0.5",
+            "drawMs": "0.600",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "2",
+            "overlayPoints": "101",
+            "pixelWidth": "1400",
+            "pixelHeight": "333",
+            "receiveToPaintMs": "50.500"
+          },
+          "age": {
+            "frameId": "53",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "sourceLagMs": "3585.171119",
+            "evidenceResidentMs": "93.2000000178814",
+            "responseResidentMs": "145.7000000178814",
+            "clockId": "80f171de-f7f1-4f28-9f2a-76dfb551d85d",
+            "evidenceNs": "229812624710438",
+            "highwaterNs": "229816209881557",
+            "viewId": "8aee7e6e06b643ad8354217d178e4dda"
+          }
+        }
+      ],
+      "dom": {
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "frozen": "false",
+        "frameId": "53",
+        "generation": "1",
+        "sourceId": "live",
+        "evidenceResidentMs": "1066.0999999940395",
+        "clockId": "80f171de-f7f1-4f28-9f2a-76dfb551d85d",
+        "evidenceNs": "229812043928605",
+        "sourceLagMs": "4165.952952",
+        "highwaterNs": "229816209881557"
+      },
+      "tape": {
+        "frameId": "53",
+        "generation": "1",
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "sourceId": "live",
+        "frozen": "false",
+        "sourceLagMs": "4779.196097",
+        "evidenceResidentMs": "4405.899999976158",
+        "clockId": "80f171de-f7f1-4f28-9f2a-76dfb551d85d",
+        "evidenceNs": "229811430685460",
+        "highwaterNs": "229816209881557"
+      },
+      "errors": []
+    },
+    {
+      "at": 59809.5,
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "source": [
+        "LIVE",
+        "Public live shared collector",
+        "Not ready / diagnostic",
+        "live"
+      ],
+      "telemetry": "Session 6393e296 · generation 1Queue 40 / high 87Coalesced 141 · overflow 0ACK expired 0Observer 57.2 msReceive→paint 34.0 msPublish→ACK ≤ 115.2 ms",
+      "charts": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "2762e2f2de964c1d858e0408b94a2142",
+            "paintedViewId": "2762e2f2de964c1d858e0408b94a2142",
+            "startNs": "229811000000000",
+            "endNs": "229816774088294",
+            "priceMin": "76834",
+            "priceStep": "0.5",
+            "drawMs": "1.600",
+            "tileCount": "39",
+            "tileAllocations": "39",
+            "dirtyColumns": "6",
+            "overlayPoints": "170",
+            "pixelWidth": "1400",
+            "pixelHeight": "450",
+            "receiveToPaintMs": "36.100"
+          },
+          "age": {
+            "frameId": "56",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "sourceLagMs": "4312.14518",
+            "evidenceResidentMs": "102.90000000596046",
+            "responseResidentMs": "140.5",
+            "clockId": "80f171de-f7f1-4f28-9f2a-76dfb551d85d",
+            "evidenceNs": "229813096668365",
+            "highwaterNs": "229817408813545",
+            "viewId": "2762e2f2de964c1d858e0408b94a2142"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "8aee7e6e06b643ad8354217d178e4dda",
+            "paintedViewId": "8aee7e6e06b643ad8354217d178e4dda",
+            "startNs": "229810000000000",
+            "endNs": "229815555986591",
+            "priceMin": "76858",
+            "priceStep": "0.5",
+            "drawMs": "0.600",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "2",
+            "overlayPoints": "101",
+            "pixelWidth": "1400",
+            "pixelHeight": "333",
+            "receiveToPaintMs": "50.500"
+          },
+          "age": {
+            "frameId": "56",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "sourceLagMs": "4784.103107",
+            "evidenceResidentMs": "1252.2000000178814",
+            "responseResidentMs": "1304.7000000178814",
+            "clockId": "80f171de-f7f1-4f28-9f2a-76dfb551d85d",
+            "evidenceNs": "229812624710438",
+            "highwaterNs": "229817408813545",
+            "viewId": "8aee7e6e06b643ad8354217d178e4dda"
+          }
+        }
+      ],
+      "dom": {
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "frozen": "false",
+        "frameId": "56",
+        "generation": "1",
+        "sourceId": "live",
+        "evidenceResidentMs": "814.6999999880791",
+        "clockId": "80f171de-f7f1-4f28-9f2a-76dfb551d85d",
+        "evidenceNs": "229813860371114",
+        "sourceLagMs": "3548.442431",
+        "highwaterNs": "229817408813545"
+      },
+      "tape": {
+        "frameId": "56",
+        "generation": "1",
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "sourceId": "live",
+        "frozen": "false",
+        "sourceLagMs": "5978.128085",
+        "evidenceResidentMs": "5566.5",
+        "clockId": "80f171de-f7f1-4f28-9f2a-76dfb551d85d",
+        "evidenceNs": "229811430685460",
+        "highwaterNs": "229817408813545"
+      },
+      "errors": []
+    },
+    {
+      "at": 61727.59999999404,
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "source": [
+        "LIVE",
+        "Public live shared collector",
+        "Not ready / diagnostic",
+        "live"
+      ],
+      "telemetry": "Session 6393e296 · generation 1Queue 49 / high 87Coalesced 141 · overflow 0ACK expired 0Observer 51.1 msReceive→paint 37.7 msPublish→ACK ≤ 348.3 ms",
+      "charts": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "2762e2f2de964c1d858e0408b94a2142",
+            "paintedViewId": "2762e2f2de964c1d858e0408b94a2142",
+            "startNs": "229811000000000",
+            "endNs": "229816774088294",
+            "priceMin": "76834",
+            "priceStep": "0.5",
+            "drawMs": "1.600",
+            "tileCount": "39",
+            "tileAllocations": "39",
+            "dirtyColumns": "6",
+            "overlayPoints": "170",
+            "pixelWidth": "1400",
+            "pixelHeight": "450",
+            "receiveToPaintMs": "36.100"
+          },
+          "age": {
+            "frameId": "57",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "sourceLagMs": "4934.199491",
+            "evidenceResidentMs": "1000.9000000059605",
+            "responseResidentMs": "1038.5",
+            "clockId": "80f171de-f7f1-4f28-9f2a-76dfb551d85d",
+            "evidenceNs": "229813096668365",
+            "highwaterNs": "229818030867856",
+            "viewId": "2762e2f2de964c1d858e0408b94a2142"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "paintedViewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "startNs": "229810000000000",
+            "endNs": "229817161537649",
+            "priceMin": "76858",
+            "priceStep": "0.5",
+            "drawMs": "0.400",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "6",
+            "pixelWidth": "1400",
+            "pixelHeight": "333",
+            "receiveToPaintMs": "53.100"
+          },
+          "age": {
+            "frameId": "57",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "sourceLagMs": "5406.157418",
+            "evidenceResidentMs": "2002.2000000178814",
+            "responseResidentMs": "225.10000002384186",
+            "clockId": "80f171de-f7f1-4f28-9f2a-76dfb551d85d",
+            "evidenceNs": "229812624710438",
+            "highwaterNs": "229818030867856",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b"
+          }
+        }
+      ],
+      "dom": {
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "frozen": "false",
+        "frameId": "57",
+        "generation": "1",
+        "sourceId": "live",
+        "evidenceResidentMs": "1443.699999988079",
+        "clockId": "80f171de-f7f1-4f28-9f2a-76dfb551d85d",
+        "evidenceNs": "229813860371114",
+        "sourceLagMs": "4170.496742",
+        "highwaterNs": "229818030867856"
+      },
+      "tape": {
+        "frameId": "57",
+        "generation": "1",
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "sourceId": "live",
+        "frozen": "false",
+        "sourceLagMs": "6600.182396",
+        "evidenceResidentMs": "6193.799999982119",
+        "clockId": "80f171de-f7f1-4f28-9f2a-76dfb551d85d",
+        "evidenceNs": "229811430685460",
+        "highwaterNs": "229818030867856"
+      },
+      "errors": []
+    },
+    {
+      "at": 62748.20000001788,
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "source": [
+        "LIVE",
+        "Public live shared collector",
+        "Required data ready",
+        "live"
+      ],
+      "telemetry": "Session 6393e296 · generation 1Queue 86 / high 87Coalesced 179 · overflow 0ACK expired 0Observer 153.9 msReceive→paint 57.2 msPublish→ACK ≤ 412.5 ms",
+      "charts": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "2762e2f2de964c1d858e0408b94a2142",
+            "paintedViewId": "",
+            "startNs": "229811000000000",
+            "endNs": "229816774088294",
+            "priceMin": "76834",
+            "priceStep": "0.5",
+            "drawMs": "0.700",
+            "tileCount": "39",
+            "tileAllocations": "39",
+            "dirtyColumns": "6",
+            "overlayPoints": "170",
+            "pixelWidth": "1400",
+            "pixelHeight": "466"
+          },
+          "age": {
+            "frameId": "60",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "chart identity mismatch / unavailable"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "paintedViewId": "",
+            "startNs": "229810000000000",
+            "endNs": "229817161537649",
+            "priceMin": "76858",
+            "priceStep": "0.5",
+            "drawMs": "0.400",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "6",
+            "pixelWidth": "1400",
+            "pixelHeight": "346"
+          },
+          "age": {
+            "frameId": "60",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "chart identity mismatch / unavailable"
+          }
+        }
+      ],
+      "dom": {
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "frozen": "false",
+        "frameId": "60",
+        "generation": "1",
+        "sourceId": "live",
+        "evidenceResidentMs": "912.5",
+        "clockId": "80f171de-f7f1-4f28-9f2a-76dfb551d85d",
+        "evidenceNs": "229814837967724",
+        "sourceLagMs": "5361.251913",
+        "highwaterNs": "229820199219637"
+      },
+      "tape": {
+        "frameId": "60",
+        "generation": "1",
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "sourceId": "live",
+        "frozen": "false",
+        "sourceLagMs": "787.445981",
+        "evidenceResidentMs": "209.59999999403954",
+        "clockId": "80f171de-f7f1-4f28-9f2a-76dfb551d85d",
+        "evidenceNs": "229819411773656",
+        "highwaterNs": "229820199219637"
+      },
+      "errors": []
+    },
+    {
+      "at": 63768.40000000596,
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "source": [
+        "LIVE",
+        "Public live shared collector",
+        "Not ready / diagnostic",
+        "unavailable"
+      ],
+      "telemetry": "Session 6393e296 · generation 1Queue 0 / high 123Coalesced 179 · overflow 1ACK expired 0Observer 129.5 msReceive→paint 30.4 msPublish→ACK ≤ 90.0 ms",
+      "charts": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "paintedViewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "startNs": "229813000000000",
+            "endNs": "229818577047634",
+            "priceMin": "76834",
+            "priceStep": "0.5",
+            "drawMs": "0.800",
+            "tileCount": "41",
+            "tileAllocations": "41",
+            "dirtyColumns": "6",
+            "overlayPoints": "162",
+            "pixelWidth": "1400",
+            "pixelHeight": "366"
+          },
+          "age": {
+            "frameId": "64",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "532.4000000059605",
+            "responseResidentMs": "1038.5",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "paintedViewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "startNs": "229810000000000",
+            "endNs": "229817161537649",
+            "priceMin": "76858",
+            "priceStep": "0.5",
+            "drawMs": "0.200",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "6",
+            "pixelWidth": "1400",
+            "pixelHeight": "286"
+          },
+          "age": {
+            "frameId": "64",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "666.0999999940395",
+            "responseResidentMs": "3523.5",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b"
+          }
+        }
+      ],
+      "dom": {
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "frozen": "false",
+        "frameId": "64",
+        "generation": "1",
+        "sourceId": "live",
+        "unavailableReason": "source unavailable"
+      },
+      "tape": {
+        "frameId": "64",
+        "generation": "1",
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "sourceId": "live",
+        "frozen": "false",
+        "unavailableReason": "source unavailable"
+      },
+      "errors": [
+        "analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "Chart ACK unavailable: HTTP 503: analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "DOM update unavailable · displaying retained snapshot: Stream evidence unavailable"
+      ]
+    },
+    {
+      "at": 64778,
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "source": [
+        "LIVE",
+        "Public live shared collector",
+        "Not ready / diagnostic",
+        "unavailable"
+      ],
+      "telemetry": "Session 6393e296 · generation 1Queue 0 / high 123Coalesced 179 · overflow 1ACK expired 0Observer 129.5 msReceive→paint 36.4 msPublish→ACK ≤ 82.5 ms",
+      "charts": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "paintedViewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "startNs": "229813000000000",
+            "endNs": "229818577047634",
+            "priceMin": "76834",
+            "priceStep": "0.5",
+            "drawMs": "0.800",
+            "tileCount": "41",
+            "tileAllocations": "41",
+            "dirtyColumns": "6",
+            "overlayPoints": "162",
+            "pixelWidth": "1400",
+            "pixelHeight": "366"
+          },
+          "age": {
+            "frameId": "67",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "1339",
+            "responseResidentMs": "1845.0999999940395",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "paintedViewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "startNs": "229810000000000",
+            "endNs": "229817161537649",
+            "priceMin": "76858",
+            "priceStep": "0.5",
+            "drawMs": "0.200",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "6",
+            "pixelWidth": "1400",
+            "pixelHeight": "286"
+          },
+          "age": {
+            "frameId": "67",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "1472.7000000178814",
+            "responseResidentMs": "4330.100000023842",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b"
+          }
+        }
+      ],
+      "dom": {
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "frozen": "false",
+        "frameId": "67",
+        "generation": "1",
+        "sourceId": "live",
+        "unavailableReason": "source unavailable"
+      },
+      "tape": {
+        "frameId": "67",
+        "generation": "1",
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "sourceId": "live",
+        "frozen": "false",
+        "unavailableReason": "source unavailable"
+      },
+      "errors": [
+        "analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "Chart ACK unavailable: HTTP 503: analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "DOM update unavailable · displaying retained snapshot: Stream evidence unavailable"
+      ]
+    },
+    {
+      "at": 66360.40000000596,
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "source": [
+        "LIVE",
+        "Public live shared collector",
+        "Not ready / diagnostic",
+        "unavailable"
+      ],
+      "telemetry": "Session 6393e296 · generation 1Queue 0 / high 123Coalesced 179 · overflow 1ACK expired 0Observer 129.5 msReceive→paint 26.6 msPublish→ACK ≤ 184.0 ms",
+      "charts": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "paintedViewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "startNs": "229813000000000",
+            "endNs": "229818577047634",
+            "priceMin": "76834",
+            "priceStep": "0.5",
+            "drawMs": "0.800",
+            "tileCount": "41",
+            "tileAllocations": "41",
+            "dirtyColumns": "6",
+            "overlayPoints": "162",
+            "pixelWidth": "1400",
+            "pixelHeight": "366"
+          },
+          "age": {
+            "frameId": "68",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "1628.0999999940395",
+            "responseResidentMs": "2134.199999988079",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "paintedViewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "startNs": "229810000000000",
+            "endNs": "229817161537649",
+            "priceMin": "76858",
+            "priceStep": "0.5",
+            "drawMs": "0.200",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "6",
+            "pixelWidth": "1400",
+            "pixelHeight": "286"
+          },
+          "age": {
+            "frameId": "68",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "1761.7000000178814",
+            "responseResidentMs": "4619.100000023842",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b"
+          }
+        }
+      ],
+      "dom": {
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "frozen": "false",
+        "frameId": "68",
+        "generation": "1",
+        "sourceId": "live",
+        "unavailableReason": "source unavailable"
+      },
+      "tape": {
+        "frameId": "68",
+        "generation": "1",
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "sourceId": "live",
+        "frozen": "false",
+        "unavailableReason": "source unavailable"
+      },
+      "errors": [
+        "analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "Chart ACK unavailable: HTTP 503: analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "DOM update unavailable · displaying retained snapshot: Stream evidence unavailable"
+      ]
+    },
+    {
+      "at": 67374.90000000596,
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "source": [
+        "LIVE",
+        "Public live shared collector",
+        "Not ready / diagnostic",
+        "unavailable"
+      ],
+      "telemetry": "Session 6393e296 · generation 1Queue 0 / high 123Coalesced 179 · overflow 1ACK expired 0Observer 129.5 msReceive→paint 40.1 msPublish→ACK ≤ 243.1 ms",
+      "charts": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "paintedViewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "startNs": "229813000000000",
+            "endNs": "229818577047634",
+            "priceMin": "76834",
+            "priceStep": "0.5",
+            "drawMs": "0.800",
+            "tileCount": "41",
+            "tileAllocations": "41",
+            "dirtyColumns": "6",
+            "overlayPoints": "162",
+            "pixelWidth": "1400",
+            "pixelHeight": "366"
+          },
+          "age": {
+            "frameId": "73",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "4000.9000000059605",
+            "responseResidentMs": "4507",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "paintedViewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "startNs": "229810000000000",
+            "endNs": "229817161537649",
+            "priceMin": "76858",
+            "priceStep": "0.5",
+            "drawMs": "0.200",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "6",
+            "pixelWidth": "1400",
+            "pixelHeight": "286"
+          },
+          "age": {
+            "frameId": "73",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "4002.4000000059605",
+            "responseResidentMs": "6859.800000011921",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b"
+          }
+        }
+      ],
+      "dom": {
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "frozen": "false",
+        "frameId": "73",
+        "generation": "1",
+        "sourceId": "live",
+        "unavailableReason": "source unavailable"
+      },
+      "tape": {
+        "frameId": "73",
+        "generation": "1",
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "sourceId": "live",
+        "frozen": "false",
+        "unavailableReason": "source unavailable"
+      },
+      "errors": [
+        "analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "Chart ACK unavailable: HTTP 503: analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "DOM update unavailable · displaying retained snapshot: Stream evidence unavailable"
+      ]
+    },
+    {
+      "at": 68379.59999999404,
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "source": [
+        "LIVE",
+        "Public live shared collector",
+        "Not ready / diagnostic",
+        "unavailable"
+      ],
+      "telemetry": "Session 6393e296 · generation 1Queue 0 / high 123Coalesced 179 · overflow 1ACK expired 0Observer 129.5 msReceive→paint 24.8 msPublish→ACK ≤ 358.7 ms",
+      "charts": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "paintedViewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "startNs": "229813000000000",
+            "endNs": "229818577047634",
+            "priceMin": "76834",
+            "priceStep": "0.5",
+            "drawMs": "0.800",
+            "tileCount": "41",
+            "tileAllocations": "41",
+            "dirtyColumns": "6",
+            "overlayPoints": "162",
+            "pixelWidth": "1400",
+            "pixelHeight": "366"
+          },
+          "age": {
+            "frameId": "76",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "5003.199999988079",
+            "responseResidentMs": "5509.299999982119",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "paintedViewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "startNs": "229810000000000",
+            "endNs": "229817161537649",
+            "priceMin": "76858",
+            "priceStep": "0.5",
+            "drawMs": "0.200",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "6",
+            "pixelWidth": "1400",
+            "pixelHeight": "286"
+          },
+          "age": {
+            "frameId": "76",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "5117.700000017881",
+            "responseResidentMs": "7975.100000023842",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b"
+          }
+        }
+      ],
+      "dom": {
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "frozen": "false",
+        "frameId": "76",
+        "generation": "1",
+        "sourceId": "live",
+        "unavailableReason": "source unavailable"
+      },
+      "tape": {
+        "frameId": "76",
+        "generation": "1",
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "sourceId": "live",
+        "frozen": "false",
+        "unavailableReason": "source unavailable"
+      },
+      "errors": [
+        "analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "Chart ACK unavailable: HTTP 503: analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "DOM update unavailable · displaying retained snapshot: Stream evidence unavailable"
+      ]
+    },
+    {
+      "at": 69383.59999999404,
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "source": [
+        "LIVE",
+        "Public live shared collector",
+        "Not ready / diagnostic",
+        "unavailable"
+      ],
+      "telemetry": "Session 6393e296 · generation 1Queue 0 / high 123Coalesced 179 · overflow 1ACK expired 0Observer 129.5 msReceive→paint 34.9 msPublish→ACK ≤ 141.3 ms",
+      "charts": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "paintedViewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "startNs": "229813000000000",
+            "endNs": "229818577047634",
+            "priceMin": "76834",
+            "priceStep": "0.5",
+            "drawMs": "0.800",
+            "tileCount": "41",
+            "tileAllocations": "41",
+            "dirtyColumns": "6",
+            "overlayPoints": "162",
+            "pixelWidth": "1400",
+            "pixelHeight": "366"
+          },
+          "age": {
+            "frameId": "79",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "6063.0999999940395",
+            "responseResidentMs": "6569.199999988079",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "paintedViewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "startNs": "229810000000000",
+            "endNs": "229817161537649",
+            "priceMin": "76858",
+            "priceStep": "0.5",
+            "drawMs": "0.200",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "6",
+            "pixelWidth": "1400",
+            "pixelHeight": "286"
+          },
+          "age": {
+            "frameId": "79",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "6106.4000000059605",
+            "responseResidentMs": "8963.800000011921",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b"
+          }
+        }
+      ],
+      "dom": {
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "frozen": "false",
+        "frameId": "79",
+        "generation": "1",
+        "sourceId": "live",
+        "unavailableReason": "source unavailable"
+      },
+      "tape": {
+        "frameId": "79",
+        "generation": "1",
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "sourceId": "live",
+        "frozen": "false",
+        "unavailableReason": "source unavailable"
+      },
+      "errors": [
+        "analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "Chart ACK unavailable: HTTP 503: analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "DOM update unavailable · displaying retained snapshot: Stream evidence unavailable"
+      ]
+    },
+    {
+      "at": 71157.09999999404,
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "source": [
+        "LIVE",
+        "Public live shared collector",
+        "Not ready / diagnostic",
+        "unavailable"
+      ],
+      "telemetry": "Session 6393e296 · generation 1Queue 0 / high 123Coalesced 179 · overflow 1ACK expired 0Observer 129.5 msReceive→paint 28.2 msPublish→ACK ≤ 145.3 ms",
+      "charts": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "paintedViewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "startNs": "229813000000000",
+            "endNs": "229818577047634",
+            "priceMin": "76834",
+            "priceStep": "0.5",
+            "drawMs": "0.800",
+            "tileCount": "41",
+            "tileAllocations": "41",
+            "dirtyColumns": "6",
+            "overlayPoints": "162",
+            "pixelWidth": "1400",
+            "pixelHeight": "366"
+          },
+          "age": {
+            "frameId": "80",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "6247.699999988079",
+            "responseResidentMs": "6753.799999982119",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "paintedViewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "startNs": "229810000000000",
+            "endNs": "229817161537649",
+            "priceMin": "76858",
+            "priceStep": "0.5",
+            "drawMs": "0.200",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "6",
+            "pixelWidth": "1400",
+            "pixelHeight": "286"
+          },
+          "age": {
+            "frameId": "80",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "6381.5",
+            "responseResidentMs": "9238.90000000596",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b"
+          }
+        }
+      ],
+      "dom": {
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "frozen": "false",
+        "frameId": "80",
+        "generation": "1",
+        "sourceId": "live",
+        "unavailableReason": "source unavailable"
+      },
+      "tape": {
+        "frameId": "80",
+        "generation": "1",
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "sourceId": "live",
+        "frozen": "false",
+        "unavailableReason": "source unavailable"
+      },
+      "errors": [
+        "analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "Chart ACK unavailable: HTTP 503: analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "DOM update unavailable · displaying retained snapshot: Stream evidence unavailable"
+      ]
+    },
+    {
+      "at": 72185.90000000596,
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "source": [
+        "LIVE",
+        "Public live shared collector",
+        "Not ready / diagnostic",
+        "unavailable"
+      ],
+      "telemetry": "Session 6393e296 · generation 1Queue 0 / high 123Coalesced 179 · overflow 1ACK expired 0Observer 129.5 msReceive→paint 24.3 msPublish→ACK ≤ 817.1 ms",
+      "charts": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "paintedViewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "startNs": "229813000000000",
+            "endNs": "229818577047634",
+            "priceMin": "76834",
+            "priceStep": "0.5",
+            "drawMs": "0.800",
+            "tileCount": "41",
+            "tileAllocations": "41",
+            "dirtyColumns": "6",
+            "overlayPoints": "162",
+            "pixelWidth": "1400",
+            "pixelHeight": "366"
+          },
+          "age": {
+            "frameId": "86",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "8835.90000000596",
+            "responseResidentMs": "9342",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "paintedViewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "startNs": "229810000000000",
+            "endNs": "229817161537649",
+            "priceMin": "76858",
+            "priceStep": "0.5",
+            "drawMs": "0.200",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "6",
+            "pixelWidth": "1400",
+            "pixelHeight": "286"
+          },
+          "age": {
+            "frameId": "86",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "9079.5",
+            "responseResidentMs": "11936.90000000596",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b"
+          }
+        }
+      ],
+      "dom": {
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "frozen": "false",
+        "frameId": "86",
+        "generation": "1",
+        "sourceId": "live",
+        "unavailableReason": "source unavailable"
+      },
+      "tape": {
+        "frameId": "86",
+        "generation": "1",
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "sourceId": "live",
+        "frozen": "false",
+        "unavailableReason": "source unavailable"
+      },
+      "errors": [
+        "analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "Chart ACK unavailable: HTTP 503: analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "DOM update unavailable · displaying retained snapshot: Stream evidence unavailable"
+      ]
+    },
+    {
+      "at": 73190.30000001192,
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "source": [
+        "LIVE",
+        "Public live shared collector",
+        "Not ready / diagnostic",
+        "unavailable"
+      ],
+      "telemetry": "Session 6393e296 · generation 1Queue 0 / high 123Coalesced 179 · overflow 1ACK expired 0Observer 129.5 msReceive→paint 37.9 msPublish→ACK ≤ 131.4 ms",
+      "charts": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "paintedViewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "startNs": "229813000000000",
+            "endNs": "229818577047634",
+            "priceMin": "76834",
+            "priceStep": "0.5",
+            "drawMs": "0.800",
+            "tileCount": "41",
+            "tileAllocations": "41",
+            "dirtyColumns": "6",
+            "overlayPoints": "162",
+            "pixelWidth": "1400",
+            "pixelHeight": "366"
+          },
+          "age": {
+            "frameId": "90",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "9930.90000000596",
+            "responseResidentMs": "10437",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "paintedViewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "startNs": "229810000000000",
+            "endNs": "229817161537649",
+            "priceMin": "76858",
+            "priceStep": "0.5",
+            "drawMs": "0.200",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "6",
+            "pixelWidth": "1400",
+            "pixelHeight": "286"
+          },
+          "age": {
+            "frameId": "90",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "10064.5",
+            "responseResidentMs": "12921.90000000596",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b"
+          }
+        }
+      ],
+      "dom": {
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "frozen": "false",
+        "frameId": "90",
+        "generation": "1",
+        "sourceId": "live",
+        "unavailableReason": "source unavailable"
+      },
+      "tape": {
+        "frameId": "90",
+        "generation": "1",
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "sourceId": "live",
+        "frozen": "false",
+        "unavailableReason": "source unavailable"
+      },
+      "errors": [
+        "analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "Chart ACK unavailable: HTTP 503: analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "DOM update unavailable · displaying retained snapshot: Stream evidence unavailable"
+      ]
+    },
+    {
+      "at": 74192.70000001788,
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "source": [
+        "LIVE",
+        "Public live shared collector",
+        "Not ready / diagnostic",
+        "unavailable"
+      ],
+      "telemetry": "Session 6393e296 · generation 1Queue 0 / high 123Coalesced 179 · overflow 1ACK expired 0Observer 129.5 msReceive→paint 35.8 msPublish→ACK ≤ 86.7 ms",
+      "charts": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "paintedViewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "startNs": "229813000000000",
+            "endNs": "229818577047634",
+            "priceMin": "76834",
+            "priceStep": "0.5",
+            "drawMs": "0.800",
+            "tileCount": "41",
+            "tileAllocations": "41",
+            "dirtyColumns": "6",
+            "overlayPoints": "162",
+            "pixelWidth": "1400",
+            "pixelHeight": "366"
+          },
+          "age": {
+            "frameId": "94",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "10822.699999988079",
+            "responseResidentMs": "11328.799999982119",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "paintedViewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "startNs": "229810000000000",
+            "endNs": "229817161537649",
+            "priceMin": "76858",
+            "priceStep": "0.5",
+            "drawMs": "0.200",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "6",
+            "pixelWidth": "1400",
+            "pixelHeight": "286"
+          },
+          "age": {
+            "frameId": "94",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "11029",
+            "responseResidentMs": "13886.40000000596",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b"
+          }
+        }
+      ],
+      "dom": {
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "frozen": "false",
+        "frameId": "94",
+        "generation": "1",
+        "sourceId": "live",
+        "unavailableReason": "source unavailable"
+      },
+      "tape": {
+        "frameId": "94",
+        "generation": "1",
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "sourceId": "live",
+        "frozen": "false",
+        "unavailableReason": "source unavailable"
+      },
+      "errors": [
+        "analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "Chart ACK unavailable: HTTP 503: analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "DOM update unavailable · displaying retained snapshot: Stream evidence unavailable"
+      ]
+    },
+    {
+      "at": 75196.40000000596,
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "source": [
+        "LIVE",
+        "Public live shared collector",
+        "Not ready / diagnostic",
+        "unavailable"
+      ],
+      "telemetry": "Session 6393e296 · generation 1Queue 0 / high 123Coalesced 179 · overflow 1ACK expired 0Observer 129.5 msReceive→paint 31.5 msPublish→ACK ≤ 178.3 ms",
+      "charts": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "paintedViewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "startNs": "229813000000000",
+            "endNs": "229818577047634",
+            "priceMin": "76834",
+            "priceStep": "0.5",
+            "drawMs": "0.800",
+            "tileCount": "41",
+            "tileAllocations": "41",
+            "dirtyColumns": "6",
+            "overlayPoints": "162",
+            "pixelWidth": "1400",
+            "pixelHeight": "366"
+          },
+          "age": {
+            "frameId": "98",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "11925.5",
+            "responseResidentMs": "12431.59999999404",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "paintedViewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "startNs": "229810000000000",
+            "endNs": "229817161537649",
+            "priceMin": "76858",
+            "priceStep": "0.5",
+            "drawMs": "0.200",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "6",
+            "pixelWidth": "1400",
+            "pixelHeight": "286"
+          },
+          "age": {
+            "frameId": "98",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "12059.200000017881",
+            "responseResidentMs": "14916.600000023842",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b"
+          }
+        }
+      ],
+      "dom": {
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "frozen": "false",
+        "frameId": "98",
+        "generation": "1",
+        "sourceId": "live",
+        "unavailableReason": "source unavailable"
+      },
+      "tape": {
+        "frameId": "98",
+        "generation": "1",
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "sourceId": "live",
+        "frozen": "false",
+        "unavailableReason": "source unavailable"
+      },
+      "errors": [
+        "analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "Chart ACK unavailable: HTTP 503: analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "DOM update unavailable · displaying retained snapshot: Stream evidence unavailable"
+      ]
+    },
+    {
+      "at": 76198.5,
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "source": [
+        "LIVE",
+        "Public live shared collector",
+        "Not ready / diagnostic",
+        "unavailable"
+      ],
+      "telemetry": "Session 6393e296 · generation 1Queue 0 / high 123Coalesced 179 · overflow 1ACK expired 0Observer 129.5 msReceive→paint 28.1 msPublish→ACK ≤ 60.4 ms",
+      "charts": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "paintedViewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "startNs": "229813000000000",
+            "endNs": "229818577047634",
+            "priceMin": "76834",
+            "priceStep": "0.5",
+            "drawMs": "0.800",
+            "tileCount": "41",
+            "tileAllocations": "41",
+            "dirtyColumns": "6",
+            "overlayPoints": "162",
+            "pixelWidth": "1400",
+            "pixelHeight": "366"
+          },
+          "age": {
+            "frameId": "102",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "12804",
+            "responseResidentMs": "13310.09999999404",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "paintedViewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "startNs": "229810000000000",
+            "endNs": "229817161537649",
+            "priceMin": "76858",
+            "priceStep": "0.5",
+            "drawMs": "0.200",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "6",
+            "pixelWidth": "1400",
+            "pixelHeight": "286"
+          },
+          "age": {
+            "frameId": "102",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "13002.59999999404",
+            "responseResidentMs": "15860",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b"
+          }
+        }
+      ],
+      "dom": {
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "frozen": "false",
+        "frameId": "102",
+        "generation": "1",
+        "sourceId": "live",
+        "unavailableReason": "source unavailable"
+      },
+      "tape": {
+        "frameId": "102",
+        "generation": "1",
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "sourceId": "live",
+        "frozen": "false",
+        "unavailableReason": "source unavailable"
+      },
+      "errors": [
+        "analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "Chart ACK unavailable: HTTP 503: analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "DOM update unavailable · displaying retained snapshot: Stream evidence unavailable"
+      ]
+    },
+    {
+      "at": 77199.90000000596,
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "source": [
+        "LIVE",
+        "Public live shared collector",
+        "Not ready / diagnostic",
+        "unavailable"
+      ],
+      "telemetry": "Session 6393e296 · generation 1Queue 0 / high 123Coalesced 179 · overflow 1ACK expired 0Observer 129.5 msReceive→paint 26.7 msPublish→ACK ≤ 71.2 ms",
+      "charts": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "paintedViewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "startNs": "229813000000000",
+            "endNs": "229818577047634",
+            "priceMin": "76834",
+            "priceStep": "0.5",
+            "drawMs": "0.800",
+            "tileCount": "41",
+            "tileAllocations": "41",
+            "dirtyColumns": "6",
+            "overlayPoints": "162",
+            "pixelWidth": "1400",
+            "pixelHeight": "366"
+          },
+          "age": {
+            "frameId": "107",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "13847.40000000596",
+            "responseResidentMs": "14353.5",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "paintedViewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "startNs": "229810000000000",
+            "endNs": "229817161537649",
+            "priceMin": "76858",
+            "priceStep": "0.5",
+            "drawMs": "0.200",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "6",
+            "pixelWidth": "1400",
+            "pixelHeight": "286"
+          },
+          "age": {
+            "frameId": "107",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "14001.90000000596",
+            "responseResidentMs": "16859.30000001192",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b"
+          }
+        }
+      ],
+      "dom": {
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "frozen": "false",
+        "frameId": "107",
+        "generation": "1",
+        "sourceId": "live",
+        "unavailableReason": "source unavailable"
+      },
+      "tape": {
+        "frameId": "107",
+        "generation": "1",
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "sourceId": "live",
+        "frozen": "false",
+        "unavailableReason": "source unavailable"
+      },
+      "errors": [
+        "analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "Chart ACK unavailable: HTTP 503: analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "DOM update unavailable · displaying retained snapshot: Stream evidence unavailable"
+      ]
+    },
+    {
+      "at": 78206.90000000596,
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "source": [
+        "LIVE",
+        "Public live shared collector",
+        "Not ready / diagnostic",
+        "unavailable"
+      ],
+      "telemetry": "Session 6393e296 · generation 1Queue 0 / high 123Coalesced 179 · overflow 1ACK expired 0Observer 129.5 msReceive→paint 50.3 msPublish→ACK ≤ 205.4 ms",
+      "charts": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "paintedViewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "startNs": "229813000000000",
+            "endNs": "229818577047634",
+            "priceMin": "76834",
+            "priceStep": "0.5",
+            "drawMs": "0.800",
+            "tileCount": "41",
+            "tileAllocations": "41",
+            "dirtyColumns": "6",
+            "overlayPoints": "162",
+            "pixelWidth": "1400",
+            "pixelHeight": "366"
+          },
+          "age": {
+            "frameId": "112",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "14945.59999999404",
+            "responseResidentMs": "15451.699999988079",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "paintedViewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "startNs": "229810000000000",
+            "endNs": "229817161537649",
+            "priceMin": "76858",
+            "priceStep": "0.5",
+            "drawMs": "0.200",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "6",
+            "pixelWidth": "1400",
+            "pixelHeight": "286"
+          },
+          "age": {
+            "frameId": "112",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "15079.200000017881",
+            "responseResidentMs": "17936.600000023842",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b"
+          }
+        }
+      ],
+      "dom": {
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "frozen": "false",
+        "frameId": "112",
+        "generation": "1",
+        "sourceId": "live",
+        "unavailableReason": "source unavailable"
+      },
+      "tape": {
+        "frameId": "112",
+        "generation": "1",
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "sourceId": "live",
+        "frozen": "false",
+        "unavailableReason": "source unavailable"
+      },
+      "errors": [
+        "analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "Chart ACK unavailable: HTTP 503: analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "DOM update unavailable · displaying retained snapshot: Stream evidence unavailable"
+      ]
+    },
+    {
+      "at": 79209.90000000596,
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "source": [
+        "LIVE",
+        "Public live shared collector",
+        "Not ready / diagnostic",
+        "unavailable"
+      ],
+      "telemetry": "Session 6393e296 · generation 1Queue 0 / high 123Coalesced 179 · overflow 1ACK expired 0Observer 129.5 msReceive→paint 24.4 msPublish→ACK ≤ 41.1 ms",
+      "charts": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "paintedViewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "startNs": "229813000000000",
+            "endNs": "229818577047634",
+            "priceMin": "76834",
+            "priceStep": "0.5",
+            "drawMs": "0.800",
+            "tileCount": "41",
+            "tileAllocations": "41",
+            "dirtyColumns": "6",
+            "overlayPoints": "162",
+            "pixelWidth": "1400",
+            "pixelHeight": "366"
+          },
+          "age": {
+            "frameId": "117",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "15962",
+            "responseResidentMs": "16468.09999999404",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "paintedViewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "startNs": "229810000000000",
+            "endNs": "229817161537649",
+            "priceMin": "76858",
+            "priceStep": "0.5",
+            "drawMs": "0.200",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "6",
+            "pixelWidth": "1400",
+            "pixelHeight": "286"
+          },
+          "age": {
+            "frameId": "117",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "16095.700000017881",
+            "responseResidentMs": "18953.100000023842",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b"
+          }
+        }
+      ],
+      "dom": {
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "frozen": "false",
+        "frameId": "117",
+        "generation": "1",
+        "sourceId": "live",
+        "unavailableReason": "source unavailable"
+      },
+      "tape": {
+        "frameId": "117",
+        "generation": "1",
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "sourceId": "live",
+        "frozen": "false",
+        "unavailableReason": "source unavailable"
+      },
+      "errors": [
+        "analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "Chart ACK unavailable: HTTP 503: analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "DOM update unavailable · displaying retained snapshot: Stream evidence unavailable"
+      ]
+    },
+    {
+      "at": 80214,
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "source": [
+        "LIVE",
+        "Public live shared collector",
+        "Not ready / diagnostic",
+        "unavailable"
+      ],
+      "telemetry": "Session 6393e296 · generation 1Queue 0 / high 123Coalesced 179 · overflow 1ACK expired 0Observer 129.5 msReceive→paint 22.8 msPublish→ACK ≤ 31.2 ms",
+      "charts": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "paintedViewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "startNs": "229813000000000",
+            "endNs": "229818577047634",
+            "priceMin": "76834",
+            "priceStep": "0.5",
+            "drawMs": "0.800",
+            "tileCount": "41",
+            "tileAllocations": "41",
+            "dirtyColumns": "6",
+            "overlayPoints": "162",
+            "pixelWidth": "1400",
+            "pixelHeight": "366"
+          },
+          "age": {
+            "frameId": "120",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "16699.19999998808",
+            "responseResidentMs": "17205.29999998212",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "paintedViewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "startNs": "229810000000000",
+            "endNs": "229817161537649",
+            "priceMin": "76858",
+            "priceStep": "0.5",
+            "drawMs": "0.200",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "6",
+            "pixelWidth": "1400",
+            "pixelHeight": "286"
+          },
+          "age": {
+            "frameId": "120",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "17003.70000001788",
+            "responseResidentMs": "19861.100000023842",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b"
+          }
+        }
+      ],
+      "dom": {
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "frozen": "false",
+        "frameId": "120",
+        "generation": "1",
+        "sourceId": "live",
+        "unavailableReason": "source unavailable"
+      },
+      "tape": {
+        "frameId": "120",
+        "generation": "1",
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "sourceId": "live",
+        "frozen": "false",
+        "unavailableReason": "source unavailable"
+      },
+      "errors": [
+        "analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "Chart ACK unavailable: HTTP 503: analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "DOM update unavailable · displaying retained snapshot: Stream evidence unavailable"
+      ]
+    },
+    {
+      "at": 81263.09999999404,
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "source": [
+        "LIVE",
+        "Public live shared collector",
+        "Not ready / diagnostic",
+        "unavailable"
+      ],
+      "telemetry": "Session 6393e296 · generation 1Queue 0 / high 123Coalesced 179 · overflow 1ACK expired 0Observer 129.5 msReceive→paint 27.2 msPublish→ACK ≤ 60.2 ms",
+      "charts": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "paintedViewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "startNs": "229813000000000",
+            "endNs": "229818577047634",
+            "priceMin": "76834",
+            "priceStep": "0.5",
+            "drawMs": "0.800",
+            "tileCount": "41",
+            "tileAllocations": "41",
+            "dirtyColumns": "6",
+            "overlayPoints": "162",
+            "pixelWidth": "1400",
+            "pixelHeight": "366"
+          },
+          "age": {
+            "frameId": "124",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "18011.90000000596",
+            "responseResidentMs": "18518",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "paintedViewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "startNs": "229810000000000",
+            "endNs": "229817161537649",
+            "priceMin": "76858",
+            "priceStep": "0.5",
+            "drawMs": "0.200",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "6",
+            "pixelWidth": "1400",
+            "pixelHeight": "286"
+          },
+          "age": {
+            "frameId": "124",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "18002",
+            "responseResidentMs": "20859.40000000596",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b"
+          }
+        }
+      ],
+      "dom": {
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "frozen": "false",
+        "frameId": "124",
+        "generation": "1",
+        "sourceId": "live",
+        "unavailableReason": "source unavailable"
+      },
+      "tape": {
+        "frameId": "124",
+        "generation": "1",
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "sourceId": "live",
+        "frozen": "false",
+        "unavailableReason": "source unavailable"
+      },
+      "errors": [
+        "analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "Chart ACK unavailable: HTTP 503: analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "DOM update unavailable · displaying retained snapshot: Stream evidence unavailable"
+      ]
+    },
+    {
+      "at": 82270.70000001788,
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "source": [
+        "LIVE",
+        "Public live shared collector",
+        "Not ready / diagnostic",
+        "unavailable"
+      ],
+      "telemetry": "Session 6393e296 · generation 1Queue 0 / high 123Coalesced 179 · overflow 1ACK expired 0Observer 129.5 msReceive→paint 27.8 msPublish→ACK ≤ 104.4 ms",
+      "charts": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "paintedViewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "startNs": "229813000000000",
+            "endNs": "229818577047634",
+            "priceMin": "76834",
+            "priceStep": "0.5",
+            "drawMs": "0.800",
+            "tileCount": "41",
+            "tileAllocations": "41",
+            "dirtyColumns": "6",
+            "overlayPoints": "162",
+            "pixelWidth": "1400",
+            "pixelHeight": "366"
+          },
+          "age": {
+            "frameId": "128",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "19031",
+            "responseResidentMs": "19537.09999999404",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "paintedViewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "startNs": "229810000000000",
+            "endNs": "229817161537649",
+            "priceMin": "76858",
+            "priceStep": "0.5",
+            "drawMs": "0.200",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "6",
+            "pixelWidth": "1400",
+            "pixelHeight": "286"
+          },
+          "age": {
+            "frameId": "128",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "19164.80000001192",
+            "responseResidentMs": "22022.20000001788",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b"
+          }
+        }
+      ],
+      "dom": {
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "frozen": "false",
+        "frameId": "128",
+        "generation": "1",
+        "sourceId": "live",
+        "unavailableReason": "source unavailable"
+      },
+      "tape": {
+        "frameId": "128",
+        "generation": "1",
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "sourceId": "live",
+        "frozen": "false",
+        "unavailableReason": "source unavailable"
+      },
+      "errors": [
+        "analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "Chart ACK unavailable: HTTP 503: analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "DOM update unavailable · displaying retained snapshot: Stream evidence unavailable"
+      ]
+    },
+    {
+      "at": 83300.30000001192,
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "source": [
+        "LIVE",
+        "Public live shared collector",
+        "Not ready / diagnostic",
+        "unavailable"
+      ],
+      "telemetry": "Session 6393e296 · generation 1Queue 0 / high 123Coalesced 179 · overflow 1ACK expired 0Observer 129.5 msReceive→paint 27.1 msPublish→ACK ≤ 62.1 ms",
+      "charts": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "paintedViewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "startNs": "229813000000000",
+            "endNs": "229818577047634",
+            "priceMin": "76834",
+            "priceStep": "0.5",
+            "drawMs": "0.800",
+            "tileCount": "41",
+            "tileAllocations": "41",
+            "dirtyColumns": "6",
+            "overlayPoints": "162",
+            "pixelWidth": "1400",
+            "pixelHeight": "366"
+          },
+          "age": {
+            "frameId": "132",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "20015.5",
+            "responseResidentMs": "20521.59999999404",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "paintedViewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "startNs": "229810000000000",
+            "endNs": "229817161537649",
+            "priceMin": "76858",
+            "priceStep": "0.5",
+            "drawMs": "0.200",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "6",
+            "pixelWidth": "1400",
+            "pixelHeight": "286"
+          },
+          "age": {
+            "frameId": "132",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "20060.30000001192",
+            "responseResidentMs": "22917.70000001788",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b"
+          }
+        }
+      ],
+      "dom": {
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "frozen": "false",
+        "frameId": "132",
+        "generation": "1",
+        "sourceId": "live",
+        "unavailableReason": "source unavailable"
+      },
+      "tape": {
+        "frameId": "132",
+        "generation": "1",
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "sourceId": "live",
+        "frozen": "false",
+        "unavailableReason": "source unavailable"
+      },
+      "errors": [
+        "analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "Chart ACK unavailable: HTTP 503: analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "DOM update unavailable · displaying retained snapshot: Stream evidence unavailable"
+      ]
+    },
+    {
+      "at": 84303.70000001788,
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "source": [
+        "LIVE",
+        "Public live shared collector",
+        "Not ready / diagnostic",
+        "unavailable"
+      ],
+      "telemetry": "Session 6393e296 · generation 1Queue 0 / high 123Coalesced 179 · overflow 1ACK expired 0Observer 129.5 msReceive→paint 19.7 msPublish→ACK ≤ 88.6 ms",
+      "charts": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "paintedViewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "startNs": "229813000000000",
+            "endNs": "229818577047634",
+            "priceMin": "76834",
+            "priceStep": "0.5",
+            "drawMs": "0.800",
+            "tileCount": "41",
+            "tileAllocations": "41",
+            "dirtyColumns": "6",
+            "overlayPoints": "162",
+            "pixelWidth": "1400",
+            "pixelHeight": "366"
+          },
+          "age": {
+            "frameId": "135",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "21002.30000001192",
+            "responseResidentMs": "21508.40000000596",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "paintedViewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "startNs": "229810000000000",
+            "endNs": "229817161537649",
+            "priceMin": "76858",
+            "priceStep": "0.5",
+            "drawMs": "0.200",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "6",
+            "pixelWidth": "1400",
+            "pixelHeight": "286"
+          },
+          "age": {
+            "frameId": "135",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "21058.59999999404",
+            "responseResidentMs": "23916",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b"
+          }
+        }
+      ],
+      "dom": {
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "frozen": "false",
+        "frameId": "135",
+        "generation": "1",
+        "sourceId": "live",
+        "unavailableReason": "source unavailable"
+      },
+      "tape": {
+        "frameId": "135",
+        "generation": "1",
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "sourceId": "live",
+        "frozen": "false",
+        "unavailableReason": "source unavailable"
+      },
+      "errors": [
+        "analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "Chart ACK unavailable: HTTP 503: analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "DOM update unavailable · displaying retained snapshot: Stream evidence unavailable"
+      ]
+    },
+    {
+      "at": 85611.30000001192,
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "source": [
+        "LIVE",
+        "Public live shared collector",
+        "Not ready / diagnostic",
+        "unavailable"
+      ],
+      "telemetry": "Session 6393e296 · generation 1Queue 0 / high 123Coalesced 179 · overflow 1ACK expired 0Observer 129.5 msReceive→paint 29.4 msPublish→ACK ≤ 41.5 ms",
+      "charts": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "paintedViewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "startNs": "229813000000000",
+            "endNs": "229818577047634",
+            "priceMin": "76834",
+            "priceStep": "0.5",
+            "drawMs": "0.800",
+            "tileCount": "41",
+            "tileAllocations": "41",
+            "dirtyColumns": "6",
+            "overlayPoints": "162",
+            "pixelWidth": "1400",
+            "pixelHeight": "366"
+          },
+          "age": {
+            "frameId": "140",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "21986.69999998808",
+            "responseResidentMs": "22492.79999998212",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "paintedViewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "startNs": "229810000000000",
+            "endNs": "229817161537649",
+            "priceMin": "76858",
+            "priceStep": "0.5",
+            "drawMs": "0.200",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "6",
+            "pixelWidth": "1400",
+            "pixelHeight": "286"
+          },
+          "age": {
+            "frameId": "140",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "22120.30000001192",
+            "responseResidentMs": "24977.70000001788",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b"
+          }
+        }
+      ],
+      "dom": {
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "frozen": "false",
+        "frameId": "140",
+        "generation": "1",
+        "sourceId": "live",
+        "unavailableReason": "source unavailable"
+      },
+      "tape": {
+        "frameId": "140",
+        "generation": "1",
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "sourceId": "live",
+        "frozen": "false",
+        "unavailableReason": "source unavailable"
+      },
+      "errors": [
+        "analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "Chart ACK unavailable: HTTP 503: analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "DOM update unavailable · displaying retained snapshot: Stream evidence unavailable"
+      ]
+    },
+    {
+      "at": 86613.20000001788,
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "source": [
+        "LIVE",
+        "Public live shared collector",
+        "Not ready / diagnostic",
+        "unavailable"
+      ],
+      "telemetry": "Session 6393e296 · generation 1Queue 0 / high 123Coalesced 179 · overflow 1ACK expired 0Observer 129.5 msReceive→paint 23.9 msPublish→ACK ≤ 71.8 ms",
+      "charts": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "paintedViewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "startNs": "229813000000000",
+            "endNs": "229818577047634",
+            "priceMin": "76834",
+            "priceStep": "0.5",
+            "drawMs": "0.800",
+            "tileCount": "41",
+            "tileAllocations": "41",
+            "dirtyColumns": "6",
+            "overlayPoints": "162",
+            "pixelWidth": "1400",
+            "pixelHeight": "366"
+          },
+          "age": {
+            "frameId": "146",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "23260.69999998808",
+            "responseResidentMs": "23766.79999998212",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "paintedViewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "startNs": "229810000000000",
+            "endNs": "229817161537649",
+            "priceMin": "76858",
+            "priceStep": "0.5",
+            "drawMs": "0.200",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "6",
+            "pixelWidth": "1400",
+            "pixelHeight": "286"
+          },
+          "age": {
+            "frameId": "146",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "23394.40000000596",
+            "responseResidentMs": "26251.80000001192",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b"
+          }
+        }
+      ],
+      "dom": {
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "frozen": "false",
+        "frameId": "146",
+        "generation": "1",
+        "sourceId": "live",
+        "unavailableReason": "source unavailable"
+      },
+      "tape": {
+        "frameId": "146",
+        "generation": "1",
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "sourceId": "live",
+        "frozen": "false",
+        "unavailableReason": "source unavailable"
+      },
+      "errors": [
+        "analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "Chart ACK unavailable: HTTP 503: analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "DOM update unavailable · displaying retained snapshot: Stream evidence unavailable"
+      ]
+    },
+    {
+      "at": 87642.70000001788,
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "source": [
+        "LIVE",
+        "Public live shared collector",
+        "Not ready / diagnostic",
+        "unavailable"
+      ],
+      "telemetry": "Session 6393e296 · generation 1Queue 0 / high 123Coalesced 179 · overflow 1ACK expired 0Observer 129.5 msReceive→paint 28.9 msPublish→ACK ≤ 47.7 ms",
+      "charts": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "paintedViewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "startNs": "229813000000000",
+            "endNs": "229818577047634",
+            "priceMin": "76834",
+            "priceStep": "0.5",
+            "drawMs": "0.800",
+            "tileCount": "41",
+            "tileAllocations": "41",
+            "dirtyColumns": "6",
+            "overlayPoints": "162",
+            "pixelWidth": "1400",
+            "pixelHeight": "366"
+          },
+          "age": {
+            "frameId": "151",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "24306.30000001192",
+            "responseResidentMs": "24812.40000000596",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "paintedViewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "startNs": "229810000000000",
+            "endNs": "229817161537649",
+            "priceMin": "76858",
+            "priceStep": "0.5",
+            "drawMs": "0.200",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "6",
+            "pixelWidth": "1400",
+            "pixelHeight": "286"
+          },
+          "age": {
+            "frameId": "151",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "24440.20000001788",
+            "responseResidentMs": "27297.600000023842",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b"
+          }
+        }
+      ],
+      "dom": {
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "frozen": "false",
+        "frameId": "151",
+        "generation": "1",
+        "sourceId": "live",
+        "unavailableReason": "source unavailable"
+      },
+      "tape": {
+        "frameId": "151",
+        "generation": "1",
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "sourceId": "live",
+        "frozen": "false",
+        "unavailableReason": "source unavailable"
+      },
+      "errors": [
+        "analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "Chart ACK unavailable: HTTP 503: analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "DOM update unavailable · displaying retained snapshot: Stream evidence unavailable"
+      ]
+    },
+    {
+      "at": 88730.40000000596,
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "source": [
+        "LIVE",
+        "Public live shared collector",
+        "Not ready / diagnostic",
+        "unavailable"
+      ],
+      "telemetry": "Session 6393e296 · generation 1Queue 0 / high 123Coalesced 179 · overflow 1ACK expired 0Observer 129.5 msReceive→paint 25.3 msPublish→ACK ≤ 42.8 ms",
+      "charts": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "paintedViewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4",
+            "startNs": "229813000000000",
+            "endNs": "229818577047634",
+            "priceMin": "76834",
+            "priceStep": "0.5",
+            "drawMs": "0.800",
+            "tileCount": "41",
+            "tileAllocations": "41",
+            "dirtyColumns": "6",
+            "overlayPoints": "162",
+            "pixelWidth": "1400",
+            "pixelHeight": "366"
+          },
+          "age": {
+            "frameId": "154",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "25119.90000000596",
+            "responseResidentMs": "25626",
+            "viewId": "db95b7d04f25436c9d5d5e2d7f8fa2c4"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "paintedViewId": "8a3bc9e63c2d41019461ef670c3eb75b",
+            "startNs": "229810000000000",
+            "endNs": "229817161537649",
+            "priceMin": "76858",
+            "priceStep": "0.5",
+            "drawMs": "0.200",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "6",
+            "pixelWidth": "1400",
+            "pixelHeight": "286"
+          },
+          "age": {
+            "frameId": "154",
+            "generation": "1",
+            "testid": "chart-freshness",
+            "sourceMode": "live",
+            "sourceId": "live",
+            "frozen": "false",
+            "unavailableReason": "source unavailable",
+            "evidenceResidentMs": "25253.70000001788",
+            "responseResidentMs": "28111.100000023842",
+            "viewId": "8a3bc9e63c2d41019461ef670c3eb75b"
+          }
+        }
+      ],
+      "dom": {
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "frozen": "false",
+        "frameId": "154",
+        "generation": "1",
+        "sourceId": "live",
+        "unavailableReason": "source unavailable"
+      },
+      "tape": {
+        "frameId": "154",
+        "generation": "1",
+        "testid": "data-freshness",
+        "sourceMode": "live",
+        "sourceId": "live",
+        "frozen": "false",
+        "unavailableReason": "source unavailable"
+      },
+      "errors": [
+        "analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "Chart ACK unavailable: HTTP 503: analytical_queue_overflow: reselect to establish fresh history",
+        "No current stream evidence · unavailable. Retained chart is diagnostic only.",
+        "DOM update unavailable · displaying retained snapshot: Stream evidence unavailable"
+      ]
+    }
+  ]
+}

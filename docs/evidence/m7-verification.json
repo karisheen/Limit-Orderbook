@@ -1,0 +1,70 @@
+{
+  "milestone": "M7 order-flow workstation redesign",
+  "base": "a372354",
+  "branch": "upgrade/m7-orderflow-workstation",
+  "preserved_local_state": "Preexisting untracked root test-results/ was not edited, deleted or selected for staging.",
+  "complete_gate": {
+    "command": "bash tools/check.sh -q --tb=short",
+    "result": "passed",
+    "native_tests_passed": 1246,
+    "native_seconds": 344.19,
+    "total_wall_seconds": 368.50,
+    "native_warning": "Existing Starlette/httpx deprecation",
+    "ruff": "passed",
+    "format_files": 71,
+    "mypy_modules": 35,
+    "frontend_lint": "passed",
+    "frontend_tests_passed": 53,
+    "typescript": "passed",
+    "vite_production_build": "passed",
+    "assets": ["index-CQREprSa.js", "index-CadCRKZ8.css"]
+  },
+  "chromium_gate": {
+    "command": "npm run lint && npm exec -- playwright test --config playwright.m7.config.ts",
+    "cwd": "frontend",
+    "node": "22.22.0 from .tools/node/bin",
+    "server": "Separate native demo-only server on 127.0.0.1:8004",
+    "configuration": "Temporary config changed only baseURL from the standard 8000 to 8004; removed after verification. CI retains its standard demo-only server on 8000.",
+    "ordering": "All production builds completed before this final browser run.",
+    "passed": 46,
+    "failed": 0,
+    "skipped": 1,
+    "skip_reason": "Expected network-only source-preference migration scenario is not applicable to the offline server.",
+    "wall_seconds_including_lint": 269.80
+  },
+  "actual_surface": {
+    "recording": "4498db3b-f4a2-4fff-a32e-a97221fa21ee",
+    "selected_instrument": "binance-global:spot-v3:spot:BTCUSDT",
+    "css_viewports": [[1280,800],[1440,900],[1920,1080]],
+    "screenshot_device_scale": 1.25,
+    "evidence": ["m7-final-layout.json", "m7-final-interactions.json", "m7-final-recorded-stream.json", "m7-final-age-summary.json", "m7-final-freeze-reconnect.json"],
+    "exercised": ["simultaneous heatmap, footprint, DOM and tape", "independent candlestick mode", "pointer chart split", "keyboard DOM width", "maximize and Escape restore", "frozen keyboard zoom", "overlay Escape focus return", "workspace slot save/load without source replacement", "recorded streaming at every requested viewport", "frozen evidence age while sibling streams", "explicit reconnect replaces session and obsolete evidence"]
+  },
+  "native_origin_smoke": {
+    "independence": "Actual HTTP primary128-row origin/step survived sibling32-row recenter unchanged; exact prices matched.",
+    "derived_bound": "price_min=1e30, step=1, offset=1 now rejects before publication; boundary origin with zero offset round-trips identical exact prices."
+  },
+  "recorded_benchmark": {
+    "report": "m7-render-1440.json",
+    "status": "completed",
+    "functional_and_sample_checks": "passed",
+    "code_and_dataset_unchanged": true,
+    "provenance_errors": [],
+    "viewport": [1440, 900],
+    "seconds_per_speed": 30,
+    "speeds": ["1", "2"],
+    "chart_ack_samples_per_speed": [55, 55],
+    "p95_publication_to_ack_upper_bound_ms": [104.001468, 159.350156],
+    "unchanged_budget_ms": 250,
+    "budgets_met": true,
+    "scope": "Aggregate two-pane recorded workload, not live, one-way or GPU latency",
+    "owned_server_reaped": true
+  },
+  "limits": [
+    "Actual public-live run reached existing analytical_queue_overflow; not a sustained-live pass.",
+    "Recorded source lag, browser evidence/response residence, CPU draw, receive-to-paint and publication-to-ACK are distinct measurements.",
+    "Manual samples are automation-perturbed one-second observations, not exhaustive per-frame or exchange-to-screen latency.",
+    "Separate benchmark report retains its own provenance, thresholds and verdict; no inferred certification.",
+    "No 24-hour soak or exchange execution performed."
+  ]
+}

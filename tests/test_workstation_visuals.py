@@ -40,6 +40,7 @@ def view_request(**overrides):
         start_ns="0",
         end_ns=None,
         price_step="1",
+        price_min=None,
         price_offset_rows=0,
         recenter=False,
         bucket_ns=str(SECOND),
@@ -299,6 +300,17 @@ def test_auto_fit_waits_for_valid_bootstrap_and_freezes_until_recenter():
     explicit = feed.query(price_step="0.01", recenter=True)
     assert explicit["price_step"] == "0.01"
     assert D(explicit["prices"][-1]) - D(explicit["price_min"]) == D("0.31")
+
+
+def test_panned_origin_stays_inside_the_resubmittable_exact_domain():
+    feed = VisualFeed()
+    with pytest.raises(ValueError, match="decimal magnitude exceeded"):
+        feed.query(price_min="1e30", price_step="1", price_offset_rows=1)
+    boundary = feed.query(price_min="1e30", price_step="1")
+    pinned = feed.query(price_min=boundary["price_min"], price_step="1")
+    assert pinned["prices"] == boundary["prices"]
+    inside = feed.query(price_min="1e30", price_step="1", price_offset_rows=-1)
+    assert inside["price_min"] == "999999999999999999999999999999"
 
 
 def test_auto_fit_large_quantum_is_selectable_and_ladder_conserves_native_depth():
@@ -614,6 +626,112 @@ def test_reprojection_uses_retained_native_levels_and_pan_is_not_rebinning():
     rebuilt = feed.query(price_step="1")
     assert rebuilt["price_min"] == coarse["price_min"]
     assert rebuilt["columns"] == coarse["columns"]
+
+
+def test_pinned_panes_keep_independent_origins_across_peer_recenter():
+    feed = VisualFeed()
+    feed.quote(0)
+    feed.heartbeat(SECOND + 1)
+    legacy = feed.query()
+    fine_request = dict(
+        price_min="98", price_step="0.1", rows=64, end_ns=str(SECOND + 1)
+    )
+    coarse_request = dict(
+        price_min="50", price_step="5", rows=32, end_ns=str(SECOND + 1)
+    )
+    fine = feed.query(**fine_request)
+    coarse = feed.query(**coarse_request)
+    assert fine["price_min"] == "98"
+    assert coarse["price_min"] == "50"
+    assert cell_at(fine, column_at(fine, SECOND), "99") == ["1", "0"]
+    assert cell_at(coarse, column_at(coarse, SECOND), "95") == ["4", "0"]
+    assert feed.query(price_step=None)["prices"] == legacy["prices"]
+    feed.quote(2 * SECOND, bids=(("199", "7"),), asks=(("201", "11"),))
+    peer = feed.query(price_step="10", rows=64, recenter=True)
+    assert peer["prices"] != fine["prices"]
+    for options, expected in (
+        (fine_request, fine),
+        (coarse_request, coarse),
+        (fine_request, fine),
+        (coarse_request, coarse),
+    ):
+        actual = feed.query(**options)
+        assert actual["prices"] == expected["prices"]
+        assert actual["columns"] == expected["columns"]
+        assert actual["grid_id"] == expected["grid_id"]
+    assert feed.query(price_step=None, rows=64)["prices"] == peer["prices"]
+    assert feed.book.bids[0].price == D("199")
+    assert feed.book.bids[0].quantity == D("7")
+
+
+@pytest.mark.parametrize(
+    "offset,expected", ((3, "0.55"), (-3, "0.25"), (-8, "0"), (-9, "0"))
+)
+def test_pinned_offsets_are_exact_relative_to_origin_and_clamp_at_zero(
+    offset, expected
+):
+    feed = VisualFeed()
+    feed.quote(0, bids=(("0.49", "2"),), asks=(("0.51", "3"),))
+    feed.heartbeat(SECOND + 1)
+    view = feed.query(price_min="0.4", price_step="0.05", price_offset_rows=offset)
+    assert view["price_min"] == expected
+    assert list(map(D, view["prices"])) == [
+        D(expected) + index * D("0.05") for index in range(32)
+    ]
+    if offset <= 0:
+        assert cell_at(view, column_at(view, SECOND), "0.5") == ["0", "3"]
+    else:
+        assert "0.5" not in view["prices"]
+
+
+@pytest.mark.parametrize(
+    "options",
+    (
+        {"price_min": "98.01", "price_step": "0.1"},
+        {"price_min": "98", "price_step": None},
+        {"price_min": "98", "recenter": True},
+        {"price_min": "-1"},
+        {"price_min": "NaN"},
+        {"price_min": "Infinity"},
+        {"price_min": "1e39"},
+        {"price_min": "0" * 129},
+        {"price_min": " 98"},
+        {"price_min": 98},
+        {"price_min": 98.0},
+        {"price_min": True},
+    ),
+)
+def test_pinned_origin_rejects_invalid_inputs_without_mutating_legacy_view(options):
+    feed = VisualFeed()
+    feed.quote(0)
+    before = feed.query()
+    with pytest.raises(ValueError):
+        feed.query(**options)
+    after = feed.query()
+    assert after["prices"] == before["prices"]
+    assert after["columns"] == before["columns"]
+
+
+def test_pinned_origin_survives_reset_only_when_supplied_again():
+    feed = VisualFeed()
+    feed.quote(0)
+    feed.heartbeat(SECOND + 1)
+    request = view_request(price_min="90", price_step="0.5")
+    original = feed.history.query(request, "7")
+    feed.history.reset()
+    reset = feed.history.query(request, "8")
+    assert reset["generation"] == "8"
+    assert reset["replace"] is True
+    assert reset["prices"] == original["prices"]
+    assert reset["columns"] == reset["trades"] == []
+    assert feed.history.anchor is None
+    assert feed.history.price_step is None
+    assert feed.query()["price_min"] == "0"
+    for batch, books, reading in feed.deliveries:
+        feed.history.on_batch(batch, books, SimpleNamespace(reading=reading))
+    restored = feed.history.query(request, "9")
+    assert restored["prices"] == original["prices"]
+    assert restored["columns"] == original["columns"]
 
 
 def test_incremental_frontier_exclusion_and_generation_replacement():

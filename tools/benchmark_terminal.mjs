@@ -62,6 +62,7 @@ const report = {
     'Publication-to-ACK is a server-monotonic round-trip upper bound, not synchronized one-way paint or GPU completion. Exceeding its budget does not establish actual one-way/GPU latency.',
     'ACK cohorts use request-issue time in the Node monotonic half-open measurement interval; pre-window requests are excluded, post-window responses are drained, and unresolved or failed requests invalidate certification.',
     'Browser receive-to-paint includes decode/render and two animation-frame opportunities; draw measures JavaScript Canvas submission only.',
+    'Both visible chart panes contribute draw, visualization ACK and request samples. Interaction geometry and chart-progress checks target the primary Liquidity pane; these aggregate timings are not per-pane certification.',
     'Instrumentation, automation, screenshots and concurrent workstation load perturb timing; runs do not evict OS/browser caches.',
     'Checkout, dependency-lock and dataset hashes bracket the run. Before each cohort and at shutdown, the owned child hashes its resolved executable, shared Python library when applicable, and all loaded module files. Hashing occurs outside timing cohorts. This is not an OS/transitive shared-library attestation or protection against adversarial mutate-and-restore activity.',
     'Frontend source hashes are context only; built bytes and actual browser document/script/stylesheet responses identify the measured surface.',
@@ -304,10 +305,16 @@ async function runScenario(speed) {
   const context = await browser.newContext({ viewport: report.viewport, deviceScaleFactor: 1, serviceWorkers: 'block' });
   const page = await context.newPage();
   page.setDefaultTimeout(30000);
+  const primary = page.getByTestId('chart-pane-heatmap');
+  const primaryChart = primary.getByTestId('market-charts');
+  const primaryViewResponse = response => response.url().endsWith('/api/v1/visualization')
+    && response.request().method() === 'POST' && response.ok()
+    && response.request().postDataJSON().rows === 128
+    && response.request().postDataJSON().bucket_ns === '1000000000';
   const scenario = { speed, status: 'starting', acks: [], requests: [], unresolved_requests: [], response_errors: [], browser_errors: [], visual_responses: 0, response_tasks_lost: 0, request_records_lost: 0, error_records_lost: 0, api_error_count: 0, telemetry_dropped: 0, telemetry_invalid: 0, queue_overflows: 0, frame_ack_baseline: null, frame_ack_evictions: 0, source_mismatches: 0, frame_failures: 0, frame_telemetry: [], source_frame: null, received_view: null, served_assets: [], catalog_sources: [] };
   Object.assign(scenario, { positive_cells_received: 0, visible_trade_points_received: 0, controls: [], non_cohort_cancellations: [], lifecycle_errors: [], chart_progress: [], cohort_pin:null });
   report.scenarios.push(scenario);
-  let measuring = false, sequence = 0, expectedSourceId = options.source === 'demo' ? 'synthetic-demo-v2-180s' : null;
+  let measuring = false, sequence = 0, expectedSourceId = options.source === 'demo' ? 'synthetic-demo-v3-180s' : null;
   const pending = new Set(), inflight = new Map(), records = new WeakMap(), ackIdentities = new Set();
   const addError = (target, value) => { if (target.length < limits.errors) target.push(value); else scenario.error_records_lost++; };
   const apiError = (record, detail) => {
@@ -478,10 +485,13 @@ async function runScenario(speed) {
       expectedSourceId = matches[0].id;
       await page.waitForFunction(id => [...document.querySelectorAll('select[aria-label="Data source"] option')].some(option => !option.disabled && option.value === id), expectedSourceId, { timeout:30000 });
       await page.getByLabel('Data source').selectOption(expectedSourceId);
-      await page.locator('.source-banner').filter({hasText:'Recorded capture'}).waitFor({timeout:120000});
+      await page.locator('.source-banner > strong').filter({hasText:/^RECORDED$/}).waitFor({timeout:120000});
     }
     scenario.expected_source = { id: expectedSourceId, label: options.source, capture: options.manifest ? dirname(options.manifest) : null };
-    if (options.instrument) await page.locator('[data-instrument-id='+JSON.stringify(options.instrument)+']').click();
+    if (options.instrument) {
+      await page.getByLabel('Search instruments').fill(options.instrument);
+      await page.locator('[data-instrument-id='+JSON.stringify(options.instrument)+']').click();
+    }
     const start = options.start ?? (options.manifest ? null : '2000');
     if (start !== null) {
       await page.getByLabel('Seek delivery').fill(start);
@@ -490,38 +500,40 @@ async function runScenario(speed) {
     }
     const waitPaint = async response => {
       const view = await (await response).json();
-      await page.waitForFunction(id=>document.querySelector('[data-testid="market-charts"]')?.dataset.paintedViewId===id,view.view_id);
+      await page.waitForFunction(id=>document.querySelector('[data-testid="chart-pane-heatmap"] [data-testid="market-charts"]')?.dataset.paintedViewId===id,view.view_id);
       return view;
     };
-    const nextView = () => page.waitForResponse(response=>response.url().endsWith('/api/v1/visualization')&&response.ok());
-    await page.waitForFunction(()=>Boolean(document.querySelector('[data-testid="market-charts"]')?.dataset.paintedViewId));
-    await page.waitForFunction(()=>document.querySelector('select[aria-label="Price aggregation"]')?.options.length>1);
-    const quantum=await page.getByLabel('Price aggregation').locator('option').last().evaluate(option=>option.value);
+    const nextView = () => page.waitForResponse(primaryViewResponse);
+    await page.waitForFunction(()=>Boolean(document.querySelector('[data-testid="chart-pane-heatmap"] [data-testid="market-charts"]')?.dataset.paintedViewId));
+    await primary.getByRole('button',{name:'Liquidity settings',exact:true}).click();
+    await page.waitForFunction(()=>document.querySelector('[data-testid="chart-pane-heatmap"] select[aria-label="Price aggregation"]')?.options.length>1);
+    const quantum=await primary.getByLabel('Price aggregation').locator('option').last().evaluate(option=>option.value);
     if (!quantum) throw new Error('No declared display quantum');
     let fresh=nextView();
-    await page.getByLabel('Price aggregation').selectOption(quantum);
+    await primary.getByLabel('Price aggregation').selectOption(quantum);
     await waitPaint(fresh);
     fresh=nextView();
-    await page.getByLabel('Chart range').selectOption('30');
+    await primary.getByLabel('Chart range').selectOption('30');
     await waitPaint(fresh);
     await page.getByLabel('Replay speed').selectOption(speed);
     const started=page.waitForResponse(response=>response.url().endsWith('/api/v1/replay')&&response.request().postDataJSON()?.action==='play'&&response.ok());
     await page.getByTestId('replay-play').click();
     await started;
     await waitPaint(nextView());
-    const canvas=page.getByTestId('liquidity-canvas');
+    const canvas=primary.getByTestId('liquidity-canvas');
     // Separate pan/zoom completion from steady streaming timing: superseded
     // queries during a control change are not failed market-data processing.
     for (const kind of ['pan','zoom']) {
       await waitPaint(nextView());
-      const before=await page.getByTestId('market-charts').evaluate(element=>({...element.dataset}));
+      const before=await primaryChart.evaluate(element=>({...element.dataset}));
+      await primary.getByRole('button',{name:'Liquidity settings',exact:true}).click();
       const box=await canvas.boundingBox();
       if (!box) throw new Error('Chart geometry unavailable');
       await page.mouse.move(box.x+box.width*.5,box.y+box.height*.45);
-      const plot=page.locator('.m4-chart-plot');
+      const plot=primary.locator('.m4-chart-plot');
       await plot.focus();
       fresh=page.waitForResponse(response=>{
-        if(!response.url().endsWith('/api/v1/visualization')||!response.ok())return false;
+        if(!primaryViewResponse(response))return false;
         const input=response.request().postDataJSON();
         if(!canonicalInteger(input?.start_ns)||!canonicalInteger(input?.end_ns))return false;
         const width=BigInt(input.end_ns)-BigInt(input.start_ns), beforeWidth=BigInt(before.endNs)-BigInt(before.startNs);
@@ -530,24 +542,27 @@ async function runScenario(speed) {
       const issued=performance.now();
       if(kind==='pan')await plot.press('ArrowLeft');else await page.mouse.wheel(0,-80);
       const changed=await waitPaint(fresh), painted=performance.now();
+      await primary.getByRole('button',{name:'Liquidity settings',exact:true}).click();
       const oldWidth=BigInt(before.endNs)-BigInt(before.startNs), newWidth=BigInt(changed.end_ns)-BigInt(changed.start_ns);
-      if(await page.getByLabel('Follow time',{exact:true}).isChecked()||(kind==='pan'?(newWidth!==oldWidth||changed.start_ns===before.startNs):newWidth===oldWidth))throw new Error(`The ${kind} control did not change its declared geometry`);
+      if(await primary.getByLabel('Follow time',{exact:true}).isChecked()||(kind==='pan'?(newWidth!==oldWidth||changed.start_ns===before.startNs):newWidth===oldWidth))throw new Error(`The ${kind} control did not change its declared geometry`);
       const followIssued=performance.now();
       fresh=page.waitForResponse(response=>{
-        if(!response.url().endsWith('/api/v1/visualization')||!response.ok()||!(records.get(response.request())?.issued_at_ms>=followIssued))return false;
+        if(!primaryViewResponse(response)||!(records.get(response.request())?.issued_at_ms>=followIssued))return false;
         const input=response.request().postDataJSON();
         return canonicalInteger(input?.end_ns)&&BigInt(input.end_ns)>BigInt(changed.end_ns);
       });
-      await page.getByLabel('Follow time',{exact:true}).check();
+      await primary.getByLabel('Follow time',{exact:true}).check();
       const following=await waitPaint(fresh);
-      if(!await page.getByLabel('Follow time',{exact:true}).isChecked())throw new Error('Follow recovery did not remain enabled');
+      if(!await primary.getByLabel('Follow time',{exact:true}).isChecked())throw new Error('Follow recovery did not remain enabled');
       scenario.controls.push({kind,method:kind==='pan'?'ArrowLeft':'wheel -80',before_window:{start_ns:before.startNs,end_ns:before.endNs},after_window:{start_ns:changed.start_ns,end_ns:changed.end_ns},requested_view_id:changed.view_id,following_view_id:following.view_id,control_to_paint_ms:painted-issued,follow_recovery_to_paint_ms:performance.now()-followIssued});
     }
-    scenario.display_controls={price_step:quantum,range_seconds:30,rows:128,follow_time:true,interaction_policy:'Pan/zoom completion is measured during replay before the steady streaming cohort; cursor paint responsiveness is measured throughout that cohort. Superseded non-cohort query cancellations are retained separately.'};
+    await primary.getByRole('button',{name:'Liquidity settings',exact:true}).click();
+    await waitPaint(nextView());
+    scenario.display_controls={pane:'heatmap',concurrent_pane:'flow',measurement_scope:'Both panes; primary interaction and progress geometry',price_step:quantum,range_seconds:30,rows:128,follow_time:true,interaction_policy:'Pan/zoom completion is measured during replay before the steady streaming cohort; cursor paint responsiveness is measured throughout that cohort. Superseded non-cohort query cancellations are retained separately.'};
     scenario.startup_and_history_preparation_ms=performance.now()-startup;
     scenario.runtime_snapshot_index=await pinRuntime();
     scenario.layout_before=await page.locator('.workspace').boundingBox();
-    scenario.canvas_before=await page.getByTestId('market-charts').evaluate(element=>({...element.dataset}));
+    scenario.canvas_before=await primaryChart.evaluate(element=>({...element.dataset}));
     const cdp=await context.newCDPSession(page);
     await cdp.send('Performance.enable');
     scenario.renderer_metrics_before=(await cdp.send('Performance.getMetrics')).metrics;
@@ -566,7 +581,7 @@ async function runScenario(speed) {
       }
       await page.waitForTimeout(500);
       iteration++;
-      if(scenario.chart_progress.length<limits.samples)scenario.chart_progress.push({received_at_ms:performance.now(),end_ns:await page.getByTestId('market-charts').getAttribute('data-end-ns')});
+      if(scenario.chart_progress.length<limits.samples)scenario.chart_progress.push({received_at_ms:performance.now(),end_ns:await primaryChart.getAttribute('data-end-ns')});
       else scenario.telemetry_dropped++;
       if (/\bended\b/i.test(await page.locator('.source-banner').innerText())) { scenario.capture_ended_early=true; break; }
     }
@@ -580,8 +595,10 @@ async function runScenario(speed) {
     while (scenario.requests.some(record=>record.state==='issued') && performance.now()<deadline) { assertRunning(); await sleep(50); }
     scenario.unresolved_requests=scenario.requests.filter(record=>record.state==='issued').map(record=>({...record}));
     scenario.layout_after=await page.locator('.workspace').boundingBox();
-    scenario.canvas_after=await page.getByTestId('market-charts').evaluate(element=>({...element.dataset}));
-    scenario.streaming_window_advanced=await page.getByLabel('Follow time',{exact:true}).isChecked()&&BigInt(scenario.canvas_after.endNs)>BigInt(scenario.canvas_before.endNs);
+    scenario.canvas_after=await primaryChart.evaluate(element=>({...element.dataset}));
+    await primary.getByRole('button',{name:'Liquidity settings',exact:true}).click();
+    scenario.streaming_window_advanced=await primary.getByLabel('Follow time',{exact:true}).isChecked()&&BigInt(scenario.canvas_after.endNs)>BigInt(scenario.canvas_before.endNs);
+    await primary.getByRole('button',{name:'Liquidity settings',exact:true}).click();
     scenario.renderer_metrics_after=(await cdp.send('Performance.getMetrics')).metrics;
     scenario.renderer_metrics_scope='Chromium renderer cumulative durations and JS heap snapshots; not whole-browser RSS or GPU memory.';
     await cdp.detach();
@@ -589,6 +606,10 @@ async function runScenario(speed) {
     scenario.measurements={publish_to_ack_upper_bound:quantiles(scenario.acks.map(v=>v.publish_to_ack_upper_bound_ms)),receive_to_paint:quantiles(scenario.acks.map(v=>v.browser_receive_to_paint_ms)),draw:quantiles(measured.draw),frame_interval:quantiles(measured.frame_intervals),input_paint_opportunity:quantiles(measured.input_paint),long_tasks:quantiles(measured.long_tasks),longtask_supported:measured.longtask_supported,dropped_samples:measured.dropped,invalid_browser_samples:measured.invalid};
     scenario.raw_browser_measurements=measured;
     scenario.final_cursor=await page.locator('.cursor').innerText();
+    await primary.getByRole('button',{name:'Liquidity Inspector',exact:true}).click();
+    await primary.locator('.chart-pane-diagnostics > summary').click();
+    scenario.pane_paint_diagnostics=await primary.getByTestId('chart-telemetry').innerText();
+    await primary.getByRole('button',{name:'Liquidity Inspector',exact:true}).click();
     const screenshot=options.output.replace(/\.json$/,'')+`-${speed}x.png`;
     // Never overwrite an earlier screenshot, including after a failed run.
     const image=await page.screenshot({fullPage:true});
@@ -613,7 +634,7 @@ try {
   report.tool_sha256 = report.hashes_at_start.tool;
   if (!report.hashes_at_start.built_frontend['frontend/dist/index.html']) throw new Error('Build frontend/dist before benchmarking');
   for (const path of Object.keys(report.hashes_at_start.built_frontend)) if ((await stat(join(root,path))).size > limits.assetBytes) throw new Error(`Built asset exceeds byte bound: ${path}`);
-  datasetPath = options.manifest ?? join(root, 'tests/fixtures/workstation/demo-v2.json');
+  datasetPath = options.manifest ?? join(root, 'tests/fixtures/workstation/demo-v3.json');
   if (options.manifest) {
     if ((await lstat(dirname(datasetPath))).isSymbolicLink()) throw new Error('Capture directory cannot be a symlink');
     datasetPath = join(await realpath(dirname(datasetPath)), basename(datasetPath));
@@ -626,7 +647,7 @@ try {
   datasetFiles = options.manifest ? dataset.files : [];
   if (!Array.isArray(datasetFiles) || datasetFiles.length > 100000) throw new Error('Invalid or oversized manifest file list');
   if (options.manifest && (dataset.complete !== true || dataset.incomplete_reasons?.length || !datasetFiles.length)) throw new Error('Recorded benchmark requires a complete finalized manifest');
-  report.dataset = { path:datasetPath, capture_directory:options.manifest?dirname(datasetPath):null, sha256:hash(datasetBytes), declaration:options.manifest?'Exact capture supplied to owned CLI; runtime RecordingReader performs full verification before source availability':'repository synthetic180s/24stream fixture', streams:dataset.streams??null, counts:options.manifest?{raw:dataset.raw_count,batches:dataset.batch_count,events:dataset.event_count}:null };
+  report.dataset = { path:datasetPath, capture_directory:options.manifest?dirname(datasetPath):null, sha256:hash(datasetBytes), declaration:options.manifest?'Exact capture supplied to owned CLI; runtime RecordingReader performs full verification before source availability':'repository synthetic fixture, not recorded market activity', streams:dataset.streams??null, counts:options.manifest?{raw:dataset.raw_count,batches:dataset.batch_count,events:dataset.event_count}:null };
   report.dataset.hashes_at_start = await datasetSnapshot();
   if (report.dataset.hashes_at_start.manifest_or_fixture_sha256 !== report.dataset.sha256) throw new Error('Dataset declaration changed during hashing');
   for (const file of datasetFiles) {

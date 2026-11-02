@@ -1,0 +1,77 @@
+{
+  "method": "Nearest-rank p95 of 20 one-second browser samples per viewport. Render values deduplicated by painted view ID; this is sampled evidence, not exhaustive per-frame latency. Source lag is primary-mode source-clock age, not network or wall-clock age.",
+  "rows": [
+    {
+      "viewport": "1280x800",
+      "pane": "heatmap",
+      "samples": 20,
+      "distinctPaintedViews": 18,
+      "availableSourceLag": 20,
+      "unavailableReasons": [],
+      "p95DrawMs": 2.1,
+      "p95ReceiveToPaintMs": 63.1,
+      "p95SourceLagMs": 1900.469718,
+      "p95EvidenceResidenceMs": 1001.6999999880791
+    },
+    {
+      "viewport": "1280x800",
+      "pane": "flow",
+      "samples": 20,
+      "distinctPaintedViews": 18,
+      "availableSourceLag": 20,
+      "unavailableReasons": [],
+      "p95DrawMs": 0.7,
+      "p95ReceiveToPaintMs": 54.3,
+      "p95SourceLagMs": 1481.10003,
+      "p95EvidenceResidenceMs": 1000.9000000059605
+    },
+    {
+      "viewport": "1440x900",
+      "pane": "heatmap",
+      "samples": 20,
+      "distinctPaintedViews": 18,
+      "availableSourceLag": 20,
+      "unavailableReasons": [],
+      "p95DrawMs": 3.5,
+      "p95ReceiveToPaintMs": 52.3,
+      "p95SourceLagMs": 1797.840127,
+      "p95EvidenceResidenceMs": 1002
+    },
+    {
+      "viewport": "1440x900",
+      "pane": "flow",
+      "samples": 20,
+      "distinctPaintedViews": 18,
+      "availableSourceLag": 20,
+      "unavailableReasons": [],
+      "p95DrawMs": 0.7,
+      "p95ReceiveToPaintMs": 50.6,
+      "p95SourceLagMs": 1296.148622,
+      "p95EvidenceResidenceMs": 1002.1000000238419
+    },
+    {
+      "viewport": "1920x1080",
+      "pane": "heatmap",
+      "samples": 20,
+      "distinctPaintedViews": 18,
+      "availableSourceLag": 20,
+      "unavailableReasons": [],
+      "p95DrawMs": 1.4,
+      "p95ReceiveToPaintMs": 51.6,
+      "p95SourceLagMs": 1879.790082,
+      "p95EvidenceResidenceMs": 1000.9000000059605
+    },
+    {
+      "viewport": "1920x1080",
+      "pane": "flow",
+      "samples": 20,
+      "distinctPaintedViews": 18,
+      "availableSourceLag": 20,
+      "unavailableReasons": [],
+      "p95DrawMs": 0.8,
+      "p95ReceiveToPaintMs": 50.9,
+      "p95SourceLagMs": 1447.014924,
+      "p95EvidenceResidenceMs": 1001.7000000178814
+    }
+  ]
+}
