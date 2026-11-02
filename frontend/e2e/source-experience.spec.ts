@@ -140,7 +140,6 @@ test('network launch migrates automatic legacy demo to actual public live with a
   await page.getByLabel('Search instruments').fill('BTC');
   await page.getByLabel('Filter venue').selectOption('hyperliquid');
   await page.locator('[data-instrument-id="hyperliquid:info:perpetual:BTC"]').click();
-  await expect(page.getByLabel('Price aggregation').locator('option[value="100"]')).toBeAttached();
   await page.getByLabel('Price aggregation').selectOption('100');
   await expect(page.getByTestId('grouped-ladder').locator('tr.bid').first()).toBeVisible();
   await expect(page.getByTestId('grouped-ladder').locator('tr.ask').last()).toBeVisible();

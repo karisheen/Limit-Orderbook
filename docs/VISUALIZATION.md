@@ -47,6 +47,16 @@ select retained exact boundary evidence. No incoming range or percentile
 changes a historical price grid or liquidity hash. Color transfer belongs to
 explicit frontend presentation controls, not server normalization.
 
+The **Fixed contrast** slider selects a full-intensity base quantity on a
+logarithmic control spanning `1e-12` through `1e12`. Color intensity itself stays
+linear from zero to that fixed quantity; incoming liquidity never rescales old
+cells. This makes both small BTC quantities and large SOL quantities visible
+without clipping everything at the former 10-unit control ceiling. For example,
+an explicitly selected 1,000-SOL scale reveals differences among 100–1,000-SOL
+levels. The legend and accessible slider value state the actual quantity/unit.
+The selected quantity survives preference reload; adjust it when changing base
+assets. This is presentation only, not a change to native prices or quantities.
+
 The immutable native `Book` at a sample is shared, not copied for each delivery.
 Explicit price reprojection reads those retained exact native levels. It never
 reconstructs finer history from aggregated pixels. Coverage is per side and

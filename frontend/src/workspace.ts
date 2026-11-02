@@ -27,7 +27,7 @@ export function validatePreferences(value: unknown): WorkspacePreferences {
   next.leftWidth = Math.round(bounded(p.leftWidth, 180, 360, defaults.leftWidth));
   next.rightWidth = Math.round(bounded(p.rightWidth, 250, 500, defaults.rightWidth));
   next.bottomHeight = Math.round(bounded(p.bottomHeight, 170, 460, defaults.bottomHeight));
-  next.contrast = bounded(p.contrast, 0.1, 10, 1);
+  next.contrast = bounded(p.contrast, 1e-12, 1e12, 1);
   next.domRows = Math.round(bounded(p.domRows, 1, 100, 15));
   next.priceOffset = Math.round(bounded(p.priceOffset, -10000, 10000, 0));
   next.rangeSeconds = [30, 60, 180, 300, 600].includes(p.rangeSeconds as number) ? p.rangeSeconds as number : 180;

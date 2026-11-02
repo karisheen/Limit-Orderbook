@@ -10402,7 +10402,7 @@
     },
     "contract": "Initialize at new lease commit; drain new deliveries while joining departed collectors; unchanged queue and native depth bounds"
   },
-  "status": "Verified incremental checkpoint; sustained Binance overflow remains open; do not merge yet.",
+  "status": "All local functional/static/browser gates passed. Runtime checkpoint pushed; publishing final UI/evidence increment and awaiting final-head GitHub checks before normal merge.",
   "frontend_before_heatmap_coverage": {
     "lint": true,
     "unit_passed": 20,
@@ -10466,16 +10466,11 @@
     "frontend/dist/assets/index-oTep9C8S.css": "38486ada97071a112e91b94b5232dee2750c97cd5787ac5b1ce5a211ee439812"
   },
   "final_offline_browser": {
-    "command": "npm run test:e2e",
+    "command": "npm --prefix frontend run test:e2e",
     "passed": 28,
-    "live_only_skipped": 1,
-    "seconds": 141.63,
-    "checks": [
-      "Actual native canvas coverage across both halves of one-sided time buckets",
-      "Batched visibility recovery with changed canvas pixels",
-      "Source precedence and fail-closed source recovery",
-      "Replay, selection, layout, DOM freeze and exact native evidence"
-    ]
+    "skipped": 1,
+    "wall_seconds": 144.71,
+    "skip_reason": "Operator-enabled network case is intentionally skipped on offline server."
   },
   "final_network_browser": {
     "command": "npm run test:e2e -- e2e/source-experience.spec.ts",
@@ -10602,5 +10597,252 @@
       "overflows": 0,
       "limitations": "A diagnostic sample, not acceptance; timing wrappers add overhead. Earlier Binance overflow remains unresolved."
     }
+  },
+  "final_live_soaks": {
+    "binance": {
+      "passed": true,
+      "seconds": 300.0079296279873,
+      "samples": 140,
+      "session": "0c78b9884f1042c5a6010df64901635c",
+      "generation": "1",
+      "instrument": "binance-global:spot-v3:spot:BTCUSDT",
+      "first_revision": "105",
+      "last_revision": "3098",
+      "overflows": 0,
+      "queue_highwater": 105
+    },
+    "hyperliquid": {
+      "passed": true,
+      "seconds": 300.00555058498867,
+      "samples": 141,
+      "session": "0c78b9884f1042c5a6010df64901635c",
+      "generation": "2",
+      "instrument": "hyperliquid:info:perpetual:BTC",
+      "first_revision": "78",
+      "last_revision": "134",
+      "overflows": 0,
+      "queue_highwater": 105
+    },
+    "binance_return": {
+      "passed": true,
+      "seconds": 120.01305214100285,
+      "samples": 54,
+      "session": "0c78b9884f1042c5a6010df64901635c",
+      "generation": "3",
+      "instrument": "binance-global:spot-v3:spot:BTCUSDT",
+      "first_revision": "8575",
+      "last_revision": "9754",
+      "overflows": 0,
+      "queue_highwater": 105
+    }
+  },
+  "catalog_regression": {
+    "before": {
+      "failed": 1,
+      "seconds": 6.54,
+      "behavior": "Actual book delivery could not progress while catalog serialization held the event loop."
+    },
+    "after": {
+      "passed": 2,
+      "seconds": 6.34,
+      "behavior": "Native delivery advances while catalog work is held; metadata, source scope and in-place readiness-reason changes invalidate the catalog response."
+    }
+  },
+  "dto_and_depth": {
+    "native_regressions": 133,
+    "native_seconds": 73.43,
+    "mypy": "35 modules passed",
+    "ruff": "passed",
+    "format": "passed",
+    "measurement": {
+      "source": "Repository's explicit synthetic demo, complete native replay prefix; not live venue data or a throughput guarantee.",
+      "delivery_count": 6970,
+      "metrics": 41,
+      "outputs": {
+        "before": {
+          "sha256": "33f5b6fe2e1f94998739f6fe940e83ae3c7107b9e13346169ecec0ea3ae28039",
+          "encoded_bytes": 282124,
+          "unique_containers": 1586
+        },
+        "after": {
+          "sha256": "33f5b6fe2e1f94998739f6fe940e83ae3c7107b9e13346169ecec0ea3ae28039",
+          "encoded_bytes": 282124,
+          "unique_containers": 796
+        }
+      },
+      "timing": {
+        "before": {
+          "iterations": 50,
+          "median_cpu_ms": 8.1783275,
+          "p95_cpu_ms": 10.929645,
+          "max_cpu_ms": 73.265793
+        },
+        "after": {
+          "iterations": 50,
+          "median_cpu_ms": 3.7617760000000002,
+          "p95_cpu_ms": 6.545887,
+          "max_cpu_ms": 7.680599
+        }
+      },
+      "harness_source": "\"\"\"Throwaway deterministic native demo benchmark, not live-feed throughput proof.\"\"\"\nimport asyncio\nfrom dataclasses import fields, is_dataclass\nfrom decimal import Decimal\nfrom hashlib import sha256\nimport json\nfrom pathlib import Path\nimport statistics\nimport sys\nimport time\n\nsys.path.insert(0, str(Path(__file__).resolve().parents[1]))\nfrom src.workstation import runtime as module\nfrom src.workstation.precision import DERIVED_DECIMAL_POLICY, canonical_decimal\n\n\ndef baseline(value):\n    if value is None or isinstance(value, (str, bool)):\n        return value\n    if isinstance(value, Decimal):\n        return canonical_decimal(value, policy=DERIVED_DECIMAL_POLICY)\n    if isinstance(value, int):\n        return str(value)\n    if isinstance(value, float):\n        return value\n    if is_dataclass(value):\n        return {field.name: baseline(getattr(value, field.name)) for field in fields(value)}\n    if isinstance(value, dict):\n        return {str(key): baseline(item) for key, item in value.items()}\n    if isinstance(value, (tuple, list, set, frozenset)):\n        return [baseline(item) for item in value]\n    raise TypeError(f\"unsupported terminal DTO: {type(value).__name__}\")\n\n\ndef containers(value, seen=None):\n    seen = set() if seen is None else seen\n    if isinstance(value, (dict, list)) and id(value) not in seen:\n        seen.add(id(value))\n        for item in value.values() if isinstance(value, dict) else value:\n            containers(item, seen)\n    return len(seen)\n\n\nasync def main():\n    runtime = module.TerminalRuntime()\n    try:\n        await runtime.start()\n        session = await runtime.create()\n\n        def measure():\n            session.replay.seek_delivery(session.replay.total_deliveries)\n            snapshot = session.engine.snapshot(session.instrument_id, session.replay.clock.reading, key=session.key)\n            changed = module.dto\n            timings = {\"before\": [], \"after\": []}\n            outputs = {}\n            try:\n                for index in range(50):\n                    choices = [(\"before\", baseline), (\"after\", changed)]\n                    if index % 2:\n                        choices.reverse()\n                    for name, convert in choices:\n                        module.dto = convert\n                        started = time.thread_time_ns()\n                        output = module._analytics_presentation(snapshot)\n                        timings[name].append((time.thread_time_ns() - started) / 1_000_000)\n                        encoded = json.dumps(output, sort_keys=True, separators=(\",\", \":\")).encode()\n                        outputs[name] = {\"sha256\": sha256(encoded).hexdigest(), \"encoded_bytes\": len(encoded), \"unique_containers\": containers(output)}\n                assert outputs[\"before\"][\"sha256\"] == outputs[\"after\"][\"sha256\"]\n                return {\"source\": \"Repository's explicit synthetic demo, complete native replay prefix; not live venue data or a throughput guarantee.\",\n                        \"delivery_count\": session.replay.total_deliveries,\n                        \"metrics\": len(snapshot.metrics),\n                        \"outputs\": outputs,\n                        \"timing\": {name: {\"iterations\": len(values), \"median_cpu_ms\": statistics.median(values), \"p95_cpu_ms\": sorted(values)[47], \"max_cpu_ms\": max(values)} for name, values in timings.items()}}\n            finally:\n                module.dto = changed\n\n        report = await session.work(measure)\n        report[\"harness_source\"] = Path(__file__).read_text()\n        Path(sys.argv[1]).write_text(json.dumps(report, indent=2) + \"\\n\")\n        print(json.dumps({key: value for key, value in report.items() if key != \"harness_source\"}, indent=2))\n    finally:\n        await runtime.close()\n\n\nasyncio.run(main())\n"
+    }
+  },
+  "delivery_checkpoint": {
+    "branch": "fix/live-terminal-visuals",
+    "commit": "1bfd81f43ededbda40224328d69be0fc02b7be65",
+    "pushed": true,
+    "pr": "https://github.com/karisheen/Limit-Orderbook/pull/9",
+    "draft": true,
+    "merge": null
+  },
+  "final_native_gate": {
+    "command": "bash tools/check.sh -q --tb=short",
+    "native_passed": 1185,
+    "native_seconds": 306.12,
+    "wall_seconds": 310.76,
+    "warning": "Existing Starlette/httpx TestClient deprecation",
+    "subsequent_failure": "Ruff F401: obsolete api.dto import after catalog conversion moved to the runtime worker."
+  },
+  "import_cleanup": {
+    "removed": "Unused api.dto import and the regression hook for that obsolete binding; the held-conversion regression patches the actual runtime DTO entrypoint.",
+    "intermediate_check": {
+      "passed": 1,
+      "failed": 1,
+      "seconds": 14.33,
+      "failure": "Regression still patched removed api.dto; obsolete patch removed, not restored as an alias."
+    },
+    "final_gate": {
+      "command": "bash tools/check.sh -q --tb=short -k 'catalog_serialization or catalog_refresh'",
+      "native_passed": 2,
+      "native_seconds": 3.79,
+      "wall_seconds": 20.04,
+      "ruff": "passed",
+      "formatted_files": 71,
+      "mypy_modules": 35,
+      "frontend_lint": "passed",
+      "frontend_unit_passed": 20,
+      "typecheck": "passed",
+      "production_build": "passed",
+      "assets": [
+        "index-imMpJONh.js",
+        "index-oTep9C8S.css"
+      ]
+    }
+  },
+  "contrast_before": {
+    "control": {
+      "min": "0.1",
+      "max": "10",
+      "value": "1"
+    },
+    "native_positive_cells": 128,
+    "cells_saturated_even_at_max_10": 101,
+    "regression": {
+      "command": "node --experimental-strip-types --test --test-name-pattern='fixed liquidity saturation' frontend/src/workspace.test.ts",
+      "failed": 1,
+      "expected": 1000,
+      "actual": 10,
+      "wall_seconds": 1.08
+    },
+    "note": "Quantity comparisons are display diagnostics over actual retained SOL cells, not financial calculations."
+  },
+  "network_browser_before_contrast": {
+    "passed": 4,
+    "playwright_seconds": 44.7,
+    "wall_seconds_with_lint": 52.02,
+    "command": "npm --prefix frontend run lint && npm --prefix frontend run test:e2e -- e2e/source-experience.spec.ts"
+  },
+  "network_markup_failure": {
+    "passed": 3,
+    "failed": 1,
+    "wall_seconds": 72.91,
+    "cause": "The test required an explicit option value attribute, but valid option values came from text. Removed that incidental markup assertion; actual option selection and viewport recovery remain exercised."
+  },
+  "contrast_after": {
+    "frontend_lint": "passed",
+    "frontend_unit_passed": 21,
+    "typecheck": "passed",
+    "production_build": "passed",
+    "wall_seconds": 21.68,
+    "assets": [
+      "index-Dou23D6P.js",
+      "index-oTep9C8S.css"
+    ],
+    "url": "http://127.0.0.1:8000/?source=live",
+    "session_id": "cd045e393736436d986115660f6502ef",
+    "status": "live",
+    "overflows": 0,
+    "native_coverage": {
+      "subscribed_depth": "5000",
+      "retained_bid_levels": "4668",
+      "retained_ask_levels": "5003",
+      "worst_bid": "18.9",
+      "worst_ask": "144.02",
+      "full_depth": false,
+      "source_aggregation": [],
+      "expected_cadence_ns": null
+    },
+    "actual_keyboard_selected_quantity": 1000,
+    "quantity_restored_after_reload": 1000,
+    "control_range": [
+      1e-12,
+      1000000000000
+    ],
+    "note": "Trusted slider keyboard input, waited for the existing 200ms preference write, then real reload. Scale stays fixed until another explicit user change; no market-data normalization changed."
+  },
+  "final_source_sha256": {
+    "src/workstation/api.py": "ed400cefdb37a578a05e61ff5bc688d60ec044a28217bb58fd9a3bbd824696a5",
+    "src/workstation/runtime.py": "04d04f4c449f744317ea9cd28dbe5fbf5b8b7330b8e3872620db84a1dc1a84e1",
+    "src/workstation/subscriptions.py": "86cb5c2320b40122f6be23efb724abb1db4fddd503d0a9c8a8786901ffcb1c69",
+    "src/workstation/visuals.py": "b9f417d5401fae712b2565b3b7b56d0e845be276b9b5cdb7314a9c9a925e8034",
+    "frontend/src/App.tsx": "70f6eda70bd616feb758df6c93db137dd1e1637b28634dc57b299efddcb7e963",
+    "frontend/src/MarketCharts.tsx": "d59d4859dbff8865a2f3587eedaa03a7c17285b96723ed251a8728f8e6cd9612",
+    "frontend/src/market-charts-renderer.ts": "d39f70c702cdd7cedc6515a47a92bb0f99989d85c4868e7283b1521f9764446c",
+    "frontend/src/api.ts": "973f5b1287a937e2512abe0b3b0be352fb9b9366375aab128515276b395f99be",
+    "frontend/src/workspace.ts": "4f38274ea00987ed32cfe589ef0afea09baf327aaea4c2440d6712a2673dc528",
+    "frontend/src/useTerminal.ts": "5397471b5d12e85ff6c82769fb5cc0933ace7cf006f25ee52e8dc81e367ab17b",
+    "frontend/src/useMarketView.ts": "a4cf270665933f1b9d3947ac0311406851fa0155b9b3e8afa390e909aed0fd17",
+    "frontend/src/styles.css": "6200cc3a2462faeb6041e5d58b0ea5bc3652c0455660ae45342bd76d9d6cc697",
+    "src/workstation/analytics.py": "98c8fc17448b7fd299bdf668b90c4e40220837ba87301f3b8c30e035c3b5179a",
+    "tests/test_workstation_api_runtime.py": "3693a4fd566f67b5bd5766fe24c344b38adafa2f69d8d37f822c2c7f209d00ea",
+    "tests/test_workstation_source_startup.py": "b6117bf2900200d46c26db2f9bd39d226d6d12edb54e96a5d72d92f76c9cf30b",
+    "frontend/e2e/source-experience.spec.ts": "e89fb58de6c215e53b7ed7193f479f78112c0e455e68f500a8aa0ff77ac0a457",
+    "frontend/dist/assets/index-oTep9C8S.css": "38486ada97071a112e91b94b5232dee2750c97cd5787ac5b1ce5a211ee439812",
+    "frontend/src/workspace.test.ts": "3966f3ee74cb320f1da5509543cda3aa8a1da9248ef389760106ddeee57be328",
+    "frontend/dist/assets/index-Dou23D6P.js": "d64ce0430a59954a3822f08c75e273d0839f43c919c63c39a3875828ab488890",
+    "frontend/e2e/terminal.spec.ts": "b26114fc1e1aa444c8ff76504c7933491dfef2ee9f561092e6c225b44523d11e"
+  },
+  "runtime_checkpoint": {
+    "branch": "fix/live-terminal-visuals",
+    "commit": "e2b3c49487ebfa1605e03dcab3de1b264ade8807",
+    "pushed": true,
+    "pr": "https://github.com/karisheen/Limit-Orderbook/pull/9",
+    "handoff_comment": "https://github.com/karisheen/Limit-Orderbook/pull/9#issuecomment-6566388809"
+  },
+  "post_contrast_browser_attempt": {
+    "passed": 27,
+    "failed": 1,
+    "skipped": 1,
+    "wall_seconds": 190.1,
+    "cause": "One manually created browser context used hardcoded port8000, ignoring the isolated offline baseURL on8002 and reaching the persistent live service. Its replay controls were correctly disabled.",
+    "fix": "Use the configured Playwright context fixture and relative URLs; preserve the independent-session and close-one-owner behavior checks."
+  },
+  "offline_override_source": "import config from './playwright.config.ts';\nexport default { ...config, use: { ...config.use, baseURL: 'http://127.0.0.1:8002' } };\n",
+  "final_post_contrast_browser": {
+    "lint": "passed",
+    "offline": {
+      "passed": 28,
+      "skipped": 1,
+      "reported_duration": "2.4m",
+      "base_url": "http://127.0.0.1:8002",
+      "command": "npm --prefix frontend run test:e2e -- --config .live-visuals-offline.config.ts"
+    },
+    "network": {
+      "passed": 4,
+      "reported_seconds": 53.9,
+      "base_url": "http://127.0.0.1:8000",
+      "command": "npm --prefix frontend run test:e2e -- e2e/source-experience.spec.ts"
+    },
+    "combined_wall_seconds": 205.03
   }
 }
