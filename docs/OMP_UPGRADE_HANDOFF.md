@@ -580,8 +580,35 @@ invented. Verification tabs and the isolated offline server were closed. The
 plain network-enabled native server remains persistent at
 `http://127.0.0.1:8000/?source=live`; hard-refresh an older tab for the new bundle.
 The existing API, visualization and terminal documents describe the new
-contract and controls. Git delivery is recorded from actual remote operations
-after the final-head checks.
+contract and controls.
+
+### Visual-depth-ladder Git delivery receipt
+
+- Commit `c9897265b89e2ec3930be5ca605bee35d5891b80`
+  (`feat(terminal): add exact visual depth ladder`) was pushed successfully to
+  `feat/visual-depth-ladder` on verified origin `karisheen/Limit-Orderbook`.
+  The account-associated GitHub noreply identity was used for this commit
+  without changing global Git settings.
+- [PR #12](https://github.com/karisheen/Limit-Orderbook/pull/12) was merged
+  normally at **2026-11-02T15:03:37Z**, preserving the feature commit. Merge SHA:
+  `7dd26853858d114c0adfb348e7fceaf8489d2006`. Local `main` fast-forwarded to
+  that merge without staging or deleting unrelated root `test-results/`.
+- Both gates passed on exact head
+  `c9897265b89e2ec3930be5ca605bee35d5891b80`:
+  [push run 41466393604](https://github.com/karisheen/Limit-Orderbook/actions/runs/41466393604)
+  (**6m54s**) and
+  [PR run 41466588935](https://github.com/karisheen/Limit-Orderbook/actions/runs/41466588935)
+  (**7m30s**). The full push log records **1,191 native tests passed in
+  198.19s**, Ruff, **71 formatted files**, mypy over **35 modules**, frontend
+  lint, **28 frontend tests**, TypeScript, production build, and **28 actual
+  offline browser tests / 1 expected network-only skip**. The independent PR
+  run passed the same workflow gates. Public-live checks remain the separate
+  local evidence above; CI does not claim public-network validation.
+- This receipt is a documentation-only follow-through to the merged feature,
+  not a new behavior change or a claim that the known live-cohort overflow
+  boundary was removed. Next operator action: open the explicit live URL,
+  hard-refresh, and use DOM grouping/units/Rescale/Recenter independently of
+  chart grouping.
 
 ## Decisions and next action
 
