@@ -1,0 +1,4520 @@
+{
+  "baseline": "998bd577e3f2a2503437f29bb51823ff13b8899d",
+  "branch": "feat/visual-depth-ladder",
+  "native_gate": {
+    "command": "bash tools/check.sh -q --tb=short tests/test_workstation_visuals.py tests/test_workstation_visual_api.py",
+    "passed": 110,
+    "seconds": 102.63,
+    "warning": "Existing Starlette/httpx TestClient deprecation",
+    "ruff": "passed",
+    "initial_format_result": "one newly edited test expression required wrapping; corrected and file format rechecked"
+  },
+  "static_followup": {
+    "mypy_modules": 35,
+    "result": "passed",
+    "initial_frontend_command": "npm unavailable without pinned .tools/node/bin PATH; corrected command environment"
+  },
+  "frontend": {
+    "node": "22.22.0",
+    "lint": "passed",
+    "unit_tests": 28,
+    "typecheck": "passed",
+    "build": "passed",
+    "wall_seconds": 17.24
+  },
+  "offline_browser": {
+    "passed": 28,
+    "skipped": 1,
+    "wall_seconds": 151.4
+  },
+  "final_offline_browser": {
+    "command": "npm --prefix frontend run test:e2e -- --config playwright.ladder-smoke.config.ts",
+    "configuration": "Existing Playwright configuration, with only baseURL changed to the isolated offline server on port 8002; temporary file removed afterward.",
+    "passed": 28,
+    "skipped": 1,
+    "wall_seconds": 122.90
+  },
+  "implementation_review": [
+    "Native quantities/notional and top-of-book summary remain exact and server-derived.",
+    "Follow ownership includes automatic scroll clamping when book scope changes or depth becomes unavailable.",
+    "Stale/ineligible warnings remain visible; such snapshots have no active bars or summary."
+  ],
+  "frontend_final": {
+    "node": "22.22.0",
+    "lint": "passed",
+    "unit_tests": 28,
+    "typecheck": "passed",
+    "production_build": "passed",
+    "wall_seconds": 17.87,
+    "assets": [
+      "index-CTUoBLmO.js",
+      "index-BkZukdN3.css"
+    ]
+  },
+  "public_live_browser": {
+    "command": "npm --prefix frontend run test:e2e -- source-experience.spec.ts",
+    "passed": 4,
+    "browser_seconds": 49.5,
+    "combined_lint_build_browser_seconds": 69.62
+  },
+  "live_probe": {
+    "elapsed_ms": 62619,
+    "samples": [
+      {
+        "elapsed_ms": 2,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "296657",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628001214000000",
+          "receive_wall_ns": "1793628001222563000",
+          "receive_mono_ns": "206047443615077",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 0
+      },
+      {
+        "elapsed_ms": 1008,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "297188",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628002114000000",
+          "receive_wall_ns": "1793628002105096000",
+          "receive_mono_ns": "206048326136418",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 46
+      },
+      {
+        "elapsed_ms": 2016,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "297300",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628002614000000",
+          "receive_wall_ns": "1793628002604632000",
+          "receive_mono_ns": "206048825665285",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 31
+      },
+      {
+        "elapsed_ms": 3021,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "297831",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628003714000000",
+          "receive_wall_ns": "1793628003707517000",
+          "receive_mono_ns": "206049928535167",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 26
+      },
+      {
+        "elapsed_ms": 4024,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "298075",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628005214000000",
+          "receive_wall_ns": "1793628005244863000",
+          "receive_mono_ns": "206051465859744",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 25
+      },
+      {
+        "elapsed_ms": 5029,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "298506",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628006114000000",
+          "receive_wall_ns": "1793628006109073000",
+          "receive_mono_ns": "206052330058237",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 45
+      },
+      {
+        "elapsed_ms": 6037,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "298741",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628007014000000",
+          "receive_wall_ns": "1793628007008304000",
+          "receive_mono_ns": "206053229276840",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 35
+      },
+      {
+        "elapsed_ms": 7042,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "299206",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628007714000000",
+          "receive_wall_ns": "1793628007712436000",
+          "receive_mono_ns": "206053933399371",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 36
+      },
+      {
+        "elapsed_ms": 8050,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "299762",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628009415000000",
+          "receive_wall_ns": "1793628009405063000",
+          "receive_mono_ns": "206055626003723",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 0
+      },
+      {
+        "elapsed_ms": 9054,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "299952",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628010114000000",
+          "receive_wall_ns": "1793628010112557000",
+          "receive_mono_ns": "206056333487830",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 32
+      },
+      {
+        "elapsed_ms": 10058,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "300277",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628011014000000",
+          "receive_wall_ns": "1793628011020321000",
+          "receive_mono_ns": "206057241239843",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 43
+      },
+      {
+        "elapsed_ms": 11067,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "300552",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628011814000000",
+          "receive_wall_ns": "1793628011813037000",
+          "receive_mono_ns": "206058033945319",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 39
+      },
+      {
+        "elapsed_ms": 12073,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "300668",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628012714000000",
+          "receive_wall_ns": "1793628012703510000",
+          "receive_mono_ns": "206058924405533",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 0
+      },
+      {
+        "elapsed_ms": 13089,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "301010",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628014214000000",
+          "receive_wall_ns": "1793628014209713000",
+          "receive_mono_ns": "206060430588687",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 44
+      },
+      {
+        "elapsed_ms": 14095,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "301150",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628015014000000",
+          "receive_wall_ns": "1793628015012060000",
+          "receive_mono_ns": "206061232924641",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 20
+      },
+      {
+        "elapsed_ms": 15237,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "301299",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628015714000000",
+          "receive_wall_ns": "1793628015704660000",
+          "receive_mono_ns": "206061925514684",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 24
+      },
+      {
+        "elapsed_ms": 16241,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "301563",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628017414000000",
+          "receive_wall_ns": "1793628017418803000",
+          "receive_mono_ns": "206063639634667",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 12
+      },
+      {
+        "elapsed_ms": 17249,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "301691",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628018214000000",
+          "receive_wall_ns": "1793628018211962000",
+          "receive_mono_ns": "206064432782400",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 20
+      },
+      {
+        "elapsed_ms": 18253,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "301817",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628019014000000",
+          "receive_wall_ns": "1793628019005497000",
+          "receive_mono_ns": "206065226307421",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 0
+      },
+      {
+        "elapsed_ms": 19258,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "302259",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628019914000000",
+          "receive_wall_ns": "1793628019918170000",
+          "receive_mono_ns": "206066138967870",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 0
+      },
+      {
+        "elapsed_ms": 20263,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "302438",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628020714000000",
+          "receive_wall_ns": "1793628020710980000",
+          "receive_mono_ns": "206066931766660",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 0
+      },
+      {
+        "elapsed_ms": 21270,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "302718",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628022314000000",
+          "receive_wall_ns": "1793628022303438000",
+          "receive_mono_ns": "206068524203291",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 20
+      },
+      {
+        "elapsed_ms": 22276,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "302866",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628023214000000",
+          "receive_wall_ns": "1793628023203257000",
+          "receive_mono_ns": "206069424010014",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 20
+      },
+      {
+        "elapsed_ms": 23283,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "302995",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628024014000000",
+          "receive_wall_ns": "1793628024041274000",
+          "receive_mono_ns": "206070262015273",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 11
+      },
+      {
+        "elapsed_ms": 24287,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "303108",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628024814000000",
+          "receive_wall_ns": "1793628024839674000",
+          "receive_mono_ns": "206071060404442",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 0
+      },
+      {
+        "elapsed_ms": 25291,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "303463",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628026414000000",
+          "receive_wall_ns": "1793628026405611000",
+          "receive_mono_ns": "206072626320164",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 37
+      },
+      {
+        "elapsed_ms": 26298,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "303669",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628027214000000",
+          "receive_wall_ns": "1793628027207884000",
+          "receive_mono_ns": "206073428582202",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 41
+      },
+      {
+        "elapsed_ms": 27301,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "303791",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628028114000000",
+          "receive_wall_ns": "1793628028103971000",
+          "receive_mono_ns": "206074324657724",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 13
+      },
+      {
+        "elapsed_ms": 28323,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "304115",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628028914000000",
+          "receive_wall_ns": "1793628028910021000",
+          "receive_mono_ns": "206075130696172",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 0
+      },
+      {
+        "elapsed_ms": 29328,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "304496",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628030614000000",
+          "receive_wall_ns": "1793628030604249000",
+          "receive_mono_ns": "206076824900937",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 34
+      },
+      {
+        "elapsed_ms": 30335,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "304596",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628031414000000",
+          "receive_wall_ns": "1793628031408667000",
+          "receive_mono_ns": "206077629308823",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 26
+      },
+      {
+        "elapsed_ms": 31539,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "304674",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628032014000000",
+          "receive_wall_ns": "1793628032042165000",
+          "receive_mono_ns": "206078262797675",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 14
+      },
+      {
+        "elapsed_ms": 32551,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "304880",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628033714000000",
+          "receive_wall_ns": "1793628033703984000",
+          "receive_mono_ns": "206079924594115",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 12
+      },
+      {
+        "elapsed_ms": 33556,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "304962",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628034514000000",
+          "receive_wall_ns": "1793628034529710000",
+          "receive_mono_ns": "206080750309106",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 11
+      },
+      {
+        "elapsed_ms": 34559,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "305079",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628035314000000",
+          "receive_wall_ns": "1793628035319381000",
+          "receive_mono_ns": "206081539969300",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 41
+      },
+      {
+        "elapsed_ms": 35564,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "305317",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628036014000000",
+          "receive_wall_ns": "1793628036005493000",
+          "receive_mono_ns": "206082226071869",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 0
+      },
+      {
+        "elapsed_ms": 36568,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "306293",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628037814000000",
+          "receive_wall_ns": "1793628037837698000",
+          "receive_mono_ns": "206084058251893",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 24
+      },
+      {
+        "elapsed_ms": 37572,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "306770",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628038614000000",
+          "receive_wall_ns": "1793628038610883000",
+          "receive_mono_ns": "206084831426194",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 41
+      },
+      {
+        "elapsed_ms": 38590,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "307210",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628039414000000",
+          "receive_wall_ns": "1793628039443525000",
+          "receive_mono_ns": "206085664056856",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 39
+      },
+      {
+        "elapsed_ms": 39595,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "307467",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628040214000000",
+          "receive_wall_ns": "1793628040204851000",
+          "receive_mono_ns": "206086425372838",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 0
+      },
+      {
+        "elapsed_ms": 40599,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "307581",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628041014000000",
+          "receive_wall_ns": "1793628041004509000",
+          "receive_mono_ns": "206087225019575",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 0
+      },
+      {
+        "elapsed_ms": 41603,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "307800",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628042714000000",
+          "receive_wall_ns": "1793628042703628000",
+          "receive_mono_ns": "206088924115824",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 25
+      },
+      {
+        "elapsed_ms": 42610,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "307924",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628043614000000",
+          "receive_wall_ns": "1793628043604262000",
+          "receive_mono_ns": "206089824737310",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 28
+      },
+      {
+        "elapsed_ms": 43615,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "308124",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628044414000000",
+          "receive_wall_ns": "1793628044410319000",
+          "receive_mono_ns": "206090630783533",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 38
+      },
+      {
+        "elapsed_ms": 44738,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "308328",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628045314000000",
+          "receive_wall_ns": "1793628045303991000",
+          "receive_mono_ns": "206091524443237",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 29
+      },
+      {
+        "elapsed_ms": 45742,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "308599",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628046914000000",
+          "receive_wall_ns": "1793628046904096000",
+          "receive_mono_ns": "206093124526619",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 22
+      },
+      {
+        "elapsed_ms": 46747,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "308747",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628047714000000",
+          "receive_wall_ns": "1793628047716407000",
+          "receive_mono_ns": "206093936826462",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 12
+      },
+      {
+        "elapsed_ms": 47752,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "308989",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628048614000000",
+          "receive_wall_ns": "1793628048603897000",
+          "receive_mono_ns": "206094824304233",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 34
+      },
+      {
+        "elapsed_ms": 48755,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "309128",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628049414000000",
+          "receive_wall_ns": "1793628049425858000",
+          "receive_mono_ns": "206095646253792",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 0
+      },
+      {
+        "elapsed_ms": 49759,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "309311",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628050114000000",
+          "receive_wall_ns": "1793628050125042000",
+          "receive_mono_ns": "206096345428407",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 0
+      },
+      {
+        "elapsed_ms": 50765,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "309657",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628051914000000",
+          "receive_wall_ns": "1793628051903395000",
+          "receive_mono_ns": "206098123757426",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 17
+      },
+      {
+        "elapsed_ms": 51769,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "309764",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628052614000000",
+          "receive_wall_ns": "1793628052644053000",
+          "receive_mono_ns": "206098864405491",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 22
+      },
+      {
+        "elapsed_ms": 52773,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "309953",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628053514000000",
+          "receive_wall_ns": "1793628053567235000",
+          "receive_mono_ns": "206099787575128",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 18
+      },
+      {
+        "elapsed_ms": 53778,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "310105",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628054314000000",
+          "receive_wall_ns": "1793628054313530000",
+          "receive_mono_ns": "206100533859863",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 0
+      },
+      {
+        "elapsed_ms": 54781,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "310513",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628055114000000",
+          "receive_wall_ns": "1793628055165120000",
+          "receive_mono_ns": "206101385438060",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 0
+      },
+      {
+        "elapsed_ms": 55786,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "311420",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628056914000000",
+          "receive_wall_ns": "1793628056949648000",
+          "receive_mono_ns": "206103169941197",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 39
+      },
+      {
+        "elapsed_ms": 56794,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "311747",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628057614000000",
+          "receive_wall_ns": "1793628057655575000",
+          "receive_mono_ns": "206103875858867",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 38
+      },
+      {
+        "elapsed_ms": 57906,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "312055",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628058514000000",
+          "receive_wall_ns": "1793628058521530000",
+          "receive_mono_ns": "206104741801861",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 36
+      },
+      {
+        "elapsed_ms": 58914,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "312720",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628060114000000",
+          "receive_wall_ns": "1793628060132635000",
+          "receive_mono_ns": "206106352885634",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 23
+      },
+      {
+        "elapsed_ms": 59921,
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "312968",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793628060914000000",
+          "receive_wall_ns": "1793628060956470000",
+          "receive_mono_ns": "206107176708947",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "cap": "12.78352",
+        "highlighted": 43
+      }
+    ],
+    "eligible_samples": 60,
+    "distinct_native_book_observations": 60,
+    "held_caps": [
+      "12.78352"
+    ],
+    "highlight_samples": 45,
+    "manual_scroll": {
+      "before": 272,
+      "after": 272
+    },
+    "base_native": {
+      "version": "1",
+      "generation": "1",
+      "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+      "asof": {
+        "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+        "ingest_ordinal": "313134",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793628061714000000",
+        "receive_wall_ns": "1793628061705067000",
+        "receive_mono_ns": "206107925296509",
+        "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+      },
+      "step": "1",
+      "tick_size": "0.01",
+      "step_options": [
+        "0.01",
+        "0.05",
+        "0.1",
+        "0.5",
+        "1",
+        "5",
+        "10"
+      ],
+      "quote_unit": "USDT",
+      "coverage": {
+        "subscribed_depth": "5000",
+        "retained_bid_levels": "4939",
+        "retained_ask_levels": "5100",
+        "full_depth": false
+      },
+      "source_mode": "ws_delta",
+      "summary": {
+        "best_bid": "77887.27",
+        "best_ask": "77887.28",
+        "midpoint": "77887.275",
+        "spread": "0.01",
+        "spread_ticks": "1",
+        "spread_bps": "0.0012839067742452152806732550342787059888794414748750678464486015205949880773207177"
+      },
+      "unit": "BTC",
+      "eligible": true,
+      "reasons": [
+        "partial_depth_coverage"
+      ],
+      "rows": [
+        {
+          "side": "bid",
+          "price": "77887",
+          "base_quantity": "2.8446",
+          "cumulative_base": "2.8446",
+          "quote_notional": "221558.128242",
+          "cumulative_quote": "221558.128242"
+        },
+        {
+          "side": "bid",
+          "price": "77886",
+          "base_quantity": "0.05735",
+          "cumulative_base": "2.90195",
+          "quote_notional": "4466.7632203",
+          "cumulative_quote": "226024.8914623"
+        },
+        {
+          "side": "bid",
+          "price": "77885",
+          "base_quantity": "0.00407",
+          "cumulative_base": "2.90602",
+          "quote_notional": "316.9938344",
+          "cumulative_quote": "226341.8852967"
+        },
+        {
+          "side": "bid",
+          "price": "77884",
+          "base_quantity": "0.02437",
+          "cumulative_base": "2.93039",
+          "quote_notional": "1898.033112",
+          "cumulative_quote": "228239.9184087"
+        },
+        {
+          "side": "bid",
+          "price": "77883",
+          "base_quantity": "0.0408",
+          "cumulative_base": "2.97119",
+          "quote_notional": "3177.6398872",
+          "cumulative_quote": "231417.5582959"
+        },
+        {
+          "side": "bid",
+          "price": "77882",
+          "base_quantity": "0.03007",
+          "cumulative_base": "3.00126",
+          "quote_notional": "2341.9155165",
+          "cumulative_quote": "233759.4738124"
+        },
+        {
+          "side": "bid",
+          "price": "77881",
+          "base_quantity": "0.64859",
+          "cumulative_base": "3.64985",
+          "quote_notional": "50513.3390834",
+          "cumulative_quote": "284272.8128958"
+        },
+        {
+          "side": "bid",
+          "price": "77880",
+          "base_quantity": "0.05128",
+          "cumulative_base": "3.70113",
+          "quote_notional": "3993.6947578",
+          "cumulative_quote": "288266.5076536"
+        },
+        {
+          "side": "bid",
+          "price": "77879",
+          "base_quantity": "0.07292",
+          "cumulative_base": "3.77405",
+          "quote_notional": "5678.9873072",
+          "cumulative_quote": "293945.4949608"
+        },
+        {
+          "side": "bid",
+          "price": "77878",
+          "base_quantity": "0.041",
+          "cumulative_base": "3.81505",
+          "quote_notional": "3193.012723",
+          "cumulative_quote": "297138.5076838"
+        },
+        {
+          "side": "bid",
+          "price": "77877",
+          "base_quantity": "9.49094",
+          "cumulative_base": "13.30599",
+          "quote_notional": "739126.6301947",
+          "cumulative_quote": "1036265.1378785"
+        },
+        {
+          "side": "bid",
+          "price": "77876",
+          "base_quantity": "0.10478",
+          "cumulative_base": "13.41077",
+          "quote_notional": "8159.8829404",
+          "cumulative_quote": "1044425.0208189"
+        },
+        {
+          "side": "bid",
+          "price": "77875",
+          "base_quantity": "0.5838",
+          "cumulative_base": "13.99457",
+          "quote_notional": "45463.7568079",
+          "cumulative_quote": "1089888.7776268"
+        },
+        {
+          "side": "bid",
+          "price": "77874",
+          "base_quantity": "0.0384",
+          "cumulative_base": "14.03297",
+          "quote_notional": "2990.3693225",
+          "cumulative_quote": "1092879.1469493"
+        },
+        {
+          "side": "bid",
+          "price": "77873",
+          "base_quantity": "0.73679",
+          "cumulative_base": "14.76976",
+          "quote_notional": "57376.4305979",
+          "cumulative_quote": "1150255.5775472"
+        },
+        {
+          "side": "bid",
+          "price": "77872",
+          "base_quantity": "0.05619",
+          "cumulative_base": "14.82595",
+          "quote_notional": "4375.6397074",
+          "cumulative_quote": "1154631.2172546"
+        },
+        {
+          "side": "bid",
+          "price": "77871",
+          "base_quantity": "1.44932",
+          "cumulative_base": "16.27527",
+          "quote_notional": "112860.2146421",
+          "cumulative_quote": "1267491.4318967"
+        },
+        {
+          "side": "bid",
+          "price": "77870",
+          "base_quantity": "4.81723",
+          "cumulative_base": "21.0925",
+          "quote_notional": "375118.8547408",
+          "cumulative_quote": "1642610.2866375"
+        },
+        {
+          "side": "bid",
+          "price": "77869",
+          "base_quantity": "0.40409",
+          "cumulative_base": "21.49659",
+          "quote_notional": "31466.4246592",
+          "cumulative_quote": "1674076.7112967"
+        },
+        {
+          "side": "bid",
+          "price": "77868",
+          "base_quantity": "1.24885",
+          "cumulative_base": "22.74544",
+          "quote_notional": "97245.6007141",
+          "cumulative_quote": "1771322.3120108"
+        },
+        {
+          "side": "bid",
+          "price": "77867",
+          "base_quantity": "0.36973",
+          "cumulative_base": "23.11517",
+          "quote_notional": "28789.863573",
+          "cumulative_quote": "1800112.1755838"
+        },
+        {
+          "side": "bid",
+          "price": "77866",
+          "base_quantity": "2.19599",
+          "cumulative_base": "25.31116",
+          "quote_notional": "170994.4605654",
+          "cumulative_quote": "1971106.6361492"
+        },
+        {
+          "side": "bid",
+          "price": "77865",
+          "base_quantity": "0.02031",
+          "cumulative_base": "25.33147",
+          "quote_notional": "1581.453704",
+          "cumulative_quote": "1972688.0898532"
+        },
+        {
+          "side": "bid",
+          "price": "77864",
+          "base_quantity": "0.04246",
+          "cumulative_base": "25.37393",
+          "quote_notional": "3306.1128877",
+          "cumulative_quote": "1975994.2027409"
+        },
+        {
+          "side": "bid",
+          "price": "77863",
+          "base_quantity": "7.31362",
+          "cumulative_base": "32.68755",
+          "quote_notional": "569464.5028349",
+          "cumulative_quote": "2545458.7055758"
+        },
+        {
+          "side": "ask",
+          "price": "77888",
+          "base_quantity": "1.58508",
+          "cumulative_base": "1.58508",
+          "quote_notional": "123457.6696519",
+          "cumulative_quote": "123457.6696519"
+        },
+        {
+          "side": "ask",
+          "price": "77889",
+          "base_quantity": "0.04733",
+          "cumulative_base": "1.63241",
+          "quote_notional": "3686.4395182",
+          "cumulative_quote": "127144.1091701"
+        },
+        {
+          "side": "ask",
+          "price": "77890",
+          "base_quantity": "0.01947",
+          "cumulative_base": "1.65188",
+          "quote_notional": "1516.5044504",
+          "cumulative_quote": "128660.6136205"
+        },
+        {
+          "side": "ask",
+          "price": "77891",
+          "base_quantity": "0.04177",
+          "cumulative_base": "1.69365",
+          "quote_notional": "3253.4767633",
+          "cumulative_quote": "131914.0903838"
+        },
+        {
+          "side": "ask",
+          "price": "77892",
+          "base_quantity": "0.56511",
+          "cumulative_base": "2.25876",
+          "quote_notional": "44017.5282177",
+          "cumulative_quote": "175931.6186015"
+        },
+        {
+          "side": "ask",
+          "price": "77893",
+          "base_quantity": "0.04701",
+          "cumulative_base": "2.30577",
+          "quote_notional": "3661.7094018",
+          "cumulative_quote": "179593.3280033"
+        },
+        {
+          "side": "ask",
+          "price": "77894",
+          "base_quantity": "0.01591",
+          "cumulative_base": "2.32168",
+          "quote_notional": "1239.290358",
+          "cumulative_quote": "180832.6183613"
+        },
+        {
+          "side": "ask",
+          "price": "77895",
+          "base_quantity": "0.2122",
+          "cumulative_base": "2.53388",
+          "quote_notional": "16529.1396964",
+          "cumulative_quote": "197361.7580577"
+        },
+        {
+          "side": "ask",
+          "price": "77896",
+          "base_quantity": "5.44269",
+          "cumulative_base": "7.97657",
+          "quote_notional": "423963.4572467",
+          "cumulative_quote": "621325.2153044"
+        },
+        {
+          "side": "ask",
+          "price": "77897",
+          "base_quantity": "0.65144",
+          "cumulative_base": "8.62801",
+          "quote_notional": "50744.6404148",
+          "cumulative_quote": "672069.8557192"
+        },
+        {
+          "side": "ask",
+          "price": "77898",
+          "base_quantity": "0.00124",
+          "cumulative_base": "8.62925",
+          "quote_notional": "96.5928256",
+          "cumulative_quote": "672166.4485448"
+        },
+        {
+          "side": "ask",
+          "price": "77899",
+          "base_quantity": "0.06555",
+          "cumulative_base": "8.6948",
+          "quote_notional": "5106.2169886",
+          "cumulative_quote": "677272.6655334"
+        },
+        {
+          "side": "ask",
+          "price": "77900",
+          "base_quantity": "0.00677",
+          "cumulative_base": "8.70157",
+          "quote_notional": "527.3788487",
+          "cumulative_quote": "677800.0443821"
+        },
+        {
+          "side": "ask",
+          "price": "77901",
+          "base_quantity": "5.39422",
+          "cumulative_base": "14.09579",
+          "quote_notional": "420213.8325135",
+          "cumulative_quote": "1098013.8768956"
+        },
+        {
+          "side": "ask",
+          "price": "77902",
+          "base_quantity": "0.0913",
+          "cumulative_base": "14.18709",
+          "quote_notional": "7112.4147272",
+          "cumulative_quote": "1105126.2916228"
+        },
+        {
+          "side": "ask",
+          "price": "77903",
+          "base_quantity": "0.10446",
+          "cumulative_base": "14.29155",
+          "quote_notional": "8137.649093",
+          "cumulative_quote": "1113263.9407158"
+        },
+        {
+          "side": "ask",
+          "price": "77904",
+          "base_quantity": "0.01415",
+          "cumulative_base": "14.3057",
+          "quote_notional": "1102.3396009",
+          "cumulative_quote": "1114366.2803167"
+        },
+        {
+          "side": "ask",
+          "price": "77905",
+          "base_quantity": "5.64913",
+          "cumulative_base": "19.95483",
+          "quote_notional": "440093.9202195",
+          "cumulative_quote": "1554460.2005362"
+        },
+        {
+          "side": "ask",
+          "price": "77906",
+          "base_quantity": "0.38893",
+          "cumulative_base": "20.34376",
+          "quote_notional": "30299.6290558",
+          "cumulative_quote": "1584759.829592"
+        },
+        {
+          "side": "ask",
+          "price": "77907",
+          "base_quantity": "1.49257",
+          "cumulative_base": "21.83633",
+          "quote_notional": "116280.9755908",
+          "cumulative_quote": "1701040.8051828"
+        },
+        {
+          "side": "ask",
+          "price": "77908",
+          "base_quantity": "0.01318",
+          "cumulative_base": "21.84951",
+          "quote_notional": "1026.8152275",
+          "cumulative_quote": "1702067.6204103"
+        },
+        {
+          "side": "ask",
+          "price": "77909",
+          "base_quantity": "3.93013",
+          "cumulative_base": "25.77964",
+          "quote_notional": "306191.3944226",
+          "cumulative_quote": "2008259.0148329"
+        },
+        {
+          "side": "ask",
+          "price": "77910",
+          "base_quantity": "1.00949",
+          "cumulative_base": "26.78913",
+          "quote_notional": "78648.910598",
+          "cumulative_quote": "2086907.9254309"
+        },
+        {
+          "side": "ask",
+          "price": "77911",
+          "base_quantity": "0.34369",
+          "cumulative_base": "27.13282",
+          "quote_notional": "26776.9708731",
+          "cumulative_quote": "2113684.896304"
+        },
+        {
+          "side": "ask",
+          "price": "77912",
+          "base_quantity": "0.00008",
+          "cumulative_base": "27.1329",
+          "quote_notional": "6.2329104",
+          "cumulative_quote": "2113691.1292144"
+        }
+      ]
+    },
+    "quote_surface": [
+      {
+        "side": "ask",
+        "price": "77912",
+        "values": [
+          "77912",
+          "6.2329104",
+          "2113691.1292144"
+        ],
+        "bar": true,
+        "width": 0.0007999999999999999,
+        "classes": "ask",
+        "visible": false
+      },
+      {
+        "side": "ask",
+        "price": "77911",
+        "values": [
+          "77911",
+          "26776.9708731",
+          "2113684.896304"
+        ],
+        "bar": true,
+        "width": 3.6227,
+        "classes": "ask",
+        "visible": false
+      },
+      {
+        "side": "ask",
+        "price": "77910",
+        "values": [
+          "77910",
+          "78648.910598",
+          "2086907.9254309"
+        ],
+        "bar": true,
+        "width": 10.6407,
+        "classes": "ask",
+        "visible": false
+      },
+      {
+        "side": "ask",
+        "price": "77909",
+        "values": [
+          "77909",
+          "306191.3944226",
+          "2008259.0148329"
+        ],
+        "bar": true,
+        "width": 41.4261,
+        "classes": "ask",
+        "visible": false
+      },
+      {
+        "side": "ask",
+        "price": "77908",
+        "values": [
+          "77908",
+          "1026.8152275",
+          "1702067.6204103"
+        ],
+        "bar": true,
+        "width": 0.1389,
+        "classes": "ask",
+        "visible": false
+      },
+      {
+        "side": "ask",
+        "price": "77907",
+        "values": [
+          "77907",
+          "116280.9755908",
+          "1701040.8051828"
+        ],
+        "bar": true,
+        "width": 15.732199999999999,
+        "classes": "ask",
+        "visible": false
+      },
+      {
+        "side": "ask",
+        "price": "77906",
+        "values": [
+          "77906",
+          "30299.6290558",
+          "1584759.829592"
+        ],
+        "bar": true,
+        "width": 4.0993,
+        "classes": "ask",
+        "visible": false
+      },
+      {
+        "side": "ask",
+        "price": "77905",
+        "values": [
+          "77905",
+          "440093.9202195",
+          "1554460.2005362"
+        ],
+        "bar": true,
+        "width": 59.542399999999994,
+        "classes": "ask",
+        "visible": false
+      },
+      {
+        "side": "ask",
+        "price": "77904",
+        "values": [
+          "77904",
+          "1102.3396009",
+          "1114366.2803167"
+        ],
+        "bar": true,
+        "width": 0.14909999999999998,
+        "classes": "ask",
+        "visible": false
+      },
+      {
+        "side": "ask",
+        "price": "77903",
+        "values": [
+          "77903",
+          "8137.649093",
+          "1113263.9407158"
+        ],
+        "bar": true,
+        "width": 1.1009,
+        "classes": "ask",
+        "visible": false
+      },
+      {
+        "side": "ask",
+        "price": "77902",
+        "values": [
+          "77902",
+          "7112.4147272",
+          "1105126.2916228"
+        ],
+        "bar": true,
+        "width": 0.9622,
+        "classes": "ask",
+        "visible": false
+      },
+      {
+        "side": "ask",
+        "price": "77901",
+        "values": [
+          "77901",
+          "420213.8325135",
+          "1098013.8768956"
+        ],
+        "bar": true,
+        "width": 56.8527,
+        "classes": "ask",
+        "visible": false
+      },
+      {
+        "side": "ask",
+        "price": "77900",
+        "values": [
+          "77900",
+          "527.3788487",
+          "677800.0443821"
+        ],
+        "bar": true,
+        "width": 0.0713,
+        "classes": "ask",
+        "visible": false
+      },
+      {
+        "side": "ask",
+        "price": "77899",
+        "values": [
+          "77899",
+          "5106.2169886",
+          "677272.6655334"
+        ],
+        "bar": true,
+        "width": 0.6908,
+        "classes": "ask",
+        "visible": false
+      },
+      {
+        "side": "ask",
+        "price": "77898",
+        "values": [
+          "77898",
+          "96.5928256",
+          "672166.4485448"
+        ],
+        "bar": true,
+        "width": 0.013,
+        "classes": "ask",
+        "visible": false
+      },
+      {
+        "side": "ask",
+        "price": "77897",
+        "values": [
+          "77897",
+          "50744.6404148",
+          "672069.8557192"
+        ],
+        "bar": true,
+        "width": 6.865400000000001,
+        "classes": "ask",
+        "visible": false
+      },
+      {
+        "side": "ask",
+        "price": "77896",
+        "values": [
+          "77896",
+          "423963.4572467",
+          "621325.2153044"
+        ],
+        "bar": true,
+        "width": 57.36,
+        "classes": "ask",
+        "visible": false
+      },
+      {
+        "side": "ask",
+        "price": "77895",
+        "values": [
+          "77895",
+          "16529.1396964",
+          "197361.7580577"
+        ],
+        "bar": true,
+        "width": 2.2363,
+        "classes": "ask",
+        "visible": false
+      },
+      {
+        "side": "ask",
+        "price": "77894",
+        "values": [
+          "77894",
+          "1239.290358",
+          "180832.6183613"
+        ],
+        "bar": true,
+        "width": 0.1676,
+        "classes": "ask",
+        "visible": false
+      },
+      {
+        "side": "ask",
+        "price": "77893",
+        "values": [
+          "77893",
+          "3661.7094018",
+          "179593.3280033"
+        ],
+        "bar": true,
+        "width": 0.4954,
+        "classes": "ask",
+        "visible": true
+      },
+      {
+        "side": "ask",
+        "price": "77892",
+        "values": [
+          "77892",
+          "44017.5282177",
+          "175931.6186015"
+        ],
+        "bar": true,
+        "width": 5.9553,
+        "classes": "ask",
+        "visible": true
+      },
+      {
+        "side": "ask",
+        "price": "77891",
+        "values": [
+          "77891",
+          "3253.4767633",
+          "131914.0903838"
+        ],
+        "bar": true,
+        "width": 0.44010000000000005,
+        "classes": "ask",
+        "visible": true
+      },
+      {
+        "side": "ask",
+        "price": "77890",
+        "values": [
+          "77890",
+          "1516.5044504",
+          "128660.6136205"
+        ],
+        "bar": true,
+        "width": 0.20509999999999998,
+        "classes": "ask",
+        "visible": true
+      },
+      {
+        "side": "ask",
+        "price": "77889",
+        "values": [
+          "77889",
+          "3686.4395182",
+          "127144.1091701"
+        ],
+        "bar": true,
+        "width": 0.49870000000000003,
+        "classes": "ask",
+        "visible": true
+      },
+      {
+        "side": "ask",
+        "price": "77888",
+        "values": [
+          "77888",
+          "123457.6696519",
+          "123457.6696519"
+        ],
+        "bar": true,
+        "width": 16.703100000000003,
+        "classes": "ask dom-best",
+        "visible": true
+      },
+      {
+        "side": "bid",
+        "price": "77887",
+        "values": [
+          "77887",
+          "221558.128242",
+          "221558.128242"
+        ],
+        "bar": true,
+        "width": 29.975600000000004,
+        "classes": "bid dom-best",
+        "visible": true
+      },
+      {
+        "side": "bid",
+        "price": "77886",
+        "values": [
+          "77886",
+          "4466.7632203",
+          "226024.8914623"
+        ],
+        "bar": true,
+        "width": 0.6043,
+        "classes": "bid",
+        "visible": true
+      },
+      {
+        "side": "bid",
+        "price": "77885",
+        "values": [
+          "77885",
+          "316.9938344",
+          "226341.8852967"
+        ],
+        "bar": true,
+        "width": 0.0428,
+        "classes": "bid",
+        "visible": true
+      },
+      {
+        "side": "bid",
+        "price": "77884",
+        "values": [
+          "77884",
+          "1898.033112",
+          "228239.9184087"
+        ],
+        "bar": true,
+        "width": 0.2567,
+        "classes": "bid",
+        "visible": true
+      },
+      {
+        "side": "bid",
+        "price": "77883",
+        "values": [
+          "77883",
+          "3177.6398872",
+          "231417.5582959"
+        ],
+        "bar": true,
+        "width": 0.4299,
+        "classes": "bid",
+        "visible": true
+      },
+      {
+        "side": "bid",
+        "price": "77882",
+        "values": [
+          "77882",
+          "2341.9155165",
+          "233759.4738124"
+        ],
+        "bar": true,
+        "width": 0.31679999999999997,
+        "classes": "bid",
+        "visible": true
+      },
+      {
+        "side": "bid",
+        "price": "77881",
+        "values": [
+          "77881",
+          "50513.3390834",
+          "284272.8128958"
+        ],
+        "bar": true,
+        "width": 6.8341,
+        "classes": "bid",
+        "visible": true
+      },
+      {
+        "side": "bid",
+        "price": "77880",
+        "values": [
+          "77880",
+          "3993.6947578",
+          "288266.5076536"
+        ],
+        "bar": true,
+        "width": 0.5403,
+        "classes": "bid",
+        "visible": false
+      },
+      {
+        "side": "bid",
+        "price": "77879",
+        "values": [
+          "77879",
+          "5678.9873072",
+          "293945.4949608"
+        ],
+        "bar": true,
+        "width": 0.7683,
+        "classes": "bid",
+        "visible": false
+      },
+      {
+        "side": "bid",
+        "price": "77878",
+        "values": [
+          "77878",
+          "3193.012723",
+          "297138.5076838"
+        ],
+        "bar": true,
+        "width": 0.4319,
+        "classes": "bid",
+        "visible": false
+      },
+      {
+        "side": "bid",
+        "price": "77877",
+        "values": [
+          "77877",
+          "739126.6301947",
+          "1036265.1378785"
+        ],
+        "bar": true,
+        "width": 100,
+        "classes": "bid",
+        "visible": false
+      },
+      {
+        "side": "bid",
+        "price": "77876",
+        "values": [
+          "77876",
+          "8159.8829404",
+          "1044425.0208189"
+        ],
+        "bar": true,
+        "width": 1.1039,
+        "classes": "bid",
+        "visible": false
+      },
+      {
+        "side": "bid",
+        "price": "77875",
+        "values": [
+          "77875",
+          "45463.7568079",
+          "1089888.7776268"
+        ],
+        "bar": true,
+        "width": 6.151,
+        "classes": "bid",
+        "visible": false
+      },
+      {
+        "side": "bid",
+        "price": "77874",
+        "values": [
+          "77874",
+          "2990.3693225",
+          "1092879.1469493"
+        ],
+        "bar": true,
+        "width": 0.40449999999999997,
+        "classes": "bid",
+        "visible": false
+      },
+      {
+        "side": "bid",
+        "price": "77873",
+        "values": [
+          "77873",
+          "57376.4305979",
+          "1150255.5775472"
+        ],
+        "bar": true,
+        "width": 7.762700000000001,
+        "classes": "bid",
+        "visible": false
+      },
+      {
+        "side": "bid",
+        "price": "77872",
+        "values": [
+          "77872",
+          "4375.6397074",
+          "1154631.2172546"
+        ],
+        "bar": true,
+        "width": 0.592,
+        "classes": "bid",
+        "visible": false
+      },
+      {
+        "side": "bid",
+        "price": "77871",
+        "values": [
+          "77871",
+          "112860.2146421",
+          "1267491.4318967"
+        ],
+        "bar": true,
+        "width": 15.2694,
+        "classes": "bid",
+        "visible": false
+      },
+      {
+        "side": "bid",
+        "price": "77870",
+        "values": [
+          "77870",
+          "375118.8547408",
+          "1642610.2866375"
+        ],
+        "bar": true,
+        "width": 50.751599999999996,
+        "classes": "bid",
+        "visible": false
+      },
+      {
+        "side": "bid",
+        "price": "77869",
+        "values": [
+          "77869",
+          "31466.4246592",
+          "1674076.7112967"
+        ],
+        "bar": true,
+        "width": 4.2572,
+        "classes": "bid",
+        "visible": false
+      },
+      {
+        "side": "bid",
+        "price": "77868",
+        "values": [
+          "77868",
+          "97245.6007141",
+          "1771322.3120108"
+        ],
+        "bar": true,
+        "width": 13.156799999999999,
+        "classes": "bid",
+        "visible": false
+      },
+      {
+        "side": "bid",
+        "price": "77867",
+        "values": [
+          "77867",
+          "28789.863573",
+          "1800112.1755838"
+        ],
+        "bar": true,
+        "width": 3.8951,
+        "classes": "bid",
+        "visible": false
+      },
+      {
+        "side": "bid",
+        "price": "77866",
+        "values": [
+          "77866",
+          "170994.4605654",
+          "1971106.6361492"
+        ],
+        "bar": true,
+        "width": 23.1346,
+        "classes": "bid",
+        "visible": false
+      },
+      {
+        "side": "bid",
+        "price": "77865",
+        "values": [
+          "77865",
+          "1581.453704",
+          "1972688.0898532"
+        ],
+        "bar": true,
+        "width": 0.21389999999999998,
+        "classes": "bid",
+        "visible": false
+      },
+      {
+        "side": "bid",
+        "price": "77864",
+        "values": [
+          "77864",
+          "3306.1128877",
+          "1975994.2027409"
+        ],
+        "bar": true,
+        "width": 0.44720000000000004,
+        "classes": "bid",
+        "visible": false
+      },
+      {
+        "side": "bid",
+        "price": "77863",
+        "values": [
+          "77863",
+          "569464.5028349",
+          "2545458.7055758"
+        ],
+        "bar": true,
+        "width": 77.0455,
+        "classes": "bid",
+        "visible": false
+      }
+    ],
+    "rescaled_quote_cap": "739126.6301947",
+    "freeze_held_while_tape_advanced": true,
+    "recenter_restored_both_best_buckets": true,
+    "session_overflows": 0,
+    "frame_health": {
+      "ready": false,
+      "reasons": [
+        "owner_busy",
+        "last_completed_presentation"
+      ]
+    },
+    "cohort_faults": [
+      {
+        "key": {
+          "venue": "kraken",
+          "api_family": "spot-v2",
+          "instrument_id": "kraken:spot-v2:spot:BTC/USDT",
+          "channel": "book",
+          "depth": "25",
+          "aggregation": []
+        },
+        "lifecycle": "resynchronizing",
+        "reason": "required_queue_overflow",
+        "capture_complete": false
+      }
+    ]
+  },
+  "chart_link": {
+    "tooltip": "207651000000000 nsExact price 77815.99Chart bucket 77815 · step 1Resting B 0 · A 0.01162 BTCbuy 0.00007 @ 77799.47 · 207651292234165 nsbuy 0.00007 @ 77799.47 · 207651315261296 nsbuy 0.00007 @ 77799.47 · 207651318484245 nsBook sample eligible · f22c780386352d04e99d073196a688fb",
+    "exact_price": "77815.99",
+    "horizontal_ink": 525,
+    "canvas_width": 1157,
+    "chart_min": "77750",
+    "chart_step": "1",
+    "hover_leave_cleared": true,
+    "keyboard_focus_linked": true,
+    "keyboard_blur_cleared": true
+  },
+  "persisted_preferences": {
+    "dom_group": "5",
+    "unit": "quote",
+    "cumulative": true,
+    "chart_group": "1"
+  },
+  "narrow_layout": {
+    "viewport": [
+      1280,
+      850
+    ],
+    "document_width": 1280,
+    "pane_width": 250,
+    "pane_scroll_width": 248,
+    "group_width": 110,
+    "labels": [
+      {
+        "x": 1032,
+        "y": 165,
+        "width": 69.109375,
+        "height": 22
+      },
+      {
+        "x": 1108.109375,
+        "y": 165,
+        "width": 159.890625,
+        "height": 22
+      },
+      {
+        "x": 1032,
+        "y": 191,
+        "width": 74.5,
+        "height": 22
+      },
+      {
+        "x": 1113.5,
+        "y": 191,
+        "width": 65.03125,
+        "height": 22
+      },
+      {
+        "x": 1032,
+        "y": 217,
+        "width": 85.3125,
+        "height": 13
+      }
+    ],
+    "overlaps": false,
+    "animation": "none",
+    "following": true,
+    "ladder": {
+      "version": "1",
+      "generation": "1",
+      "instrument_id": "hyperliquid:info:perpetual:BTC",
+      "asof": {
+        "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+        "ingest_ordinal": "909830",
+        "event_index": "0",
+        "exchange_event_wall_ns": "1793630231108000000",
+        "receive_wall_ns": "1793630231622727000",
+        "receive_mono_ns": "208277807494066",
+        "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+      },
+      "step": "0.01",
+      "tick_size": null,
+      "step_options": [
+        "0.01",
+        "0.1",
+        "1",
+        "10",
+        "100"
+      ],
+      "quote_unit": "USDT",
+      "coverage": {
+        "subscribed_depth": "20",
+        "retained_bid_levels": "20",
+        "retained_ask_levels": "20",
+        "full_depth": false
+      },
+      "source_mode": "ws_snapshot",
+      "summary": {
+        "best_bid": "78055",
+        "best_ask": "78056",
+        "midpoint": "78055.5",
+        "spread": "1",
+        "spread_ticks": null,
+        "spread_bps": "0.12811397018787913728052475482188955294630102939575045960886804901640499388255792"
+      },
+      "unit": "BTC",
+      "eligible": true,
+      "reasons": [
+        "partial_depth_coverage",
+        "display_quantum_not_native_tick"
+      ],
+      "rows": [
+        {
+          "side": "bid",
+          "price": "78055",
+          "base_quantity": "0.11779",
+          "cumulative_base": "0.11779",
+          "quote_notional": "9194.09845",
+          "cumulative_quote": "9194.09845"
+        },
+        {
+          "side": "bid",
+          "price": "78054",
+          "base_quantity": "0.1606",
+          "cumulative_base": "0.27839",
+          "quote_notional": "12535.4724",
+          "cumulative_quote": "21729.57085"
+        },
+        {
+          "side": "bid",
+          "price": "78053",
+          "base_quantity": "2.35951",
+          "cumulative_base": "2.6379",
+          "quote_notional": "184166.83403",
+          "cumulative_quote": "205896.40488"
+        },
+        {
+          "side": "bid",
+          "price": "78052",
+          "base_quantity": "1.5861",
+          "cumulative_base": "4.224",
+          "quote_notional": "123798.2772",
+          "cumulative_quote": "329694.68208"
+        },
+        {
+          "side": "bid",
+          "price": "78051",
+          "base_quantity": "1.48821",
+          "cumulative_base": "5.71221",
+          "quote_notional": "116156.27871",
+          "cumulative_quote": "445850.96079"
+        },
+        {
+          "side": "bid",
+          "price": "78050",
+          "base_quantity": "1.28309",
+          "cumulative_base": "6.9953",
+          "quote_notional": "100145.1745",
+          "cumulative_quote": "545996.13529"
+        },
+        {
+          "side": "bid",
+          "price": "78049",
+          "base_quantity": "2.24048",
+          "cumulative_base": "9.23578",
+          "quote_notional": "174867.22352",
+          "cumulative_quote": "720863.35881"
+        },
+        {
+          "side": "bid",
+          "price": "78048",
+          "base_quantity": "3.16733",
+          "cumulative_base": "12.40311",
+          "quote_notional": "247203.77184",
+          "cumulative_quote": "968067.13065"
+        },
+        {
+          "side": "bid",
+          "price": "78047",
+          "base_quantity": "0.46698",
+          "cumulative_base": "12.87009",
+          "quote_notional": "36446.38806",
+          "cumulative_quote": "1004513.51871"
+        },
+        {
+          "side": "bid",
+          "price": "78046",
+          "base_quantity": "1.93375",
+          "cumulative_base": "14.80384",
+          "quote_notional": "150921.4525",
+          "cumulative_quote": "1155434.97121"
+        },
+        {
+          "side": "bid",
+          "price": "78045",
+          "base_quantity": "2.75683",
+          "cumulative_base": "17.56067",
+          "quote_notional": "215156.79735",
+          "cumulative_quote": "1370591.76856"
+        },
+        {
+          "side": "bid",
+          "price": "78044",
+          "base_quantity": "3.19959",
+          "cumulative_base": "20.76026",
+          "quote_notional": "249708.80196",
+          "cumulative_quote": "1620300.57052"
+        },
+        {
+          "side": "bid",
+          "price": "78043",
+          "base_quantity": "1.5564",
+          "cumulative_base": "22.31666",
+          "quote_notional": "121466.1252",
+          "cumulative_quote": "1741766.69572"
+        },
+        {
+          "side": "bid",
+          "price": "78042",
+          "base_quantity": "1.174",
+          "cumulative_base": "23.49066",
+          "quote_notional": "91621.308",
+          "cumulative_quote": "1833388.00372"
+        },
+        {
+          "side": "bid",
+          "price": "78041",
+          "base_quantity": "5.51199",
+          "cumulative_base": "29.00265",
+          "quote_notional": "430161.21159",
+          "cumulative_quote": "2263549.21531"
+        },
+        {
+          "side": "bid",
+          "price": "78040",
+          "base_quantity": "9.21602",
+          "cumulative_base": "38.21867",
+          "quote_notional": "719218.2008",
+          "cumulative_quote": "2982767.41611"
+        },
+        {
+          "side": "bid",
+          "price": "78039",
+          "base_quantity": "1.8211",
+          "cumulative_base": "40.03977",
+          "quote_notional": "142116.8229",
+          "cumulative_quote": "3124884.23901"
+        },
+        {
+          "side": "bid",
+          "price": "78038",
+          "base_quantity": "1.24359",
+          "cumulative_base": "41.28336",
+          "quote_notional": "97047.27642",
+          "cumulative_quote": "3221931.51543"
+        },
+        {
+          "side": "bid",
+          "price": "78037",
+          "base_quantity": "0.97464",
+          "cumulative_base": "42.258",
+          "quote_notional": "76057.98168",
+          "cumulative_quote": "3297989.49711"
+        },
+        {
+          "side": "bid",
+          "price": "78036",
+          "base_quantity": "8.64775",
+          "cumulative_base": "50.90575",
+          "quote_notional": "674835.819",
+          "cumulative_quote": "3972825.31611"
+        },
+        {
+          "side": "ask",
+          "price": "78056",
+          "base_quantity": "2.18921",
+          "cumulative_base": "2.18921",
+          "quote_notional": "170880.97576",
+          "cumulative_quote": "170880.97576"
+        },
+        {
+          "side": "ask",
+          "price": "78057",
+          "base_quantity": "1.62157",
+          "cumulative_base": "3.81078",
+          "quote_notional": "126574.88949",
+          "cumulative_quote": "297455.86525"
+        },
+        {
+          "side": "ask",
+          "price": "78058",
+          "base_quantity": "3.07604",
+          "cumulative_base": "6.88682",
+          "quote_notional": "240109.53032",
+          "cumulative_quote": "537565.39557"
+        },
+        {
+          "side": "ask",
+          "price": "78059",
+          "base_quantity": "1.96691",
+          "cumulative_base": "8.85373",
+          "quote_notional": "153535.02769",
+          "cumulative_quote": "691100.42326"
+        },
+        {
+          "side": "ask",
+          "price": "78060",
+          "base_quantity": "0.51242",
+          "cumulative_base": "9.36615",
+          "quote_notional": "39999.5052",
+          "cumulative_quote": "731099.92846"
+        },
+        {
+          "side": "ask",
+          "price": "78061",
+          "base_quantity": "12.89664",
+          "cumulative_base": "22.26279",
+          "quote_notional": "1006724.61504",
+          "cumulative_quote": "1737824.5435"
+        },
+        {
+          "side": "ask",
+          "price": "78062",
+          "base_quantity": "2.65606",
+          "cumulative_base": "24.91885",
+          "quote_notional": "207337.35572",
+          "cumulative_quote": "1945161.89922"
+        },
+        {
+          "side": "ask",
+          "price": "78064",
+          "base_quantity": "3.48088",
+          "cumulative_base": "28.39973",
+          "quote_notional": "271731.41632",
+          "cumulative_quote": "2216893.31554"
+        },
+        {
+          "side": "ask",
+          "price": "78065",
+          "base_quantity": "2.96848",
+          "cumulative_base": "31.36821",
+          "quote_notional": "231734.3912",
+          "cumulative_quote": "2448627.70674"
+        },
+        {
+          "side": "ask",
+          "price": "78066",
+          "base_quantity": "0.04842",
+          "cumulative_base": "31.41663",
+          "quote_notional": "3779.95572",
+          "cumulative_quote": "2452407.66246"
+        },
+        {
+          "side": "ask",
+          "price": "78067",
+          "base_quantity": "3.54177",
+          "cumulative_base": "34.9584",
+          "quote_notional": "276495.35859",
+          "cumulative_quote": "2728903.02105"
+        },
+        {
+          "side": "ask",
+          "price": "78068",
+          "base_quantity": "3.35276",
+          "cumulative_base": "38.31116",
+          "quote_notional": "261743.26768",
+          "cumulative_quote": "2990646.28873"
+        },
+        {
+          "side": "ask",
+          "price": "78069",
+          "base_quantity": "0.66237",
+          "cumulative_base": "38.97353",
+          "quote_notional": "51710.56353",
+          "cumulative_quote": "3042356.85226"
+        },
+        {
+          "side": "ask",
+          "price": "78070",
+          "base_quantity": "0.76967",
+          "cumulative_base": "39.7432",
+          "quote_notional": "60088.1369",
+          "cumulative_quote": "3102444.98916"
+        },
+        {
+          "side": "ask",
+          "price": "78072",
+          "base_quantity": "1.53546",
+          "cumulative_base": "41.27866",
+          "quote_notional": "119876.43312",
+          "cumulative_quote": "3222321.42228"
+        },
+        {
+          "side": "ask",
+          "price": "78073",
+          "base_quantity": "0.75453",
+          "cumulative_base": "42.03319",
+          "quote_notional": "58908.42069",
+          "cumulative_quote": "3281229.84297"
+        },
+        {
+          "side": "ask",
+          "price": "78074",
+          "base_quantity": "6.44194",
+          "cumulative_base": "48.47513",
+          "quote_notional": "502948.02356",
+          "cumulative_quote": "3784177.86653"
+        },
+        {
+          "side": "ask",
+          "price": "78075",
+          "base_quantity": "0.68547",
+          "cumulative_base": "49.1606",
+          "quote_notional": "53518.07025",
+          "cumulative_quote": "3837695.93678"
+        },
+        {
+          "side": "ask",
+          "price": "78076",
+          "base_quantity": "3.81826",
+          "cumulative_base": "52.97886",
+          "quote_notional": "298114.46776",
+          "cumulative_quote": "4135810.40454"
+        },
+        {
+          "side": "ask",
+          "price": "78077",
+          "base_quantity": "1.48424",
+          "cumulative_base": "54.4631",
+          "quote_notional": "115885.00648",
+          "cumulative_quote": "4251695.41102"
+        }
+      ]
+    },
+    "assets": [
+      "http://127.0.0.1:8000/assets/index-CTUoBLmO.js"
+    ]
+  },
+  "screenshots": [
+    {
+      "screenshot": "depth-ladder-binance-btc.png",
+      "request": {
+        "session_id": "5617f5fe440b4befa67691c21faaa678",
+        "generation": "2",
+        "price_step": "0.5",
+        "bucket_ns": "1000000000",
+        "price_offset_rows": 0,
+        "rows": 128,
+        "max_columns": 181,
+        "recenter": true
+      },
+      "source": {
+        "id": "live",
+        "mode": "live",
+        "synthetic": false
+      },
+      "session": {
+        "id": "5617f5fe440b4befa67691c21faaa678",
+        "generation": "2",
+        "status": "live",
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "overflows": 0,
+        "queue_depth": 48,
+        "queue_highwater": 92
+      },
+      "selected_streams": [
+        {
+          "key": {
+            "venue": "binance-global",
+            "api_family": "spot-v3",
+            "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+            "channel": "trades",
+            "depth": null,
+            "aggregation": []
+          },
+          "lifecycle": "live",
+          "capture_complete": true,
+          "reason": "starting",
+          "processed_frames": "16172",
+          "queue_depth": "2",
+          "queue_highwater_count": "2"
+        },
+        {
+          "key": {
+            "venue": "binance-global",
+            "api_family": "spot-v3",
+            "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+            "channel": "book",
+            "depth": "5000",
+            "aggregation": []
+          },
+          "lifecycle": "live",
+          "capture_complete": true,
+          "reason": "starting",
+          "processed_frames": "1353",
+          "queue_depth": "1",
+          "queue_highwater_count": "23"
+        }
+      ],
+      "ladder": {
+        "version": "1",
+        "generation": "2",
+        "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "936949",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793630357514000000",
+          "receive_wall_ns": "1793630357521797000",
+          "receive_mono_ns": "208403701220285",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "step": "1",
+        "tick_size": "0.01",
+        "step_options": [
+          "0.01",
+          "0.05",
+          "0.1",
+          "0.5",
+          "1",
+          "5",
+          "10"
+        ],
+        "quote_unit": "USDT",
+        "coverage": {
+          "subscribed_depth": "5000",
+          "retained_bid_levels": "4929",
+          "retained_ask_levels": "5117",
+          "full_depth": false
+        },
+        "source_mode": "ws_delta",
+        "summary": {
+          "best_bid": "77963.05",
+          "best_ask": "77963.06",
+          "midpoint": "77963.055",
+          "spread": "0.01",
+          "spread_ticks": "1",
+          "spread_bps": "0.0012826588183338890452663764907621949909479560543131615352938645105684994001325371"
+        },
+        "unit": "BTC",
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "rows": [
+          {
+            "side": "bid",
+            "price": "77963",
+            "base_quantity": "10.20724",
+            "cumulative_base": "10.20724",
+            "quote_notional": "795787.562482",
+            "cumulative_quote": "795787.562482"
+          },
+          {
+            "side": "bid",
+            "price": "77962",
+            "base_quantity": "0.30122",
+            "cumulative_base": "10.50846",
+            "quote_notional": "23483.7635418",
+            "cumulative_quote": "819271.3260238"
+          },
+          {
+            "side": "bid",
+            "price": "77961",
+            "base_quantity": "0.02024",
+            "cumulative_base": "10.5287",
+            "quote_notional": "1577.9471236",
+            "cumulative_quote": "820849.2731474"
+          },
+          {
+            "side": "bid",
+            "price": "77960",
+            "base_quantity": "0.30825",
+            "cumulative_base": "10.83695",
+            "quote_notional": "24031.4112593",
+            "cumulative_quote": "844880.6844067"
+          },
+          {
+            "side": "bid",
+            "price": "77959",
+            "base_quantity": "0.43112",
+            "cumulative_base": "11.26807",
+            "quote_notional": "33609.971432",
+            "cumulative_quote": "878490.6558387"
+          },
+          {
+            "side": "bid",
+            "price": "77958",
+            "base_quantity": "0.04985",
+            "cumulative_base": "11.31792",
+            "quote_notional": "3886.2117246",
+            "cumulative_quote": "882376.8675633"
+          },
+          {
+            "side": "bid",
+            "price": "77957",
+            "base_quantity": "1.25654",
+            "cumulative_base": "12.57446",
+            "quote_notional": "97956.3306595",
+            "cumulative_quote": "980333.1982228"
+          },
+          {
+            "side": "bid",
+            "price": "77956",
+            "base_quantity": "0.05559",
+            "cumulative_base": "12.63005",
+            "quote_notional": "4333.5920245",
+            "cumulative_quote": "984666.7902473"
+          },
+          {
+            "side": "bid",
+            "price": "77955",
+            "base_quantity": "0.38037",
+            "cumulative_base": "13.01042",
+            "quote_notional": "29651.7741174",
+            "cumulative_quote": "1014318.5643647"
+          },
+          {
+            "side": "bid",
+            "price": "77954",
+            "base_quantity": "0.10613",
+            "cumulative_base": "13.11655",
+            "quote_notional": "8273.2977016",
+            "cumulative_quote": "1022591.8620663"
+          },
+          {
+            "side": "bid",
+            "price": "77953",
+            "base_quantity": "2.00827",
+            "cumulative_base": "15.12482",
+            "quote_notional": "156551.7530465",
+            "cumulative_quote": "1179143.6151128"
+          },
+          {
+            "side": "bid",
+            "price": "77952",
+            "base_quantity": "0.65577",
+            "cumulative_base": "15.78059",
+            "quote_notional": "51118.8790842",
+            "cumulative_quote": "1230262.494197"
+          },
+          {
+            "side": "bid",
+            "price": "77951",
+            "base_quantity": "0.89998",
+            "cumulative_base": "16.68057",
+            "quote_notional": "70154.5808086",
+            "cumulative_quote": "1300417.0750056"
+          },
+          {
+            "side": "bid",
+            "price": "77950",
+            "base_quantity": "5.70322",
+            "cumulative_base": "22.38379",
+            "quote_notional": "444568.646532",
+            "cumulative_quote": "1744985.7215376"
+          },
+          {
+            "side": "bid",
+            "price": "77949",
+            "base_quantity": "0.04692",
+            "cumulative_base": "22.43071",
+            "quote_notional": "3657.4007272",
+            "cumulative_quote": "1748643.1222648"
+          },
+          {
+            "side": "bid",
+            "price": "77948",
+            "base_quantity": "0.51179",
+            "cumulative_base": "22.9425",
+            "quote_notional": "39893.1856283",
+            "cumulative_quote": "1788536.3078931"
+          },
+          {
+            "side": "bid",
+            "price": "77947",
+            "base_quantity": "0.05131",
+            "cumulative_base": "22.99381",
+            "quote_notional": "3999.4730351",
+            "cumulative_quote": "1792535.7809282"
+          },
+          {
+            "side": "bid",
+            "price": "77946",
+            "base_quantity": "5.63336",
+            "cumulative_base": "28.62717",
+            "quote_notional": "439098.0749429",
+            "cumulative_quote": "2231633.8558711"
+          },
+          {
+            "side": "bid",
+            "price": "77945",
+            "base_quantity": "1.98493",
+            "cumulative_base": "30.6121",
+            "quote_notional": "154716.6075501",
+            "cumulative_quote": "2386350.4634212"
+          },
+          {
+            "side": "bid",
+            "price": "77944",
+            "base_quantity": "0.37294",
+            "cumulative_base": "30.98504",
+            "quote_notional": "29068.585305",
+            "cumulative_quote": "2415419.0487262"
+          },
+          {
+            "side": "bid",
+            "price": "77943",
+            "base_quantity": "0.03961",
+            "cumulative_base": "31.02465",
+            "quote_notional": "3087.3410544",
+            "cumulative_quote": "2418506.3897806"
+          },
+          {
+            "side": "bid",
+            "price": "77942",
+            "base_quantity": "2.84409",
+            "cumulative_base": "33.86874",
+            "quote_notional": "221674.6050318",
+            "cumulative_quote": "2640180.9948124"
+          },
+          {
+            "side": "bid",
+            "price": "77941",
+            "base_quantity": "0.00093",
+            "cumulative_base": "33.86967",
+            "quote_notional": "72.4857986",
+            "cumulative_quote": "2640253.480611"
+          },
+          {
+            "side": "bid",
+            "price": "77940",
+            "base_quantity": "0.23005",
+            "cumulative_base": "34.09972",
+            "quote_notional": "17930.2904928",
+            "cumulative_quote": "2658183.7711038"
+          },
+          {
+            "side": "bid",
+            "price": "77939",
+            "base_quantity": "0.00418",
+            "cumulative_base": "34.1039",
+            "quote_notional": "325.7852848",
+            "cumulative_quote": "2658509.5563886"
+          },
+          {
+            "side": "ask",
+            "price": "77964",
+            "base_quantity": "0.10686",
+            "cumulative_base": "0.10686",
+            "quote_notional": "8331.1328832",
+            "cumulative_quote": "8331.1328832"
+          },
+          {
+            "side": "ask",
+            "price": "77965",
+            "base_quantity": "0.02421",
+            "cumulative_base": "0.13107",
+            "quote_notional": "1887.5088095",
+            "cumulative_quote": "10218.6416927"
+          },
+          {
+            "side": "ask",
+            "price": "77966",
+            "base_quantity": "0.00021",
+            "cumulative_base": "0.13128",
+            "quote_notional": "16.3728474",
+            "cumulative_quote": "10235.0145401"
+          },
+          {
+            "side": "ask",
+            "price": "77967",
+            "base_quantity": "0.03009",
+            "cumulative_base": "0.16137",
+            "quote_notional": "2346.0005371",
+            "cumulative_quote": "12581.0150772"
+          },
+          {
+            "side": "ask",
+            "price": "77968",
+            "base_quantity": "0.04232",
+            "cumulative_base": "0.20369",
+            "quote_notional": "3299.5854346",
+            "cumulative_quote": "15880.6005118"
+          },
+          {
+            "side": "ask",
+            "price": "77969",
+            "base_quantity": "0.02407",
+            "cumulative_base": "0.22776",
+            "quote_notional": "1876.690056",
+            "cumulative_quote": "17757.2905678"
+          },
+          {
+            "side": "ask",
+            "price": "77970",
+            "base_quantity": "0.01324",
+            "cumulative_base": "0.241",
+            "quote_notional": "1032.3110268",
+            "cumulative_quote": "18789.6015946"
+          },
+          {
+            "side": "ask",
+            "price": "77971",
+            "base_quantity": "0.03584",
+            "cumulative_base": "0.27684",
+            "quote_notional": "2794.4486205",
+            "cumulative_quote": "21584.0502151"
+          },
+          {
+            "side": "ask",
+            "price": "77972",
+            "base_quantity": "0.0001",
+            "cumulative_base": "0.27694",
+            "quote_notional": "7.797128",
+            "cumulative_quote": "21591.8473431"
+          },
+          {
+            "side": "ask",
+            "price": "77973",
+            "base_quantity": "0.02462",
+            "cumulative_base": "0.30156",
+            "quote_notional": "1919.6710871",
+            "cumulative_quote": "23511.5184302"
+          },
+          {
+            "side": "ask",
+            "price": "77974",
+            "base_quantity": "0.01674",
+            "cumulative_base": "0.3183",
+            "quote_notional": "1305.2790684",
+            "cumulative_quote": "24816.7974986"
+          },
+          {
+            "side": "ask",
+            "price": "77975",
+            "base_quantity": "0.03147",
+            "cumulative_base": "0.34977",
+            "quote_notional": "2453.8466827",
+            "cumulative_quote": "27270.6441813"
+          },
+          {
+            "side": "ask",
+            "price": "77976",
+            "base_quantity": "0.00022",
+            "cumulative_base": "0.34999",
+            "quote_notional": "17.1546377",
+            "cumulative_quote": "27287.798819"
+          },
+          {
+            "side": "ask",
+            "price": "77977",
+            "base_quantity": "0.02422",
+            "cumulative_base": "0.37421",
+            "quote_notional": "1888.5791224",
+            "cumulative_quote": "29176.3779414"
+          },
+          {
+            "side": "ask",
+            "price": "77978",
+            "base_quantity": "0.00854",
+            "cumulative_base": "0.38275",
+            "quote_notional": "665.9282893",
+            "cumulative_quote": "29842.3062307"
+          },
+          {
+            "side": "ask",
+            "price": "77979",
+            "base_quantity": "1.15043",
+            "cumulative_base": "1.53318",
+            "quote_notional": "89709.1165128",
+            "cumulative_quote": "119551.4227435"
+          },
+          {
+            "side": "ask",
+            "price": "77980",
+            "base_quantity": "0.00665",
+            "cumulative_base": "1.53983",
+            "quote_notional": "518.5650932",
+            "cumulative_quote": "120069.9878367"
+          },
+          {
+            "side": "ask",
+            "price": "77981",
+            "base_quantity": "0.51833",
+            "cumulative_base": "2.05816",
+            "quote_notional": "40419.8312159",
+            "cumulative_quote": "160489.8190526"
+          },
+          {
+            "side": "ask",
+            "price": "77982",
+            "base_quantity": "1.24762",
+            "cumulative_base": "3.30578",
+            "quote_notional": "97290.7490789",
+            "cumulative_quote": "257780.5681315"
+          },
+          {
+            "side": "ask",
+            "price": "77983",
+            "base_quantity": "0.05717",
+            "cumulative_base": "3.36295",
+            "quote_notional": "4458.2632311",
+            "cumulative_quote": "262238.8313626"
+          },
+          {
+            "side": "ask",
+            "price": "77984",
+            "base_quantity": "4.14313",
+            "cumulative_base": "7.50608",
+            "quote_notional": "323097.2134806",
+            "cumulative_quote": "585336.0448432"
+          },
+          {
+            "side": "ask",
+            "price": "77985",
+            "base_quantity": "0.10085",
+            "cumulative_base": "7.60693",
+            "quote_notional": "7864.7417355",
+            "cumulative_quote": "593200.7865787"
+          },
+          {
+            "side": "ask",
+            "price": "77986",
+            "base_quantity": "0.05588",
+            "cumulative_base": "7.66281",
+            "quote_notional": "4357.8162211",
+            "cumulative_quote": "597558.6027998"
+          },
+          {
+            "side": "ask",
+            "price": "77987",
+            "base_quantity": "0.03818",
+            "cumulative_base": "7.70099",
+            "quote_notional": "2977.5145232",
+            "cumulative_quote": "600536.117323"
+          },
+          {
+            "side": "ask",
+            "price": "77988",
+            "base_quantity": "9.52528",
+            "cumulative_base": "17.22627",
+            "quote_notional": "742855.571575",
+            "cumulative_quote": "1343391.688898"
+          }
+        ]
+      },
+      "surface": {
+        "unit": "base",
+        "cumulative": false,
+        "bar_cap": "11.95222",
+        "both_best_visible": true,
+        "notices": [
+          "partial depth coverage"
+        ]
+      },
+      "visualization": {
+        "view_id": "994dc6f60072441ab40b709ae9420588",
+        "grid_id": "c6765382725cb3387fc259f8b729c3f8",
+        "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+        "price_min": "77931",
+        "price_step": "0.5",
+        "rows": 128,
+        "start_ns": "208399000000000",
+        "end_ns": "208403880367785",
+        "complete_window": false,
+        "truncated": true,
+        "reasons": [
+          "history_retention_truncated",
+          "trailing_partial_history"
+        ],
+        "columns": [
+          {
+            "time_ns": "208399000000000",
+            "end_ns": "208400000000000",
+            "eligible": true,
+            "best_bid": "77963.05",
+            "best_ask": "77963.06",
+            "asof": {
+              "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+              "ingest_ordinal": "935863",
+              "event_index": "0",
+              "exchange_event_wall_ns": "1793630352714000000",
+              "receive_wall_ns": "1793630352730351000",
+              "receive_mono_ns": "208398909878140",
+              "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+            }
+          },
+          {
+            "time_ns": "208400000000000",
+            "end_ns": "208401000000000",
+            "eligible": true,
+            "best_bid": "77957.1",
+            "best_ask": "77957.11",
+            "asof": {
+              "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+              "ingest_ordinal": "936084",
+              "event_index": "0",
+              "exchange_event_wall_ns": "1793630353714000000",
+              "receive_wall_ns": "1793630353707753000",
+              "receive_mono_ns": "208399887258250",
+              "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+            }
+          },
+          {
+            "time_ns": "208401000000000",
+            "end_ns": "208402000000000",
+            "eligible": true,
+            "best_bid": "77959.87",
+            "best_ask": "77959.88",
+            "asof": {
+              "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+              "ingest_ordinal": "936295",
+              "event_index": "0",
+              "exchange_event_wall_ns": "1793630354714000000",
+              "receive_wall_ns": "1793630354709391000",
+              "receive_mono_ns": "208400888873958",
+              "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+            }
+          },
+          {
+            "time_ns": "208402000000000",
+            "end_ns": "208403000000000",
+            "eligible": true,
+            "best_bid": "77963.05",
+            "best_ask": "77963.06",
+            "asof": {
+              "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+              "ingest_ordinal": "936512",
+              "event_index": "0",
+              "exchange_event_wall_ns": "1793630355714000000",
+              "receive_wall_ns": "1793630355707674000",
+              "receive_mono_ns": "208401887135130",
+              "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+            }
+          },
+          {
+            "time_ns": "208403000000000",
+            "end_ns": "208404000000000",
+            "eligible": true,
+            "best_bid": "77963.05",
+            "best_ask": "77963.06",
+            "asof": {
+              "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+              "ingest_ordinal": "936808",
+              "event_index": "0",
+              "exchange_event_wall_ns": "1793630356714000000",
+              "receive_wall_ns": "1793630356707490000",
+              "receive_mono_ns": "208402886930157",
+              "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+            }
+          }
+        ],
+        "trade_count": 683
+      }
+    },
+    {
+      "screenshot": "depth-ladder-binance-quote.png",
+      "request": {
+        "session_id": "5617f5fe440b4befa67691c21faaa678",
+        "generation": "2",
+        "price_step": "0.5",
+        "bucket_ns": "1000000000",
+        "price_offset_rows": 0,
+        "rows": 128,
+        "max_columns": 181,
+        "recenter": true
+      },
+      "source": {
+        "id": "live",
+        "mode": "live",
+        "synthetic": false
+      },
+      "session": {
+        "id": "5617f5fe440b4befa67691c21faaa678",
+        "generation": "2",
+        "status": "live",
+        "health": {
+          "ready": false,
+          "reasons": [
+            "owner_busy",
+            "last_completed_presentation"
+          ]
+        },
+        "overflows": 0,
+        "queue_depth": 27,
+        "queue_highwater": 92
+      },
+      "selected_streams": [
+        {
+          "key": {
+            "venue": "binance-global",
+            "api_family": "spot-v3",
+            "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+            "channel": "trades",
+            "depth": null,
+            "aggregation": []
+          },
+          "lifecycle": "live",
+          "capture_complete": true,
+          "reason": "starting",
+          "processed_frames": "16236",
+          "queue_depth": "2",
+          "queue_highwater_count": "2"
+        },
+        {
+          "key": {
+            "venue": "binance-global",
+            "api_family": "spot-v3",
+            "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+            "channel": "book",
+            "depth": "5000",
+            "aggregation": []
+          },
+          "lifecycle": "live",
+          "capture_complete": true,
+          "reason": "starting",
+          "processed_frames": "1363",
+          "queue_depth": "0",
+          "queue_highwater_count": "23"
+        }
+      ],
+      "ladder": {
+        "version": "1",
+        "generation": "2",
+        "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "937040",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793630358014000000",
+          "receive_wall_ns": "1793630358050588000",
+          "receive_mono_ns": "208404230000583",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "step": "1",
+        "tick_size": "0.01",
+        "step_options": [
+          "0.01",
+          "0.05",
+          "0.1",
+          "0.5",
+          "1",
+          "5",
+          "10"
+        ],
+        "quote_unit": "USDT",
+        "coverage": {
+          "subscribed_depth": "5000",
+          "retained_bid_levels": "4930",
+          "retained_ask_levels": "5118",
+          "full_depth": false
+        },
+        "source_mode": "ws_delta",
+        "summary": {
+          "best_bid": "77963.05",
+          "best_ask": "77963.06",
+          "midpoint": "77963.055",
+          "spread": "0.01",
+          "spread_ticks": "1",
+          "spread_bps": "0.0012826588183338890452663764907621949909479560543131615352938645105684994001325371"
+        },
+        "unit": "BTC",
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage"
+        ],
+        "rows": [
+          {
+            "side": "bid",
+            "price": "77963",
+            "base_quantity": "10.19201",
+            "cumulative_base": "10.19201",
+            "quote_notional": "794600.1852305",
+            "cumulative_quote": "794600.1852305"
+          },
+          {
+            "side": "bid",
+            "price": "77962",
+            "base_quantity": "0.30122",
+            "cumulative_base": "10.49323",
+            "quote_notional": "23483.7635418",
+            "cumulative_quote": "818083.9487723"
+          },
+          {
+            "side": "bid",
+            "price": "77961",
+            "base_quantity": "0.05342",
+            "cumulative_base": "10.54665",
+            "quote_notional": "4164.7200394",
+            "cumulative_quote": "822248.6688117"
+          },
+          {
+            "side": "bid",
+            "price": "77960",
+            "base_quantity": "0.65516",
+            "cumulative_base": "11.20181",
+            "quote_notional": "51076.5600178",
+            "cumulative_quote": "873325.2288295"
+          },
+          {
+            "side": "bid",
+            "price": "77959",
+            "base_quantity": "0.43112",
+            "cumulative_base": "11.63293",
+            "quote_notional": "33609.971432",
+            "cumulative_quote": "906935.2002615"
+          },
+          {
+            "side": "bid",
+            "price": "77958",
+            "base_quantity": "0.04985",
+            "cumulative_base": "11.68278",
+            "quote_notional": "3886.2117246",
+            "cumulative_quote": "910821.4119861"
+          },
+          {
+            "side": "bid",
+            "price": "77957",
+            "base_quantity": "1.42773",
+            "cumulative_base": "13.11051",
+            "quote_notional": "111301.8254394",
+            "cumulative_quote": "1022123.2374255"
+          },
+          {
+            "side": "bid",
+            "price": "77956",
+            "base_quantity": "0.05559",
+            "cumulative_base": "13.1661",
+            "quote_notional": "4333.5920245",
+            "cumulative_quote": "1026456.82945"
+          },
+          {
+            "side": "bid",
+            "price": "77955",
+            "base_quantity": "0.38037",
+            "cumulative_base": "13.54647",
+            "quote_notional": "29651.7810548",
+            "cumulative_quote": "1056108.6105048"
+          },
+          {
+            "side": "bid",
+            "price": "77954",
+            "base_quantity": "0.10793",
+            "cumulative_base": "13.6544",
+            "quote_notional": "8413.615754",
+            "cumulative_quote": "1064522.2262588"
+          },
+          {
+            "side": "bid",
+            "price": "77953",
+            "base_quantity": "2.00827",
+            "cumulative_base": "15.66267",
+            "quote_notional": "156551.7530465",
+            "cumulative_quote": "1221073.9793053"
+          },
+          {
+            "side": "bid",
+            "price": "77952",
+            "base_quantity": "0.65577",
+            "cumulative_base": "16.31844",
+            "quote_notional": "51118.8790842",
+            "cumulative_quote": "1272192.8583895"
+          },
+          {
+            "side": "bid",
+            "price": "77951",
+            "base_quantity": "0.89998",
+            "cumulative_base": "17.21842",
+            "quote_notional": "70154.5808086",
+            "cumulative_quote": "1342347.4391981"
+          },
+          {
+            "side": "bid",
+            "price": "77950",
+            "base_quantity": "5.70322",
+            "cumulative_base": "22.92164",
+            "quote_notional": "444568.646532",
+            "cumulative_quote": "1786916.0857301"
+          },
+          {
+            "side": "bid",
+            "price": "77949",
+            "base_quantity": "0.04692",
+            "cumulative_base": "22.96856",
+            "quote_notional": "3657.4007272",
+            "cumulative_quote": "1790573.4864573"
+          },
+          {
+            "side": "bid",
+            "price": "77948",
+            "base_quantity": "0.16489",
+            "cumulative_base": "23.13345",
+            "quote_notional": "12852.9411723",
+            "cumulative_quote": "1803426.4276296"
+          },
+          {
+            "side": "bid",
+            "price": "77947",
+            "base_quantity": "0.05131",
+            "cumulative_base": "23.18476",
+            "quote_notional": "3999.4730351",
+            "cumulative_quote": "1807425.9006647"
+          },
+          {
+            "side": "bid",
+            "price": "77946",
+            "base_quantity": "5.76184",
+            "cumulative_base": "28.9466",
+            "quote_notional": "449112.5988645",
+            "cumulative_quote": "2256538.4995292"
+          },
+          {
+            "side": "bid",
+            "price": "77945",
+            "base_quantity": "1.98493",
+            "cumulative_base": "30.93153",
+            "quote_notional": "154716.6075501",
+            "cumulative_quote": "2411255.1070793"
+          },
+          {
+            "side": "bid",
+            "price": "77944",
+            "base_quantity": "0.02603",
+            "cumulative_base": "30.95756",
+            "quote_notional": "2028.8830937",
+            "cumulative_quote": "2413283.990173"
+          },
+          {
+            "side": "bid",
+            "price": "77943",
+            "base_quantity": "0.03961",
+            "cumulative_base": "30.99717",
+            "quote_notional": "3087.3410544",
+            "cumulative_quote": "2416371.3312274"
+          },
+          {
+            "side": "bid",
+            "price": "77942",
+            "base_quantity": "2.84409",
+            "cumulative_base": "33.84126",
+            "quote_notional": "221674.6050318",
+            "cumulative_quote": "2638045.9362592"
+          },
+          {
+            "side": "bid",
+            "price": "77941",
+            "base_quantity": "0.00093",
+            "cumulative_base": "33.84219",
+            "quote_notional": "72.4857986",
+            "cumulative_quote": "2638118.4220578"
+          },
+          {
+            "side": "bid",
+            "price": "77940",
+            "base_quantity": "0.23005",
+            "cumulative_base": "34.07224",
+            "quote_notional": "17930.2904928",
+            "cumulative_quote": "2656048.7125506"
+          },
+          {
+            "side": "bid",
+            "price": "77939",
+            "base_quantity": "0.00418",
+            "cumulative_base": "34.07642",
+            "quote_notional": "325.7852848",
+            "cumulative_quote": "2656374.4978354"
+          },
+          {
+            "side": "ask",
+            "price": "77964",
+            "base_quantity": "0.10893",
+            "cumulative_base": "0.10893",
+            "quote_notional": "8492.5164174",
+            "cumulative_quote": "8492.5164174"
+          },
+          {
+            "side": "ask",
+            "price": "77965",
+            "base_quantity": "0.02421",
+            "cumulative_base": "0.13314",
+            "quote_notional": "1887.5088095",
+            "cumulative_quote": "10380.0252269"
+          },
+          {
+            "side": "ask",
+            "price": "77966",
+            "base_quantity": "0.00021",
+            "cumulative_base": "0.13335",
+            "quote_notional": "16.3728474",
+            "cumulative_quote": "10396.3980743"
+          },
+          {
+            "side": "ask",
+            "price": "77967",
+            "base_quantity": "0.03009",
+            "cumulative_base": "0.16344",
+            "quote_notional": "2346.0005371",
+            "cumulative_quote": "12742.3986114"
+          },
+          {
+            "side": "ask",
+            "price": "77968",
+            "base_quantity": "0.04232",
+            "cumulative_base": "0.20576",
+            "quote_notional": "3299.5854346",
+            "cumulative_quote": "16041.984046"
+          },
+          {
+            "side": "ask",
+            "price": "77969",
+            "base_quantity": "0.02414",
+            "cumulative_base": "0.2299",
+            "quote_notional": "1882.147872",
+            "cumulative_quote": "17924.131918"
+          },
+          {
+            "side": "ask",
+            "price": "77970",
+            "base_quantity": "0.01324",
+            "cumulative_base": "0.24314",
+            "quote_notional": "1032.3110268",
+            "cumulative_quote": "18956.4429448"
+          },
+          {
+            "side": "ask",
+            "price": "77971",
+            "base_quantity": "0.03584",
+            "cumulative_base": "0.27898",
+            "quote_notional": "2794.4486205",
+            "cumulative_quote": "21750.8915653"
+          },
+          {
+            "side": "ask",
+            "price": "77972",
+            "base_quantity": "0.0001",
+            "cumulative_base": "0.27908",
+            "quote_notional": "7.797128",
+            "cumulative_quote": "21758.6886933"
+          },
+          {
+            "side": "ask",
+            "price": "77973",
+            "base_quantity": "0.02462",
+            "cumulative_base": "0.3037",
+            "quote_notional": "1919.6710871",
+            "cumulative_quote": "23678.3597804"
+          },
+          {
+            "side": "ask",
+            "price": "77974",
+            "base_quantity": "0.01674",
+            "cumulative_base": "0.32044",
+            "quote_notional": "1305.2790684",
+            "cumulative_quote": "24983.6388488"
+          },
+          {
+            "side": "ask",
+            "price": "77975",
+            "base_quantity": "0.03147",
+            "cumulative_base": "0.35191",
+            "quote_notional": "2453.8466827",
+            "cumulative_quote": "27437.4855315"
+          },
+          {
+            "side": "ask",
+            "price": "77976",
+            "base_quantity": "0.00022",
+            "cumulative_base": "0.35213",
+            "quote_notional": "17.1546377",
+            "cumulative_quote": "27454.6401692"
+          },
+          {
+            "side": "ask",
+            "price": "77977",
+            "base_quantity": "0.02422",
+            "cumulative_base": "0.37635",
+            "quote_notional": "1888.5791224",
+            "cumulative_quote": "29343.2192916"
+          },
+          {
+            "side": "ask",
+            "price": "77978",
+            "base_quantity": "0.00854",
+            "cumulative_base": "0.38489",
+            "quote_notional": "665.9282893",
+            "cumulative_quote": "30009.1475809"
+          },
+          {
+            "side": "ask",
+            "price": "77979",
+            "base_quantity": "1.15043",
+            "cumulative_base": "1.53532",
+            "quote_notional": "89709.1165128",
+            "cumulative_quote": "119718.2640937"
+          },
+          {
+            "side": "ask",
+            "price": "77980",
+            "base_quantity": "0.00665",
+            "cumulative_base": "1.54197",
+            "quote_notional": "518.5650932",
+            "cumulative_quote": "120236.8291869"
+          },
+          {
+            "side": "ask",
+            "price": "77981",
+            "base_quantity": "0.51833",
+            "cumulative_base": "2.0603",
+            "quote_notional": "40419.8312159",
+            "cumulative_quote": "160656.6604028"
+          },
+          {
+            "side": "ask",
+            "price": "77982",
+            "base_quantity": "1.24762",
+            "cumulative_base": "3.30792",
+            "quote_notional": "97290.7490789",
+            "cumulative_quote": "257947.4094817"
+          },
+          {
+            "side": "ask",
+            "price": "77983",
+            "base_quantity": "0.05717",
+            "cumulative_base": "3.36509",
+            "quote_notional": "4458.2632311",
+            "cumulative_quote": "262405.6727128"
+          },
+          {
+            "side": "ask",
+            "price": "77984",
+            "base_quantity": "4.13031",
+            "cumulative_base": "7.4954",
+            "quote_notional": "322097.4630876",
+            "cumulative_quote": "584503.1358004"
+          },
+          {
+            "side": "ask",
+            "price": "77985",
+            "base_quantity": "0.10085",
+            "cumulative_base": "7.59625",
+            "quote_notional": "7864.7417355",
+            "cumulative_quote": "592367.8775359"
+          },
+          {
+            "side": "ask",
+            "price": "77986",
+            "base_quantity": "0.05588",
+            "cumulative_base": "7.65213",
+            "quote_notional": "4357.8162211",
+            "cumulative_quote": "596725.693757"
+          },
+          {
+            "side": "ask",
+            "price": "77987",
+            "base_quantity": "0.03818",
+            "cumulative_base": "7.69031",
+            "quote_notional": "2977.5145232",
+            "cumulative_quote": "599703.2082802"
+          },
+          {
+            "side": "ask",
+            "price": "77988",
+            "base_quantity": "8.9934",
+            "cumulative_base": "16.68371",
+            "quote_notional": "701375.4258298",
+            "cumulative_quote": "1301078.63411"
+          }
+        ]
+      },
+      "surface": {
+        "unit": "quote",
+        "cumulative": true,
+        "bar_cap": "794600.1852305",
+        "both_best_visible": true,
+        "notices": [
+          "partial depth coverage"
+        ]
+      },
+      "visualization": {
+        "view_id": "e4213e94ef84428e9c1d37d00b15218a",
+        "grid_id": "c6765382725cb3387fc259f8b729c3f8",
+        "instrument_id": "binance-global:spot-v3:spot:BTCUSDT",
+        "price_min": "77931",
+        "price_step": "0.5",
+        "rows": 128,
+        "start_ns": "208401000000000",
+        "end_ns": "208405007048838",
+        "complete_window": false,
+        "truncated": true,
+        "reasons": [
+          "history_retention_truncated",
+          "trailing_partial_history"
+        ],
+        "columns": [
+          {
+            "time_ns": "208401000000000",
+            "end_ns": "208402000000000",
+            "eligible": true,
+            "best_bid": "77959.87",
+            "best_ask": "77959.88",
+            "asof": {
+              "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+              "ingest_ordinal": "936295",
+              "event_index": "0",
+              "exchange_event_wall_ns": "1793630354714000000",
+              "receive_wall_ns": "1793630354709391000",
+              "receive_mono_ns": "208400888873958",
+              "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+            }
+          },
+          {
+            "time_ns": "208402000000000",
+            "end_ns": "208403000000000",
+            "eligible": true,
+            "best_bid": "77963.05",
+            "best_ask": "77963.06",
+            "asof": {
+              "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+              "ingest_ordinal": "936512",
+              "event_index": "0",
+              "exchange_event_wall_ns": "1793630355714000000",
+              "receive_wall_ns": "1793630355707674000",
+              "receive_mono_ns": "208401887135130",
+              "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+            }
+          },
+          {
+            "time_ns": "208403000000000",
+            "end_ns": "208404000000000",
+            "eligible": true,
+            "best_bid": "77963.05",
+            "best_ask": "77963.06",
+            "asof": {
+              "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+              "ingest_ordinal": "936808",
+              "event_index": "0",
+              "exchange_event_wall_ns": "1793630356714000000",
+              "receive_wall_ns": "1793630356707490000",
+              "receive_mono_ns": "208402886930157",
+              "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+            }
+          },
+          {
+            "time_ns": "208404000000000",
+            "end_ns": "208405000000000",
+            "eligible": true,
+            "best_bid": "77963.05",
+            "best_ask": "77963.06",
+            "asof": {
+              "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+              "ingest_ordinal": "936992",
+              "event_index": "0",
+              "exchange_event_wall_ns": "1793630357714000000",
+              "receive_wall_ns": "1793630357719251000",
+              "receive_mono_ns": "208403898669694",
+              "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+            }
+          },
+          {
+            "time_ns": "208405000000000",
+            "end_ns": "208406000000000",
+            "eligible": true,
+            "best_bid": "77963.05",
+            "best_ask": "77963.06",
+            "asof": {
+              "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+              "ingest_ordinal": "937128",
+              "event_index": "0",
+              "exchange_event_wall_ns": "1793630358614000000",
+              "receive_wall_ns": "1793630358651593000",
+              "receive_mono_ns": "208404830992997",
+              "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+            }
+          }
+        ],
+        "trade_count": 488
+      }
+    },
+    {
+      "screenshot": "depth-ladder-hyperliquid-btc.png",
+      "request": {
+        "session_id": "5617f5fe440b4befa67691c21faaa678",
+        "generation": "1",
+        "bucket_ns": "1000000000",
+        "price_offset_rows": 0,
+        "rows": 128,
+        "max_columns": 181,
+        "recenter": true
+      },
+      "source": {
+        "id": "live",
+        "mode": "live",
+        "synthetic": false
+      },
+      "session": {
+        "id": "5617f5fe440b4befa67691c21faaa678",
+        "generation": "1",
+        "status": "live",
+        "health": {
+          "ready": true,
+          "reasons": []
+        },
+        "overflows": 0,
+        "queue_depth": 8,
+        "queue_highwater": 40
+      },
+      "selected_streams": [
+        {
+          "key": {
+            "venue": "hyperliquid",
+            "api_family": "info",
+            "instrument_id": "hyperliquid:info:perpetual:BTC",
+            "channel": "book",
+            "depth": "20",
+            "aggregation": []
+          },
+          "lifecycle": "live",
+          "capture_complete": true,
+          "reason": "starting",
+          "processed_frames": "2",
+          "queue_depth": "0",
+          "queue_highwater_count": "1"
+        },
+        {
+          "key": {
+            "venue": "hyperliquid",
+            "api_family": "info",
+            "instrument_id": "hyperliquid:info:perpetual:BTC",
+            "channel": "reference",
+            "depth": null,
+            "aggregation": []
+          },
+          "lifecycle": "waiting_snapshot",
+          "capture_complete": true,
+          "reason": "starting",
+          "processed_frames": "1",
+          "queue_depth": "0",
+          "queue_highwater_count": "1"
+        },
+        {
+          "key": {
+            "venue": "hyperliquid",
+            "api_family": "info",
+            "instrument_id": "hyperliquid:info:perpetual:BTC",
+            "channel": "context",
+            "depth": null,
+            "aggregation": []
+          },
+          "lifecycle": "live",
+          "capture_complete": true,
+          "reason": "starting",
+          "processed_frames": "3",
+          "queue_depth": "0",
+          "queue_highwater_count": "1"
+        },
+        {
+          "key": {
+            "venue": "hyperliquid",
+            "api_family": "info",
+            "instrument_id": "hyperliquid:info:perpetual:BTC",
+            "channel": "trades",
+            "depth": null,
+            "aggregation": []
+          },
+          "lifecycle": "live",
+          "capture_complete": true,
+          "reason": "starting",
+          "processed_frames": "9",
+          "queue_depth": "0",
+          "queue_highwater_count": "5"
+        }
+      ],
+      "ladder": {
+        "version": "1",
+        "generation": "1",
+        "instrument_id": "hyperliquid:info:perpetual:BTC",
+        "asof": {
+          "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+          "ingest_ordinal": "907865",
+          "event_index": "0",
+          "exchange_event_wall_ns": "1793630221927000000",
+          "receive_wall_ns": "1793630222848208000",
+          "receive_mono_ns": "208269033103948",
+          "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+        },
+        "step": "0.01",
+        "tick_size": null,
+        "step_options": [
+          "0.01",
+          "0.1",
+          "1",
+          "10",
+          "100"
+        ],
+        "quote_unit": "USDT",
+        "coverage": {
+          "subscribed_depth": "20",
+          "retained_bid_levels": "20",
+          "retained_ask_levels": "20",
+          "full_depth": false
+        },
+        "source_mode": "ws_snapshot",
+        "summary": {
+          "best_bid": "78113",
+          "best_ask": "78114",
+          "midpoint": "78113.5",
+          "spread": "1",
+          "spread_ticks": null,
+          "spread_bps": "0.12801884437389183687838849878702144955737484557726897399297176544387333815537647"
+        },
+        "unit": "BTC",
+        "eligible": true,
+        "reasons": [
+          "partial_depth_coverage",
+          "display_quantum_not_native_tick"
+        ],
+        "rows": [
+          {
+            "side": "bid",
+            "price": "78113",
+            "base_quantity": "3.6731",
+            "cumulative_base": "3.6731",
+            "quote_notional": "286916.8603",
+            "cumulative_quote": "286916.8603"
+          },
+          {
+            "side": "bid",
+            "price": "78112",
+            "base_quantity": "0.76812",
+            "cumulative_base": "4.44122",
+            "quote_notional": "59999.38944",
+            "cumulative_quote": "346916.24974"
+          },
+          {
+            "side": "bid",
+            "price": "78111",
+            "base_quantity": "0.21368",
+            "cumulative_base": "4.6549",
+            "quote_notional": "16690.75848",
+            "cumulative_quote": "363607.00822"
+          },
+          {
+            "side": "bid",
+            "price": "78110",
+            "base_quantity": "0.306",
+            "cumulative_base": "4.9609",
+            "quote_notional": "23901.66",
+            "cumulative_quote": "387508.66822"
+          },
+          {
+            "side": "bid",
+            "price": "78109",
+            "base_quantity": "1.12566",
+            "cumulative_base": "6.08656",
+            "quote_notional": "87924.17694",
+            "cumulative_quote": "475432.84516"
+          },
+          {
+            "side": "bid",
+            "price": "78107",
+            "base_quantity": "1.45488",
+            "cumulative_base": "7.54144",
+            "quote_notional": "113636.31216",
+            "cumulative_quote": "589069.15732"
+          },
+          {
+            "side": "bid",
+            "price": "78106",
+            "base_quantity": "0.60682",
+            "cumulative_base": "8.14826",
+            "quote_notional": "47396.28292",
+            "cumulative_quote": "636465.44024"
+          },
+          {
+            "side": "bid",
+            "price": "78105",
+            "base_quantity": "2.36203",
+            "cumulative_base": "10.51029",
+            "quote_notional": "184486.35315",
+            "cumulative_quote": "820951.79339"
+          },
+          {
+            "side": "bid",
+            "price": "78104",
+            "base_quantity": "2.04615",
+            "cumulative_base": "12.55644",
+            "quote_notional": "159812.4996",
+            "cumulative_quote": "980764.29299"
+          },
+          {
+            "side": "bid",
+            "price": "78103",
+            "base_quantity": "1.21461",
+            "cumulative_base": "13.77105",
+            "quote_notional": "94864.68483",
+            "cumulative_quote": "1075628.97782"
+          },
+          {
+            "side": "bid",
+            "price": "78102",
+            "base_quantity": "0.64834",
+            "cumulative_base": "14.41939",
+            "quote_notional": "50636.65068",
+            "cumulative_quote": "1126265.6285"
+          },
+          {
+            "side": "bid",
+            "price": "78101",
+            "base_quantity": "3.23522",
+            "cumulative_base": "17.65461",
+            "quote_notional": "252673.91722",
+            "cumulative_quote": "1378939.54572"
+          },
+          {
+            "side": "bid",
+            "price": "78100",
+            "base_quantity": "4.19437",
+            "cumulative_base": "21.84898",
+            "quote_notional": "327580.297",
+            "cumulative_quote": "1706519.84272"
+          },
+          {
+            "side": "bid",
+            "price": "78099",
+            "base_quantity": "2.1199",
+            "cumulative_base": "23.96888",
+            "quote_notional": "165562.0701",
+            "cumulative_quote": "1872081.91282"
+          },
+          {
+            "side": "bid",
+            "price": "78098",
+            "base_quantity": "2.92309",
+            "cumulative_base": "26.89197",
+            "quote_notional": "228287.48282",
+            "cumulative_quote": "2100369.39564"
+          },
+          {
+            "side": "bid",
+            "price": "78097",
+            "base_quantity": "0.01792",
+            "cumulative_base": "26.90989",
+            "quote_notional": "1399.49824",
+            "cumulative_quote": "2101768.89388"
+          },
+          {
+            "side": "bid",
+            "price": "78096",
+            "base_quantity": "2.68676",
+            "cumulative_base": "29.59665",
+            "quote_notional": "209825.20896",
+            "cumulative_quote": "2311594.10284"
+          },
+          {
+            "side": "bid",
+            "price": "78095",
+            "base_quantity": "6.40418",
+            "cumulative_base": "36.00083",
+            "quote_notional": "500134.4371",
+            "cumulative_quote": "2811728.53994"
+          },
+          {
+            "side": "bid",
+            "price": "78094",
+            "base_quantity": "3.74139",
+            "cumulative_base": "39.74222",
+            "quote_notional": "292180.11066",
+            "cumulative_quote": "3103908.6506"
+          },
+          {
+            "side": "bid",
+            "price": "78093",
+            "base_quantity": "2.06927",
+            "cumulative_base": "41.81149",
+            "quote_notional": "161595.50211",
+            "cumulative_quote": "3265504.15271"
+          },
+          {
+            "side": "ask",
+            "price": "78114",
+            "base_quantity": "8.38243",
+            "cumulative_base": "8.38243",
+            "quote_notional": "654785.13702",
+            "cumulative_quote": "654785.13702"
+          },
+          {
+            "side": "ask",
+            "price": "78115",
+            "base_quantity": "0.84334",
+            "cumulative_base": "9.22577",
+            "quote_notional": "65877.5041",
+            "cumulative_quote": "720662.64112"
+          },
+          {
+            "side": "ask",
+            "price": "78116",
+            "base_quantity": "0.93425",
+            "cumulative_base": "10.16002",
+            "quote_notional": "72979.873",
+            "cumulative_quote": "793642.51412"
+          },
+          {
+            "side": "ask",
+            "price": "78118",
+            "base_quantity": "3.80878",
+            "cumulative_base": "13.9688",
+            "quote_notional": "297534.27604",
+            "cumulative_quote": "1091176.79016"
+          },
+          {
+            "side": "ask",
+            "price": "78119",
+            "base_quantity": "11.39634",
+            "cumulative_base": "25.36514",
+            "quote_notional": "890270.68446",
+            "cumulative_quote": "1981447.47462"
+          },
+          {
+            "side": "ask",
+            "price": "78120",
+            "base_quantity": "0.0131",
+            "cumulative_base": "25.37824",
+            "quote_notional": "1023.372",
+            "cumulative_quote": "1982470.84662"
+          },
+          {
+            "side": "ask",
+            "price": "78121",
+            "base_quantity": "0.85918",
+            "cumulative_base": "26.23742",
+            "quote_notional": "67120.00078",
+            "cumulative_quote": "2049590.8474"
+          },
+          {
+            "side": "ask",
+            "price": "78122",
+            "base_quantity": "2.64494",
+            "cumulative_base": "28.88236",
+            "quote_notional": "206628.00268",
+            "cumulative_quote": "2256218.85008"
+          },
+          {
+            "side": "ask",
+            "price": "78123",
+            "base_quantity": "1.48893",
+            "cumulative_base": "30.37129",
+            "quote_notional": "116319.67839",
+            "cumulative_quote": "2372538.52847"
+          },
+          {
+            "side": "ask",
+            "price": "78124",
+            "base_quantity": "1.19069",
+            "cumulative_base": "31.56198",
+            "quote_notional": "93021.46556",
+            "cumulative_quote": "2465559.99403"
+          },
+          {
+            "side": "ask",
+            "price": "78125",
+            "base_quantity": "2.73748",
+            "cumulative_base": "34.29946",
+            "quote_notional": "213865.625",
+            "cumulative_quote": "2679425.61903"
+          },
+          {
+            "side": "ask",
+            "price": "78126",
+            "base_quantity": "1.13695",
+            "cumulative_base": "35.43641",
+            "quote_notional": "88825.3557",
+            "cumulative_quote": "2768250.97473"
+          },
+          {
+            "side": "ask",
+            "price": "78127",
+            "base_quantity": "4.35593",
+            "cumulative_base": "39.79234",
+            "quote_notional": "340315.74311",
+            "cumulative_quote": "3108566.71784"
+          },
+          {
+            "side": "ask",
+            "price": "78128",
+            "base_quantity": "2.97546",
+            "cumulative_base": "42.7678",
+            "quote_notional": "232466.73888",
+            "cumulative_quote": "3341033.45672"
+          },
+          {
+            "side": "ask",
+            "price": "78129",
+            "base_quantity": "0.23625",
+            "cumulative_base": "43.00405",
+            "quote_notional": "18457.97625",
+            "cumulative_quote": "3359491.43297"
+          },
+          {
+            "side": "ask",
+            "price": "78130",
+            "base_quantity": "2.35234",
+            "cumulative_base": "45.35639",
+            "quote_notional": "183788.3242",
+            "cumulative_quote": "3543279.75717"
+          },
+          {
+            "side": "ask",
+            "price": "78131",
+            "base_quantity": "6.81933",
+            "cumulative_base": "52.17572",
+            "quote_notional": "532801.07223",
+            "cumulative_quote": "4076080.8294"
+          },
+          {
+            "side": "ask",
+            "price": "78132",
+            "base_quantity": "4.14153",
+            "cumulative_base": "56.31725",
+            "quote_notional": "323586.02196",
+            "cumulative_quote": "4399666.85136"
+          },
+          {
+            "side": "ask",
+            "price": "78133",
+            "base_quantity": "0.32422",
+            "cumulative_base": "56.64147",
+            "quote_notional": "25332.28126",
+            "cumulative_quote": "4424999.13262"
+          },
+          {
+            "side": "ask",
+            "price": "78134",
+            "base_quantity": "2.01103",
+            "cumulative_base": "58.6525",
+            "quote_notional": "157129.81802",
+            "cumulative_quote": "4582128.95064"
+          }
+        ]
+      },
+      "surface": {
+        "unit": "quote",
+        "cumulative": true,
+        "bar_cap": "890270.68446",
+        "both_best_visible": true,
+        "notices": [
+          "partial depth coverage · display quantum not native tick"
+        ]
+      },
+      "visualization": {
+        "view_id": "90c147774f9246d8907a8c41cebab925",
+        "grid_id": "40e99d527df8f7126a00171d5d5d57e7",
+        "instrument_id": "hyperliquid:info:perpetual:BTC",
+        "price_min": "78049",
+        "price_step": "1",
+        "rows": 128,
+        "start_ns": "208267000000000",
+        "end_ns": "208270321322153",
+        "complete_window": false,
+        "truncated": true,
+        "reasons": [
+          "display_quantum_not_native_tick",
+          "initial_partial_history",
+          "requested_history_unavailable",
+          "history_retention_truncated",
+          "trade_history_truncated",
+          "trailing_partial_history",
+          "data_access_unknown",
+          "no_validated_trade_observation",
+          "trade_channel_unhealthy",
+          "trade_continuity_reset",
+          "trade_history_unanchored",
+          "ineligible_liquidity_samples",
+          "partial_depth_coverage",
+          "interval_segment_discontinuity"
+        ],
+        "columns": [
+          {
+            "time_ns": "208268000000000",
+            "end_ns": "208269000000000",
+            "eligible": false,
+            "best_bid": null,
+            "best_ask": null,
+            "asof": null
+          },
+          {
+            "time_ns": "208269000000000",
+            "end_ns": "208270000000000",
+            "eligible": false,
+            "best_bid": null,
+            "best_ask": null,
+            "asof": null
+          },
+          {
+            "time_ns": "208270000000000",
+            "end_ns": "208271000000000",
+            "eligible": true,
+            "best_bid": "78113",
+            "best_ask": "78114",
+            "asof": {
+              "session_id": "bd638cc6-a340-439f-9452-9cf731f23716",
+              "ingest_ordinal": "907865",
+              "event_index": "0",
+              "exchange_event_wall_ns": "1793630221927000000",
+              "receive_wall_ns": "1793630222848208000",
+              "receive_mono_ns": "208269033103948",
+              "clock_id": "63ed83b2-5ca5-4a50-8703-b96829693e30"
+            }
+          }
+        ],
+        "trade_count": 46
+      }
+    }
+  ],
+  "fail_closed_observation": {
+    "session_id": "d58ba028145a4e5c9c34fd6deb1d5d42",
+    "status": "unavailable",
+    "error": "analytical_queue_overflow: reselect to establish fresh history",
+    "overflows": 1,
+    "notices": [
+      "analytical_queue_overflow: reselect to establish fresh history",
+      "Chart unavailable / retained snapshot stale: HTTP 503: analytical_queue_overflow: reselect to establish fresh history",
+      "DOM update unavailable · displaying retained snapshot: HTTP 503: analytical_queue_overflow: reselect to establish fresh history",
+      "partial depth coverage"
+    ],
+    "retained_rows": 100,
+    "rendered_bars": 0,
+    "rendered_summary_values": 0
+  },
+  "limitations": [
+    "Finite functional checks, not a throughput certification or 24-hour soak.",
+    "The broader live spot cohort hit analytical_queue_overflow during interrupted/long-running browser capture attempts; retained rows lost bars and summary, and explicit reselect recovered. Later capture attempts also hit this existing fail-closed boundary. No queue, cohort, depth or history budget was raised.",
+    "The managed tab initially auto-froze between turns; subsequent interaction checks used a persistent tab and interval-based waits. A source-picker attempt after reload raced catalog initialization; it was resumed after native options were present.",
+    "Owner-busy/last-completed-presentation and venue stale/continuity warnings remain visible. An eligible DOM response is not a guarantee of uninterrupted venue-global readiness.",
+    "Native API responses, DOM readouts and PNG captures are sequential observations, not an atomic multi-panel snapshot; each retained payload keeps its own identity/asof.",
+    "Hyperliquid remains a bounded 20-level snapshot feed with an unknown native price tick; missing historical intervals remain hatched."
+  ],
+  "harness": {
+    "depth_surface_reader": "() => {\n  const data = JSON.parse(document.querySelector(\".ladder-panel .evidence pre\").textContent);\n  const scroll = document.querySelector(\".ladder-scroll\"), box = scroll.getBoundingClientRect();\n  return { data, cap: document.querySelector(\".dom-scale .number\").title, unit: document.querySelector('[aria-label=\"DOM quantity units\"]').value, cumulative: document.querySelector('[aria-label=\"Cumulative depth\"]').checked, following: document.querySelector('[aria-label=\"Follow midpoint\"]').checked, frozen: document.querySelector('[data-testid=\"dom-freeze\"]').getAttribute(\"aria-pressed\") === \"true\", scrollTop: scroll.scrollTop, scrollHeight: scroll.scrollHeight, clientHeight: scroll.clientHeight, status: document.querySelector(\".dom-status\").textContent, spread: [...document.querySelectorAll(\".dom-spread .number\")].map((e) => e.title), rows: [...document.querySelectorAll(\".ladder tr[data-side]\")].map((row) => {\n    const r = row.getBoundingClientRect();\n    return { side: row.dataset.side, price: row.dataset.price, values: [...row.querySelectorAll(\".number\")].map((e) => e.title), bar: !!row.querySelector(\".dom-depth-bar\"), width: parseFloat(row.querySelector(\".dom-quantity\").style.getPropertyValue(\"--depth-width\")), classes: row.className, visible: r.bottom > box.top + 26 && r.top < box.bottom };\n  }) };\n}",
+    "finite_native_probe": "async ({ page }, reader, sessionId, root) => {\n  const ensure = (condition, message) => {\n    if (!condition)\n      throw Error(message);\n  };\n  const read = () => page.evaluate(reader);\n  const validate = (s) => {\n    const map = new Map(s.data.rows.map((row) => [row.side + \":\" + row.price, row]));\n    for (const row of s.rows) {\n      const native = map.get(row.side + \":\" + row.price);\n      const quantity = s.unit === \"base\" ? native.base_quantity : native.quote_notional;\n      ensure(row.values[0] === native.price && row.values[1] === quantity, \"Economic display changed native strings\");\n      if (s.cumulative)\n        ensure(row.values[2] === (s.unit === \"base\" ? native.cumulative_base : native.cumulative_quote), \"Cumulative unit mismatch\");\n      if (s.data.eligible) {\n        ensure(row.bar, \"Eligible row lost its depth bar\");\n        ensure(Math.abs(row.width - Math.min(1, Number(quantity) / Number(s.cap)) * 100) < 0.00011, \"Side depth bars do not share the held native cap\");\n      }\n    }\n    if (s.data.summary)\n      ensure(JSON.stringify(s.spread) === JSON.stringify([s.data.summary.midpoint, s.data.summary.spread, s.data.summary.spread_ticks ?? \"—\", s.data.summary.spread_bps]), \"Spread display changed native evidence\");\n  };\n  const first = await read();\n  validate(first);\n  const samples = [];\n  const started = Date.now();\n  while (Date.now() - started < 60000) {\n    const s = await read();\n    validate(s);\n    ensure(s.cap === first.cap, \"Incoming updates rescaled depth bars\");\n    ensure(s.following, \"Automatic updates unexpectedly suspended follow\");\n    samples.push({ elapsed_ms: Date.now() - started, asof: s.data.asof, eligible: s.data.eligible, reasons: s.data.reasons, cap: s.cap, highlighted: s.rows.filter((row) => /dom-(addition|removal)/.test(row.classes)).length });\n    await new Promise((resolve) => setTimeout(resolve, 1000));\n  }\n  await page.click('[data-testid=\"dom-freeze\"]');\n  await page.waitForFunction(() => document.querySelector('[data-testid=\"dom-freeze\"]').getAttribute(\"aria-pressed\") === \"true\");\n  const frozenBase = await read();\n  await page.select('[aria-label=\"DOM quantity units\"]', \"quote\");\n  if (!await page.$eval('[aria-label=\"Cumulative depth\"]', (e) => e.checked))\n    await page.click('[aria-label=\"Cumulative depth\"]');\n  await page.waitForFunction(() => document.querySelectorAll(\".ladder tr[data-side]\")[0]?.querySelectorAll(\".number\").length === 3);\n  const quote = await read();\n  validate(quote);\n  ensure(JSON.stringify(quote.data) === JSON.stringify(frozenBase.data), \"Unit toggle replaced frozen native evidence\");\n  await page.click(\".dom-scale button\");\n  const rescaled = await read();\n  ensure(Number(rescaled.cap) === Math.max(...rescaled.data.rows.map((row) => Number(row.quote_notional))), \"Explicit rescale did not capture both-side maximum\");\n  const tape = await page.$eval(\".tape-scroll tbody\", (e) => e.textContent);\n  await page.waitForFunction((old) => document.querySelector(\".tape-scroll tbody\").textContent !== old, { timeout: 20000 }, tape);\n  ensure(JSON.stringify((await read()).data) === JSON.stringify(quote.data), \"Frozen DOM changed while tape advanced\");\n  const scroll = await page.$(\".ladder-scroll\"), box = await scroll.boundingBox();\n  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);\n  const oldTop = (await read()).scrollTop;\n  await page.mouse.wheel({ deltaY: -200 });\n  await page.waitForFunction((old) => !document.querySelector('[aria-label=\"Follow midpoint\"]').checked && document.querySelector(\".ladder-scroll\").scrollTop < old, {}, oldTop);\n  const manual = (await read()).scrollTop;\n  await page.select('[aria-label=\"Ladder rows\"]', \"50\");\n  await page.waitForFunction(() => JSON.parse(document.querySelector(\".ladder-panel .evidence pre\").textContent).rows.length === 100);\n  await page.focus('[aria-label=\"DOM width\"]');\n  await page.keyboard.press(\"ArrowLeft\");\n  await page.keyboard.press(\"ArrowLeft\");\n  const manualAfter = await read();\n  ensure(!manualAfter.following && Math.abs(manualAfter.scrollTop - manual) < 1, \"Resize or row scope overrode manual scroll\");\n  await page.click(\".ladder-panel .tabs button:last-child\");\n  const recentered = await read();\n  ensure(recentered.following && [\"bid\", \"ask\"].every((side) => recentered.rows.some((row) => row.side === side && row.visible && row.classes.includes(\"dom-best\"))), \"Recenter failed to restore both best buckets\");\n  await page.screenshot({ path: root + \"depth-ladder-binance-quote.png\", fullPage: true });\n  const frame = await page.evaluate(async (id) => {\n    const response = await fetch(\"/api/v1/sessions/\" + id);\n    if (!response.ok)\n      throw Error(\"Session frame \" + response.status);\n    return await response.json();\n  }, sessionId);\n  ensure(frame.status === \"live\" && !frame.source.synthetic && frame.telemetry.overflows === 0, \"Native live stream lost integrity\");\n  await page.click('[data-testid=\"dom-freeze\"]');\n  return { first, samples, frozenBase, quote, rescaled, manual: { before: manual, after: manualAfter.scrollTop }, recentered, frame: { session_id: frame.session_id, status: frame.status, selection: frame.selection, health: frame.health, coverage: frame.book.quality.coverage, revision: frame.book.revision, telemetry: frame.telemetry }, elapsed_ms: Date.now() - started };\n}",
+    "native_capture": "async(file)=>ladderTab.run(async({page},path)=>{const response=page.waitForResponse(r=>r.url().endsWith('/api/v1/visualization')&&r.ok()&&JSON.parse(r.request().postData()||'{}').recenter===true,{timeout:30000});await page.click('[data-testid=\"view-recenter\"]');const result=await response,request=JSON.parse(result.request().postData()),grid=await result.json();await page.waitForFunction(id=>document.querySelector('[data-testid=\"market-charts\"]')?.getAttribute('data-painted-view-id')===id,{timeout:30000},grid.view_id);await page.waitForFunction(()=>document.querySelector('.dom-status')?.textContent.includes('Ready')&&document.querySelectorAll('.dom-best').length===2,{timeout:30000});const evidence=await page.evaluate(async id=>{const frame=await(await fetch('/api/v1/sessions/'+id)).json();const ladder=JSON.parse(document.querySelector('.ladder-panel .evidence pre').textContent);const rect=document.querySelector('.ladder-scroll').getBoundingClientRect();return{frame,ladder,bar_cap:document.querySelector('.dom-scale .number').title,unit:document.querySelector('[aria-label=\"DOM quantity units\"]').value,cumulative:document.querySelector('[aria-label=\"Cumulative depth\"]').checked,both_best_visible:[...document.querySelectorAll('.dom-best')].every(e=>{const r=e.getBoundingClientRect();return r.top>=rect.top&&r.bottom<=rect.bottom;}),notices:[...document.querySelectorAll('[role=\"alert\"],.dom-notice')].map(e=>e.textContent)};},request.session_id);if(evidence.frame.status!=='live'||!evidence.ladder.eligible||!evidence.both_best_visible)throw Error('Native depth is not live, eligible and centered');await page.screenshot({path,fullPage:true});return{...evidence,grid,request,screenshot:path};},{args:[evRoot+file],timeout:110})"
+  }
+}

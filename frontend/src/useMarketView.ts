@@ -87,7 +87,7 @@ export function useMarketView({ frame, connected, preferences: p, recenter, visu
     if (!available || !p.rightOpen) return;
     const controller = new AbortController();
     let timer: number | undefined;
-    const config = JSON.stringify([identity, p.domRows, p.priceStep]);
+    const config = JSON.stringify([identity, p.domRows, p.domPriceStep]);
     const refresh = async () => {
       if (controller.signal.aborted) return;
       if ((p.domFrozen || p.paused) && domRef.current && lastDomConfig.current === config) {
@@ -96,7 +96,7 @@ export function useMarketView({ frame, connected, preferences: p, recenter, visu
       }
       setDom(previous => ({ ...previous, loading: true, identity }));
       try {
-        const data = await ladder({ rows: p.domRows, ...(p.priceStep ? { price_step: p.priceStep } : {}) }, controller.signal);
+        const data = await ladder({ rows: p.domRows, ...(p.domPriceStep ? { price_step: p.domPriceStep } : {}) }, controller.signal);
         if (!controller.signal.aborted) {
           domRef.current = data;
           lastDomConfig.current = config;
@@ -111,7 +111,7 @@ export function useMarketView({ frame, connected, preferences: p, recenter, visu
     // Keep an existing DOM snapshot on freeze; settings changes deliberately request a new grouped view.
     timer = window.setTimeout(() => { void refresh(); }, 120);
     return () => { controller.abort(); clearTimeout(timer); };
-  }, [identity, available, p.rightOpen, p.domFrozen, p.paused, p.domRows, p.priceStep, ladder]);
+  }, [identity, available, p.rightOpen, p.domFrozen, p.paused, p.domRows, p.domPriceStep, ladder]);
   return {
     chart: { ...chart, data: chart.identity === identity ? chart.data : null },
     dom: { ...dom, data: dom.identity === identity ? dom.data : null },

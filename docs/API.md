@@ -76,7 +76,7 @@ Requests reject unknown fields, numeric JSON economics, nonfinite decimals, exce
 | POST | `/costs` | Shared-core depth walk and directed comparison matrix; see below. |
 | POST | `/visualization` | Exact bounded historical liquidity, trades, candles, footprints, profile and shared flow metrics; session/generation and explicit price/time grid. Half-open visible window, quality/retention reasons, incremental column token and chart publication ID. See [VISUALIZATION](VISUALIZATION.md). |
 | POST | `/visualization/ack` | Chart-specific finite browser receive-to-paint timing for an issued view ID; returns server publication-to-ACK upper bound. Not an exchange latency or GPU-completion claim. |
-| POST | `/ladder` | Current eligible native book grouped with explicit price quantum; exact side and cumulative base quantities. Presentation freezing does not alter collection. |
+| POST | `/ladder` | Current eligible native book grouped with explicit price quantum; exact side/cumulative base quantities and original-price quote notionals, ungrouped midpoint/spread summary, native step options and depth scope. Presentation freezing does not alter collection. See [VISUALIZATION](VISUALIZATION.md#ladder-and-proposal-risk). |
 | POST | `/proposal-risk` | Hypothetical entry/stop, side and quantity or risk budget; explicit fee assumptions, native constraints and unavailable reasons. Neither an order nor guaranteed maximum loss. |
 | WS | `/stream?session_id=...` | One socket per session. Full Frames at up to 5 Hz. Disconnect destroys the session; reconnection creates an independent session, never steals another tab's state. |
 

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CHART_LIMITS, COLORS, boundedSize, intensity, liquidityTileKey, plotNumber, priceRowProjector, rowAt, shiftedRange, sideColor, timeAt, timeFraction, zoomedRange } from './market-charts-model.ts';
+import { CHART_LIMITS, COLORS, boundedSize, intensity, liquidityTileKey, plotNumber, priceCellIndex, priceRowProjector, rowAt, shiftedRange, sideColor, timeAt, timeFraction, zoomedRange } from './market-charts-model.ts';
 
 test('large source clocks preserve visible nanosecond offsets without wall-clock conversion', () => {
   const start = '9007199254740993000000001';
@@ -44,6 +44,16 @@ test('cursor selects existing exact price rows at both viewport boundaries', () 
   assert.equal(prices[rowAt(1, prices.length)], prices[0]);
   assert.equal(rowAt(-10, 256), 255);
   assert.equal(rowAt(10, 256), 0);
+});
+
+test('linked native prices select their containing chart bucket without rounding across viewport boundaries', () => {
+  const view = { price_min: '9007199254740993.00000001', price_step: '0.00000002', rows: 2 };
+  assert.equal(priceCellIndex(view, '9007199254740993.00000001'), 0);
+  assert.equal(priceCellIndex(view, '9007199254740993.00000002'), 0);
+  assert.equal(priceCellIndex(view, '9007199254740993.00000003'), 1);
+  assert.equal(priceCellIndex(view, '9007199254740993.000000049999999999'), 1);
+  assert.equal(priceCellIndex(view, '9007199254740993.000000009999999999'), -1);
+  assert.equal(priceCellIndex(view, '9007199254740993.00000005'), -1);
 });
 
 test('canvas backing allocation stays bounded at high DPR and oversized panes', () => {

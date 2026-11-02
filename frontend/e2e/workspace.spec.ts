@@ -47,13 +47,15 @@ const ladderEvidence = (page: Page) => page.locator('.ladder-panel .evidence pre
 async function assertLadder(page: Page, expected: GroupedLadder) {
   await expect.poll(() => evidence<GroupedLadder>(ladderEvidence(page))).toEqual(expected);
   const displayed = [...expected.rows.filter(row => row.side === 'ask').reverse(), ...expected.rows.filter(row => row.side === 'bid')];
-  const rows = page.getByTestId('grouped-ladder').locator('tbody tr');
+  const rows = page.getByTestId('grouped-ladder').locator('tbody tr[data-side]');
+  const quote = await page.getByLabel('DOM quantity units').inputValue() === 'quote';
+  const cumulative = await page.getByLabel('Cumulative depth', { exact: true }).isChecked();
   await expect(rows).toHaveCount(displayed.length);
   for (let index = 0; index < displayed.length; index++) {
     const level = displayed[index];
-    await expect(rows.nth(index).locator('td').first()).toHaveText(level.side);
+    await expect(rows.nth(index)).toHaveAttribute('data-side', level.side);
     expect(await rows.nth(index).locator('.number').evaluateAll(nodes => nodes.map(node => node.getAttribute('title'))))
-      .toEqual([level.price, level.base_quantity, level.cumulative_base]);
+      .toEqual([level.price, quote ? level.quote_notional : level.base_quantity, ...(cumulative ? [quote ? level.cumulative_quote : level.cumulative_base] : [])]);
   }
 }
 
@@ -166,9 +168,13 @@ test('exact instrument selection, grouped cumulative depth and pinned time range
   expect(initial.step_options.length).toBeGreaterThan(0);
   const step = initial.step_options.at(-1)!;
   const regrouped = nextResponse(page, 'visualization', request => request.price_step === step);
-  const ladderResponse = nextResponse(page, 'ladder', request => request.price_step === step);
   await page.getByLabel('Price aggregation').selectOption(step);
   const grid = await body<VisualGrid>(regrouped);
+  const ungrouped = await evidence<GroupedLadder>(ladderEvidence(page));
+  expect(ungrouped.step).toBe(catalog.instruments.find(item => item.instrument_id === frame.selection.instrument_id)!.tick_size);
+  const ladderResponse = nextResponse(page, 'ladder', request => request.price_step === step);
+  await page.getByLabel('DOM price grouping').selectOption(step);
+  await page.getByLabel('Cumulative depth', { exact: true }).check();
   const ladder = await body<GroupedLadder>(ladderResponse);
   expect(grid.price_step).toBe(step);
   expect(grid.instrument_id).toBe(frame.selection.instrument_id);
@@ -252,10 +258,9 @@ test('linked DOM price outside the chart viewport never selects a different pric
   const price = await bid.locator('td').nth(1).locator('.number').getAttribute('title');
   expect(price).not.toBeNull();
   expect(grid.prices).not.toContain(price);
-  await bid.hover();
-  await expect(page.getByRole('tooltip')).toContainText(`Price cell ${price}`);
-  await expect(page.getByRole('tooltip')).toContainText('Resting B unknown · A unknown');
   await page.locator('.m4-chart-readout summary').first().click();
+  await bid.hover();
+  await expect(page.getByRole('tooltip')).toContainText(price!);
   await expect(page.getByRole('combobox', { name: 'Exact price row', exact: true })).toHaveValue('');
   await expect(page.locator('.m4-chart-readout table').first().locator('tbody tr')).toHaveCount(0);
 });

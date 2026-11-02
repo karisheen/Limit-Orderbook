@@ -485,6 +485,104 @@ on `fix/live-terminal-visuals`.
   The 24-hour soak remains unrun; this receipt does not assert execution or
   long-duration production readiness.
 
+## Post-upgrade visual depth ladder
+
+Integration branch: `feat/visual-depth-ladder`, based on
+`998bd577e3f2a2503437f29bb51823ff13b8899d`. Native and visual implementation
+were delegated independently behind one additive `/ladder` contract; the
+integration owner migrated API types, workspace preferences, chart linkage,
+existing browser assertions and operator documentation.
+
+### Resulting behavior
+
+- Bid/ask bars use one exact, held denominator across both sides. Incoming
+  quantities do not rescale it; **Rescale depth** is explicit. Values over the
+  cap saturate without changing the underlying quantities.
+- The center row exposes native midpoint, spread, tick count when known, and
+  bps. Coarse DOM buckets do not replace the native best quotes in that
+  calculation. Financial values stay native decimal strings; abbreviated
+  presentation retains the exact value in its title/evidence.
+- Independent DOM grouping, base/quote-notional units and optional cumulative
+  depth persist across reloads. Native notional values each original level at
+  its own price before grouping, including the existing contract conventions.
+- Aligned numbers, bold native-best buckets and brief same-side/same-price
+  quantity-change outlines improve scanning. Changes are not labeled as
+  trades, cancellations or individual-order identities. Reduced motion
+  disables the animation.
+- Follow-midpoint ownership survives ordinary quantities and automatic scroll
+  clamping. Manual wheel/scroll ownership survives resizing and row-count
+  changes; **Recenter DOM** explicitly resumes following.
+- Hover/focus links an exact native DOM price to its containing chart bucket
+  and horizontal cursor. Leaving/blurring clears the link; off-viewport prices
+  do not clamp to unrelated evidence.
+- Stale/ineligible retained snapshots have no active bars or spread summary.
+  Source mode, actual scope, unknown tick and all native reasons remain
+  visible. Controls wrap without overlap at the supported 250px pane width.
+
+### Executed verification
+
+- `bash tools/check.sh -q --tb=short tests/test_workstation_visuals.py
+  tests/test_workstation_visual_api.py`: **110 native tests passed in 102.63s**.
+  Ruff passed; one newly edited test expression needed wrapping. The corrected
+  file passed the format check, and mypy passed **35 modules**. The existing
+  Starlette/httpx deprecation warning remains unrelated.
+- With `.tools/node/bin` on `PATH`, final frontend lint, **28 unit tests**,
+  TypeScript and production build passed in **17.87s**. Final assets:
+  `index-CTUoBLmO.js` and `index-BkZukdN3.css`; generated bundles are not committed.
+- Final isolated offline Chromium suite: **28 passed / 1 expected network-only
+  skip in 122.90s**. It used the existing Playwright configuration with only
+  baseURL overridden to port 8002. The temporary configuration was removed.
+  The public-live source suite separately passed **4 tests in 49.5s** against
+  the real network-enabled server; combined lint/build/browser wall time was
+  **69.62s**.
+- A finite real-Binance browser run sampled **60 distinct eligible native book
+  observations**. Its cap stayed exactly **12.78352 BTC** throughout; both-side
+  bar ratios and all displayed native quantity strings were checked.
+  Quote/cumulative conversion, explicit rescale and freeze-while-tape-advances
+  passed. Manual scroll stayed at **272px** through scope/size changes, and
+  Recenter restored both native-best buckets.
+- Exact DOM price **77815.99** linked to chart bucket **77815** at step **1**;
+  actual cursor-canvas pixels, pointer leave, keyboard focus and blur were
+  checked. DOM group **5**, quote units and cumulative depth survived a real
+  reload independently of chart group **1**.
+- Final narrow-surface check: **1280 × 850** viewport, **250px** pane,
+  **248px** pane scroll width, **110px** grouping selector, no intersecting
+  control labels, follow still enabled and reduced-motion animation `none`.
+  Screenshot review caught the initial collapsing grouping control; its
+  minimum flex basis was fixed and the actual surface was rechecked.
+- Binance retained thousands of native levels while displaying 25 grouped
+  levels per side. Hyperliquid exposed its actual **20 bid / 20 ask** bounded
+  snapshot scope and an unknown native tick, not fabricated full depth.
+
+Evidence and screenshots:
+[`depth-ladder-validation.json`](evidence/depth-ladder-validation.json),
+[Binance base-depth workspace](evidence/depth-ladder-binance-btc.png),
+[quote/cumulative depth](evidence/depth-ladder-binance-quote.png),
+[Hyperliquid](evidence/depth-ladder-hyperliquid-btc.png), and
+[minimum-width controls](evidence/depth-ladder-narrow.png).
+API responses, DOM readouts and images are sequential observations with their
+own asofs, not an atomic multi-panel snapshot.
+
+### Limits and operational handoff
+
+The broader live spot cohort reached `analytical_queue_overflow` during
+interrupted/long-running capture attempts. The new DOM correctly kept the
+retained rows diagnostic, with **zero bars and zero summary values**; explicit
+reselection established fresh history. Later capture attempts also encountered
+that existing fail-closed boundary. Owner-busy/last-completed-presentation,
+venue stale/continuity and partial-history warnings remain visible in evidence.
+The managed browser initially auto-froze between turns; later checks used a
+persistent tab and interval-based waits. None of this is an uninterrupted-feed,
+isolated-host throughput or 24-hour-soak certification.
+
+No ingestion/cohort/depth/history bound was raised and no missing liquidity was
+invented. Verification tabs and the isolated offline server were closed. The
+plain network-enabled native server remains persistent at
+`http://127.0.0.1:8000/?source=live`; hard-refresh an older tab for the new bundle.
+The existing API, visualization and terminal documents describe the new
+contract and controls. Git delivery is recorded from actual remote operations
+after the final-head checks.
+
 ## Decisions and next action
 
 Use one local asyncio backend worker, exact immutable domain contracts, explicit quality gates, direct venue adapters, a React/TypeScript terminal, native Canvas heatmap, Parquet/raw compressed recording and SQLite metadata. Preserve the legacy entrypoint during cutover; do not duplicate analytics. Detailed decisions/contracts/backlog are in the accompanying M0 documents.

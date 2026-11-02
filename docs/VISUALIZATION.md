@@ -32,7 +32,8 @@ quanta; known fixed ticks supply multiples, while variable/unknown ticks report
 rule. Without an explicit step, the first eligible two-sided book fits nearby
 native depth (up to one quarter of the requested rows per side) and admitted
 in-window trade prices. The fit uses exact 1/5-decade tick multiples and leaves
-edge room; coarse fitted steps remain selectable by chart and ladder.
+edge room; coarse fitted steps remain selectable in the chart. The DOM selects
+its compatible native/display quantum independently.
 Unavailable bootstrap does not freeze a fallback step or zero price anchor.
 The fitted midpoint/quantum persist during streaming until explicit recenter,
 Auto-fit re-entry or instrument selection. The terminal also refits unpanned
@@ -187,10 +188,32 @@ future market evidence. Playback speed changes pacing only.
 ## Ladder and proposal risk
 
 The grouped ladder reads the current native book independently of frozen browser
-presentation. Bids group downward and asks upward, so grouping cannot fabricate
-a crossed spread. Side cumulative totals run best outward, using shared exact
-base valuation. Unknown contract units, stale books, unsupported quanta, native
-work limits, and partial depth are explicit rather than converted to zero.
+presentation. Requests retain `price_step` and `rows` (1–100 per side). Bids
+group downward and asks upward, so grouping cannot fabricate a crossed spread.
+Each row returns `side`, `price`, `base_quantity`, `cumulative_base`,
+`quote_notional` and `cumulative_quote`. Both valuations use each **original
+native level price** through the shared contract valuation before aggregation;
+bucket price multiplied by grouped base is not the notional.
+
+Response `unit` and `quote_unit` identify the native assets. `tick_size` remains
+null when unknown; `step_options` supplies compatible display choices.
+`coverage` carries subscribed depth, retained bid/ask levels and `full_depth`;
+`source_mode`, `asof`, eligibility and reasons preserve scope/provenance.
+The nullable `summary` contains ungrouped `best_bid`, `best_ask`, `midpoint`,
+`spread`, `spread_ticks` and `spread_bps`. Midpoint is `(ask + bid) / 2`;
+bps is `spread / midpoint * 10000`, using the native Decimal context, not browser
+arithmetic. Tick count is null when the native tick is unknown. Ineligible or
+missing two-sided evidence has no summary. Grouping cannot widen this native
+spread or turn unknown values into zero.
+
+The browser independently selects DOM grouping and base/quote presentation.
+Both sides share a held, explicitly rescalable bar cap; bar coordinates alone
+are converted to display numbers. Quantity changes compare the same observed
+side/price only, with no inference from newly visible or missing rows.
+Hover/focus links exact DOM prices to the containing chart bucket using bounded
+integer decimal comparisons; prices outside the viewport remain outside it.
+Unknown contract units, stale books, unsupported quanta, native work limits and
+partial depth remain explicit.
 
 Proposal risk is a manual hypothetical fixed-position entry/stop calculation.
 Buy stops must be below entry; sell stops above. Shared price validators,
