@@ -1,0 +1,630 @@
+{
+  "source": "verified recorded public capture 4498db3b-f4a2-4fff-a32e-a97221fa21ee, replay 1x",
+  "note": "Concurrent native test gate and offline Chromium suite; interaction proof, not isolated throughput certification",
+  "samples": [
+    {
+      "at": 238570.5,
+      "cursor": "900 / 4276 · 1×",
+      "panes": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "4d290c7ea7b54891bbbd6775acbca64c",
+            "paintedViewId": "4d290c7ea7b54891bbbd6775acbca64c",
+            "startNs": "104425000000000",
+            "endNs": "104430804138796",
+            "priceMin": "78037.5",
+            "priceStep": "0.5",
+            "drawMs": "0.500",
+            "tileCount": "6",
+            "tileAllocations": "6",
+            "dirtyColumns": "0",
+            "overlayPoints": "121",
+            "pixelWidth": "1400",
+            "pixelHeight": "441",
+            "receiveToPaintMs": "72.900"
+          },
+          "age": {
+            "frameId": "178",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "31e0fc932b844db48c1f7c951f7fa85b",
+            "frozen": "true",
+            "sourceLagMs": "901.287373",
+            "evidenceResidentMs": "7317",
+            "responseResidentMs": "1311.4000000059605",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104429902851423",
+            "highwaterNs": "104430804138796",
+            "viewId": "4d290c7ea7b54891bbbd6775acbca64c"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "069e8d61c44149cd8f5c4e9f3d8bf4e6",
+            "paintedViewId": "069e8d61c44149cd8f5c4e9f3d8bf4e6",
+            "startNs": "104425000000000",
+            "endNs": "104430804138796",
+            "priceMin": "78061.5",
+            "priceStep": "0.5",
+            "drawMs": "1.000",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "6",
+            "overlayPoints": "121",
+            "pixelWidth": "1400",
+            "pixelHeight": "327",
+            "receiveToPaintMs": "41.900"
+          },
+          "age": {
+            "frameId": "178",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "31e0fc932b844db48c1f7c951f7fa85b",
+            "frozen": "false",
+            "sourceLagMs": "901.287373",
+            "evidenceResidentMs": "7149.9000000059605",
+            "responseResidentMs": "582",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104429902851423",
+            "highwaterNs": "104430804138796",
+            "viewId": "069e8d61c44149cd8f5c4e9f3d8bf4e6"
+          }
+        }
+      ]
+    },
+    {
+      "at": 239573.70000001788,
+      "cursor": "908 / 4276 · 1×",
+      "panes": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "4d290c7ea7b54891bbbd6775acbca64c",
+            "paintedViewId": "4d290c7ea7b54891bbbd6775acbca64c",
+            "startNs": "104425000000000",
+            "endNs": "104430804138796",
+            "priceMin": "78037.5",
+            "priceStep": "0.5",
+            "drawMs": "0.500",
+            "tileCount": "6",
+            "tileAllocations": "6",
+            "dirtyColumns": "0",
+            "overlayPoints": "121",
+            "pixelWidth": "1400",
+            "pixelHeight": "441",
+            "receiveToPaintMs": "72.900"
+          },
+          "age": {
+            "frameId": "181",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "31e0fc932b844db48c1f7c951f7fa85b",
+            "frozen": "true",
+            "sourceLagMs": "901.287373",
+            "evidenceResidentMs": "8251.09999999404",
+            "responseResidentMs": "2245.5",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104429902851423",
+            "highwaterNs": "104430804138796",
+            "viewId": "4d290c7ea7b54891bbbd6775acbca64c"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "e76d293162fe4b04a09450a08ddb6487",
+            "paintedViewId": "e76d293162fe4b04a09450a08ddb6487",
+            "startNs": "104425000000000",
+            "endNs": "104430804138796",
+            "priceMin": "78061.5",
+            "priceStep": "0.5",
+            "drawMs": "0.900",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "6",
+            "overlayPoints": "121",
+            "pixelWidth": "1400",
+            "pixelHeight": "327",
+            "receiveToPaintMs": "64.700"
+          },
+          "age": {
+            "frameId": "181",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "31e0fc932b844db48c1f7c951f7fa85b",
+            "frozen": "false",
+            "sourceLagMs": "901.287373",
+            "evidenceResidentMs": "8087.300000011921",
+            "responseResidentMs": "93.30000001192093",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104429902851423",
+            "highwaterNs": "104430804138796",
+            "viewId": "e76d293162fe4b04a09450a08ddb6487"
+          }
+        }
+      ]
+    },
+    {
+      "at": 240583.90000000596,
+      "cursor": "928 / 4276 · 1×",
+      "panes": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "4d290c7ea7b54891bbbd6775acbca64c",
+            "paintedViewId": "4d290c7ea7b54891bbbd6775acbca64c",
+            "startNs": "104425000000000",
+            "endNs": "104430804138796",
+            "priceMin": "78037.5",
+            "priceStep": "0.5",
+            "drawMs": "0.500",
+            "tileCount": "6",
+            "tileAllocations": "6",
+            "dirtyColumns": "0",
+            "overlayPoints": "121",
+            "pixelWidth": "1400",
+            "pixelHeight": "441",
+            "receiveToPaintMs": "72.900"
+          },
+          "age": {
+            "frameId": "184",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "31e0fc932b844db48c1f7c951f7fa85b",
+            "frozen": "true",
+            "sourceLagMs": "1301.664666",
+            "evidenceResidentMs": "9431",
+            "responseResidentMs": "3425.4000000059605",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104429902851423",
+            "highwaterNs": "104431204516089",
+            "viewId": "4d290c7ea7b54891bbbd6775acbca64c"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "0145330b64bb47a4bbf6625048b0656e",
+            "paintedViewId": "e76d293162fe4b04a09450a08ddb6487",
+            "startNs": "104426000000000",
+            "endNs": "104431205413668",
+            "priceMin": "78061.5",
+            "priceStep": "0.5",
+            "drawMs": "1.500",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "6",
+            "overlayPoints": "153",
+            "pixelWidth": "1400",
+            "pixelHeight": "327",
+            "receiveToPaintMs": "64.700"
+          },
+          "age": {
+            "frameId": "184",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "31e0fc932b844db48c1f7c951f7fa85b",
+            "frozen": "false",
+            "sourceLagMs": "1301.664666",
+            "evidenceResidentMs": "9267.40000000596",
+            "responseResidentMs": "1273.4000000059605",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104429902851423",
+            "highwaterNs": "104431204516089",
+            "viewId": "e76d293162fe4b04a09450a08ddb6487"
+          }
+        }
+      ]
+    },
+    {
+      "at": 241618.70000001788,
+      "cursor": "942 / 4276 · 1×",
+      "panes": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "4d290c7ea7b54891bbbd6775acbca64c",
+            "paintedViewId": "4d290c7ea7b54891bbbd6775acbca64c",
+            "startNs": "104425000000000",
+            "endNs": "104430804138796",
+            "priceMin": "78037.5",
+            "priceStep": "0.5",
+            "drawMs": "0.500",
+            "tileCount": "6",
+            "tileAllocations": "6",
+            "dirtyColumns": "0",
+            "overlayPoints": "121",
+            "pixelWidth": "1400",
+            "pixelHeight": "441",
+            "receiveToPaintMs": "72.900"
+          },
+          "age": {
+            "frameId": "187",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "31e0fc932b844db48c1f7c951f7fa85b",
+            "frozen": "true",
+            "sourceLagMs": "1601.225386",
+            "evidenceResidentMs": "10265.09999999404",
+            "responseResidentMs": "4259.5",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104429902851423",
+            "highwaterNs": "104431504076809",
+            "viewId": "4d290c7ea7b54891bbbd6775acbca64c"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "0145330b64bb47a4bbf6625048b0656e",
+            "paintedViewId": "0145330b64bb47a4bbf6625048b0656e",
+            "startNs": "104426000000000",
+            "endNs": "104431205413668",
+            "priceMin": "78061.5",
+            "priceStep": "0.5",
+            "drawMs": "1.500",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "6",
+            "overlayPoints": "153",
+            "pixelWidth": "1400",
+            "pixelHeight": "327",
+            "receiveToPaintMs": "65.400"
+          },
+          "age": {
+            "frameId": "187",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "31e0fc932b844db48c1f7c951f7fa85b",
+            "frozen": "false",
+            "sourceLagMs": "600.961773",
+            "evidenceResidentMs": "796.5999999940395",
+            "responseResidentMs": "865.7000000178814",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104430903115036",
+            "highwaterNs": "104431504076809",
+            "viewId": "0145330b64bb47a4bbf6625048b0656e"
+          }
+        }
+      ]
+    },
+    {
+      "at": 242744.80000001192,
+      "cursor": "946 / 4276 · 1×",
+      "panes": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "4d290c7ea7b54891bbbd6775acbca64c",
+            "paintedViewId": "4d290c7ea7b54891bbbd6775acbca64c",
+            "startNs": "104425000000000",
+            "endNs": "104430804138796",
+            "priceMin": "78037.5",
+            "priceStep": "0.5",
+            "drawMs": "0.500",
+            "tileCount": "6",
+            "tileAllocations": "6",
+            "dirtyColumns": "0",
+            "overlayPoints": "121",
+            "pixelWidth": "1400",
+            "pixelHeight": "441",
+            "receiveToPaintMs": "72.900"
+          },
+          "age": {
+            "frameId": "189",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "31e0fc932b844db48c1f7c951f7fa85b",
+            "frozen": "true",
+            "sourceLagMs": "1701.312664",
+            "evidenceResidentMs": "11474.5",
+            "responseResidentMs": "5468.9000000059605",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104429902851423",
+            "highwaterNs": "104431604164087",
+            "viewId": "4d290c7ea7b54891bbbd6775acbca64c"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "0145330b64bb47a4bbf6625048b0656e",
+            "paintedViewId": "0145330b64bb47a4bbf6625048b0656e",
+            "startNs": "104426000000000",
+            "endNs": "104431205413668",
+            "priceMin": "78061.5",
+            "priceStep": "0.5",
+            "drawMs": "1.500",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "6",
+            "overlayPoints": "153",
+            "pixelWidth": "1400",
+            "pixelHeight": "327",
+            "receiveToPaintMs": "65.400"
+          },
+          "age": {
+            "frameId": "189",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "31e0fc932b844db48c1f7c951f7fa85b",
+            "frozen": "false",
+            "sourceLagMs": "701.049051",
+            "evidenceResidentMs": "2019.7999999821186",
+            "responseResidentMs": "2088.9000000059605",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104430903115036",
+            "highwaterNs": "104431604164087",
+            "viewId": "0145330b64bb47a4bbf6625048b0656e"
+          }
+        }
+      ]
+    },
+    {
+      "at": 243773.09999999404,
+      "cursor": "946 / 4276 · 1×",
+      "panes": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "4d290c7ea7b54891bbbd6775acbca64c",
+            "paintedViewId": "4d290c7ea7b54891bbbd6775acbca64c",
+            "startNs": "104425000000000",
+            "endNs": "104430804138796",
+            "priceMin": "78037.5",
+            "priceStep": "0.5",
+            "drawMs": "0.500",
+            "tileCount": "6",
+            "tileAllocations": "6",
+            "dirtyColumns": "0",
+            "overlayPoints": "121",
+            "pixelWidth": "1400",
+            "pixelHeight": "441",
+            "receiveToPaintMs": "72.900"
+          },
+          "age": {
+            "frameId": "191",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "31e0fc932b844db48c1f7c951f7fa85b",
+            "frozen": "true",
+            "sourceLagMs": "1701.312664",
+            "evidenceResidentMs": "12489.09999999404",
+            "responseResidentMs": "6483.5",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104429902851423",
+            "highwaterNs": "104431604164087",
+            "viewId": "4d290c7ea7b54891bbbd6775acbca64c"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "1f1a2b18ef204f30b438bc9decc0593b",
+            "paintedViewId": "1f1a2b18ef204f30b438bc9decc0593b",
+            "startNs": "104426000000000",
+            "endNs": "104431584198070",
+            "priceMin": "78061.5",
+            "priceStep": "0.5",
+            "drawMs": "1.100",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "6",
+            "overlayPoints": "156",
+            "pixelWidth": "1400",
+            "pixelHeight": "327",
+            "receiveToPaintMs": "41.900"
+          },
+          "age": {
+            "frameId": "191",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "31e0fc932b844db48c1f7c951f7fa85b",
+            "frozen": "false",
+            "sourceLagMs": "701.049051",
+            "evidenceResidentMs": "3034.699999988079",
+            "responseResidentMs": "815.0999999940395",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104430903115036",
+            "highwaterNs": "104431604164087",
+            "viewId": "1f1a2b18ef204f30b438bc9decc0593b"
+          }
+        }
+      ]
+    },
+    {
+      "at": 244889.30000001192,
+      "cursor": "972 / 4276 · 1×",
+      "panes": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "4d290c7ea7b54891bbbd6775acbca64c",
+            "paintedViewId": "4d290c7ea7b54891bbbd6775acbca64c",
+            "startNs": "104425000000000",
+            "endNs": "104430804138796",
+            "priceMin": "78037.5",
+            "priceStep": "0.5",
+            "drawMs": "0.500",
+            "tileCount": "6",
+            "tileAllocations": "6",
+            "dirtyColumns": "0",
+            "overlayPoints": "121",
+            "pixelWidth": "1400",
+            "pixelHeight": "441",
+            "receiveToPaintMs": "72.900"
+          },
+          "age": {
+            "frameId": "194",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "31e0fc932b844db48c1f7c951f7fa85b",
+            "frozen": "true",
+            "sourceLagMs": "2306.469849",
+            "evidenceResidentMs": "13661.59999999404",
+            "responseResidentMs": "7656",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104429902851423",
+            "highwaterNs": "104432209321272",
+            "viewId": "4d290c7ea7b54891bbbd6775acbca64c"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "934383eb10e440ae92b2bd78b604ff64",
+            "paintedViewId": "934383eb10e440ae92b2bd78b604ff64",
+            "startNs": "104427000000000",
+            "endNs": "104432003381659",
+            "priceMin": "78061.5",
+            "priceStep": "0.5",
+            "drawMs": "1.000",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "6",
+            "overlayPoints": "140",
+            "pixelWidth": "1400",
+            "pixelHeight": "327",
+            "receiveToPaintMs": "44.500"
+          },
+          "age": {
+            "frameId": "194",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "31e0fc932b844db48c1f7c951f7fa85b",
+            "frozen": "false",
+            "sourceLagMs": "306.251256",
+            "evidenceResidentMs": "611.0999999940395",
+            "responseResidentMs": "661.0999999940395",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104431903070016",
+            "highwaterNs": "104432209321272",
+            "viewId": "934383eb10e440ae92b2bd78b604ff64"
+          }
+        }
+      ]
+    },
+    {
+      "at": 245892.20000001788,
+      "cursor": "987 / 4276 · 1×",
+      "panes": [
+        {
+          "pane": "heatmap",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "4d290c7ea7b54891bbbd6775acbca64c",
+            "paintedViewId": "4d290c7ea7b54891bbbd6775acbca64c",
+            "startNs": "104425000000000",
+            "endNs": "104430804138796",
+            "priceMin": "78037.5",
+            "priceStep": "0.5",
+            "drawMs": "0.500",
+            "tileCount": "6",
+            "tileAllocations": "6",
+            "dirtyColumns": "0",
+            "overlayPoints": "121",
+            "pixelWidth": "1400",
+            "pixelHeight": "441",
+            "receiveToPaintMs": "72.900"
+          },
+          "age": {
+            "frameId": "197",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "31e0fc932b844db48c1f7c951f7fa85b",
+            "frozen": "true",
+            "sourceLagMs": "2680.928026",
+            "evidenceResidentMs": "14767.200000017881",
+            "responseResidentMs": "8761.600000023842",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104429902851423",
+            "highwaterNs": "104432583779449",
+            "viewId": "4d290c7ea7b54891bbbd6775acbca64c"
+          }
+        },
+        {
+          "pane": "flow",
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "5bf6c3dd83fd4ab2ada44594eb46d006",
+            "paintedViewId": "5bf6c3dd83fd4ab2ada44594eb46d006",
+            "startNs": "104427000000000",
+            "endNs": "104432298480041",
+            "priceMin": "78061.5",
+            "priceStep": "0.5",
+            "drawMs": "0.500",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "6",
+            "overlayPoints": "144",
+            "pixelWidth": "1400",
+            "pixelHeight": "327",
+            "receiveToPaintMs": "57.300"
+          },
+          "age": {
+            "frameId": "197",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "31e0fc932b844db48c1f7c951f7fa85b",
+            "frozen": "false",
+            "sourceLagMs": "680.709433",
+            "evidenceResidentMs": "1716.5",
+            "responseResidentMs": "676.9000000059605",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104431903070016",
+            "highwaterNs": "104432583779449",
+            "viewId": "5bf6c3dd83fd4ab2ada44594eb46d006"
+          }
+        }
+      ]
+    }
+  ]
+}

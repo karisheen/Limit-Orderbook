@@ -26,23 +26,53 @@ reasons rather than inventing cross-clock alignment. Source/gap transitions have
 separate segment identities; multi-segment candle/footprint buckets are omitted
 and report `interval_segment_discontinuity`.
 
-Price origin is always zero. Exact Decimal display steps use source-compatible
-quanta; known fixed ticks supply multiples, while variable/unknown ticks report
-`display_quantum_not_native_tick`. A display quantum is not an executable price
-rule. Without an explicit step, the first eligible two-sided book fits nearby
+The economic price grid remains zero-origin. Exact Decimal display steps use
+source-compatible quanta; known fixed ticks supply multiples, while
+variable/unknown ticks report `display_quantum_not_native_tick`. A display
+quantum is not an executable price rule. Without an explicit step, the first
+eligible two-sided book fits nearby
 native depth (up to one quarter of the requested rows per side) and admitted
 in-window trade prices. The fit uses exact 1/5-decade tick multiples and leaves
 edge room; coarse fitted steps remain selectable in the chart. The DOM selects
 its compatible native/display quantum independently.
 Unavailable bootstrap does not freeze a fallback step or zero price anchor.
-The fitted midpoint/quantum persist during streaming until explicit recenter,
-Auto-fit re-entry or instrument selection. The terminal also refits unpanned
-automatic views when switching between its 32-row footprint/profile and 128-row
-other modes; this keeps executed cells legible without browser-side aggregation.
-Explicit steps and panning remain authoritative. Replay rewind/reset clears the evidence-derived anchor and reused
-step, reconstructing from the available prefix; future scale cannot survive at
-an earlier cursor. Clients retain explicit aggregation by sending it on each
-query. Panning changes the viewport, not economic bins.
+Each pane retains its resolved native lower bound and quantum until its
+source/session/generation/instrument identity, requested aggregation, row count,
+or explicit recenter changes. Switching between 32-row footprint/profile and
+128-row other modes requests new centered geometry with the pane's current
+price offset, including for a panned view. An explicitly selected step remains
+authoritative; it prevents automatic quantum selection, not the origin reset.
+Switching modes within the same row-count group does not itself reset the origin.
+Replay rewind/reset clears the evidence-derived anchor and reused step,
+reconstructing from the available prefix; future scale cannot survive at an
+earlier cursor. Clients retain explicit aggregation by sending it on each query.
+Panning changes the viewport, not economic bins.
+
+An optional `VisualizationRequest.price_min` fixes a caller's viewport origin
+without changing that economic grid. It is an exact finite nonnegative decimal
+string of 1–128 characters, subject to the shared native decimal bounds (at most
+38 coefficient digits, absolute stored exponent at most 38, and magnitude at
+most `1e30`). It requires an explicit supported `price_step` and must be aligned
+to that step. Numeric JSON values, misaligned origins and the combination with
+`recenter: true` are rejected. Native Decimal arithmetic computes
+the visible lower bound as
+`max(0, price_min + price_offset_rows * price_step)`. A derived lower bound
+outside the same input domain is rejected before publishing geometry, so every
+returned origin can be submitted again exactly. Omitting `price_min` preserves
+the existing fitted-anchor/recenter behavior.
+
+Each frontend chart retains and resends its own explicit origin and step after
+fitting, so a sibling's recenter cannot move an already established independent
+viewport. This retention is in-memory, not a promise of origin persistence after
+browser reload. Subsequent offsets are relative to the offset captured with the
+saved origin, so the initial pan is not added repeatedly. An explicit-origin
+query does not mutate the shared legacy anchor or step. This is query geometry,
+not a backend pane registry or an alteration
+of native history. All panes in the session still share one selected instrument,
+source and generation, not separate feeds. Selection, replay reset/rewind and
+source-clock fences remain authoritative; an old viewport cannot carry future
+evidence across them.
+
 The base sampling quantum is one second; explicit five- and ten-second requests
 select retained exact boundary evidence. No incoming range or percentile
 changes a historical price grid or liquidity hash. Color transfer belongs to
@@ -159,6 +189,16 @@ incremental fingerprint, and rejects source-clock changes; it cannot overwrite
 new evidence or survive selection/removal. Session admission bounds outstanding
 snapshots, and runtime close joins and shuts down the visual executor.
 
+Frontend visualization query and chart ACK cancellation are scoped to the caller
+rather than the endpoint.
+Two charts may query `/visualization` with distinct geometry without replacing
+or aborting one another's request. Each caller cancels its own obsolete work
+and fences responses by session, generation and selection; the native ownership
+and snapshot bounds above still apply. Hidden panes suspend their queries,
+including siblings hidden by a maximized pane, and hidden browser documents
+suspend polling. Restoring a pane resumes its own query lifecycle. Neither
+layout visibility nor presentation freezing stops shared source collection.
+
 One bounded prior-query fingerprint map supports opaque `after_column` tokens.
 Matching geometry, generation and retained continuity can return changed/new
 columns with `replace=false`; incompatible caches, evictions, source/quantum
@@ -243,3 +283,54 @@ The response reports server publication-to-ACK elapsed milliseconds as a
 conservative round-trip upper bound alongside the browser measurement. It does
 not claim synchronized one-way latency, actual GPU completion, or that a normal
 WebSocket frame ACK proves a separately fetched chart painted.
+
+Displayed-chart freshness follows the canvas presentation, not merely the latest
+query response. Clearing a missing view, recovering from a rendering exception,
+resizing the backing store, or disposing the renderer invalidates its displayed
+identity and evidence ages. Cancelling scheduled work without clearing retained
+pixels does not invalidate the retained presentation. Only a successful draw
+followed by two visible animation-frame opportunities can restore the displayed
+identity and emit a paint acknowledgement; failed draws never acknowledge a view.
+
+`ChartFreshness` takes that identity-fenced **presented** view and keeps three
+measurements distinct:
+
+- **Source lag** compares the primary rendered mode's latest eligible native
+  `asof.receive_mono_ns` with the greatest observed same-clock highwater,
+  including the displayed view's `now_ns` and current source/evaluation
+  observations. A matching current clock observation is required; the view alone
+  is insufficient. Heatmap uses eligible overlapping depth columns; footprint,
+  profile and candles use non-history, known-size trades contributing to the
+  displayed cells, rows or eligible candles. CVD/OFI use eligible displayed
+  metric references. Native time/price bounds, clock identity and renderer caps
+  qualify every candidate. Fresh overlays never substitute for missing or stale
+  primary-mode evidence.
+- **Evidence resident** is browser-monotonic elapsed time since that native
+  evidence identity was first continuously displayed in the component. A fresh
+  response or Frame carrying unchanged evidence does not reset it.
+- **Response resident** is browser-monotonic elapsed time since the actually
+  displayed query response body completed transfer, before JSON parsing.
+  It is neither evidence age nor receive-to-paint timing. Receiving a newer
+  unpainted response does not replace the displayed identity or timestamp.
+
+Source lag can increase while a chart is frozen when current observations
+advance the same source clock. If replay is paused or a silent source's observed
+frontier does not advance, source lag may stay unchanged while browser residency
+grows. Freeze stops repeat polling of retained evidence, not collection or
+replay; changing chart settings or explicitly panning/zooming can deliberately
+request a replacement while frozen. A cleared canvas has no presented evidence
+identity or residency. Following explicit time ranges uses the qualified current
+source-clock frontier, including evaluation-window endpoints, rather than
+stopping at the last selected-instrument trade or book update.
+
+Missing/mismatched clocks, invalid or future evidence timestamps, unavailable
+displayed evidence, disconnection or source unavailability produce unavailable
+source lag with a reason, never a fabricated zero. Valid retained evidence can
+still accumulate browser residency while disconnected. Invalid browser receipt
+timestamps independently make response residency unavailable. Replay lag is
+measured within the recording's clock: no recording wall date is subtracted from
+today's wall clock, and no browser/server/source clock domains are mixed.
+Neither source lag nor residency claims exchange latency, network latency,
+one-way delivery time, GPU completion or market-data completeness. The separate
+chart ACK remains only the conservative publication-to-ACK round trip and
+browser receive-to-paint measurement described above.

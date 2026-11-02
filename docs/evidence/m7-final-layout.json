@@ -1,0 +1,267 @@
+{
+  "bundle": "index-CQREprSa.js / index-CadCRKZ8.css",
+  "source": "Recorded Binance-global BTCUSDT; capture4498db3b-f4a2-4fff-a32e-a97221fa21ee; paused delivery900",
+  "observations": [
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 800,
+        "dpr": 1.25,
+        "scrollWidth": 1280
+      },
+      "panes": [
+        {
+          "pane": "heatmap",
+          "plot": {
+            "x": 0,
+            "y": 149,
+            "width": 960,
+            "height": 297.921875
+          },
+          "quality": {
+            "top": 446.921875,
+            "bottom": 482.3125
+          },
+          "paneBottom": 482.3125,
+          "age": {
+            "frameId": "271",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "4155dd4b89be48b1a060d9f0e7c5a7d9",
+            "frozen": "false",
+            "sourceLagMs": "901.287373",
+            "evidenceResidentMs": "22128.5",
+            "responseResidentMs": "866.6999999880791",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104429902851423",
+            "highwaterNs": "104430804138796",
+            "viewId": "e5e8e72cdce1453b9a30e36175ea6074"
+          }
+        },
+        {
+          "pane": "flow",
+          "plot": {
+            "x": 0,
+            "y": 523.3125,
+            "width": 960,
+            "height": 218.359375
+          },
+          "quality": {
+            "top": 741.671875,
+            "bottom": 777.0625
+          },
+          "paneBottom": 777.0625,
+          "age": {
+            "frameId": "271",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "4155dd4b89be48b1a060d9f0e7c5a7d9",
+            "frozen": "false",
+            "sourceLagMs": "159.623403",
+            "evidenceResidentMs": "22128.19999998808",
+            "responseResidentMs": "792.8000000119209",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104430644515393",
+            "highwaterNs": "104430804138796",
+            "viewId": "54e73e8ffcd14e54b8b81be00e930971"
+          }
+        }
+      ],
+      "source": [
+        "RECORDED",
+        "4498db3b…",
+        "Required data ready",
+        "paused"
+      ],
+      "cursor": "900 / 4276 · 1×",
+      "errors": [],
+      "resize": {
+        "chart": {
+          "before": "56",
+          "after": "60"
+        },
+        "dom": {
+          "before": "314",
+          "after": "324"
+        },
+        "scrollWidth": 1280
+      }
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "dpr": 1.25,
+        "scrollWidth": 1440
+      },
+      "panes": [
+        {
+          "pane": "heatmap",
+          "plot": {
+            "x": 0,
+            "y": 149,
+            "width": 1120,
+            "height": 353.921875
+          },
+          "quality": {
+            "top": 502.921875,
+            "bottom": 538.3125
+          },
+          "paneBottom": 538.3125,
+          "age": {
+            "frameId": "274",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "4155dd4b89be48b1a060d9f0e7c5a7d9",
+            "frozen": "false",
+            "sourceLagMs": "901.287373",
+            "evidenceResidentMs": "64.2000000178814",
+            "responseResidentMs": "593.5999999940395",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104429902851423",
+            "highwaterNs": "104430804138796",
+            "viewId": "95fad25bf8df408e8bb3014148d88134"
+          }
+        },
+        {
+          "pane": "flow",
+          "plot": {
+            "x": 0,
+            "y": 579.3125,
+            "width": 1120,
+            "height": 262.359375
+          },
+          "quality": {
+            "top": 841.671875,
+            "bottom": 877.0625
+          },
+          "paneBottom": 877.0625,
+          "age": {
+            "frameId": "274",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "4155dd4b89be48b1a060d9f0e7c5a7d9",
+            "frozen": "false",
+            "sourceLagMs": "159.623403",
+            "evidenceResidentMs": "64.2999999821186",
+            "responseResidentMs": "545",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104430644515393",
+            "highwaterNs": "104430804138796",
+            "viewId": "a242d59e4913484f9a9d26f8d6b558c2"
+          }
+        }
+      ],
+      "source": [
+        "RECORDED",
+        "4498db3b…",
+        "Required data ready",
+        "paused"
+      ],
+      "cursor": "900 / 4276 · 1×",
+      "errors": [],
+      "resize": {
+        "chart": {
+          "before": "56",
+          "after": "61"
+        },
+        "dom": {
+          "before": "314",
+          "after": "324"
+        },
+        "scrollWidth": 1440
+      }
+    },
+    {
+      "viewport": {
+        "width": 1920,
+        "height": 1080,
+        "dpr": 1.25,
+        "scrollWidth": 1920
+      },
+      "panes": [
+        {
+          "pane": "heatmap",
+          "plot": {
+            "x": 0,
+            "y": 153,
+            "width": 1600,
+            "height": 452.484375
+          },
+          "quality": {
+            "top": 605.484375,
+            "bottom": 640.875
+          },
+          "paneBottom": 640.875,
+          "age": {
+            "frameId": "278",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "4155dd4b89be48b1a060d9f0e7c5a7d9",
+            "frozen": "false",
+            "sourceLagMs": "901.287373",
+            "evidenceResidentMs": "117.5",
+            "responseResidentMs": "297.5",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104429902851423",
+            "highwaterNs": "104430804138796",
+            "viewId": "9dde190d153e4c39b996af8e697c5953"
+          }
+        },
+        {
+          "pane": "flow",
+          "plot": {
+            "x": 0,
+            "y": 681.875,
+            "width": 1600,
+            "height": 339.796875
+          },
+          "quality": {
+            "top": 1021.671875,
+            "bottom": 1057.0625
+          },
+          "paneBottom": 1057.0625,
+          "age": {
+            "frameId": "278",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "4155dd4b89be48b1a060d9f0e7c5a7d9",
+            "frozen": "false",
+            "sourceLagMs": "159.623403",
+            "evidenceResidentMs": "117.09999999403954",
+            "responseResidentMs": "244.2999999821186",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104430644515393",
+            "highwaterNs": "104430804138796",
+            "viewId": "b66782446e0a43969dda3d3167a47364"
+          }
+        }
+      ],
+      "source": [
+        "RECORDED",
+        "4498db3b…",
+        "Required data ready",
+        "paused"
+      ],
+      "cursor": "900 / 4276 · 1×",
+      "errors": [],
+      "resize": {
+        "chart": {
+          "before": "56",
+          "after": "60"
+        },
+        "dom": {
+          "before": "314",
+          "after": "324"
+        },
+        "scrollWidth": 1920
+      }
+    }
+  ]
+}

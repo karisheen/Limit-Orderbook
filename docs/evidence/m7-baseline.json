@@ -1,0 +1,42 @@
+{
+  "milestone": "M7 order-flow workstation",
+  "base_commit": "a372354",
+  "references": [
+    "https://flowsurface.com/",
+    "https://github.com/flowsurface-rs/flowsurface",
+    "https://raw.githubusercontent.com/flowsurface-rs/flowsurface/main/assets/screenshot.png"
+  ],
+  "inspection": "Visually inspected website hero and repository application screenshot before design; original implementation only, no reference assets or source copied.",
+  "screenshots": [
+    "m7-before-1280.png",
+    "m7-before-1440.png",
+    "m7-before-1920.png"
+  ],
+  "limits": "Sequential live Binance-global BTC observations, not synchronized snapshots; saved DOM-focus baseline preferences retained; owner-busy diagnostic periods visible. Root user test-results left untouched.",
+  "observation": {
+    "captured_at": "2026-11-02T20:05:43.323Z",
+    "url": "http://127.0.0.1:8000/?source=live",
+    "preferences": "{\"version\":1,\"source\":{\"mode\":\"live\",\"id\":\"live\"},\"sourceExplicit\":true,\"instrument\":\"binance-global:spot-v3:spot:BTCUSDT\",\"preset\":\"ladder\",\"leftWidth\":200,\"rightWidth\":420,\"bottomHeight\":200,\"leftOpen\":true,\"rightOpen\":true,\"bottomOpen\":false,\"mode\":\"heatmap\",\"contrast\":1,\"showTrades\":true,\"showQuotes\":true,\"priceStep\":\"0.5\",\"bucket\":\"1000000000\",\"rangeSeconds\":180,\"range\":null,\"follow\":true,\"paused\":false,\"domFrozen\":false,\"domRows\":25,\"priceOffset\":0,\"domPriceStep\":\"1\",\"domUnit\":\"base\",\"domCumulative\":false}",
+    "status": "LIVEPublic live shared collectorNot recordingNot ready / diagnosticunavailableWatchlistDOM / tapeCosts / analytics",
+    "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+    "chart": {
+      "testid": "market-charts",
+      "mode": "heatmap",
+      "viewId": "6ad38a6620274731897a744bbf0c7d33",
+      "paintedViewId": "6ad38a6620274731897a744bbf0c7d33",
+      "startNs": "227812000000000",
+      "endNs": "227818105078870",
+      "priceMin": "76937.5",
+      "priceStep": "0.5",
+      "drawMs": "0.900",
+      "tileCount": "31",
+      "tileAllocations": "31",
+      "dirtyColumns": "7",
+      "overlayPoints": "74",
+      "pixelWidth": "1597",
+      "pixelHeight": "676",
+      "receiveToPaintMs": "396.200"
+    },
+    "telemetry": "Session 992d6308 · generation 1Queue 0 / high 171Coalesced 72 · overflow 1ACK expired 0Observer 333.5 msReceive→paint 34.5 msPublish→ACK ≤ 39.8 ms"
+  }
+}

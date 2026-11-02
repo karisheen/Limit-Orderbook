@@ -6,7 +6,7 @@ export type ChartRange = { start_ns: string; end_ns: string };
 export type PlotArea = { x: number; y: number; width: number; height: number };
 export const CHART_LIMITS = { columns: 600, rows: 256, tiles: 640, trades: 2000, footprints: 12000, dpr: 2, width: 2048, height: 1280 } as const;
 export const PLOT_MARGIN = { left: 12, right: 100, top: 14, bottom: 30 } as const;
-export const COLORS = { bid: '#36cfc0', ask: '#f4ab58', buy: '#79f2b2', sell: '#ff6c90', unknown: '#c3a5ed', background: '#101721', missing: '#272132', grid: '#263241', text: '#b4c3d4' } as const;
+export const COLORS = { bid: '#359d94', ask: '#bd6268', buy: '#57c4b4', sell: '#df7c81', unknown: '#a4adb5', background: '#131619', missing: '#1c2024', grid: '#292f34', text: '#a6afb7' } as const;
 
 /** Only display measurements use Number. Subtract exact clocks before conversion. */
 export function timeFraction(time: string, start: string, end: string): number {

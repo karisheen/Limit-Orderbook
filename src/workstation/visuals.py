@@ -648,6 +648,17 @@ class VisualHistory:
         if instrument is None:
             raise ValueError("no selected visualization instrument")
         step = display_step(instrument, request.price_step, self.price_step)
+        origin = getattr(request, "price_min", None)
+        if origin is not None:
+            if not isinstance(origin, str):
+                raise ValueError("price_min must be an exact decimal string")
+            origin = decimal(origin, nonnegative=True)
+            if request.price_step is None:
+                raise ValueError("price_min requires explicit price_step")
+            if request.recenter:
+                raise ValueError("price_min cannot be combined with recenter")
+            if origin % step:
+                raise ValueError("price_min must align to price_step")
         bucket = (
             int(request.bucket_ns) if request.bucket_ns is not None else self.bucket_ns
         )
@@ -686,29 +697,38 @@ class VisualHistory:
             ).eligible
             else None
         )
-        if valid_book and (
-            request.recenter or self.anchor is None or self.price_step is None
-        ):
-            self.anchor = (valid_book.bids[0].price + valid_book.asks[0].price) / 2
-        if (
-            valid_book
-            and request.price_step is None
-            and (self.price_step is None or request.recenter)
-        ):
-            step = fitted_step(
-                instrument, valid_book, visible_trades, self.anchor, request.rows
-            )
-        # An unavailable bootstrap must not freeze the fallback quantum: the
-        # first validated two-sided book still gets its initial fit.
-        if valid_book or request.price_step is not None:
-            self.price_step = step
+        if origin is None:
+            if valid_book and (
+                request.recenter or self.anchor is None or self.price_step is None
+            ):
+                self.anchor = (valid_book.bids[0].price + valid_book.asks[0].price) / 2
+            if (
+                valid_book
+                and request.price_step is None
+                and (self.price_step is None or request.recenter)
+            ):
+                step = fitted_step(
+                    instrument, valid_book, visible_trades, self.anchor, request.rows
+                )
+            # An unavailable bootstrap must not freeze the fallback quantum: the
+            # first validated two-sided book still gets its initial fit.
+            if valid_book or request.price_step is not None:
+                self.price_step = step
         self.bucket_ns = bucket
         anchor = self.anchor if self.anchor is not None else ZERO
-        low = max(
-            ZERO,
-            floor(anchor, step)
-            + (request.price_offset_rows - request.rows // 2) * step,
+        # Pane-owned origins never mutate the shared legacy anchor/quantum.
+        low = (
+            max(ZERO, origin + request.price_offset_rows * step)
+            if origin is not None
+            else max(
+                ZERO,
+                floor(anchor, step)
+                + (request.price_offset_rows - request.rows // 2) * step,
+            )
         )
+        # Returned origins are resubmitted by independent panes. Reject a pan
+        # outside that same bounded input domain, before publishing geometry.
+        low = decimal(exact(low), nonnegative=True)
         prices = tuple(low + i * step for i in range(request.rows))
         clock_id = self.clock.clock_id if self.clock else "unobserved"
         grid = digest(

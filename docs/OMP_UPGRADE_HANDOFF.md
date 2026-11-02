@@ -610,8 +610,162 @@ contract and controls.
   hard-refresh, and use DOM grouping/units/Rescale/Recenter independently of
   chart grouping.
 
+## M7 — dedicated order-flow workstation redesign
+
+Started from verified `main` at `a372354` on
+`upgrade/m7-orderflow-workstation`. The preexisting untracked root
+`test-results/` was preserved. README, this handoff and the terminal/API/
+visualization/development contracts were read before implementation.
+
+### Visual direction and implementation
+
+The running terminal and [Flowsurface](https://flowsurface.com/) website hero,
+[repository](https://github.com/flowsurface-rs/flowsurface) and
+[application screenshot](https://raw.githubusercontent.com/flowsurface-rs/flowsurface/main/assets/screenshot.png)
+were visually inspected before design. No Flowsurface code or assets were copied.
+The implementation uses neutral charcoal surfaces, subtle separators, restrained
+teal/red market marks, compact headers and aligned exact-number text.
+
+- `App.tsx`, `workspace.ts` and `workstation.css`: simultaneous Liquidity,
+  Order flow, DOM and tape panes; pointer/keyboard separators; four-pane
+  maximize/restore; bounded browser-local workspace slots; independent tape
+  controls; optional watchlist and research drawers.
+- `ChartPane.tsx` and `useMarketView.ts`: independent native queries, settings,
+  freezes, time/price geometry and explicit cursor links. Frozen navigation
+  honors deliberate pan/zoom. Settings/Inspector preserve chart space; Escape
+  restores trigger focus. Compact headers wrap rather than reducing type size,
+  and settings anchor below the actual wrapped header.
+- `Freshness.tsx` and `data-freshness.ts`: primary-layer source-clock lag,
+  evidence residence and complete-response residence remain separate from
+  drawing/paint/ACK performance. Fresh overlays cannot rejuvenate stale primary
+  evidence. Cleared/failed canvases have no presented identity.
+- Native `VisualizationRequest.price_min` supplies exact bounded pane-owned
+  origins. Sibling recentering cannot mutate a pinned projection; out-of-domain
+  derived origins are rejected before publication. Existing economic bins,
+  causal/source fences, depth/history/queue bounds and quality policies remain.
+- Provenance, explanations and engineering telemetry moved into inspectors,
+  tooltips and diagnostics. Exact instrument/venue, source mode, readiness,
+  freshness and actionable errors remain visible. Existing native research,
+  costs, alerts, context, paper and journal workflows remain reachable.
+
+### Actual visual and interaction evidence
+
+The recorded comparison uses verified public Binance-global/Hyperliquid capture
+`4498db3b-f4a2-4fff-a32e-a97221fa21ee`: 12 streams, 4,276 deliveries, source
+clock `4a9613c2-dc07-476e-bf1c-5863324e0735`. Screenshots identify **RECORDED**,
+not live data; the selected instrument is Binance-global spot BTCUSDT.
+Paused comparisons use delivery 900. Viewports below are CSS pixels; the managed
+browser screenshot device scale was 1.25.
+
+| Viewport | Heatmap plot | Order-flow plot | Horizontal overflow | Both quality/freshness strips visible |
+|---|---:|---:|---|---|
+| 1280 × 800 | 960 × 298 | 960 × 218 | None | Yes |
+| 1440 × 900 | 1120 × 354 | 1120 × 262 | None | Yes |
+| 1920 × 1080 | 1600 × 452 | 1600 × 340 | None | Yes |
+
+Before: [1280](evidence/m7-before-1280.png),
+[1440](evidence/m7-before-1440.png), [1920](evidence/m7-before-1920.png),
+and [recorded 1440](evidence/m7-before-recorded-1440.png).
+Final after: [1280](evidence/m7-after-recorded-1280.png),
+[1440](evidence/m7-after-recorded-1440.png),
+[1920](evidence/m7-after-recorded-1920.png).
+[Baseline provenance](evidence/m7-baseline.json) records the original saved
+DOM-focus layout; these are sequential observations, not synchronized snapshots.
+
+Actual pointer drags changed chart split at all three sizes; keyboard DOM width
+changed 314 → 324 px without document overflow. A saved slot restored candles
+and 334 px DOM width while retaining the current recording source.
+Frozen keyboard zoom changed native time bounds; Escape restored Settings
+focus. [Maximized footprint](evidence/m7-footprint-maximized.png) exposed numeric
+cells that the compact view deliberately omits rather than squeezing the text.
+See [layout measurements](evidence/m7-final-layout.json) and
+[interaction evidence](evidence/m7-final-interactions.json).
+
+Twenty one-second observations per requested viewport exercised 1× recorded
+streaming, with no visible errors and valid primary-layer ages in all 120 pane
+observations. Render statistics below deduplicate repeated painted view IDs
+(18 per pane/viewport). These are sampled, automation-perturbed observations,
+not exhaustive per-frame or exchange-to-screen latency.
+
+| Viewport | Primary layer | p95 draw ms | p95 receive→paint ms | p95 source-clock lag ms |
+|---|---|---:|---:|---:|
+| 1280 × 800 | Heatmap | 2.1 | 63.1 | 1900.5 |
+| 1280 × 800 | Footprint | 0.7 | 54.3 | 1481.1 |
+| 1440 × 900 | Heatmap | 3.5 | 52.3 | 1797.8 |
+| 1440 × 900 | Footprint | 0.7 | 50.6 | 1296.1 |
+| 1920 × 1080 | Heatmap | 1.4 | 51.6 | 1879.8 |
+| 1920 × 1080 | Footprint | 0.8 | 50.9 | 1447.0 |
+
+Fast drawing does **not** imply equally fresh evidence. Source sampling,
+selected-instrument observations and bounded historical retention remain
+visible independently of rendering. [Raw samples](evidence/m7-final-recorded-stream.json),
+[summary methodology](evidence/m7-final-age-summary.json) and
+[streamed screenshot](evidence/m7-stream-recorded-1440.png) retain that distinction.
+
+With heatmap frozen, the same painted view's source lag grew from 1.006 s to
+8.201 s and browser evidence residence from 0.505 s to 7.564 s while the sibling
+continued updating. When the footprint's price window no longer contained
+eligible primary evidence, it reported unavailable rather than borrowing fresh
+overlay/DOM timestamps. Explicit reconnect replaced session `815d6abc…` with
+`163435d5…`, reset generation 6 → 1 and replay to its native initial prefix
+(delivery 25), cleared freezes and withheld obsolete evidence.
+[Freeze/reconnect record](evidence/m7-final-freeze-reconnect.json),
+[visible frozen state](evidence/m7-frozen-evidence.png).
+
+### Executed gates and retained limits
+
+`bash tools/check.sh -q --tb=short` passed: **1,246 native tests**
+(344.19 s), Ruff, 71 formatted files, mypy over 35 modules, frontend lint,
+**53 frontend tests**, TypeScript and production build. The only native warning
+was the existing Starlette/httpx deprecation. Measured frontend:
+`index-CQREprSa.js` / `index-CadCRKZ8.css`.
+
+The final serialized Chromium run passed **46 tests with one expected
+network-only skip** (4.3 minutes), against a separate demo-only server on
+port 8004. The temporary base-URL override was removed afterward; CI retains
+its standard offline server on port 8000. Coverage includes both panes' query/
+paint ownership, independent origins/settings/freezes, source overrides,
+save/load, pointer and keyboard layout, 320/390 px accessibility, reconnect,
+silent-socket recovery, actual Canvas failure, native cost/research workflows
+and replay causality. Frontend unit regressions separately verify complete-body
+receipt timing, exact clocks and primary-layer freshness selection.
+
+The owned-server recorded benchmark then completed at 1440 × 900 in Chromium
+145.0.7632.6, with no concurrent project gates or live collector. Each cohort ran
+for 30 seconds with both chart panes visible:
+
+| Replay speed | Chart ACK samples | Draw samples | p95 publication→ACK upper bound ms | Existing 250 ms budget |
+|---|---:|---:|---:|---|
+| 1× | 55 | 55 | 104.0 | Met |
+| 2× | 55 | 55 | 159.4 | Met |
+
+Both scenarios passed functional, sample-sufficiency and unchanged-budget
+checks with zero API errors, source mismatches, frame failures or queue
+overflows. Dataset and code hashes were unchanged; provenance errors were empty
+and the owned server was reaped. These are aggregate two-pane round-trip upper
+bounds, not per-pane, one-way, GPU or live-capacity certification.
+[Full benchmark evidence](evidence/m7-render-1440.json) retains the command,
+raw samples, runtime/assets/dataset hashes, workload progression and cleanup.
+Manifest SHA-256:
+`d12553c14ee31de1e66db3d2e9247000b81a976826f4f3da8ae072d4622ee5f5`.
+
+[Integration attempts](evidence/m7-integration-attempts.json) retain failed
+checks and their corrections, including the wrong recording-enabled browser
+test target, concurrent build race, insufficient-history zoom precondition,
+initial clipped quality strips, source-restoration and freshness defects.
+No timeout, native quality rule or performance threshold was relaxed.
+
+The actual public-live run reached the existing
+`analytical_queue_overflow` boundary again, as the baseline had. The redesigned
+terminal made retained charts diagnostic, exposed unavailable freshness, and
+withheld current DOM/tape evidence:
+[raw live observation](evidence/m7-live-stream.json),
+[failure screenshot](evidence/m7-live-1440.png).
+This milestone does not certify sustained live-cohort capacity, uninterrupted
+feeds, isolated-host throughput or the unrun 24-hour soak.
+
 ## Decisions and next action
 
 Use one local asyncio backend worker, exact immutable domain contracts, explicit quality gates, direct venue adapters, a React/TypeScript terminal, native Canvas heatmap, Parquet/raw compressed recording and SQLite metadata. Preserve the legacy entrypoint during cutover; do not duplicate analytics. Detailed decisions/contracts/backlog are in the accompanying M0 documents.
 
-M0–M6 implementation, verification and milestone integration are complete. Start locally using `README.md`; use `READINESS.md` for separate correctness, UI/operations, research and execution boundaries. Optional next operator validation is the documented24-hour soak, which has not run, and blocked Bybit live access if it becomes available. Funding/OI provenance and research limits remain explicit. No live exchange execution or external deployment is authorized or implemented.
+M0–M6 integration and the M7 implementation/local verification are complete. Start locally using `README.md`; use `READINESS.md` for separate correctness, UI/operations, research and execution boundaries. Optional next operator validation is the documented 24-hour soak, which has not run, and blocked Bybit live access if it becomes available. The known live analytical-queue overflow remains a separate capacity boundary; M7 does not remove it. Funding/OI provenance and research limits remain explicit. No live exchange execution or external deployment is authorized or implemented.

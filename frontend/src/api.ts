@@ -120,7 +120,7 @@ export interface VisualGrid {
   reasons: string[]; truncated: boolean; complete_window: boolean; replace: boolean; next_after: string | null;
 }
 export interface VisualizationInput {
-  start_ns?: string; end_ns?: string; price_step?: string; price_offset_rows?: number; recenter?: boolean;
+  start_ns?: string; end_ns?: string; price_step?: string; price_min?: string; price_offset_rows?: number; recenter?: boolean;
   bucket_ns?: string; rows?: number; max_columns?: number; after_column?: string;
 }
 export interface VisualizationAck {
@@ -149,7 +149,8 @@ export interface ProposalRisk {
 }
 
 export class ApiError extends Error {
-  constructor(message: string, readonly status: number) { super(message); this.name = 'ApiError'; }
+  readonly status: number;
+  constructor(message: string, status: number) { super(message); this.name = 'ApiError'; this.status = status; }
 }
 
 export async function request<T>(path: string, body?: unknown, signal?: AbortSignal, method?: string, onReceive?: (receivedAtMs: number) => void): Promise<T> {
@@ -158,8 +159,8 @@ export async function request<T>(path: string, body?: unknown, signal?: AbortSig
     headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  onReceive?.(performance.now());
   const text = await response.text();
+  onReceive?.(performance.now());
   let data: unknown;
   try { data = text ? JSON.parse(text) as unknown : null; }
   catch { throw new ApiError(`HTTP ${response.status}: API returned non-JSON content. Check the backend and proxy.`, response.status); }

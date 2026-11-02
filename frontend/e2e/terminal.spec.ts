@@ -13,6 +13,7 @@ test('exact selection, costs, replay and visible API errors', async ({ page }) =
   await instrument.click();
   await expect(instrument).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('.ladder tbody tr').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Costs / analytics', exact: true }).click();
   await page.getByLabel('Order size', { exact: true }).fill('0.123456789012345678');
   const inputRequest = page.waitForRequest(request => request.url().endsWith('/api/v1/costs'));
   await page.getByTestId('estimate').click();
@@ -35,7 +36,7 @@ test('exact selection, costs, replay and visible API errors', async ({ page }) =
   await expect(page.locator('.cursor')).toContainText('0 /');
   await page.getByLabel('Order size', { exact: true }).fill('not-a-decimal');
   await page.getByTestId('estimate').click();
-  await expect(page.locator('.costs-panel').filter({ has: page.getByRole('heading', { name: 'Proposed order & comparable venue costs', exact: true }) }).getByRole('alert')).toContainText('HTTP');
+  await expect(page.locator('#workflow-panel-costs[role="tabpanel"] .costs-panel').filter({ has: page.getByTestId('estimate') }).getByRole('alert')).toContainText('HTTP');
 });
 
 test('documents own independent sessions and closing releases one owner', async ({ context, request }) => {
@@ -70,11 +71,15 @@ test('laptop workspace retains controls and reconnect replaces a session', async
   const selected = page.locator('[data-instrument-id]').first();
   await selected.click();
   await expect(selected).toHaveAttribute('aria-pressed', 'true');
+  const created = page.waitForResponse(response => response.url().endsWith('/api/v1/sessions') && response.request().method() === 'POST');
+  await page.getByText('Diagnostics', { exact: true }).click();
   const sessionBefore = await page.locator('.telemetry').textContent();
   await page.getByLabel('Reconnect terminal').click();
+  const replacement = await (await created).json() as Frame;
   await expect(page.locator('.status')).toHaveText('Connected');
   await expect(selected).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('.telemetry')).not.toHaveText(sessionBefore ?? '');
+  await expect(page.locator('.telemetry')).toContainText(replacement.session_id.slice(0, 8));
+  expect(sessionBefore).not.toContain(replacement.session_id.slice(0, 8));
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: 'test-results/terminal-1280.png', fullPage: true });
 });

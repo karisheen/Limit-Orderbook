@@ -22,7 +22,7 @@ export function useTerminal(initialPreferences: Pick<WorkspacePreferences, 'sour
   const sourceResolved = useRef(false);
   const restoringSelection = useRef(Boolean(initialPreferences.instrument));
   const [preferenceNotice, setPreferenceNotice] = useState<string | null>(null);
-  const queries = useRef(new Map<string, AbortController>());
+  const queries = useRef(new Map<string | AbortSignal, AbortController>());
   const current = useRef<Frame | null>(null);
   const socket = useRef<WebSocket | null>(null);
   const lifecycle = useRef<SessionScope | null>(null);
@@ -303,23 +303,25 @@ export function useTerminal(initialPreferences: Pick<WorkspacePreferences, 'sour
     retries.current = 0;
     setRevision(value => value + 1);
   }, []);
-  const query = useCallback(async <T extends object>(path: string, input: object, signal: AbortSignal, onReceive?: (receivedAtMs: number) => void): Promise<T> => {
+  const query = useCallback(async <T extends object>(path: string, input: object, signal: AbortSignal, onReceive?: (receivedAtMs: number) => void, owner: string | AbortSignal = path): Promise<T> => {
     const active = current.current;
     if (!active || !lifecycle.current?.connected || active.status === 'seeking') throw new ApiError('No current presentation is available for this query.', 409);
-    queries.current.get(path)?.abort();
+    queries.current.get(owner)?.abort();
     const controller = new AbortController();
-    queries.current.set(path, controller);
+    queries.current.set(owner, controller);
     try {
       const result = await request<T>(path, { session_id: active.session_id, generation: active.generation, ...input }, AbortSignal.any([signal, controller.signal, AbortSignal.timeout(10000)]), undefined, onReceive);
       if (controller.signal.aborted || !lifecycle.current?.connected || current.current?.session_id !== active.session_id || current.current.generation !== active.generation || ('generation' in result && result.generation !== active.generation)) {
         throw new ApiError('Response belongs to obsolete source, selection or replay evidence. Request again.', 409);
       }
       return result;
-    } finally { if (queries.current.get(path) === controller) queries.current.delete(path); }
+    } finally { if (queries.current.get(owner) === controller) queries.current.delete(owner); }
   }, []);
   const costs = useCallback((input: CostInput, signal: AbortSignal) => query<Costs>('/costs', input, signal), [query]);
-  const visualization = useCallback((input: VisualizationInput, signal: AbortSignal, onReceive?: (receivedAtMs: number) => void) => query<VisualGrid>('/visualization', input, signal, onReceive), [query]);
-  const acknowledgeVisualization = useCallback((view_id: string, browser_receive_to_paint_ms: number, signal: AbortSignal) => query<VisualizationAck>('/visualization/ack', { view_id, browser_receive_to_paint_ms }, signal), [query]);
+  // Each pane owns its visualization and paint ACK; siblings must not cancel each other.
+  // All owners still participate in the same lifecycle-wide abort and generation fences.
+  const visualization = useCallback((input: VisualizationInput, signal: AbortSignal, onReceive?: (receivedAtMs: number) => void) => query<VisualGrid>('/visualization', input, signal, onReceive, signal), [query]);
+  const acknowledgeVisualization = useCallback((view_id: string, browser_receive_to_paint_ms: number, signal: AbortSignal) => query<VisualizationAck>('/visualization/ack', { view_id, browser_receive_to_paint_ms }, signal, undefined, signal), [query]);
   const ladder = useCallback((input: LadderInput, signal: AbortSignal) => query<GroupedLadder>('/ladder', input, signal), [query]);
   const proposalRisk = useCallback((input: ProposalRiskInput, signal: AbortSignal) => query<ProposalRisk>('/proposal-risk', input, signal), [query]);
 

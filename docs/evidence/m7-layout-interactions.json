@@ -1,0 +1,418 @@
+{
+  "stage": "Recorded-source visual inspection before final review corrections; final acceptance is separately identified",
+  "source": "4498db3b-f4a2-4fff-a32e-a97221fa21ee, paused delivery 900",
+  "viewports": [
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "documentWidth": 1280,
+      "source": "RECORDED4498db3b…Required data readypausedWatchlistDOM / tapeCosts / analyticsSource & instrument detailsURL selected 4498db3b-f4a2-4fff-a32e-a97221fa21ee; saved source preferences did not override this launch.Recorded capture · playbackNative retained depth: 4980 bid / 4994 ask levels · frame shows 100 / 100. Grouped DOM and chart rows are presentation buckets, not a count of individual orders.Native feed modews_deltaRecorded source mode—Capture completetrueCoverageBounded / unknown outside scopeSource statereadySettlementNone declaredTick / lot0.01 / 0.00001Execution accessunknownFrame carries the first 100 levels per side. Native reconstruction, grouped ladder and cost walks retain full source depth.Exact instrument metadata{\n  \"instrument_id\": \"binance-global:spot-v3:spot:BTCUSDT\",\n  \"metadata_version\": \"2b9ad73200b2a40c1c0697892906f864ecef0682a524dda17df9512036dc1449:1793526349955430000\",\n  \"venue\": \"binance-global\",\n  \"api_family\": \"spot-v3\",\n  \"native_symbol\": \"BTCUSDT\",\n  \"base\": {\n    \"asset_id\": \"BTC\",\n    \"ticker\": \"BTC\",\n    \"native_token_id\": \"BTC\",\n    \"network\": null,\n    \"contract_address\": null,\n    \"reference_asset_id\": null\n  },\n  \"quote\": {\n    \"asset_id\": \"USDT\",\n    \"ticker\": \"USDT\",\n    \"native_token_id\": \"USDT\",\n    \"network\": null,\n    \"contract_address\": null,\n    \"reference_asset_id\": null\n  },\n  \"tick_size\": \"0.01\",\n  \"lot_size\": \"0.00001\",\n  \"native_asset_id\": null,\n  \"dex_namespace\": null,\n  \"settlement\": null,\n  \"market_type\": \"spot\",\n  \"expiry_wall_ns\": null,\n  \"constraints\": {\n    \"min_base\": \"0.00001\",\n    \"max_base\": \"9000\",\n    \"min_notional\": \"5\",\n    \"max_notional\": \"9000000\",\n    \"min_notional_currency\": \"USDT\",\n    \"price_rule\": \"fixed_tick\",\n    \"size_rule\": \"fixed_lot\",\n    \"max_limit_base\": null,\n    \"max_market_base\": null\n  },\n  \"contract_multiplier\": \"1\",\n  \"quantity_unit\": \"base\",\n  \"contract_value_currency\": null,\n  \"inverse\": false,\n  \"status\": \"active\",\n  \"data_access\": \"unknown\",\n  \"execution_access\": \"unknown\",\n  \"metadata_asof_wall_ns\": \"1793526349955430000\",\n  \"metadata_source\": \"https://data-api.binance.vision/api/v3/exchangeInfo\",\n  \"reference_multiplier\": null,\n  \"settlement_conversion\": \"unknown\",\n  \"contract_specification_source\": null\n}Source & capture descriptor{\n  \"id\": \"31e0fc932b844db48c1f7c951f7fa85b\",\n  \"mode\": \"replay\",\n  \"label\": \"4498db3b-f4a2-4fff-a32e-a97221fa21ee\",\n  \"status\": \"ready\",\n  \"synthetic\": false,\n  \"recording\": true,\n  \"duration_ns\": null,\n  \"streams\": 12,\n  \"reasons\": []\n}Available source readiness & reasons[\n  {\n    \"id\": \"synthetic-demo-v3-180s\",\n    \"mode\": \"demo\",\n    \"label\": \"Synthetic 180s / 38 streams (memory, not recording)\",\n    \"status\": \"ready\",\n    \"synthetic\": true,\n    \"recording\": false,\n    \"duration_ns\": \"180000000000\",\n    \"streams\": 38,\n    \"reasons\": []\n  },\n  {\n    \"id\": \"31e0fc932b844db48c1f7c951f7fa85b\",\n    \"mode\": \"replay\",\n    \"label\": \"4498db3b-f4a2-4fff-a32e-a97221fa21ee\",\n    \"status\": \"ready\",\n    \"synthetic\": false,\n    \"recording\": true,\n    \"duration_ns\": null,\n    \"streams\": 12,\n    \"reasons\": []\n  }\n]Live ingestion evidence · 0 streams[]",
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "panes": [
+        {
+          "pane": "heatmap",
+          "rect": {
+            "x": 0,
+            "y": 114,
+            "width": 960,
+            "height": 368.3125
+          },
+          "plot": {
+            "width": 960,
+            "height": 298
+          }
+        },
+        {
+          "pane": "flow",
+          "rect": {
+            "x": 0,
+            "y": 488.3125,
+            "width": 960,
+            "height": 288.75
+          },
+          "plot": {
+            "width": 960,
+            "height": 218
+          }
+        },
+        {
+          "pane": "dom",
+          "rect": {
+            "x": 966,
+            "y": 114,
+            "width": 314,
+            "height": 394.828125
+          },
+          "plot": null
+        },
+        {
+          "pane": "tape",
+          "rect": {
+            "x": 966,
+            "y": 514.828125,
+            "width": 314,
+            "height": 262.234375
+          },
+          "plot": null
+        }
+      ],
+      "charts": [
+        {
+          "testid": "market-charts",
+          "mode": "heatmap",
+          "viewId": "e0f4a44944b240c0a7d4528c4b9393f1",
+          "paintedViewId": "e0f4a44944b240c0a7d4528c4b9393f1",
+          "startNs": "104425000000000",
+          "endNs": "104430804138796",
+          "priceMin": "78037.5",
+          "priceStep": "0.5",
+          "drawMs": "0.400",
+          "tileCount": "6",
+          "tileAllocations": "6",
+          "dirtyColumns": "0",
+          "overlayPoints": "121",
+          "pixelWidth": "1200",
+          "pixelHeight": "371",
+          "receiveToPaintMs": "40.700"
+        },
+        {
+          "testid": "market-charts",
+          "mode": "footprint",
+          "viewId": "dfa5b001c5a34208b67ce7b010737d9b",
+          "paintedViewId": "dfa5b001c5a34208b67ce7b010737d9b",
+          "startNs": "104425000000000",
+          "endNs": "104430804138796",
+          "priceMin": "78061.5",
+          "priceStep": "0.5",
+          "drawMs": "0.500",
+          "tileCount": "0",
+          "tileAllocations": "0",
+          "dirtyColumns": "2",
+          "overlayPoints": "121",
+          "pixelWidth": "1200",
+          "pixelHeight": "272",
+          "receiveToPaintMs": "40.600"
+        }
+      ],
+      "ages": [
+        {
+          "frameId": "143",
+          "generation": "2",
+          "testid": "chart-freshness",
+          "sourceMode": "replay",
+          "sourceId": "31e0fc932b844db48c1f7c951f7fa85b",
+          "frozen": "false",
+          "sourceLagMs": "901.287373",
+          "evidenceResidentMs": "27418.5",
+          "responseResidentMs": "765.3000000119209",
+          "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+          "evidenceNs": "104429902851423",
+          "highwaterNs": "104430804138796",
+          "viewId": "e0f4a44944b240c0a7d4528c4b9393f1"
+        },
+        {
+          "frameId": "143",
+          "generation": "2",
+          "testid": "chart-freshness",
+          "sourceMode": "replay",
+          "sourceId": "31e0fc932b844db48c1f7c951f7fa85b",
+          "frozen": "false",
+          "sourceLagMs": "901.287373",
+          "evidenceResidentMs": "27414.90000000596",
+          "responseResidentMs": "500.59999999403954",
+          "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+          "evidenceNs": "104429902851423",
+          "highwaterNs": "104430804138796",
+          "viewId": "dfa5b001c5a34208b67ce7b010737d9b"
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "documentWidth": 1440,
+      "source": "RECORDED4498db3b…Required data readypausedWatchlistDOM / tapeCosts / analyticsSource & instrument detailsURL selected 4498db3b-f4a2-4fff-a32e-a97221fa21ee; saved source preferences did not override this launch.Recorded capture · playbackNative retained depth: 4980 bid / 4994 ask levels · frame shows 100 / 100. Grouped DOM and chart rows are presentation buckets, not a count of individual orders.Native feed modews_deltaRecorded source mode—Capture completetrueCoverageBounded / unknown outside scopeSource statereadySettlementNone declaredTick / lot0.01 / 0.00001Execution accessunknownFrame carries the first 100 levels per side. Native reconstruction, grouped ladder and cost walks retain full source depth.Exact instrument metadata{\n  \"instrument_id\": \"binance-global:spot-v3:spot:BTCUSDT\",\n  \"metadata_version\": \"2b9ad73200b2a40c1c0697892906f864ecef0682a524dda17df9512036dc1449:1793526349955430000\",\n  \"venue\": \"binance-global\",\n  \"api_family\": \"spot-v3\",\n  \"native_symbol\": \"BTCUSDT\",\n  \"base\": {\n    \"asset_id\": \"BTC\",\n    \"ticker\": \"BTC\",\n    \"native_token_id\": \"BTC\",\n    \"network\": null,\n    \"contract_address\": null,\n    \"reference_asset_id\": null\n  },\n  \"quote\": {\n    \"asset_id\": \"USDT\",\n    \"ticker\": \"USDT\",\n    \"native_token_id\": \"USDT\",\n    \"network\": null,\n    \"contract_address\": null,\n    \"reference_asset_id\": null\n  },\n  \"tick_size\": \"0.01\",\n  \"lot_size\": \"0.00001\",\n  \"native_asset_id\": null,\n  \"dex_namespace\": null,\n  \"settlement\": null,\n  \"market_type\": \"spot\",\n  \"expiry_wall_ns\": null,\n  \"constraints\": {\n    \"min_base\": \"0.00001\",\n    \"max_base\": \"9000\",\n    \"min_notional\": \"5\",\n    \"max_notional\": \"9000000\",\n    \"min_notional_currency\": \"USDT\",\n    \"price_rule\": \"fixed_tick\",\n    \"size_rule\": \"fixed_lot\",\n    \"max_limit_base\": null,\n    \"max_market_base\": null\n  },\n  \"contract_multiplier\": \"1\",\n  \"quantity_unit\": \"base\",\n  \"contract_value_currency\": null,\n  \"inverse\": false,\n  \"status\": \"active\",\n  \"data_access\": \"unknown\",\n  \"execution_access\": \"unknown\",\n  \"metadata_asof_wall_ns\": \"1793526349955430000\",\n  \"metadata_source\": \"https://data-api.binance.vision/api/v3/exchangeInfo\",\n  \"reference_multiplier\": null,\n  \"settlement_conversion\": \"unknown\",\n  \"contract_specification_source\": null\n}Source & capture descriptor{\n  \"id\": \"31e0fc932b844db48c1f7c951f7fa85b\",\n  \"mode\": \"replay\",\n  \"label\": \"4498db3b-f4a2-4fff-a32e-a97221fa21ee\",\n  \"status\": \"ready\",\n  \"synthetic\": false,\n  \"recording\": true,\n  \"duration_ns\": null,\n  \"streams\": 12,\n  \"reasons\": []\n}Available source readiness & reasons[\n  {\n    \"id\": \"synthetic-demo-v3-180s\",\n    \"mode\": \"demo\",\n    \"label\": \"Synthetic 180s / 38 streams (memory, not recording)\",\n    \"status\": \"ready\",\n    \"synthetic\": true,\n    \"recording\": false,\n    \"duration_ns\": \"180000000000\",\n    \"streams\": 38,\n    \"reasons\": []\n  },\n  {\n    \"id\": \"31e0fc932b844db48c1f7c951f7fa85b\",\n    \"mode\": \"replay\",\n    \"label\": \"4498db3b-f4a2-4fff-a32e-a97221fa21ee\",\n    \"status\": \"ready\",\n    \"synthetic\": false,\n    \"recording\": true,\n    \"duration_ns\": null,\n    \"streams\": 12,\n    \"reasons\": []\n  }\n]Live ingestion evidence · 0 streams[]",
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "panes": [
+        {
+          "pane": "heatmap",
+          "rect": {
+            "x": 0,
+            "y": 114,
+            "width": 1120,
+            "height": 424.3125
+          },
+          "plot": {
+            "width": 1120,
+            "height": 354
+          }
+        },
+        {
+          "pane": "flow",
+          "rect": {
+            "x": 0,
+            "y": 544.3125,
+            "width": 1120,
+            "height": 332.75
+          },
+          "plot": {
+            "width": 1120,
+            "height": 262
+          }
+        },
+        {
+          "pane": "dom",
+          "rect": {
+            "x": 1126,
+            "y": 114,
+            "width": 314,
+            "height": 454.828125
+          },
+          "plot": null
+        },
+        {
+          "pane": "tape",
+          "rect": {
+            "x": 1126,
+            "y": 574.828125,
+            "width": 314,
+            "height": 302.234375
+          },
+          "plot": null
+        }
+      ],
+      "charts": [
+        {
+          "testid": "market-charts",
+          "mode": "heatmap",
+          "viewId": "f33bc552553f4b5bb8afc1aa0a272f35",
+          "paintedViewId": "f33bc552553f4b5bb8afc1aa0a272f35",
+          "startNs": "104425000000000",
+          "endNs": "104430804138796",
+          "priceMin": "78037.5",
+          "priceStep": "0.5",
+          "drawMs": "0.900",
+          "tileCount": "6",
+          "tileAllocations": "6",
+          "dirtyColumns": "6",
+          "overlayPoints": "121",
+          "pixelWidth": "1400",
+          "pixelHeight": "441"
+        },
+        {
+          "testid": "market-charts",
+          "mode": "footprint",
+          "viewId": "f50ca2db2fa441ad87019509e97d1747",
+          "paintedViewId": "f50ca2db2fa441ad87019509e97d1747",
+          "startNs": "104425000000000",
+          "endNs": "104430804138796",
+          "priceMin": "78061.5",
+          "priceStep": "0.5",
+          "drawMs": "0.600",
+          "tileCount": "0",
+          "tileAllocations": "0",
+          "dirtyColumns": "2",
+          "overlayPoints": "121",
+          "pixelWidth": "1400",
+          "pixelHeight": "327"
+        }
+      ],
+      "ages": [
+        {
+          "frameId": "146",
+          "generation": "2",
+          "testid": "chart-freshness",
+          "sourceMode": "replay",
+          "sourceId": "31e0fc932b844db48c1f7c951f7fa85b",
+          "frozen": "false",
+          "sourceLagMs": "901.287373",
+          "evidenceResidentMs": "0",
+          "responseResidentMs": "497.7999999821186",
+          "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+          "evidenceNs": "104429902851423",
+          "highwaterNs": "104430804138796",
+          "viewId": "f33bc552553f4b5bb8afc1aa0a272f35"
+        },
+        {
+          "frameId": "146",
+          "generation": "2",
+          "testid": "chart-freshness",
+          "sourceMode": "replay",
+          "sourceId": "31e0fc932b844db48c1f7c951f7fa85b",
+          "frozen": "false",
+          "sourceLagMs": "901.287373",
+          "evidenceResidentMs": "0",
+          "responseResidentMs": "328.80000001192093",
+          "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+          "evidenceNs": "104429902851423",
+          "highwaterNs": "104430804138796",
+          "viewId": "f50ca2db2fa441ad87019509e97d1747"
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "documentWidth": 1920,
+      "source": "RECORDED4498db3b…Required data readypausedWatchlistDOM / tapeCosts / analyticsSource & instrument detailsURL selected 4498db3b-f4a2-4fff-a32e-a97221fa21ee; saved source preferences did not override this launch.Recorded capture · playbackNative retained depth: 4980 bid / 4994 ask levels · frame shows 100 / 100. Grouped DOM and chart rows are presentation buckets, not a count of individual orders.Native feed modews_deltaRecorded source mode—Capture completetrueCoverageBounded / unknown outside scopeSource statereadySettlementNone declaredTick / lot0.01 / 0.00001Execution accessunknownFrame carries the first 100 levels per side. Native reconstruction, grouped ladder and cost walks retain full source depth.Exact instrument metadata{\n  \"instrument_id\": \"binance-global:spot-v3:spot:BTCUSDT\",\n  \"metadata_version\": \"2b9ad73200b2a40c1c0697892906f864ecef0682a524dda17df9512036dc1449:1793526349955430000\",\n  \"venue\": \"binance-global\",\n  \"api_family\": \"spot-v3\",\n  \"native_symbol\": \"BTCUSDT\",\n  \"base\": {\n    \"asset_id\": \"BTC\",\n    \"ticker\": \"BTC\",\n    \"native_token_id\": \"BTC\",\n    \"network\": null,\n    \"contract_address\": null,\n    \"reference_asset_id\": null\n  },\n  \"quote\": {\n    \"asset_id\": \"USDT\",\n    \"ticker\": \"USDT\",\n    \"native_token_id\": \"USDT\",\n    \"network\": null,\n    \"contract_address\": null,\n    \"reference_asset_id\": null\n  },\n  \"tick_size\": \"0.01\",\n  \"lot_size\": \"0.00001\",\n  \"native_asset_id\": null,\n  \"dex_namespace\": null,\n  \"settlement\": null,\n  \"market_type\": \"spot\",\n  \"expiry_wall_ns\": null,\n  \"constraints\": {\n    \"min_base\": \"0.00001\",\n    \"max_base\": \"9000\",\n    \"min_notional\": \"5\",\n    \"max_notional\": \"9000000\",\n    \"min_notional_currency\": \"USDT\",\n    \"price_rule\": \"fixed_tick\",\n    \"size_rule\": \"fixed_lot\",\n    \"max_limit_base\": null,\n    \"max_market_base\": null\n  },\n  \"contract_multiplier\": \"1\",\n  \"quantity_unit\": \"base\",\n  \"contract_value_currency\": null,\n  \"inverse\": false,\n  \"status\": \"active\",\n  \"data_access\": \"unknown\",\n  \"execution_access\": \"unknown\",\n  \"metadata_asof_wall_ns\": \"1793526349955430000\",\n  \"metadata_source\": \"https://data-api.binance.vision/api/v3/exchangeInfo\",\n  \"reference_multiplier\": null,\n  \"settlement_conversion\": \"unknown\",\n  \"contract_specification_source\": null\n}Source & capture descriptor{\n  \"id\": \"31e0fc932b844db48c1f7c951f7fa85b\",\n  \"mode\": \"replay\",\n  \"label\": \"4498db3b-f4a2-4fff-a32e-a97221fa21ee\",\n  \"status\": \"ready\",\n  \"synthetic\": false,\n  \"recording\": true,\n  \"duration_ns\": null,\n  \"streams\": 12,\n  \"reasons\": []\n}Available source readiness & reasons[\n  {\n    \"id\": \"synthetic-demo-v3-180s\",\n    \"mode\": \"demo\",\n    \"label\": \"Synthetic 180s / 38 streams (memory, not recording)\",\n    \"status\": \"ready\",\n    \"synthetic\": true,\n    \"recording\": false,\n    \"duration_ns\": \"180000000000\",\n    \"streams\": 38,\n    \"reasons\": []\n  },\n  {\n    \"id\": \"31e0fc932b844db48c1f7c951f7fa85b\",\n    \"mode\": \"replay\",\n    \"label\": \"4498db3b-f4a2-4fff-a32e-a97221fa21ee\",\n    \"status\": \"ready\",\n    \"synthetic\": false,\n    \"recording\": true,\n    \"duration_ns\": null,\n    \"streams\": 12,\n    \"reasons\": []\n  }\n]Live ingestion evidence · 0 streams[]",
+      "identity": "BTC / USDTbinance-global · spot · BTCUSDT",
+      "panes": [
+        {
+          "pane": "heatmap",
+          "rect": {
+            "x": 0,
+            "y": 118,
+            "width": 1600,
+            "height": 522.875
+          },
+          "plot": {
+            "width": 1600,
+            "height": 452
+          }
+        },
+        {
+          "pane": "flow",
+          "rect": {
+            "x": 0,
+            "y": 646.875,
+            "width": 1600,
+            "height": 410.1875
+          },
+          "plot": {
+            "width": 1600,
+            "height": 340
+          }
+        },
+        {
+          "pane": "dom",
+          "rect": {
+            "x": 1606,
+            "y": 118,
+            "width": 314,
+            "height": 560.4375
+          },
+          "plot": null
+        },
+        {
+          "pane": "tape",
+          "rect": {
+            "x": 1606,
+            "y": 684.4375,
+            "width": 314,
+            "height": 372.625
+          },
+          "plot": null
+        }
+      ],
+      "charts": [
+        {
+          "testid": "market-charts",
+          "mode": "heatmap",
+          "viewId": "167cdf67e451404abeaea3c8e88a5202",
+          "paintedViewId": "",
+          "startNs": "104425000000000",
+          "endNs": "104430804138796",
+          "priceMin": "78037.5",
+          "priceStep": "0.5",
+          "drawMs": "0.700",
+          "tileCount": "6",
+          "tileAllocations": "6",
+          "dirtyColumns": "6",
+          "overlayPoints": "121",
+          "pixelWidth": "2000",
+          "pixelHeight": "565"
+        },
+        {
+          "testid": "market-charts",
+          "mode": "footprint",
+          "viewId": "f50ca2db2fa441ad87019509e97d1747",
+          "paintedViewId": "",
+          "startNs": "104425000000000",
+          "endNs": "104430804138796",
+          "priceMin": "78061.5",
+          "priceStep": "0.5",
+          "drawMs": "0.600",
+          "tileCount": "0",
+          "tileAllocations": "0",
+          "dirtyColumns": "2",
+          "overlayPoints": "121",
+          "pixelWidth": "2000",
+          "pixelHeight": "423"
+        }
+      ],
+      "ages": [
+        {
+          "frameId": "149",
+          "generation": "2",
+          "testid": "chart-freshness",
+          "sourceMode": "replay",
+          "sourceId": "31e0fc932b844db48c1f7c951f7fa85b",
+          "frozen": "false",
+          "unavailableReason": "chart identity mismatch / unavailable"
+        },
+        {
+          "frameId": "149",
+          "generation": "2",
+          "testid": "chart-freshness",
+          "sourceMode": "replay",
+          "sourceId": "31e0fc932b844db48c1f7c951f7fa85b",
+          "frozen": "false",
+          "unavailableReason": "chart identity mismatch / unavailable"
+        }
+      ]
+    }
+  ],
+  "resize": [
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "chartSplit": {
+        "before": "56",
+        "after": "61"
+      },
+      "domWidth": {
+        "before": "314",
+        "after": "324"
+      },
+      "overflow": false
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "chartSplit": {
+        "before": "56",
+        "after": "61"
+      },
+      "domWidth": {
+        "before": "314",
+        "after": "324"
+      },
+      "overflow": false
+    },
+    {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "chartSplit": {
+        "before": "56",
+        "after": "60"
+      },
+      "domWidth": {
+        "before": "314",
+        "after": "324"
+      },
+      "overflow": false
+    }
+  ]
+}

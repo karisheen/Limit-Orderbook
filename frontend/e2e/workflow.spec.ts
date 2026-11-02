@@ -45,6 +45,8 @@ async function body<T>(pending: Promise<Response>): Promise<T> {
 }
 
 async function panel(page: Page, name: 'Alerts' | 'Context' | 'Paper' | 'Journal' | 'Research') {
+  const drawer = page.getByRole('button', { name: 'Costs / analytics', exact: true });
+  if (await drawer.getAttribute('aria-pressed') !== 'true') await drawer.click();
   await page.getByRole('tablist', { name: 'Research pane', exact: true }).getByRole('tab', { name, exact: true }).click();
   const pane = page.getByRole('tabpanel', { name, exact: true });
   await expect(pane).toBeVisible();
@@ -61,6 +63,7 @@ async function openDemo(page: Page) {
   expect(frame.source.synthetic).toBe(true);
   await expect(page.locator('.status')).toHaveText('Connected');
   await expect(page.locator('.source-banner')).toContainText('SYNTHETIC DEMO');
+  await page.getByRole('button', { name: 'Costs / analytics', exact: true }).click();
   for (const name of ['Alerts', 'Context', 'Paper', 'Journal', 'Research']) {
     await expect(page.getByRole('tablist', { name: 'Research pane', exact: true }).getByRole('tab', { name, exact: true })).toBeVisible();
   }

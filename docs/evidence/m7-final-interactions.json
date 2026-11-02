@@ -1,0 +1,45 @@
+{
+  "bundle": "index-CQREprSa.js",
+  "source": "verified recording4498db3b-f4a2-4fff-a32e-a97221fa21ee",
+  "navBefore": {
+    "testid": "market-charts",
+    "mode": "heatmap",
+    "viewId": "05957c044c374c2dbb487e17642e678a",
+    "paintedViewId": "05957c044c374c2dbb487e17642e678a",
+    "startNs": "104425000000000",
+    "endNs": "104430804138796",
+    "priceMin": "78037.5",
+    "priceStep": "0.5",
+    "drawMs": "0.700",
+    "tileCount": "6",
+    "tileAllocations": "6",
+    "dirtyColumns": "6",
+    "overlayPoints": "121",
+    "pixelWidth": "1400",
+    "pixelHeight": "441"
+  },
+  "navAfter": {
+    "testid": "market-charts",
+    "mode": "heatmap",
+    "viewId": "984ef3ee65a8464f889ec3b236814f0b",
+    "paintedViewId": "05957c044c374c2dbb487e17642e678a",
+    "startNs": "104425580413880",
+    "endNs": "104430223724916",
+    "priceMin": "78037.5",
+    "priceStep": "0.5",
+    "drawMs": "0.500",
+    "tileCount": "6",
+    "tileAllocations": "6",
+    "dirtyColumns": "5",
+    "overlayPoints": "50",
+    "pixelWidth": "1400",
+    "pixelHeight": "441"
+  },
+  "escapeFocus": "Liquidity settings",
+  "maxRestored": "",
+  "slotRestored": {
+    "mode": "candles",
+    "width": "334",
+    "source": "4155dd4b89be48b1a060d9f0e7c5a7d9"
+  }
+}

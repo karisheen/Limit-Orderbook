@@ -80,6 +80,28 @@ Requests reject unknown fields, numeric JSON economics, nonfinite decimals, exce
 | POST | `/proposal-risk` | Hypothetical entry/stop, side and quantity or risk budget; explicit fee assumptions, native constraints and unavailable reasons. Neither an order nor guaranteed maximum loss. |
 | WS | `/stream?session_id=...` | One socket per session. Full Frames at up to 5 Hz. Disconnect destroys the session; reconnection creates an independent session, never steals another tab's state. |
 
+### Explicit visualization viewport origin
+
+`VisualizationRequest` accepts optional `price_min`: an exact, finite,
+nonnegative decimal **string**, 1–128 characters, subject to the shared native
+decimal precision and magnitude bounds. Numeric JSON values are not accepted.
+An explicit origin requires an explicit supported `price_step`, must
+be aligned to that step, and cannot be combined with `recenter: true`. The
+native visible lower bound is
+`max(0, price_min + price_offset_rows * price_step)`, computed with exact Decimal
+arithmetic. Unsupported or misaligned values are rejected, not rounded. A pan
+whose derived origin exceeds the same bounded input domain is rejected before
+publication; returned origins remain valid inputs for subsequent pinned queries.
+
+This additive field controls a query viewport, not native price bins or retained
+history. A caller resends its own origin and step to keep its viewport stable
+when a sibling chart recenters; it does not create a stateful backend pane.
+Omitting `price_min` retains the existing fitted-anchor/recenter semantics.
+Session, generation, source-clock and selection fences, history/depth bounds,
+and quality eligibility remain unchanged. Multiple panes within one browser
+session share the selected instrument and source; independent viewports are not
+independent feeds. See [VISUALIZATION](VISUALIZATION.md).
+
 ### M5 consumer routes
 
 All routes in this section are **POST** and require `session_id` (1–64 lowercase
@@ -230,12 +252,17 @@ owner lock. See [CONTRACTS](CONTRACTS.md) and [DEMO](DEMO.md).
 
 Consumer calls serialize lifecycle actions and owner work; request cancellation
 joins already dispatched work before releasing ownership. An aborted/failed
-mutation may have committed and must not be blindly retried. Frontend panels
-abort inactive/hidden/disconnected or superseded work, fence session/generation/
-selection and discard obsolete responses. Polling queries and socket reconnects
-are distinct from mutations: **workflow mutations are never automatically
-retried**. Refresh and inspect persisted native state before deciding to repeat
-an interrupted action.
+mutation may have committed and must not be blindly retried. Frontend
+visualization queries and chart ACKs have independent ownership per caller:
+superseding one caller's request does not cancel a sibling merely because both
+use the same endpoint. Callers abort
+inactive, hidden, disconnected or superseded work, fence session/generation/
+selection and discard obsolete responses. Hidden panes, including siblings
+hidden by a maximized pane, suspend queries; hidden browser documents also
+suspend polling. These presentation controls do not pause shared collection.
+Polling queries and socket reconnects are distinct from mutations: **workflow
+mutations are never automatically retried**. Refresh and inspect persisted
+native state before deciding to repeat an interrupted action.
 
 ### Source and Frame
 
@@ -319,6 +346,16 @@ Telemetry separates:
 - `published_mono_ns`: server presentation publication timestamp, not a replacement source timestamp.
 
 After actual paint, the browser sends `{type:'ack',frame_id,browser_receive_to_paint_ms}`. The server reports `publish_to_ack_upper_bound_ms`: server-publication-to-returned-ACK round trip, a **conservative upper bound**, not exact one-way publish-to-paint latency. Browser receive-to-paint is a separate browser-clock duration. No cross-origin monotonic clock subtraction is performed. ACKs for unknown/expired IDs do not invent timing. Counts/durations are instrumentation, not a benchmark certification.
+
+`ChartFreshness` separately describes the actually painted visualization view,
+not the newest HTTP response or a WebSocket Frame ACK. Its same-clock source
+lag and evidence/response browser residency are distinct from response
+receipt and render/paint-ACK timing. A cleared canvas has no presented identity;
+retained frozen pixels can accumulate source lag as observed same-clock
+highwater advances. Recording timestamps are never subtracted from today's
+wall clock or a different monotonic clock. See
+[chart-specific paint acknowledgement](VISUALIZATION.md#chart-specific-paint-acknowledgement)
+for the measurement boundaries.
 
 ## Verification entrypoints
 
