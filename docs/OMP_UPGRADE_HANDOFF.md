@@ -441,6 +441,21 @@ on `fix/live-terminal-visuals`.
   configured context fixture and relative URLs, retaining its session-owner
   assertions. The temporary config and diagnostic scripts were removed;
   reproducible harness sources and failures remain in the evidence reports.
+- Final UI/evidence checkpoint committed and pushed as
+  `009ba53b886bdfd1c9be4c5732af137846cd0ad6`. Its push CI passed
+  ([run 41369220865](https://github.com/karisheen/Limit-Orderbook/actions/runs/41369220865));
+  its independent PR CI exposed a fixture startup race
+  ([run 41369228240](https://github.com/karisheen/Limit-Orderbook/actions/runs/41369228240)):
+  **1,184 native tests passed / 1 failed** with `obsolete_ordinal`.
+  The cutover test injected messages directly while its fixture could still
+  initialize the same source epoch and decode the first snapshot. It now waits
+  for that first completed native transaction before taking over injection.
+  All **300 updates**, held departed-collector cleanup, exact final quantity,
+  cancellation and zero-overflow assertions remain. Production ingestion and
+  queue limits are unchanged; the failed run is retained, not retried away.
+  The corrected runtime/API suite passed **27 tests in 60.24s**, followed by
+  Ruff/format, mypy, frontend lint, **21 frontend tests**, TypeScript and the
+  unchanged production bundle; total gate wall time **77.50s**.
 
 ## Decisions and next action
 

@@ -1209,6 +1209,11 @@ def test_live_selection_drains_new_source_while_departed_collectors_close(
                 for key, entry in registry._entries.items()
                 if key.instrument_id == selected.instrument_id and key.channel == "book"
             )
+            # The fixture owns its initial epoch/snapshot. Do not inject a
+            # second decoder transaction until that owner has completed it.
+            async with asyncio.timeout(5):
+                while not feed.processed_frames:
+                    await asyncio.sleep(0.001)
             for index in range(300):
                 message = {
                     "channel": "l2Book",

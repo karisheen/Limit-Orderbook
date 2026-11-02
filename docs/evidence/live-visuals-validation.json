@@ -10402,7 +10402,7 @@
     },
     "contract": "Initialize at new lease commit; drain new deliveries while joining departed collectors; unchanged queue and native depth bounds"
   },
-  "status": "All local functional/static/browser gates passed. Runtime checkpoint pushed; publishing final UI/evidence increment and awaiting final-head GitHub checks before normal merge.",
+  "status": "Corrected runtime/API and frontend gates passed; awaiting GitHub checks on the next pushed head before merge.",
   "frontend_before_heatmap_coverage": {
     "lint": true,
     "unit_passed": 20,
@@ -10804,7 +10804,7 @@
     "frontend/src/useMarketView.ts": "a4cf270665933f1b9d3947ac0311406851fa0155b9b3e8afa390e909aed0fd17",
     "frontend/src/styles.css": "6200cc3a2462faeb6041e5d58b0ea5bc3652c0455660ae45342bd76d9d6cc697",
     "src/workstation/analytics.py": "98c8fc17448b7fd299bdf668b90c4e40220837ba87301f3b8c30e035c3b5179a",
-    "tests/test_workstation_api_runtime.py": "3693a4fd566f67b5bd5766fe24c344b38adafa2f69d8d37f822c2c7f209d00ea",
+    "tests/test_workstation_api_runtime.py": "9960490468f3382958d7b3d8d2d95bc9256a113936b718b5e2082c06b02d7ab9",
     "tests/test_workstation_source_startup.py": "b6117bf2900200d46c26db2f9bd39d226d6d12edb54e96a5d72d92f76c9cf30b",
     "frontend/e2e/source-experience.spec.ts": "e89fb58de6c215e53b7ed7193f479f78112c0e455e68f500a8aa0ff77ac0a457",
     "frontend/dist/assets/index-oTep9C8S.css": "38486ada97071a112e91b94b5232dee2750c97cd5787ac5b1ce5a211ee439812",
@@ -10844,5 +10844,39 @@
       "command": "npm --prefix frontend run test:e2e -- e2e/source-experience.spec.ts"
     },
     "combined_wall_seconds": 205.03
+  },
+  "github_ci_fixture_race": {
+    "head_sha": "009ba53b886bdfd1c9be4c5732af137846cd0ad6",
+    "push": {
+      "conclusion": "success",
+      "url": "https://github.com/karisheen/Limit-Orderbook/actions/runs/41369220865"
+    },
+    "pull_request": {
+      "conclusion": "failure",
+      "url": "https://github.com/karisheen/Limit-Orderbook/actions/runs/41369228240",
+      "native": {
+        "passed": 1184,
+        "failed": 1,
+        "seconds": 238.77
+      },
+      "test": "test_live_selection_drains_new_source_while_departed_collectors_close[True]",
+      "error": "FeedFault: obsolete_ordinal"
+    },
+    "cause": "The fixture startup transaction and manual injection could concurrently own the same source decoder/reducer. The departed-close barrier did not establish completion of the selected source initial epoch/snapshot.",
+    "fix": "Wait for the first completed native transaction before sequential manual injection. Keep all 300 updates, held old-source cleanup, exact quantity, cancellation and overflow assertions; no production changes.",
+    "corrected_local_gate": {
+      "command": "bash tools/check.sh -q --tb=short tests/test_workstation_api_runtime.py",
+      "native_passed": 27,
+      "native_seconds": 60.24,
+      "ruff": "passed",
+      "formatted_files": 71,
+      "mypy_modules": 35,
+      "frontend_lint": "passed",
+      "frontend_tests": 21,
+      "typecheck": "passed",
+      "production_build": "passed",
+      "js_asset": "index-Dou23D6P.js",
+      "wall_seconds": 77.5
+    }
   }
 }
