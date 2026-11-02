@@ -7,13 +7,13 @@ from typing import Literal
 
 from anyio import CancelScope
 from fastapi import FastAPI, Query, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .precision import decimal
-from .runtime import RuntimeFailure, TerminalRuntime, dto
+from .runtime import RuntimeFailure, TerminalRuntime
 
 
 class StrictInput(BaseModel):
@@ -456,12 +456,18 @@ def create_app(
             selected = runtime.source_instruments.get(source_id, ())
         else:
             selected = tuple(runtime.instruments.values())
-        return {
-            "version": "1",
-            "instruments": dto(selected),
-            "sources": list(runtime.sources.values()),
-            "preferred_source_id": "live" if runtime.enable_live else runtime.demo_id,
-        }
+        sources = tuple(
+            {**source, "reasons": list(source["reasons"])}
+            for source in runtime.sources.values()
+        )
+        content = await runtime._catalog_work(
+            runtime._catalog_response,
+            selected,
+            sources,
+            "live" if runtime.enable_live else runtime.demo_id,
+        )
+        # Already encoded off-loop; avoid a second recursive framework walk.
+        return Response(content=content, media_type="application/json")
 
     @app.get("/api/v1/sessions")
     async def sessions():

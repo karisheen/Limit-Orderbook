@@ -11,8 +11,9 @@ from contextlib import asynccontextmanager, nullcontext
 from dataclasses import fields, is_dataclass, replace
 from datetime import datetime, timezone
 from decimal import Decimal, localcontext
-from functools import partial
+from functools import lru_cache, partial
 from hashlib import sha256
+import json
 import os
 from pathlib import Path
 import time
@@ -20,11 +21,13 @@ from tempfile import TemporaryDirectory
 from typing import (
     AsyncIterator,
     Callable,
+    Hashable,
     Iterable,
     ParamSpec,
     TypeAlias,
     TypeVar,
     TypedDict,
+    cast,
 )
 from uuid import uuid4
 
@@ -88,8 +91,17 @@ class SourceStatus(TypedDict):
     reasons: list[str]
 
 
+@lru_cache(maxsize=128)
+def _dto_field_names(kind):
+    return tuple(field.name for field in fields(kind))
+
+
 def dto(value):
-    """Plain exact domain JSON, deliberately separate from persisted wire schemas."""
+    """Exact HTTP JSON; immutable provenance is converted once per call."""
+    return _dto_value(value, {})
+
+
+def _dto_value(value, memo):
     if value is None or isinstance(value, (str, bool)):
         return value
     if isinstance(value, Decimal):
@@ -99,11 +111,20 @@ def dto(value):
     if isinstance(value, float):
         return value
     if is_dataclass(value):
-        return {field.name: dto(getattr(value, field.name)) for field in fields(value)}
+        identity = id(value)
+        prior = memo.get(identity)
+        if prior is not None:
+            return prior
+        result = {
+            name: _dto_value(getattr(value, name), memo)
+            for name in _dto_field_names(cast(Hashable, type(value)))
+        }
+        memo[identity] = result
+        return result
     if isinstance(value, dict):
-        return {str(key): dto(item) for key, item in value.items()}
+        return {str(key): _dto_value(item, memo) for key, item in value.items()}
     if isinstance(value, (tuple, list, set, frozenset)):
-        return [dto(item) for item in value]
+        return [_dto_value(item, memo) for item in value]
     raise TypeError(f"unsupported terminal DTO: {type(value).__name__}")
 
 
@@ -1725,6 +1746,7 @@ class TerminalRuntime:
         ] = {}
         self.instruments: dict[str, Instrument] = {}
         self.source_instruments: dict[str, tuple[Instrument, ...]] = {}
+        self._catalog_cache: tuple[object, bytes] | None = None
         self.closed = False
 
     def _research_query(self, request):
@@ -1769,6 +1791,26 @@ class TerminalRuntime:
             return result
         finally:
             store.close()
+
+    def _catalog_response(self, instruments, sources, preferred_source_id):
+        # One encoded catalog, owned by the catalog worker. Source snapshots
+        # include readiness/reasons, not just immutable instrument metadata.
+        identity = (instruments, sources, preferred_source_id)
+        if self._catalog_cache is not None and self._catalog_cache[0] == identity:
+            return self._catalog_cache[1]
+        encoded = json.dumps(
+            {
+                "version": "1",
+                "instruments": dto(instruments),
+                "sources": sources,
+                "preferred_source_id": preferred_source_id,
+            },
+            ensure_ascii=False,
+            allow_nan=False,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        self._catalog_cache = (identity, encoded)
+        return encoded
 
     async def _catalog_work(
         self, fn: Callable[P, R], *args: P.args, **kwargs: P.kwargs

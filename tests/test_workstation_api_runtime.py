@@ -1369,3 +1369,100 @@ def test_visual_query_snapshot_does_not_block_live_ingestion_or_outlive_close(
             await runtime.close()
 
     asyncio.run(scenario())
+
+
+def test_catalog_serialization_cannot_stall_live_ingestion(tmp_path, monkeypatch):
+    import httpx
+
+    from src.workstation import api as api_module, runtime as runtime_module
+
+    async def scenario():
+        runtime, registry, instrument = live_runtime(tmp_path)
+        runtime.source_instruments["live"] = (instrument,)
+        entered, release, progressed = (
+            threading.Event(),
+            threading.Event(),
+            threading.Event(),
+        )
+        before_release = []
+        original_dto = runtime_module.dto
+        request = None
+
+        def held_catalog(value):
+            if isinstance(value, tuple) and value == (instrument,):
+                entered.set()
+                if not release.wait(15):
+                    raise RuntimeError("test catalog was not released")
+            return original_dto(value)
+
+        def release_guard():
+            if entered.wait(10):
+                before_release.append(progressed.wait(5))
+            release.set()
+
+        guard = threading.Thread(target=release_guard)
+        guard.start()
+        try:
+            session = await runtime.create("live", "live", instrument.instrument_id)
+            async with asyncio.timeout(5):
+                while session.delivery < 4:
+                    await asyncio.sleep(0.001)
+            monkeypatch.setattr(runtime_module, "dto", held_catalog)
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=api_module.create_app(runtime)),
+                base_url="http://127.0.0.1",
+            ) as client:
+                request = asyncio.create_task(
+                    client.get("/api/v1/instruments", params={"source_id": "live"})
+                )
+                assert await asyncio.to_thread(entered.wait, 10)
+                feed = next(
+                    entry.supervisor
+                    for key, entry in registry._entries.items()
+                    if key.instrument_id == instrument.instrument_id
+                    and key.channel == "book"
+                )
+                feed._receive(
+                    json.dumps(
+                        {
+                            "channel": "l2Book",
+                            "data": {
+                                "coin": instrument.native_symbol,
+                                "time": 1700000000001,
+                                "levels": [
+                                    [{"px": "60000", "sz": "7", "n": 1}],
+                                    [{"px": "60001", "sz": "2", "n": 1}],
+                                ],
+                            },
+                        }
+                    ).encode(),
+                    "ws",
+                    "wss://api.hyperliquid.xyz/ws",
+                    feed.epoch,
+                )
+                raw = feed.queue.get_nowait()
+                feed.queued_bytes -= len(raw.payload)
+                await feed._process(raw)
+                async with asyncio.timeout(5):
+                    while session.live_queue.qsize() or session.live_inflight:
+                        await asyncio.sleep(0.001)
+                frame = await session.frame()
+                assert frame["book"]["bids"][0]["quantity"] == "7"
+                progressed.set()
+                response = await request
+                assert response.status_code == 200
+                assert response.json()["instruments"][0]["instrument_id"] == str(
+                    instrument.instrument_id
+                )
+                await asyncio.to_thread(guard.join, 10)
+                assert before_release == [True]
+                assert session.telemetry["overflows"] == 0
+        finally:
+            progressed.set()
+            release.set()
+            await asyncio.to_thread(guard.join, 10)
+            if request is not None:
+                await asyncio.gather(request, return_exceptions=True)
+            await runtime.close()
+
+    asyncio.run(scenario())

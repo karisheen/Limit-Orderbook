@@ -274,7 +274,29 @@ Response: `{version:'1',generation,estimate:ExecutionEstimate|null,matrix:PairEs
 
 ## Ownership, backpressure and instrumentation
 
-A runtime has one shared live registry, one bounded catalog worker, and at most one worker per active client. Each client owns its selection/generation, independent ReplaySession/cursor, analytics, visualization, context, alerts and paper observers plus history. Paper/journal SQLite connections are owner-thread-local; research queries use the catalog worker. Memory source data alone is shared immutably. Browser close never releases a recorder's independent lease.
+A runtime has one shared live registry, one bounded catalog worker, one bounded
+visual-query worker, and at most one ingestion/observer worker per active client.
+Each client owns its selection/generation, independent ReplaySession/cursor,
+analytics, visualization, context, alerts and paper observers plus history.
+Paper/journal SQLite connections are owner-thread-local; research queries use
+the catalog worker. Historical chart queries pin at most one immutable evidence
+prefix per session and run outside the ingestion lock; cancellation joins before
+releasing lifecycle ownership. See [Visualization](VISUALIZATION.md#ownership-bounds-and-incremental-delivery)
+for snapshot accounting and source-clock fences. Memory source data is shared
+immutably. Browser close never releases a recorder's independent lease.
+
+Instrument catalog conversion and JSON encoding also run on the catalog worker,
+not on the ingestion event loop. One encoded response is retained per runtime
+and reused only for identical metadata and copied source-readiness/reason
+snapshots. Changed versions, source scope or health produce a fresh response;
+unknown source IDs still fail explicitly. Returning the encoded response avoids
+a second recursive framework conversion of thousands of instruments.
+
+Exact DTO conversion reuses shared immutable provenance within one conversion
+only, with a bounded cache of dataclass field names. HTTP fields, exact scalar
+encodings and reference bounds are unchanged; no mutable DTO cache is shared
+between conversions. Native depth-band summation stops after crossing the
+requested boundary on the already sorted side, without reducing book depth.
 
 Creation reserves capacity privately and exposes a session ID only after initialization succeeds. Shutdown cancels and joins private initializers before disposing executors. Reaping checks active requests, action/owner fences and worker activity, then rechecks idleness under the lifecycle fence; completed requests refresh their idle deadline.
 

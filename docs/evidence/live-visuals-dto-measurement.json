@@ -1,0 +1,32 @@
+{
+  "source": "Repository's explicit synthetic demo, complete native replay prefix; not live venue data or a throughput guarantee.",
+  "delivery_count": 6970,
+  "metrics": 41,
+  "outputs": {
+    "before": {
+      "sha256": "33f5b6fe2e1f94998739f6fe940e83ae3c7107b9e13346169ecec0ea3ae28039",
+      "encoded_bytes": 282124,
+      "unique_containers": 1586
+    },
+    "after": {
+      "sha256": "33f5b6fe2e1f94998739f6fe940e83ae3c7107b9e13346169ecec0ea3ae28039",
+      "encoded_bytes": 282124,
+      "unique_containers": 796
+    }
+  },
+  "timing": {
+    "before": {
+      "iterations": 50,
+      "median_cpu_ms": 8.1783275,
+      "p95_cpu_ms": 10.929645,
+      "max_cpu_ms": 73.265793
+    },
+    "after": {
+      "iterations": 50,
+      "median_cpu_ms": 3.7617760000000002,
+      "p95_cpu_ms": 6.545887,
+      "max_cpu_ms": 7.680599
+    }
+  },
+  "harness_source": "\"\"\"Throwaway deterministic native demo benchmark, not live-feed throughput proof.\"\"\"\nimport asyncio\nfrom dataclasses import fields, is_dataclass\nfrom decimal import Decimal\nfrom hashlib import sha256\nimport json\nfrom pathlib import Path\nimport statistics\nimport sys\nimport time\n\nsys.path.insert(0, str(Path(__file__).resolve().parents[1]))\nfrom src.workstation import runtime as module\nfrom src.workstation.precision import DERIVED_DECIMAL_POLICY, canonical_decimal\n\n\ndef baseline(value):\n    if value is None or isinstance(value, (str, bool)):\n        return value\n    if isinstance(value, Decimal):\n        return canonical_decimal(value, policy=DERIVED_DECIMAL_POLICY)\n    if isinstance(value, int):\n        return str(value)\n    if isinstance(value, float):\n        return value\n    if is_dataclass(value):\n        return {field.name: baseline(getattr(value, field.name)) for field in fields(value)}\n    if isinstance(value, dict):\n        return {str(key): baseline(item) for key, item in value.items()}\n    if isinstance(value, (tuple, list, set, frozenset)):\n        return [baseline(item) for item in value]\n    raise TypeError(f\"unsupported terminal DTO: {type(value).__name__}\")\n\n\ndef containers(value, seen=None):\n    seen = set() if seen is None else seen\n    if isinstance(value, (dict, list)) and id(value) not in seen:\n        seen.add(id(value))\n        for item in value.values() if isinstance(value, dict) else value:\n            containers(item, seen)\n    return len(seen)\n\n\nasync def main():\n    runtime = module.TerminalRuntime()\n    try:\n        await runtime.start()\n        session = await runtime.create()\n\n        def measure():\n            session.replay.seek_delivery(session.replay.total_deliveries)\n            snapshot = session.engine.snapshot(session.instrument_id, session.replay.clock.reading, key=session.key)\n            changed = module.dto\n            timings = {\"before\": [], \"after\": []}\n            outputs = {}\n            try:\n                for index in range(50):\n                    choices = [(\"before\", baseline), (\"after\", changed)]\n                    if index % 2:\n                        choices.reverse()\n                    for name, convert in choices:\n                        module.dto = convert\n                        started = time.thread_time_ns()\n                        output = module._analytics_presentation(snapshot)\n                        timings[name].append((time.thread_time_ns() - started) / 1_000_000)\n                        encoded = json.dumps(output, sort_keys=True, separators=(\",\", \":\")).encode()\n                        outputs[name] = {\"sha256\": sha256(encoded).hexdigest(), \"encoded_bytes\": len(encoded), \"unique_containers\": containers(output)}\n                assert outputs[\"before\"][\"sha256\"] == outputs[\"after\"][\"sha256\"]\n                return {\"source\": \"Repository's explicit synthetic demo, complete native replay prefix; not live venue data or a throughput guarantee.\",\n                        \"delivery_count\": session.replay.total_deliveries,\n                        \"metrics\": len(snapshot.metrics),\n                        \"outputs\": outputs,\n                        \"timing\": {name: {\"iterations\": len(values), \"median_cpu_ms\": statistics.median(values), \"p95_cpu_ms\": sorted(values)[47], \"max_cpu_ms\": max(values)} for name, values in timings.items()}}\n            finally:\n                module.dto = changed\n\n        report = await session.work(measure)\n        report[\"harness_source\"] = Path(__file__).read_text()\n        Path(sys.argv[1]).write_text(json.dumps(report, indent=2) + \"\\n\")\n        print(json.dumps({key: value for key, value in report.items() if key != \"harness_source\"}, indent=2))\n    finally:\n        await runtime.close()\n\n\nasyncio.run(main())\n"
+}
