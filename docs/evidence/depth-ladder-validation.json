@@ -1,6 +1,39 @@
 {
   "baseline": "998bd577e3f2a2503437f29bb51823ff13b8899d",
   "branch": "feat/visual-depth-ladder",
+  "git_delivery": {
+    "commit": "c9897265b89e2ec3930be5ca605bee35d5891b80",
+    "push": "succeeded",
+    "pull_request": "https://github.com/karisheen/Limit-Orderbook/pull/12",
+    "state": "MERGED",
+    "merge_method": "normal merge",
+    "merge_commit": "7dd26853858d114c0adfb348e7fceaf8489d2006",
+    "merged_at": "2026-11-02T15:03:37Z",
+    "local_main_fast_forward": "succeeded",
+    "checks": [
+      {
+        "event": "push",
+        "url": "https://github.com/karisheen/Limit-Orderbook/actions/runs/41466393604",
+        "head_sha": "c9897265b89e2ec3930be5ca605bee35d5891b80",
+        "result": "success",
+        "job_seconds": 414,
+        "native_tests": 1191,
+        "native_test_seconds": 198.19,
+        "frontend_tests": 28,
+        "offline_browser_passed": 28,
+        "offline_browser_skipped": 1,
+        "formatted_files": 71,
+        "mypy_modules": 35
+      },
+      {
+        "event": "pull_request",
+        "url": "https://github.com/karisheen/Limit-Orderbook/actions/runs/41466588935",
+        "head_sha": "c9897265b89e2ec3930be5ca605bee35d5891b80",
+        "result": "success",
+        "job_seconds": 450
+      }
+    ]
+  },
   "native_gate": {
     "command": "bash tools/check.sh -q --tb=short tests/test_workstation_visuals.py tests/test_workstation_visual_api.py",
     "passed": 110,
