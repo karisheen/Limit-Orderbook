@@ -457,6 +457,34 @@ on `fix/live-terminal-visuals`.
   Ruff/format, mypy, frontend lint, **21 frontend tests**, TypeScript and the
   unchanged production bundle; total gate wall time **77.50s**.
 
+### Live-visuals Git delivery receipt
+
+- Verified origin: `karisheen/Limit-Orderbook`; branch:
+  `fix/live-terminal-visuals`. Four cohesive commits were pushed successfully:
+  `1bfd81f43ededbda40224328d69be0fc02b7be65`,
+  `e2b3c49487ebfa1605e03dcab3de1b264ade8807`,
+  `009ba53b886bdfd1c9be4c5732af137846cd0ad6`, and
+  `b7732069bf52bb83d7c5125f93c8817b259bc41c`.
+- [PR #9](https://github.com/karisheen/Limit-Orderbook/pull/9) was **merged
+  normally**, retaining those commits, at **2026-11-02T01:10:13Z**. Merge SHA:
+  `725d821cc28f1aace71aef78a38663489bd8564b`. Local `main` fast-forwarded to
+  that merge without altering unrelated work.
+- Both GitHub gates passed on exact final head `b7732069bf52bb83d7c5125f93c8817b259bc41c`:
+  [push run](https://github.com/karisheen/Limit-Orderbook/actions/runs/41370351375)
+  (**5m35s**) and
+  [PR run](https://github.com/karisheen/Limit-Orderbook/actions/runs/41370355699)
+  (**6m1s**). Each passed **1,185 native tests**, **21 frontend tests**, **28
+  real offline browser tests / 1 expected skip**, lint, format, types and
+  production build. Public-live browser and finite venue-soak evidence is
+  recorded above; CI itself runs offline.
+- The plain native server remains persistent at
+  `http://127.0.0.1:8000/?source=live`; its health endpoint returned
+  `{"live":true}` after integration. Next operator action: open that explicit
+  live URL and hard-refresh an older browser tab. No diagnostic patches,
+  fabricated orders, raised queue limits or concealed quality gaps remain.
+  The 24-hour soak remains unrun; this receipt does not assert execution or
+  long-duration production readiness.
+
 ## Decisions and next action
 
 Use one local asyncio backend worker, exact immutable domain contracts, explicit quality gates, direct venue adapters, a React/TypeScript terminal, native Canvas heatmap, Parquet/raw compressed recording and SQLite metadata. Preserve the legacy entrypoint during cutover; do not duplicate analytics. Detailed decisions/contracts/backlog are in the accompanying M0 documents.
