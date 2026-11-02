@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Frame, GroupedLadder, LadderInput, VisualGrid, VisualizationAck, VisualizationInput } from './api';
 import type { ChartCursor, ChartMode, ChartRange } from './market-charts-model';
+import { chartTimeZoneLabel } from './chart-time';
 import type { WorkspacePreferences } from './workspace';
 import { MarketCharts } from './MarketCharts';
 import { ChartFreshness } from './Freshness';
@@ -104,6 +105,7 @@ export function ChartPane({ id, title, frame, connected, preferences: p, update,
     {settingsOpen && <div id={`${id}-settings`} className="chart-pane-settings">
       <label title="Native presentation buckets only. Auto-fit is resolved independently on initial view and Recenter; native depth is unchanged.">Price aggregation<select aria-label="Price aggregation" value={p.priceStep} onChange={event => { const priceStep = event.target.value; update({ priceStep, priceOffset: 0 }); setRecenter(value => value + 1); }}><option value="">Auto-fit depth</option>{p.priceStep && !stepOptions.includes(p.priceStep) && <option value={p.priceStep}>{p.priceStep} · saved / validate</option>}{stepOptions.map(step => <option key={step}>{step}</option>)}</select></label>
       <label>Time bucket<select aria-label="Time bucket" value={p.bucket} onChange={event => update({ bucket: event.target.value })}>{['1000000000', '5000000000', '10000000000'].map((value, index) => <option key={value} value={value}>{[1, 5, 10][index]}s</option>)}</select></label>
+      <label>Time zone<select aria-label="Chart time zone" value={p.timeZone} onChange={event => update({ timeZone: event.target.value === 'local' ? 'local' : 'UTC' })}><option value="UTC">UTC</option><option value="local">{chartTimeZoneLabel('local')}</option></select></label>
       <label>Range<select aria-label="Chart range" value={p.rangeSeconds} onChange={event => update({ rangeSeconds: Number(event.target.value), range: null, follow: true })}>{[30, 60, 180, 300, 600].map(value => <option key={value} value={value}>{value}s</option>)}</select></label>
       <label><input type="checkbox" checked={p.follow} onChange={event => update({ follow: event.target.checked, range: event.target.checked ? null : view ? { start_ns: view.start_ns, end_ns: view.end_ns } : null })} />Follow time</label>
       <label title="Fixed base quantity at full intensity. Incoming data never rescales historical colors.">Fixed contrast<input aria-label="Fixed contrast" aria-valuetext={`Saturates at ${p.contrast} ${view?.quantity_unit ?? 'base units'}`} type="range" min="-12" max="12" step="0.1" value={Math.log10(p.contrast)} onChange={event => update({ contrast: 10 ** Number(event.target.value) })} /></label>
@@ -112,7 +114,7 @@ export function ChartPane({ id, title, frame, connected, preferences: p, update,
     </div>}
     </div>
     <MarketCharts view={active ? view : null} receivedAtMs={views.chart.receivedAtMs ?? null} onPaint={telemetry.onPaint} onPresented={onPresented}
-      loading={views.chart.loading} error={error} mode={p.mode} contrast={p.contrast} showTrades={p.showTrades} showQuotes={p.showQuotes}
+      loading={views.chart.loading} error={error} mode={p.mode} contrast={p.contrast} showTrades={p.showTrades} showQuotes={p.showQuotes} timeZone={p.timeZone}
       crosshair={paneCursor} onCrosshair={moveCursor} onRangeChange={changeRange} onPricePan={panPrice}
       freshness={<ChartFreshness frame={frame} view={displayed?.view ?? null} receivedAtMs={displayed?.receivedAtMs ?? null} connected={connected} frozen={p.paused} mode={p.mode} />}
       inspectorOpen={inspectorOpen} inspectorId={`${id}-inspector`}

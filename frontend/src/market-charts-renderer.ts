@@ -1,11 +1,13 @@
 import type { VisualGrid } from './api';
+import { chartTimeTicks } from './chart-time';
+import type { ChartTimeZone } from './chart-time';
 import { CHART_LIMITS, COLORS, boundedSize, intensity, liquidityTileKey, plotArea, plotNumber, priceCellIndex, priceRowProjector, saturation, sideColor, timeAt, timeFraction } from './market-charts-model';
 import type { ChartCursor, ChartMode, PlotArea } from './market-charts-model';
 
 type Column = VisualGrid['columns'][number];
 type Surface = { canvas: HTMLCanvasElement; context: CanvasRenderingContext2D };
 export type RenderReport = { duration: number; tiles: number; allocated: number; dirty: number; trades: number; omittedTrades: number; omittedCells: number; pixelWidth: number; pixelHeight: number };
-export type RenderOptions = { mode: ChartMode; contrast: number; showTrades: boolean; showQuotes: boolean };
+export type RenderOptions = { mode: ChartMode; contrast: number; showTrades: boolean; showQuotes: boolean; timeZone: ChartTimeZone };
 
 /** One immutable two-side column tile. At most 640 × 2 × 256 RGBA pixels. */
 export class MarketRenderer {
@@ -109,7 +111,7 @@ export class MarketRenderer {
     const y = (price: string) => area.y + area.height - priceRow(price) / view.rows * area.height;
     const columns = view.columns.slice(-CHART_LIMITS.columns);
     const ctx = this.base.context;
-    const geometry = JSON.stringify([this.width, this.height, this.size.ratio, view.grid_id, view.start_ns, view.end_ns, view.price_min, view.rows, options.mode, saturation(options.contrast)]);
+    const geometry = JSON.stringify([this.width, this.height, this.size.ratio, view.grid_id, view.start_ns, view.end_ns, view.price_min, view.rows, options.mode, saturation(options.contrast), options.timeZone]);
     let dirty = 0;
     if (options.mode === 'heatmap') {
       const current = new Map(columns.map(column => [column.id, liquidityTileKey(view, column, options.contrast)]));
@@ -202,7 +204,7 @@ export class MarketRenderer {
       this.drawn.clear();
     }
     this.geometry = geometry;
-    this.axes(view, options.mode, options.contrast, x, area);
+    this.axes(view, options.mode, options.contrast, options.timeZone, x, area);
     const trades = this.overlays(view, options, columns, x, y, area);
     return { duration: performance.now() - started, tiles: this.tiles.size, allocated: this.allocated, dirty, trades, omittedTrades: Math.max(0, view.trades.length - CHART_LIMITS.trades), omittedCells: options.mode === 'footprint' ? Math.max(0, view.footprints.length - CHART_LIMITS.footprints) : 0, pixelWidth: this.size.pixelWidth, pixelHeight: this.size.pixelHeight };
   }
@@ -240,7 +242,7 @@ export class MarketRenderer {
     ctx.stroke();
   }
 
-  private axes(view: VisualGrid, mode: ChartMode, contrast: number, x: (time: string) => number, area: PlotArea) {
+  private axes(view: VisualGrid, mode: ChartMode, contrast: number, timeZone: ChartTimeZone, x: (time: string) => number, area: PlotArea) {
     const ctx = this.base.context;
     ctx.fillStyle = COLORS.background;
     ctx.fillRect(area.x + area.width, 0, this.width - area.x - area.width, this.height);
@@ -255,12 +257,23 @@ export class MarketRenderer {
         ctx.fillText(price, area.x + area.width + 7, py + 3, 90);
       }
     }
-    for (let index = 0; index <= 4; index++) {
-      const time = timeAt(index / 4, view.start_ns, view.end_ns);
-      const relative = Number(BigInt(time) - BigInt(view.start_ns)) / 1e9;
-      ctx.textAlign = index === 4 ? 'right' : 'left';
-      const label = mode === 'profile' ? `${(saturation(contrast) * index / 4).toPrecision(3)} ${view.quantity_unit}` : `+${relative.toFixed(relative < 10 ? 1 : 0)}s`;
-      ctx.fillText(label, x(time), area.y + area.height + 17, area.width / 4 - 4);
+    if (mode === 'profile') {
+      for (let index = 0; index <= 4; index++) {
+        const time = timeAt(index / 4, view.start_ns, view.end_ns);
+        ctx.textAlign = index === 4 ? 'right' : 'left';
+        ctx.fillText(`${(saturation(contrast) * index / 4).toPrecision(3)} ${view.quantity_unit}`, x(time), area.y + area.height + 17, area.width / 4 - 4);
+      }
+    } else {
+      ctx.textAlign = 'center';
+      for (const tick of chartTimeTicks(view, area.width, timeZone)) {
+        const px = x(tick.time_ns);
+        ctx.font = `${tick.kind === 'time' ? '' : 'bold '}11px ui-monospace, monospace`;
+        ctx.fillStyle = tick.kind === 'discontinuity' ? '#efbe72' : COLORS.text;
+        const halfLabel = tick.label.length * 7 / 2;
+        const labelX = Math.max(area.x + halfLabel, Math.min(area.x + area.width - halfLabel, px));
+        ctx.fillText(tick.label, labelX, area.y + area.height + 17);
+        ctx.fillRect(px, area.y + area.height, 1, tick.kind === 'time' ? 3 : 6);
+      }
     }
     ctx.textAlign = 'left';
   }

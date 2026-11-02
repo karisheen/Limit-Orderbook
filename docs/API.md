@@ -102,6 +102,69 @@ and quality eligibility remain unchanged. Multiple panes within one browser
 session share the selected instrument and source; independent viewports are not
 independent feeds. See [VISUALIZATION](VISUALIZATION.md).
 
+### Visualization receive-clock axis
+
+Every `VisualGrid` (`version: '1'`) includes a required `time_axis` object. It is
+complete even when `replace: false` and `columns` is empty; replace the previous
+axis rather than merging it as a column delta. No request fields are added.
+
+```ts
+type ReceiveClockSegment = {
+  id: string;
+  start_ns: string;
+  reference: Reference;
+  cause: 'initial_pair' | 'wall_offset_change';
+  offset_change_ns: string | null;
+};
+type ReceiveTimeAxis = {
+  version: '1';
+  basis: 'receive_mono_highwater';
+  projection: 'piecewise_receive_pair_v1';
+  source_identity: string;
+  clock_id: string;
+  scope_id: string | null;
+  available_start_ns: string | null;
+  available_end_ns: string | null;
+  offset_change_threshold_ns: '1000000';
+  segments: ReceiveClockSegment[];
+  last_unapplied_pair: {
+    admission_ns: string;
+    reference: Reference;
+    offset_change_ns: string;
+    reason: 'nonadvancing_receive_pair';
+  } | null;
+  reasons: string[];
+};
+```
+
+`Reference` is the unchanged exact native event reference: `session_id`,
+`ingest_ordinal`, `event_index`, `exchange_event_wall_ns` (nullable),
+`receive_wall_ns`, `receive_mono_ns`, and `clock_id`. Timestamps, ordinals, offsets
+and counters remain decimal strings; offset changes may be negative. Segment
+starts are strictly increasing admission boundaries, not replacement receive
+timestamps. Compute `reference.receive_wall_ns + (t - reference.receive_mono_ns)`
+using exact integer arithmetic. Coverage endpoints are inclusive and clipped to
+the requested range and captured frontier; segment validity ends exclusively at
+the next segment boundary. Never extrapolate outside coverage.
+
+The axis clock agrees with `VisualGrid.clock_id`. Source identity is native
+recording/demo/live provenance, not a browser identifier; `scope_id` is opaque
+contiguous-epoch identity, **not** the reference's session ID. It distinguishes
+A → B → A clock transitions and is null before receive evidence. No-book views
+can still have clock coverage. Runtime source/generation/selection fences remain
+required; the axis is not a freshness or financial eligibility substitute.
+
+At an advancing original receive frontier, an offset difference of at least
+1 ms creates a new segment. Smaller pair variation does not move established
+labels. Late/equal-frontier conflicts are diagnostic only. Historical responses
+omit future segments and unapplied-pair diagnostics, preserving original
+predecessor anchors when clipping. Axis reasons are `receive_clock_unavailable`,
+`receive_clock_history_truncated`, `requested_receive_clock_history_unavailable`,
+`wall_offset_change`, `nonadvancing_receive_pair`, and `source_clock_changed`.
+These do not change financial `reasons` or `complete_window`.
+See [receive-clock projection](VISUALIZATION.md#receive-clock-display-projection)
+for bounds, checkpoints, and replay reconstruction semantics.
+
 ### M5 consumer routes
 
 All routes in this section are **POST** and require `session_id` (1–64 lowercase

@@ -1,0 +1,324 @@
+{
+  "milestone": "M8 phase 2: receive-clock axis",
+  "recording": "4498db3b-f4a2-4fff-a32e-a97221fa21ee",
+  "comparisonDelivery": "2057",
+  "instrument": "Binance-global BTCUSDT spot",
+  "nativeProjection": {
+    "sourceLabel": "4498db3b-f4a2-4fff-a32e-a97221fa21ee",
+    "delivery": "2057",
+    "coordinate": "104450000000000",
+    "projectedWallNs": "1793526401969690999",
+    "projectedUTC": "2026-11-01T09:46:41.969Z",
+    "equalAfterPanZoomRewind": true,
+    "scope": "b6cc132154a76a858d1f8b61841b9576",
+    "restoredScope": "b6cc132154a76a858d1f8b61841b9576",
+    "coverage": [
+      "104446000000000",
+      "104450902484897"
+    ],
+    "segments": 1
+  },
+  "stablePaintedEvidence": [
+    [
+      {
+        "pane": "heatmap",
+        "height": 348.3125,
+        "evidence": "104449902557199",
+        "residence": 40804.90000000596
+      },
+      {
+        "pane": "flow",
+        "height": 256.75,
+        "evidence": "104450902141038",
+        "residence": 40728.80000001192
+      }
+    ],
+    [
+      {
+        "pane": "heatmap",
+        "height": 348.3125,
+        "evidence": "104449902557199",
+        "residence": 41441.79999998212
+      },
+      {
+        "pane": "flow",
+        "height": 256.75,
+        "evidence": "104450902141038",
+        "residence": 41362.30000001192
+      }
+    ],
+    [
+      {
+        "pane": "heatmap",
+        "height": 348.3125,
+        "evidence": "104449902557199",
+        "residence": 41880.09999999404
+      },
+      {
+        "pane": "flow",
+        "height": 256.75,
+        "evidence": "104450902141038",
+        "residence": 41803.80000001192
+      }
+    ],
+    [
+      {
+        "pane": "heatmap",
+        "height": 348.3125,
+        "evidence": "104449902557199",
+        "residence": 42436.59999999404
+      },
+      {
+        "pane": "flow",
+        "height": 256.75,
+        "evidence": "104450902141038",
+        "residence": 42365.70000001788
+      }
+    ],
+    [
+      {
+        "pane": "heatmap",
+        "height": 348.3125,
+        "evidence": "104449902557199",
+        "residence": 42782.09999999404
+      },
+      {
+        "pane": "flow",
+        "height": 256.75,
+        "evidence": "104450902141038",
+        "residence": 42705.90000000596
+      }
+    ],
+    [
+      {
+        "pane": "heatmap",
+        "height": 348.3125,
+        "evidence": "104449902557199",
+        "residence": 43438.09999999404
+      },
+      {
+        "pane": "flow",
+        "height": 256.75,
+        "evidence": "104450902141038",
+        "residence": 43327
+      }
+    ],
+    [
+      {
+        "pane": "heatmap",
+        "height": 348.3125,
+        "evidence": "104449902557199",
+        "residence": 43925.79999998212
+      },
+      {
+        "pane": "flow",
+        "height": 256.75,
+        "evidence": "104450902141038",
+        "residence": 43849.80000001192
+      }
+    ],
+    [
+      {
+        "pane": "heatmap",
+        "height": 348.3125,
+        "evidence": "104449902557199",
+        "residence": 44375.69999998808
+      },
+      {
+        "pane": "flow",
+        "height": 256.75,
+        "evidence": "104450902141038",
+        "residence": 44299.5
+      }
+    ],
+    [
+      {
+        "pane": "heatmap",
+        "height": 348.3125,
+        "evidence": "104449902557199",
+        "residence": 44932.19999998808
+      },
+      {
+        "pane": "flow",
+        "height": 256.75,
+        "evidence": "104450902141038",
+        "residence": 44855.90000000596
+      }
+    ],
+    [
+      {
+        "pane": "heatmap",
+        "height": 348.3125,
+        "evidence": "104449902557199",
+        "residence": 45286.5
+      },
+      {
+        "pane": "flow",
+        "height": 256.75,
+        "evidence": "104450902141038",
+        "residence": 45210.40000000596
+      }
+    ],
+    [
+      {
+        "pane": "heatmap",
+        "height": 348.3125,
+        "evidence": "104449902557199",
+        "residence": 45924.79999998212
+      },
+      {
+        "pane": "flow",
+        "height": 256.75,
+        "evidence": "104450902141038",
+        "residence": 45875
+      }
+    ],
+    [
+      {
+        "pane": "heatmap",
+        "height": 348.3125,
+        "evidence": "104449902557199",
+        "residence": 46265.59999999404
+      },
+      {
+        "pane": "flow",
+        "height": 256.75,
+        "evidence": "104450902141038",
+        "residence": 46189.5
+      }
+    ]
+  ],
+  "viewportChecks": [
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "panes": [
+        {
+          "pane": "heatmap",
+          "plot": {
+            "x": 0,
+            "y": 149,
+            "width": 960,
+            "height": 292.3125,
+            "top": 149,
+            "right": 960,
+            "bottom": 441.3125,
+            "left": 0
+          },
+          "footer": "Receive · 2026-11-01 UTC-05:00Partial window · truncated · BTC2 quality reasons · InspectorReplay · source lag 1000 ms · resident 0 ms"
+        },
+        {
+          "pane": "flow",
+          "plot": {
+            "x": 0,
+            "y": 523.3125,
+            "width": 960,
+            "height": 212.75,
+            "top": 523.3125,
+            "right": 960,
+            "bottom": 736.0625,
+            "left": 0
+          },
+          "footer": "Receive · 2026-11-01 UTCPartial window · truncated · BTC4 quality reasons · InspectorReplay · source lag 0 ms · resident 0 ms"
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "overflow": false,
+      "panes": [
+        {
+          "pane": "heatmap",
+          "plot": {
+            "x": 0,
+            "y": 149,
+            "width": 1120,
+            "height": 348.3125,
+            "top": 149,
+            "right": 1120,
+            "bottom": 497.3125,
+            "left": 0
+          },
+          "footer": "Receive · 2026-11-01 UTC-05:00Partial window · truncated · BTC2 quality reasons · InspectorReplay · source lag 1000 ms · resident 0 ms"
+        },
+        {
+          "pane": "flow",
+          "plot": {
+            "x": 0,
+            "y": 579.3125,
+            "width": 1120,
+            "height": 256.75,
+            "top": 579.3125,
+            "right": 1120,
+            "bottom": 836.0625,
+            "left": 0
+          },
+          "footer": "Receive · 2026-11-01 UTCPartial window · truncated · BTC4 quality reasons · InspectorReplay · source lag 0 ms · resident 0 ms"
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "overflow": false,
+      "panes": [
+        {
+          "pane": "heatmap",
+          "plot": {
+            "x": 0,
+            "y": 153,
+            "width": 1600,
+            "height": 446.875,
+            "top": 153,
+            "right": 1600,
+            "bottom": 599.875,
+            "left": 0
+          },
+          "footer": "Receive · 2026-11-01 UTC-05:00Partial window · truncated · BTC2 quality reasons · InspectorReplay · source lag 1000 ms · resident 22 ms"
+        },
+        {
+          "pane": "flow",
+          "plot": {
+            "x": 0,
+            "y": 681.875,
+            "width": 1600,
+            "height": 334.1875,
+            "top": 681.875,
+            "right": 1600,
+            "bottom": 1016.0625,
+            "left": 0
+          },
+          "footer": "Receive · 2026-11-01 UTCPartial window · truncated · BTC4 quality reasons · InspectorReplay · source lag 0 ms · resident 0 ms"
+        }
+      ]
+    }
+  ],
+  "timezoneCheck": {
+    "localZone": "America/New_York",
+    "displayedOffset": "UTC-05:00",
+    "persistedAfterReload": true,
+    "secondaryRemainedUTC": true,
+    "nativeCoordinatesUnchanged": true
+  },
+  "frontendGate": "ESLint, 65 unit tests, TypeScript and Vite passed",
+  "browserGate": "pane-evidence.spec.ts and pane-accessibility.spec.ts: 6 passed",
+  "corrections": [
+    "Prevented cross-source checkpoint restore for derived identities",
+    "Fixed footer wrapping/backing-store invalidation feedback loop; 12 half-second samples stable after correction",
+    "Corrected increasing delivery ordinal in reused-clock regression fixture",
+    "Migrated batch parity assertions to respect distinct source scopes without weakening market-state comparison"
+  ],
+  "limitations": [
+    "Recorded prefix retains about 4.9 seconds heatmap / 5.9 seconds executed flow; no fabricated history",
+    "Timezone preference is browser-local; original receive/exchange timestamps remain in inspector",
+    "Final redesigned chart/shell and full-suite verification follow in later phases"
+  ]
+}

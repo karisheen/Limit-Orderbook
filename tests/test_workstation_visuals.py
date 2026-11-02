@@ -741,6 +741,7 @@ def test_incremental_frontier_exclusion_and_generation_replacement():
     before = feed.query()
     unchanged = feed.query(after_column=before["next_after"])
     assert not unchanged["replace"] and unchanged["columns"] == []
+    assert unchanged["time_axis"] == before["time_axis"]
     feed.trade(SECOND // 2, "late-at-frontier")
     changed = feed.query(after_column=unchanged["next_after"])
     assert not changed["replace"]
@@ -1165,6 +1166,7 @@ def test_real_replay_backward_seek_speed_parity_checkpoint_and_reprojection(tmp_
                         session.seek(cursor.ordinal, cursor.event_index)
                         rewound = observer.query(request, "1")
                         assert rewound == prefix
+                        assert rewound["time_axis"] == prefix["time_axis"]
                         assert all(
                             int(trade["time_ns"]) <= int(prefix["now_ns"])
                             for trade in rewound["trades"]
@@ -1179,10 +1181,313 @@ def test_real_replay_backward_seek_speed_parity_checkpoint_and_reprojection(tmp_
                             == empty["profile"]
                             == []
                         )
+                        assert empty["time_axis"]["segments"] == []
+                        assert empty["time_axis"]["available_end_ns"] is None
                     finally:
                         session.close()
 
     asyncio.run(scenario())
+
+
+def projected_receive_wall(axis, stamp):
+    if axis["available_start_ns"] is None or not int(
+        axis["available_start_ns"]
+    ) <= stamp <= int(axis["available_end_ns"]):
+        return None
+    segment = next(
+        segment
+        for segment in reversed(axis["segments"])
+        if int(segment["start_ns"]) <= stamp
+    )
+    reference = segment["reference"]
+    return int(reference["receive_wall_ns"]) + stamp - int(reference["receive_mono_ns"])
+
+
+def receive_pair(feed, stamp, offset, **overrides):
+    return feed.deliver(
+        feed.event(
+            Control("heartbeat"),
+            stamp,
+            receive_wall_ns=stamp + offset,
+            **overrides,
+        )
+    )
+
+
+def test_receive_axis_missing_no_book_precision_and_initial_admission_highwater():
+    feed = VisualFeed()
+    empty = feed.query()["time_axis"]
+    assert empty["segments"] == []
+    assert empty["scope_id"] is None
+    assert empty["available_start_ns"] is empty["available_end_ns"] is None
+    assert empty["reasons"] == ["receive_clock_unavailable"]
+    mono = 9_007_199_254_740_993
+    wall = 1_783_000_000_123_456_789
+    feed.clock.observe_frontier(ClockReading("synthetic-clock", mono + 7))
+    event = receive_pair(feed, mono, wall - mono)
+    axis = feed.query(start_ns=str(mono))["time_axis"]
+    assert axis["source_identity"] == str(event.session_id)
+    assert axis["segments"][0]["start_ns"] == str(mono + 7)
+    assert axis["segments"][0]["reference"]["receive_mono_ns"] == str(mono)
+    assert projected_receive_wall(axis, mono + 7) == wall + 7
+    assert projected_receive_wall(axis, mono + 6) is None
+    assert projected_receive_wall(axis, mono + 8) is None
+    assert feed.book is None
+    assert "requested_receive_clock_history_unavailable" in axis["reasons"]
+
+
+@pytest.mark.parametrize(
+    "change", (999_999, 1_000_000, 1_000_001, -999_999, -1_000_000)
+)
+def test_receive_axis_offset_threshold_is_signed_and_does_not_reanchor_noise(change):
+    feed = VisualFeed()
+    offset = 1_783_000_000_000_000_000
+    receive_pair(feed, 0, offset)
+    original = feed.query()["time_axis"]["segments"][0]
+    receive_pair(feed, SECOND, offset + change)
+    axis = feed.query()["time_axis"]
+    assert axis["segments"][0] == original
+    assert len(axis["segments"]) == (2 if abs(change) >= 1_000_000 else 1)
+    assert projected_receive_wall(axis, SECOND - 1) == offset + SECOND - 1
+    if abs(change) >= 1_000_000:
+        assert axis["segments"][1]["offset_change_ns"] == str(change)
+        assert projected_receive_wall(axis, SECOND) == offset + SECOND + change
+    else:
+        assert projected_receive_wall(axis, SECOND) == offset + SECOND
+
+
+def test_receive_axis_many_pairs_keep_initial_anchor_and_compare_its_offset():
+    feed = VisualFeed()
+    receive_pair(feed, 0, 100 * SECOND)
+    initial = feed.history.clock_segments[0]
+    for index in range(1, 100):
+        receive_pair(feed, index * 10, 100 * SECOND + index * 10_000)
+    assert tuple(feed.history.clock_segments) == (initial,)
+    assert projected_receive_wall(feed.query()["time_axis"], 990) == 100 * SECOND + 990
+    receive_pair(feed, 1000, 100 * SECOND + 1_000_000)
+    assert len(feed.history.clock_segments) == 2
+    assert feed.history.clock_segments[-1].offset_change_ns == 1_000_000
+
+
+def test_receive_axis_command_frontier_is_not_a_new_source_pair():
+    feed = VisualFeed()
+    receive_pair(feed, 0, 100 * SECOND)
+    initial = feed.history.clock_segments[0]
+    feed.clock.observe_frontier(
+        ClockReading("synthetic-clock", 5 * SECOND, 200 * SECOND)
+    )
+    receive_pair(feed, SECOND, 102 * SECOND)
+    axis = feed.query()["time_axis"]
+    assert tuple(feed.history.clock_segments) == (initial,)
+    assert projected_receive_wall(axis, 5 * SECOND) == 105 * SECOND
+    assert axis["last_unapplied_pair"]["admission_ns"] == str(5 * SECOND)
+    assert axis["last_unapplied_pair"]["offset_change_ns"] == str(2 * SECOND)
+    receive_pair(feed, 6 * SECOND, 102 * SECOND)
+    advanced = feed.query()["time_axis"]
+    assert projected_receive_wall(advanced, 6 * SECOND) == 108 * SECOND
+    assert projected_receive_wall(advanced, 6 * SECOND - 1) == 106 * SECOND - 1
+
+
+def test_receive_axis_late_equal_conflicts_and_forward_positive_negative_steps():
+    feed = VisualFeed()
+    offset = 1_783_000_000_000_000_000
+    receive_pair(feed, 0, offset)
+    receive_pair(feed, 5 * SECOND, offset)
+    stable = feed.query()["time_axis"]["segments"]
+    receive_pair(feed, SECOND, offset + 2 * SECOND)
+    late = feed.query()["time_axis"]
+    assert late["segments"] == stable
+    assert late["last_unapplied_pair"]["admission_ns"] == str(5 * SECOND)
+    assert late["last_unapplied_pair"]["reference"]["receive_mono_ns"] == str(SECOND)
+    assert projected_receive_wall(late, 5 * SECOND) == offset + 5 * SECOND
+    receive_pair(feed, 5 * SECOND, offset - SECOND)
+    equal = feed.query()["time_axis"]
+    assert equal["segments"] == stable
+    assert equal["last_unapplied_pair"]["offset_change_ns"] == str(-SECOND)
+    receive_pair(feed, 6 * SECOND, offset + 2 * SECOND)
+    receive_pair(feed, 7 * SECOND, offset - SECOND)
+    axis = feed.query()["time_axis"]
+    assert [segment["offset_change_ns"] for segment in axis["segments"]] == [
+        None,
+        str(2 * SECOND),
+        str(-3 * SECOND),
+    ]
+    assert projected_receive_wall(axis, 6 * SECOND) == offset + 8 * SECOND
+    assert projected_receive_wall(axis, 7 * SECOND) == offset + 6 * SECOND
+    # Clipping and independent geometry cannot replace original anchors.
+    panned = feed.query(
+        start_ns=str(6 * SECOND + 1), price_step="5", bucket_ns=str(5 * SECOND)
+    )["time_axis"]
+    assert panned["segments"] == axis["segments"][1:]
+    assert projected_receive_wall(panned, 7 * SECOND) == projected_receive_wall(
+        axis, 7 * SECOND
+    )
+    before = feed.query(end_ns=str(5 * SECOND - 1))["time_axis"]
+    assert before["segments"] == stable
+    assert before["last_unapplied_pair"] is None
+    assert "wall_offset_change" not in before["reasons"]
+    assert "nonadvancing_receive_pair" not in before["reasons"]
+    future = feed.query(end_ns=str(100 * SECOND))["time_axis"]
+    assert future["available_end_ns"] == str(7 * SECOND)
+
+
+def test_receive_axis_retains_time_floor_predecessor_without_book(monkeypatch):
+    monkeypatch.setattr(visuals, "MAX_COLUMNS", 4)
+    feed = VisualFeed()
+    receive_pair(feed, 0, 100 * SECOND)
+    initial = feed.history.clock_segments[0]
+    receive_pair(feed, 10 * SECOND, 100 * SECOND)
+    axis = feed.query(start_ns=str(6 * SECOND))["time_axis"]
+    assert feed.history.clock_segments[0] is initial
+    assert axis["available_start_ns"] == str(6 * SECOND)
+    assert axis["segments"][0]["start_ns"] == "0"
+    assert projected_receive_wall(axis, 6 * SECOND) == 106 * SECOND
+    assert "receive_clock_history_truncated" in axis["reasons"]
+    before = feed.query(start_ns="0", end_ns=str(SECOND))["time_axis"]
+    assert before["segments"] == []
+    assert projected_receive_wall(before, 0) is None
+
+
+def test_receive_axis_segment_and_byte_caps_report_lost_coverage(monkeypatch):
+    monkeypatch.setattr(visuals, "MAX_TIME_AXIS_SEGMENTS", 3)
+    feed = VisualFeed()
+    for index in range(8):
+        receive_pair(feed, index * 10, 100 * SECOND + index * 2_000_000)
+    axis = feed.query()["time_axis"]
+    assert len(axis["segments"]) == len(feed.history.clock_segments) == 3
+    assert axis["available_start_ns"] == "50"
+    assert projected_receive_wall(axis, 49) is None
+    assert projected_receive_wall(axis, 50) == 100 * SECOND + 10_000_000 + 50
+    assert "receive_clock_history_truncated" in axis["reasons"]
+    monkeypatch.setattr(visuals, "MAX_BYTES", 256 * 1024 + 1024)
+    receive_pair(feed, 80, 100 * SECOND + 16_000_000)
+    assert feed.history.accounted_bytes <= visuals.MAX_BYTES
+    depleted = feed.query()["time_axis"]
+    assert depleted["segments"] == []
+    assert depleted["available_start_ns"] is None
+    assert "receive_clock_history_truncated" in depleted["reasons"]
+
+
+def test_receive_axis_snapshot_is_immutable_and_fences_reused_clock_epochs(monkeypatch):
+    monkeypatch.setattr(visuals, "MAX_COLUMNS", 4)
+    feed = VisualFeed()
+    first = receive_pair(feed, 0, 100 * SECOND)
+    snapshot = feed.history.query_snapshot()
+    captured = snapshot.query(view_request(), "7")["time_axis"]
+    expected = deepcopy(captured)
+    captured["segments"][0]["reference"]["receive_wall_ns"] = "1"
+    receive_pair(feed, 10 * SECOND, 102 * SECOND)
+    assert snapshot.query(view_request(), "7")["time_axis"] == expected
+    owner_axis = feed.query(start_ns=str(6 * SECOND))["time_axis"]
+    assert feed.history.accept_query(snapshot)
+    assert feed.query(start_ns=str(6 * SECOND))["time_axis"] == owner_axis
+    receive_pair(feed, 0, 100 * SECOND, clock_id="clock-B")
+    receive_pair(feed, 0, 100 * SECOND, clock_id=first.clock_id)
+    assert feed.history.clock.clock_id == first.clock_id
+    assert feed.history.clock_scope != expected["scope_id"]
+    assert not feed.history.accept_query(snapshot)
+    assert (
+        "source_clock_changed"
+        in feed.query(start_ns=str(6 * SECOND))["time_axis"]["reasons"]
+    )
+    current = feed.history.query_snapshot()
+    feed.history.reset()
+    feed.deliver(first)
+    assert not feed.history.accept_query(current)
+    same_clock = feed.history.query_snapshot()
+    receive_pair(
+        feed, 10 * SECOND, 100 * SECOND, session_id="replacement-source-session"
+    )
+    assert feed.history.source_identity == "replacement-source-session"
+    assert not feed.history.accept_query(same_clock)
+
+
+@pytest.mark.parametrize("source_identity", [None, "recording:source-A"])
+def test_receive_axis_checkpoint_rejects_cross_source_before_mutation(source_identity):
+    feed = VisualFeed()
+    feed.history = VisualHistory(
+        feed.history.engine, feed.keys["book"], source_identity=source_identity
+    )
+    feed.quote(0)
+    feed.trade(SECOND // 2, "source-A-trade", quantity="2")
+    receive_pair(feed, SECOND, 100 * SECOND)
+    original = feed.query()
+    checkpoint = feed.history.checkpoint()
+    snapshot = feed.history.query_snapshot()
+
+    other = VisualFeed()
+    other.quote(0, bids=(("89", "5"),), asks=(("91", "6"),))
+    other.trade(SECOND // 2, "source-B-trade", price="90", quantity="3")
+    receive_pair(
+        other, 2 * SECOND, 200 * SECOND, session_id="replacement-source-session"
+    )
+    replacement = other.query()
+    other_checkpoint = other.history.checkpoint()
+    assert feed.history.key == other.history.key
+    assert feed.history.source_identity != other.history.source_identity
+    with pytest.raises(ValueError, match="incompatible visualization clock"):
+        feed.history.restore(other_checkpoint)
+    assert feed.history.checkpoint() == checkpoint
+    assert feed.query() == original
+    assert feed.history.accept_query(snapshot)
+
+    feed.history.restore(checkpoint)
+    assert feed.query() == original
+    fresh = VisualFeed()
+    fresh.history = VisualHistory(
+        fresh.history.engine, fresh.keys["book"], source_identity=source_identity
+    )
+    fresh.history.restore(checkpoint)
+    assert fresh.query() == original
+
+    feed.history.reset()
+    if source_identity is None:
+        assert feed.history.source_identity == ""
+        feed.history.restore(other_checkpoint)
+        assert feed.query() == replacement
+    else:
+        assert feed.history.source_identity == source_identity
+        with pytest.raises(ValueError, match="incompatible visualization clock"):
+            feed.history.restore(other_checkpoint)
+        feed.history.restore(checkpoint)
+        assert feed.query() == original
+
+
+def test_receive_axis_checkpoint_continuation_source_fence_and_reset_parity():
+    feed = VisualFeed()
+    offset = 100 * SECOND
+    receive_pair(feed, 0, offset)
+    receive_pair(feed, SECOND, offset + 2 * SECOND)
+    receive_pair(feed, SECOND, offset - SECOND)
+    prefix = feed.query()["time_axis"]
+    checkpoint = feed.history.checkpoint()
+    boundary = len(feed.deliveries)
+    receive_pair(feed, 2 * SECOND, offset - SECOND)
+    final = feed.query()["time_axis"]
+    deliveries = tuple(feed.deliveries)
+    other = VisualHistory(
+        AnalyticsEngine(feed.streams),
+        feed.keys["book"],
+        source_identity="recording:other-source",
+    )
+    with pytest.raises(ValueError, match="incompatible visualization clock"):
+        other.restore(checkpoint)
+    other.reset()
+    assert other.query(view_request(), "7")["time_axis"]["source_identity"] == (
+        "recording:other-source"
+    )
+    before_restore = feed.history.query_snapshot()
+    feed.history.restore(checkpoint)
+    assert not feed.history.accept_query(before_restore)
+    assert feed.query()["time_axis"] == prefix
+    for batch, books, reading in deliveries[boundary:]:
+        feed.history.on_batch(batch, books, SimpleNamespace(reading=reading))
+    assert feed.query()["time_axis"] == final
+    feed.history.reset()
+    assert feed.query()["time_axis"]["segments"] == []
+    for batch, books, reading in deliveries:
+        feed.history.on_batch(batch, books, SimpleNamespace(reading=reading))
+    assert feed.query()["time_axis"] == final
 
 
 def contract_instrument(*, inverse=False, **overrides):

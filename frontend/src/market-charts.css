@@ -21,7 +21,7 @@
 .chart-pane-diagnostics .chart-timing, .chart-pane-diagnostics .linked-readout { padding: 4px 0; border: 0; background: transparent; font-size: 11px; overflow-wrap: anywhere; }
 .m4-charts {
   --m4-muted: #a2a7ae;
-  display: flex; flex: 1 1 auto; flex-direction: column; min-width: 0; min-height: 0;
+  display: flex; flex: 1 1 auto; flex-direction: column; min-width: 0; min-height: 0; container-type: inline-size;
   color: #dce0e3; background: #131619; font-variant-numeric: tabular-nums; overflow: hidden;
 }
 .m4-chart-body { position: relative; display: flex; flex: 1 1 0; min-height: 0; min-width: 0; }
@@ -55,7 +55,32 @@
 .m4-chart-empty small { display: block; margin-top: 5px; color: var(--m4-muted); }
 .m4-footprint-density { position: absolute; z-index: 3; left: 8px; bottom: 26px; max-width: calc(100% - 16px); padding: 3px 6px; background: #171a1eed; color: #c8b793; font-size: 10px; line-height: 1.4; pointer-events: none; }
 .m4-chart-tooltip { position: absolute; z-index: 4; top: 5px; left: 18px; display: flex; flex-direction: column; max-width: min(80%, 520px); padding: 6px 9px; background: #111417ed; border: 1px solid #48535c; border-radius: 3px; font: 11px/1.5 ui-monospace, monospace; color: #e1e5e8; overflow-wrap: anywhere; pointer-events: none; box-shadow: 0 4px 14px #0006; }
-.m4-chart-quality { justify-content: space-between; color: var(--m4-muted); border-top: 1px solid #303338; flex: 0 0 auto; }
+/* State text must never resize the canvas: its backing store is real presentation evidence. */
+.m4-chart-quality {
+  display: grid; grid-template-columns: max-content minmax(0, 1fr); grid-template-rows: 32px 32px;
+  align-items: stretch; gap: 0 12px; padding: 4px 9px; line-height: 16px;
+  color: var(--m4-muted); border-top: 1px solid #303338; flex: 0 0 auto;
+}
+.m4-chart-clock-context, .m4-chart-window-quality, .m4-chart-freshness { min-width: 0; min-height: 0; overflow: auto; }
+.m4-chart-clock-context { align-content: center; }
+.m4-chart-window-quality { display: flex; align-content: center; justify-content: flex-end; flex-wrap: wrap; column-gap: 8px; }
+.m4-chart-freshness { grid-column: 1 / -1; }
+.m4-chart-freshness .freshness {
+  display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content;
+  align-items: center; gap: 0 8px; height: 100%; padding: 0; border: 0; line-height: 16px;
+}
+.m4-chart-freshness .freshness-value { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+@container (min-width: 900px) {
+  .m4-chart-quality { grid-template-rows: 16px 16px; }
+}
+@container (max-width: 599px) {
+  .m4-chart-quality { grid-template-columns: minmax(0, 1fr); grid-template-rows: 32px 48px 64px; }
+  .m4-chart-window-quality { flex-direction: column; flex-wrap: nowrap; align-items: flex-start; justify-content: center; }
+  .m4-chart-freshness .freshness { grid-template-columns: minmax(0, 1fr) max-content; grid-template-rows: 16px 48px; }
+  .m4-chart-freshness .freshness-identity { grid-column: 1; grid-row: 1; }
+  .m4-chart-freshness .freshness-value:nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
+  .m4-chart-freshness .freshness-value:last-child { grid-column: 2; grid-row: 1; }
+}
 .m4-quality-reasons { max-width: 100%; overflow-wrap: anywhere; }
 .m4-quality-reasons summary { cursor: pointer; }
 .m4-quality-reasons ul { margin: 6px 0; padding-left: 18px; }

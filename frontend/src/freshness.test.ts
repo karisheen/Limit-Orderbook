@@ -42,6 +42,10 @@ function column(asof = reference(), time = '1000000000'): VisualColumn {
 function grid(columns = [column()]): VisualGrid {
   return { version: '1', generation: '3', grid_id: 'grid', instrument_id: 'BTC', clock_id: 'recorded-clock',
     view_id: 'view-1', published_mono_ns: '88888888888888888', quantity_unit: 'base', sampling: 'sampled',
+    time_axis: { version: '1', basis: 'receive_mono_highwater', projection: 'piecewise_receive_pair_v1',
+      source_identity: 'source-session', clock_id: 'recorded-clock', scope_id: null,
+      available_start_ns: null, available_end_ns: null, offset_change_threshold_ns: '1000000',
+      segments: [], last_unapplied_pair: null, reasons: ['receive_clock_unavailable'] },
     price_step: '1', price_min: '0', prices: [], rows: 0, bucket_ns: '1000000000', start_ns: '0',
     end_ns: '3000000000', now_ns: '3000000000', retained_start_ns: '0', step_options: [], columns,
     trades: [], profile: [], footprints: [], reasons: [], truncated: false, complete_window: true, replace: true, next_after: null };

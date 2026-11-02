@@ -69,6 +69,35 @@ test('v1 workspaces migrate to independent chart, tape and cursor settings', () 
   assert.equal(restored.links.flow, false);
 });
 
+test('independent chart time zones survive serialization and workspace slots without changing source-time ranges', () => {
+  const range = { start_ns: '9007199254740993123', end_ns: '9007199255740993123' };
+  for (const [primary, secondary] of [['local', 'UTC'], ['UTC', 'local']] as const) {
+    const saved = validatePreferences({ version: 1, timeZone: primary, range, follow: false, paused: true,
+      secondary: { timeZone: secondary, range, follow: false, paused: true } });
+    const restored = validatePreferences(JSON.parse(JSON.stringify(saved)));
+    assert.equal(restored.timeZone, primary);
+    assert.equal(chartSettings(restored.secondary).timeZone, secondary);
+    assert.deepEqual(restored.range, range);
+    assert.deepEqual(restored.secondary.range, range);
+    assert.equal(restored.paused, true);
+    assert.equal(restored.secondary.paused, true);
+    const slots = validateWorkspaceSlots(JSON.parse(JSON.stringify([saved])));
+    const applied = applyWorkspaceSlot(validatePreferences({ version: 1 }), slots[0]!);
+    assert.equal(applied.timeZone, primary);
+    assert.equal(applied.secondary.timeZone, secondary);
+  }
+});
+
+test('legacy and invalid saved chart time zones migrate safely without discarding unrelated preferences', () => {
+  for (const timeZone of [undefined, null, '', 'utc', 'America/New_York', 1, {}, ['UTC']]) {
+    const restored = validatePreferences({ version: 1, timeZone, priceStep: '0.00001', secondary: { timeZone, bucket: '10000000000' } });
+    assert.equal(restored.timeZone, 'UTC');
+    assert.equal(restored.secondary.timeZone, 'UTC');
+    assert.equal(restored.priceStep, '0.00001');
+    assert.equal(restored.secondary.bucket, '10000000000');
+  }
+});
+
 test('pane boundaries reject unsafe splits and secondary settings without retaining foreign fields', () => {
   const settings = validatePreferences({ version: 1, chartSplit: 1e9, tapeSplit: -20, tapeRows: 10000, tapeSide: 'invented',
     links: { heatmap: 'yes', dom: false }, secondary: { mode: 'ofi', contrast: NaN, priceStep: 'Infinity', rangeSeconds: 999,
@@ -131,6 +160,9 @@ function grid(columns: VisualColumn[], overrides: Partial<VisualGrid> = {}): Vis
   return { version: '1', generation: '1', view_id: 'view', published_mono_ns: '1', grid_id: 'grid', instrument_id: 'exact', clock_id: 'clock',
     quantity_unit: 'base', sampling: 'fixed', price_step: '1', price_min: '0', prices: ['0'], rows: 1, bucket_ns: '1',
     start_ns: '0', end_ns: '1000', now_ns: '1000', retained_start_ns: '0', step_options: ['1'], columns, trades: [], profile: [], footprints: [],
+    time_axis: { version: '1', basis: 'receive_mono_highwater', projection: 'piecewise_receive_pair_v1', source_identity: 'source',
+      clock_id: 'clock', scope_id: null, available_start_ns: null, available_end_ns: null, offset_change_threshold_ns: '1000000',
+      segments: [], last_unapplied_pair: null, reasons: ['clock_time_unavailable'] },
     reasons: ['partial_history'], truncated: false, complete_window: false, replace: false, next_after: null, ...overrides };
 }
 

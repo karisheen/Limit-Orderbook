@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
 import type { Catalog, Mode, VisualGrid } from './api';
+import type { ChartTimeZone } from './chart-time';
 
 export type ChartMode = 'heatmap' | 'candles' | 'footprint' | 'profile' | 'cvd' | 'ofi';
-export type ChartSettings = Pick<WorkspacePreferences, 'mode' | 'contrast' | 'showTrades' | 'showQuotes' | 'priceStep' | 'bucket' | 'rangeSeconds' | 'range' | 'follow' | 'paused' | 'priceOffset'>;
+export type ChartSettings = Pick<WorkspacePreferences, 'mode' | 'contrast' | 'showTrades' | 'showQuotes' | 'timeZone' | 'priceStep' | 'bucket' | 'rangeSeconds' | 'range' | 'follow' | 'paused' | 'priceOffset'>;
 export type PaneId = 'heatmap' | 'flow' | 'dom' | 'tape';
 export interface WorkspacePreferences {
   version: 1; source: { mode: Mode; id: string } | null; sourceExplicit: boolean; instrument: string;
   preset: 'balanced' | 'analysis' | 'ladder'; leftWidth: number; rightWidth: number; bottomHeight: number;
   leftOpen: boolean; rightOpen: boolean; bottomOpen: boolean;
-  mode: ChartMode; contrast: number; showTrades: boolean; showQuotes: boolean;
+  mode: ChartMode; contrast: number; showTrades: boolean; showQuotes: boolean; timeZone: ChartTimeZone;
   priceStep: string; bucket: string; rangeSeconds: number; range: { start_ns: string; end_ns: string } | null;
   follow: boolean; paused: boolean; domFrozen: boolean; domRows: number; priceOffset: number;
   domPriceStep: string; domUnit: 'base' | 'quote'; domCumulative: boolean;
@@ -19,14 +20,14 @@ export interface WorkspacePreferences {
 }
 export const preferenceKey = 'limit-orderbook.workspace.v1';
 const secondaryDefaults: ChartSettings = {
-  mode: 'footprint', contrast: 1, showTrades: true, showQuotes: true,
+  mode: 'footprint', contrast: 1, showTrades: true, showQuotes: true, timeZone: 'UTC',
   priceStep: '', bucket: '5000000000', rangeSeconds: 180, range: null,
   follow: true, paused: false, priceOffset: 0,
 };
 const defaults: WorkspacePreferences = {
   version: 1, source: null, sourceExplicit: false, instrument: '', preset: 'balanced', leftWidth: 222, rightWidth: 314, bottomHeight: 248,
   leftOpen: false, rightOpen: true, bottomOpen: false, mode: 'heatmap', contrast: 1,
-  showTrades: true, showQuotes: true, priceStep: '', bucket: '1000000000', rangeSeconds: 180,
+  showTrades: true, showQuotes: true, timeZone: 'UTC', priceStep: '', bucket: '1000000000', rangeSeconds: 180,
   range: null, follow: true, paused: false, domFrozen: false, domRows: 15, priceOffset: 0,
   domPriceStep: '', domUnit: 'base', domCumulative: false,
   secondary: secondaryDefaults, chartSplit: 56, tapeSplit: 60,
@@ -36,7 +37,7 @@ const defaults: WorkspacePreferences = {
 const bounded = (value: unknown, min: number, max: number, fallback: number) => typeof value === 'number' && Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
 const text = (value: unknown, max: number) => typeof value === 'string' && value.length <= max ? value : '';
 export function chartSettings(p: ChartSettings): ChartSettings {
-  return { mode: p.mode, contrast: p.contrast, showTrades: p.showTrades, showQuotes: p.showQuotes,
+  return { mode: p.mode, contrast: p.contrast, showTrades: p.showTrades, showQuotes: p.showQuotes, timeZone: p.timeZone,
     priceStep: p.priceStep, bucket: p.bucket, rangeSeconds: p.rangeSeconds, range: p.range,
     follow: p.follow, paused: p.paused, priceOffset: p.priceOffset };
 }
@@ -55,6 +56,7 @@ export function validatePreferences(value: unknown, nested = false): WorkspacePr
   next.bucket = ['1000000000', '5000000000', '10000000000'].includes(p.bucket as string) ? p.bucket as string : defaults.bucket;
   if (['balanced', 'analysis', 'ladder'].includes(p.preset as string)) next.preset = p.preset as WorkspacePreferences['preset'];
   if (['heatmap', 'candles', 'footprint', 'profile', 'cvd', 'ofi'].includes(p.mode as string)) next.mode = p.mode as ChartMode;
+  if (p.timeZone === 'UTC' || p.timeZone === 'local') next.timeZone = p.timeZone;
   for (const key of ['priceStep', 'domPriceStep'] as const) {
     const step = text(p[key], 128);
     next[key] = /^(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d{1,4})?$/.test(step) && /[1-9]/.test(step.split(/[eE]/)[0] ?? '') ? step : '';

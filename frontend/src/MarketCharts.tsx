@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { VisualGrid } from './api';
+import { chartTimeZoneLabel, formatChartDateContext, formatChartTime, projectReceiveTime } from './chart-time';
+import type { ChartTimeZone } from './chart-time';
+import { timestamp } from './format';
 import { CHART_LIMITS, columnAt, plotArea, priceCellIndex, rowAt, saturation, shiftedRange, timeAt, zoomedRange } from './market-charts-model';
 import type { ChartCursor, ChartMode, ChartRange } from './market-charts-model';
 export type { ChartCursor } from './market-charts-model';
@@ -16,6 +19,7 @@ export interface MarketChartsProps {
   contrast: number;
   showTrades: boolean;
   showQuotes: boolean;
+  timeZone: ChartTimeZone;
   crosshair: ChartCursor | null;
   onCrosshair: (value: ChartCursor | null) => void;
   onRangeChange: (range: ChartRange) => void;
@@ -36,7 +40,7 @@ const MODE_LABEL: Record<ChartMode, string> = {
 };
 
 export function MarketCharts(props: MarketChartsProps): ReactNode {
-  const { view, loading, error, mode, contrast, showTrades, showQuotes, crosshair, receivedAtMs, onCrosshair, onRangeChange, onPricePan } = props;
+  const { view, loading, error, mode, contrast, showTrades, showQuotes, timeZone, crosshair, receivedAtMs, onCrosshair, onRangeChange, onPricePan } = props;
   const id = useId();
   const host = useRef<HTMLDivElement>(null);
   const base = useRef<HTMLCanvasElement>(null);
@@ -105,7 +109,7 @@ export function MarketCharts(props: MarketChartsProps): ReactNode {
         performance.clearMarks(`lob:chart-start:${id}`);
         performance.clearMarks(`lob:chart-end:${id}`);
         performance.mark(`lob:chart-start:${id}`);
-        const drawn = instance.render(view, { mode, contrast, showTrades, showQuotes });
+        const drawn = instance.render(view, { mode, contrast, showTrades, showQuotes, timeZone });
         instance.drawCursor(view, latest.current.crosshair, mode);
         performance.mark(`lob:chart-end:${id}`);
         performance.clearMeasures('lob:chart-draw');
@@ -131,7 +135,7 @@ export function MarketCharts(props: MarketChartsProps): ReactNode {
       }
     });
     return () => { cancelled = true; cancelAnimationFrame(frame); cancelAnimationFrame(paintFrame); cancelAnimationFrame(acknowledgeFrame); };
-  }, [view, mode, contrast, showTrades, showQuotes, size, visibilityRevision, receivedAtMs, id, clearPresentation]);
+  }, [view, mode, contrast, showTrades, showQuotes, timeZone, size, visibilityRevision, receivedAtMs, id, clearPresentation]);
 
   useEffect(() => { renderer.current?.drawCursor(view, crosshair, mode); }, [view, crosshair, mode]);
 
@@ -225,6 +229,10 @@ export function MarketCharts(props: MarketChartsProps): ReactNode {
   }, []);
 
   const column = view ? crosshair ? columnAt(view, crosshair.time_ns) : view.columns.at(-1) : undefined;
+  const clockContextTime = view && view.time_axis.available_start_ns !== null && BigInt(view.time_axis.available_start_ns) > BigInt(view.start_ns)
+    ? view.time_axis.available_start_ns : view?.start_ns;
+  const clockContext = view && clockContextTime !== undefined && BigInt(clockContextTime) <= BigInt(view.end_ns)
+    ? formatChartDateContext(view, clockContextTime, timeZone) : `Clock time unavailable · ${chartTimeZoneLabel(timeZone)}`;
   const row = view ? crosshair?.price ? priceCellIndex(view, crosshair.price) : Math.floor(view.rows / 2) : -1;
   const price = view?.prices[row];
   const cell = column?.cells[row];
@@ -235,7 +243,7 @@ export function MarketCharts(props: MarketChartsProps): ReactNode {
   const footprint = footprintIndex.get(`${column?.time_ns}:${price}`);
   const profile = price == null ? undefined : profileIndex.get(price);
   const rowStart = Math.max(0, row - 8);
-  const reasons = [...new Set([...(view?.reasons ?? []), ...(column?.reasons ?? []), ...(metric?.eligibility.reasons ?? []), ...(mode === 'candles' ? column?.candle?.reasons ?? [] : [])])];
+  const reasons = [...new Set([...(view?.reasons ?? []), ...(view?.time_axis.reasons ?? []), ...(column?.reasons ?? []), ...(metric?.eligibility.reasons ?? []), ...(mode === 'candles' ? column?.candle?.reasons ?? [] : [])])];
   const available = view && (mode === 'profile' ? view.profile.length > 0 : mode === 'footprint' ? view.footprints.length > 0 : mode === 'candles' ? view.columns.some(item => item.candle?.eligible) : mode === 'cvd' || mode === 'ofi' ? view.columns.some(item => item[mode]?.eligibility.eligible && item[mode]?.value != null) : view.columns.some(item => item.eligible));
   const area = plotArea(size.width, size.height);
   const denseFootprint = mode === 'footprint' && view && (
@@ -258,14 +266,14 @@ export function MarketCharts(props: MarketChartsProps): ReactNode {
       {denseFootprint ? <div className="m4-footprint-density" data-testid="footprint-density">Dense footprint · maximize or zoom for values · exact data in Inspector</div> : null}
       {!view || !available ? <div className="m4-chart-empty">{!view ? loading ? 'Loading observed history…' : 'No visualization received.' : `No eligible ${MODE_LABEL[mode].toLowerCase()} in this window.`}<small>Missing evidence is not zero. No inferred or fixture history is drawn.</small></div> : null}
       {view && crosshair ? <div className="m4-chart-tooltip" role="tooltip">
-        <b>{crosshair.time_ns} ns</b><span>Exact price {crosshair.price ?? 'not applicable'}</span>
+        <b>{formatChartTime(view, crosshair.time_ns, timeZone, true)}</b><span>Exact price {crosshair.price ?? 'not applicable'}</span>
         {row >= 0 ? <span>Chart bucket {price} · step {view.price_step}</span> : null}
         {row < 0 ? <span>Price outside the current viewport; row evidence unavailable</span> : null}
         {mode === 'heatmap' ? <span>Resting B {column?.eligible ? cell?.[0] ?? 'unknown' : 'ineligible'} · A {column?.eligible ? cell?.[1] ?? 'unknown' : 'ineligible'} {view.quantity_unit}</span> : null}
         {metric ? <span>{metric.name}: {metric.eligibility.eligible ? metric.value ?? 'unavailable' : 'ineligible'} {metric.unit}</span> : null}
         {mode === 'candles' ? <span>O {column?.candle?.open ?? '—'} H {column?.candle?.high ?? '—'} L {column?.candle?.low ?? '—'} C {column?.candle?.close ?? '—'}</span> : null}
         {mode === 'footprint' || mode === 'profile' ? <span>B {(mode === 'profile' ? profile : footprint)?.buy_base ?? 'unavailable'} · S {(mode === 'profile' ? profile : footprint)?.sell_base ?? 'unavailable'} · ? {(mode === 'profile' ? profile : footprint)?.unknown_base ?? 'unavailable'} {view.quantity_unit}</span> : null}
-        {selectedTrades.slice(-3).map(trade => <span key={trade.id}>{trade.taker_side} {trade.base_quantity ?? 'unknown size'} @ {trade.price} · {trade.time_ns} ns{trade.is_subscription_history ? ' · subscription history' : ''}</span>)}
+        {selectedTrades.slice(-3).map(trade => <span key={trade.id}>{trade.taker_side} {trade.base_quantity ?? 'unknown size'} @ {trade.price} · {formatChartTime(view, trade.time_ns, timeZone, true)}{trade.is_subscription_history ? ' · subscription history' : ''}</span>)}
         {!column ? <span>No sampled column at this time</span> : <span>{column.eligible ? 'Book sample eligible' : 'Book sample ineligible'} · {column.segment_id}</span>}
       </div> : null}
     </div>
@@ -296,22 +304,35 @@ export function MarketCharts(props: MarketChartsProps): ReactNode {
       {view && (view.columns.length > CHART_LIMITS.columns || (report?.omittedTrades ?? 0) > 0 || (report?.omittedCells ?? 0) > 0) ? <details className="m4-quality-reasons"><summary className="m4-chart-warning">Display capped</summary><p>Newest {CHART_LIMITS.columns} columns / {CHART_LIMITS.trades} trades / {CHART_LIMITS.footprints} footprint cells. Native collection unchanged.</p></details> : null}
     {view ? <details className="m4-chart-readout"><summary>Exact data / quality · {column?.time_ns ?? 'no sampled time'} ns · price {price ?? 'unavailable'}</summary>
       <dl><dt>Clock / instrument</dt><dd>{view.clock_id} / {view.instrument_id}</dd><dt>Window (source monotonic ns)</dt><dd>{view.start_ns} → {view.end_ns}</dd><dt>Retention starts</dt><dd>{view.retained_start_ns ?? 'Unavailable'}</dd><dt>Grid / price quantum</dt><dd>{view.grid_id} / {view.price_step}</dd><dt>Selected sample</dt><dd>{column ? `${column.time_ns} → ${column.end_ns} · ${column.segment_id}` : 'No sample at cursor'}</dd><dt>Best bid / ask</dt><dd>{column?.best_bid ?? 'Unknown'} / {column?.best_ask ?? 'Unknown'}</dd></dl>
+      <dl>
+        <dt>Projected receive clock</dt><dd>{formatChartTime(view, crosshair?.time_ns ?? column?.time_ns ?? view.start_ns, timeZone, true)}</dd>
+        <dt>Cursor / sample source monotonic ns</dt><dd>{crosshair?.time_ns ?? column?.time_ns ?? 'Unavailable'}</dd>
+        <dt>Projected receive wall ns</dt><dd>{projectReceiveTime(view, crosshair?.time_ns ?? column?.time_ns ?? view.start_ns) ?? 'Unavailable'}</dd>
+        <dt>Sample original receive time (UTC)</dt><dd>{timestamp(column?.asof?.receive_wall_ns)} · {column?.asof?.receive_wall_ns ?? 'Unavailable'} ns</dd>
+        <dt>Sample original receive monotonic ns</dt><dd>{column?.asof?.receive_mono_ns ?? 'Unavailable'}</dd>
+        <dt>Sample original exchange event time (UTC)</dt><dd>{timestamp(column?.asof?.exchange_event_wall_ns)} · {column?.asof?.exchange_event_wall_ns ?? 'Unavailable'} ns</dd>
+      </dl>
       <label>Exact price row <select value={price ?? ''} onChange={event => onCrosshair({ time_ns: crosshair?.time_ns ?? column?.time_ns ?? view.start_ns, price: event.target.value })}><option value="" disabled>No price row at cursor</option>{view.prices.slice(0, CHART_LIMITS.rows).map(value => <option key={value} value={value}>{value}</option>)}</select></label>
       <label>Exact sampled time <select value={column?.time_ns ?? ''} onChange={event => onCrosshair({ time_ns: event.target.value, price: crosshair?.price ?? price ?? null })}><option value="" disabled>No sampled column</option>{view.columns.slice(-CHART_LIMITS.columns).map(item => <option key={item.id} value={item.time_ns}>{item.time_ns} ns · {item.eligible ? 'eligible' : 'ineligible'}</option>)}</select></label>
       {mode === 'cvd' || mode === 'ofi' ? <><p>{metric ? `${metric.name}: ${metric.value ?? 'Unavailable'} ${metric.unit} · ${metric.eligibility.eligible ? 'Eligible' : 'Ineligible'}` : 'No metric observation at cursor.'}</p>{metric ? <details><summary>Formula, window, quality and exact references</summary><pre>{JSON.stringify(metric, null, 2)}</pre></details> : null}</> : mode === 'candles' ? <p>Open {column?.candle?.open ?? '—'} · high {column?.candle?.high ?? '—'} · low {column?.candle?.low ?? '—'} · close {column?.candle?.close ?? '—'} · executed volume {column?.candle?.volume ?? '—'} {view.quantity_unit} · {column?.candle?.eligible ? 'Eligible' : 'Unavailable / ineligible'}</p> : <table><caption>Exact server aggregates · {view.quantity_unit} · up to 16 rows around selection; unknown ≠ zero</caption><thead><tr><th>Price lower bound</th>{mode === 'heatmap' ? <><th>Resting bid</th><th>Resting ask</th></> : <><th>Executed buy</th><th>Executed sell</th><th>Unknown side</th></>}</tr></thead><tbody>{(row < 0 ? [] : view.prices.slice(rowStart, rowStart + 16)).map((value, index) => {
         const amounts = mode === 'profile' ? profileIndex.get(value) : footprintIndex.get(`${column?.time_ns}:${value}`);
         return <tr key={value}><th scope="row">{value}</th>{mode === 'heatmap' ? <><td>{column?.eligible ? column.cells[rowStart + index]?.[0] ?? 'Unknown' : 'Ineligible'}</td><td>{column?.eligible ? column.cells[rowStart + index]?.[1] ?? 'Unknown' : 'Ineligible'}</td></> : <><td>{amounts?.buy_base ?? 'No observation'}</td><td>{amounts?.sell_base ?? 'No observation'}</td><td>{amounts?.unknown_base ?? 'No observation'}</td></>}</tr>;
       })}</tbody></table>}
-      <table><caption>Executed prints at selected time bucket · newest {Math.min(20, selectedTrades.length)} of {selectedTrades.length} displayed candidates · hollow/dashed = subscription history or unknown size</caption><thead><tr><th>Receive ns</th><th>Price</th><th>Base quantity</th><th>Taker side</th><th>Provenance</th></tr></thead><tbody>{selectedTrades.slice(-20).map(trade => <tr key={trade.id}><td>{trade.time_ns}</td><td>{trade.price}</td><td>{trade.base_quantity ?? 'Unknown'}</td><td>{trade.taker_side}</td><td>{trade.segment_id} · {trade.is_subscription_history ? 'Subscription history (excluded from observed flow)' : 'Observed execution'} · ordinal {trade.asof.ingest_ordinal}</td></tr>)}</tbody></table>
+      <table><caption>Executed prints at selected time bucket · newest {Math.min(20, selectedTrades.length)} of {selectedTrades.length} displayed candidates · hollow/dashed = subscription history or unknown size</caption><thead><tr><th>Projected receive clock</th><th>Source monotonic ns</th><th>Original receive (UTC / ns)</th><th>Original receive monotonic ns</th><th>Original exchange event (UTC / ns)</th><th>Price</th><th>Base quantity</th><th>Taker side</th><th>Provenance</th></tr></thead><tbody>{selectedTrades.slice(-20).map(trade => <tr key={trade.id}><td>{formatChartTime(view, trade.time_ns, timeZone, true)}</td><td>{trade.time_ns}</td><td>{timestamp(trade.asof.receive_wall_ns)} · {trade.asof.receive_wall_ns} ns</td><td>{trade.asof.receive_mono_ns}</td><td>{timestamp(trade.asof.exchange_event_wall_ns)} · {trade.asof.exchange_event_wall_ns ?? 'Unavailable'} ns</td><td>{trade.price}</td><td>{trade.base_quantity ?? 'Unknown'}</td><td>{trade.taker_side}</td><td>{trade.segment_id} · {trade.is_subscription_history ? 'Subscription history (excluded from observed flow)' : 'Observed execution'} · ordinal {trade.asof.ingest_ordinal}</td></tr>)}</tbody></table>
       {column?.asof ? <details><summary>Sample reference</summary><pre>{JSON.stringify(column.asof, null, 2)}</pre></details> : null}
     </details> : null}
-    <details className="m4-chart-performance"><summary>Renderer diagnostics</summary>{report ? `Draw CPU ${report.duration.toFixed(2)} ms · dirty ${report.dirty} · tiles ${report.tiles}/${CHART_LIMITS.tiles} · trades ${report.trades} · receive→paint ${paintMs == null ? 'unmeasured' : `${paintMs.toFixed(1)} ms`}` : 'Render timing unavailable'} · paint opportunities, not GPU completion. Time labels are offsets from window start; no wall-clock inference.</details>
+    <details className="m4-chart-performance"><summary>Renderer diagnostics</summary>{report ? `Draw CPU ${report.duration.toFixed(2)} ms · dirty ${report.dirty} · tiles ${report.tiles}/${CHART_LIMITS.tiles} · trades ${report.trades} · receive→paint ${paintMs == null ? 'unmeasured' : `${paintMs.toFixed(1)} ms`}` : 'Render timing unavailable'} · paint opportunities, not GPU completion.</details>
       {props.diagnostics}
     </aside>
     </div>
     <div className="m4-chart-quality" role="status">
-      <span>{view ? `${view.complete_window ? 'Complete window' : 'Partial window'}${view.truncated ? ' · truncated' : ''} · ${view.quantity_unit}` : 'Awaiting source evidence'}{reasons.length ? <span className="m4-chart-warning"> · {reasons.length} quality {reasons.length === 1 ? 'reason' : 'reasons'} · Inspector</span> : null}{view && (view.columns.length > CHART_LIMITS.columns || (report?.omittedTrades ?? 0) > 0 || (report?.omittedCells ?? 0) > 0) ? <span className="m4-chart-warning"> · Display capped</span> : null}</span>
-      {props.freshness}
+      <span className="m4-chart-clock-context" aria-label="Chart receive-clock date and timezone">Receive · {clockContext}</span>
+      <span className="m4-chart-window-quality">
+        <span>{view ? `${view.complete_window ? 'Complete window' : 'Partial window'}${view.truncated ? ' · truncated' : ''} · ${view.quantity_unit}` : 'Awaiting source evidence'}</span>
+        {reasons.length ? <span className="m4-chart-warning">{reasons.length} quality {reasons.length === 1 ? 'reason' : 'reasons'} · Inspector</span> : null}
+        {view && (view.columns.length > CHART_LIMITS.columns || (report?.omittedTrades ?? 0) > 0 || (report?.omittedCells ?? 0) > 0) ? <span className="m4-chart-warning">Display capped</span> : null}
+      </span>
+      <div className="m4-chart-freshness">{props.freshness}</div>
     </div>
   </section>;
 }

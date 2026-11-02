@@ -1130,6 +1130,12 @@ def test_live_inflight_ownership_remains_charged_until_cancelled_worker_joins(
 
 
 def test_live_batched_owner_preserves_order_and_complete_observer_state(tmp_path):
+    from types import SimpleNamespace
+
+    from src.workstation.precision import DERIVED_DECIMAL_POLICY
+    from src.workstation.visuals import CheckpointState, digest
+    from src.workstation.wire import loads
+
     async def scenario():
         runtime, registry, instrument = live_runtime(tmp_path)
         try:
@@ -1155,18 +1161,101 @@ def test_live_batched_owner_preserves_order_and_complete_observer_state(tmp_path
                 await serial.work(serial._apply_live, events, (), len(repr(events)))
             batched.live_task = asyncio.create_task(batched.consume_live())
             async with asyncio.timeout(5):
-                while batched.delivery < len(deliveries):
+                while batched.delivery < len(deliveries) or batched.live_bytes:
                     await asyncio.sleep(0.001)
 
             def checkpoint(owner):
                 return tuple(observer.checkpoint() for observer in owner._observers())
 
-            assert await batched.work(checkpoint, batched) == await serial.work(
-                checkpoint, serial
+            batched_state = await batched.work(checkpoint, batched)
+            serial_state = await serial.work(checkpoint, serial)
+            # Independent live clients deliberately have different source fences.
+            # Keep exact context, alert and financial state equality; only the
+            # visual source/scope IDs and their derived segment IDs may differ.
+            assert batched_state[1:] == serial_state[1:]
+            assert batched.source_identity != serial.source_identity
+            axes = []
+            market_states = []
+            for owner, state in zip(owners, (batched_state, serial_state), strict=True):
+                visual = loads(
+                    state[0], CheckpointState, decimal_policy=DERIVED_DECIMAL_POLICY
+                )
+                *market, axis = visual
+                market_states.append(market)
+                axes.append(axis)
+                assert axis[2] == owner.source_identity == owner.visuals.source_identity
+                assert axis[4] == owner.visuals.clock_scope
+                assert axis[10]
+                assert axis[4] == digest(
+                    (
+                        axis[0],
+                        axis[2],
+                        owner.live_clock.reading.clock_id,
+                        axis[3],
+                        axis[10][0][2],
+                    )
+                )
+                for segment_id, stamp, reference, _cause, _change in axis[10]:
+                    assert segment_id == digest((axis[4], stamp, reference))
+            assert market_states[0] == market_states[1]
+            left, right = axes
+            assert left[4] != right[4]
+            assert {segment[0] for segment in left[10]}.isdisjoint(
+                segment[0] for segment in right[10]
             )
-            assert [batch.events for batch in batched.history] == deliveries
-            assert batched.status == "live"
-            assert batched.live_bytes == 0
+            # Preserve projection policy, epoch, clock key, retained bounds,
+            # truncation/change flags, every receive pair and unapplied evidence.
+            assert left[:2] == right[:2]
+            assert left[3] == right[3]
+            assert left[5:10] == right[5:10]
+            assert [segment[1:] for segment in left[10]] == [
+                segment[1:] for segment in right[10]
+            ]
+            assert left[11:] == right[11:]
+
+            request = SimpleNamespace(
+                start_ns=str(start),
+                end_ns=str(start + len(deliveries)),
+                price_step="1",
+                price_min=None,
+                price_offset_rows=0,
+                recenter=False,
+                bucket_ns="1000000000",
+                rows=32,
+                max_columns=180,
+                after_column=None,
+            )
+            views = []
+            for owner, axis, state in zip(
+                owners, axes, (batched_state, serial_state), strict=True
+            ):
+                snapshot = await owner.work(owner.visuals.query_snapshot)
+                view = await owner.work(snapshot.query, request, 0)
+                projected = view["time_axis"]
+                assert projected.pop("source_identity") == owner.source_identity
+                assert projected.pop("scope_id") == axis[4]
+                assert projected["segments"]
+                assert [segment.pop("id") for segment in projected["segments"]] == [
+                    segment[0] for segment in axis[10]
+                ]
+                views.append(view)
+                other = serial if owner is batched else batched
+                assert not await other.work(other.visuals.accept_query, snapshot)
+                with pytest.raises(
+                    ValueError, match="incompatible visualization clock"
+                ):
+                    await other.work(other.visuals.restore, state[0])
+            assert views[0] == views[1]
+            for owner in owners:
+                assert owner.delivery == len(deliveries)
+                assert [batch.events for batch in owner.history] == deliveries
+                assert [batch.delivery_index for batch in owner.history] == list(
+                    range(1, len(deliveries) + 1)
+                )
+                assert owner.status == "live"
+                assert owner.live_queue.empty()
+                assert owner.live_bytes == 0
+                assert owner.live_inflight == 0
         finally:
             await runtime.close()
             await registry.close()

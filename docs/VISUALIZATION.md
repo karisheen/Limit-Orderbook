@@ -26,6 +26,69 @@ reasons rather than inventing cross-clock alignment. Source/gap transitions have
 separate segment identities; multi-segment candle/footprint buckets are omitted
 and report `interval_segment_discontinuity`.
 
+### Receive-clock display projection
+
+Every visual response carries a complete `time_axis`, including no-book and
+unchanged-column incremental responses. It is a native piecewise projection of
+the existing receive-monotonic admission coordinates, not exchange time and not
+a browser-estimated offset. Within an admitted segment:
+
+```text
+projected_wall_ns(t) = reference.receive_wall_ns
+                      + (t - reference.receive_mono_ns)
+```
+
+The original paired receive reference is retained exactly. `segment.start_ns`
+is its inclusive admission boundary, **not** the receive-mono anchor used in the
+equation. An initially late pair can therefore establish a projection at a later
+admission highwater without backfilling earlier coordinates. Clock reads at the
+receive boundary are sequential observations, not a claim of atomic measurement
+or synchronized exchange time.
+
+The first completed delivery establishes the initial segment even without a
+validated book. A strictly advancing delivery whose original receive mono equals
+the admission frontier establishes a new segment when its wall-minus-mono offset
+differs from the active offset by at least **1,000,000 ns**. Smaller changes leave
+the anchor unchanged; this threshold is an explicit display policy, not financial
+tolerance or an accuracy guarantee. Positive and negative steps affect only
+labels from the new boundary onward. Late and equal-highwater conflicting pairs
+never relabel existing coordinates; the latest retained conflict is exposed in
+`last_unapplied_pair` with `nonadvancing_receive_pair`.
+
+Projection coverage has inclusive endpoints, unlike the half-open financial
+window. There are no projected labels before the first admitted pair or beyond
+the captured frontier. A historical query returns the original predecessor
+segment at its coverage start and transitions through its end; future references
+and unapplied-pair diagnostics are excluded. Missing projection reports
+`receive_clock_unavailable`, never a fabricated date. Clock reasons are separate
+from financial eligibility and do not alter quantities, bucket ownership,
+sampling, candles, footprints or `complete_window`.
+
+The observer retains at most 1,801 immutable segments and one unapplied pair,
+covering at most the latest 1,800 seconds independently of book availability.
+Time eviction preserves the original predecessor needed at the retention floor.
+Segment-count and shared 32 MiB byte-budget eviction retire old coverage rather
+than merging unequal offsets or extrapolating a future anchor backwards.
+`receive_clock_history_truncated` and
+`requested_receive_clock_history_unavailable` disclose lost/requested coverage.
+
+Runtime supplies its established recording/demo/live `source_identity`.
+Standalone observers derive identity from the raw evidence session, leaving it
+empty before evidence when no identity is configured. `scope_id` identifies a
+contiguous source-session/clock epoch, with deterministic epoch numbering so an
+A → B → A transition cannot reuse the first A mapping. Source-clock cutovers
+discard the prior projection and report `source_clock_changed`. The query
+snapshot owns a copied bounded segment container and immutable records; accepting
+a query commits presentation state only and rejects reset, source or epoch
+cutovers, never replacing owner clock evidence.
+
+Observer checkpoints are version **3** and include projection policy, exact
+anchors, epoch, coverage, truncation and the unapplied pair. Restore rejects
+incompatible policy/source/version; reset clears evidence but preserves configured
+source identity. Replay continues to reset/recompute the actual prefix on seek,
+so later wall steps cannot leak into a rewind and pacing cannot select anchors.
+
+
 The economic price grid remains zero-origin. Exact Decimal display steps use
 source-compatible quanta; known fixed ticks supply multiples, while
 variable/unknown ticks report `display_quantum_not_native_tick`. A display
@@ -213,16 +276,16 @@ unchanged; this is not a larger queue, shallower native book or omitted evidence
 Closed metric provenance is encoded once per retained sample, within that same
 32 MiB budget. Queries decode fresh containers, so consumer mutation cannot
 alter native history or later responses. Eviction/reset removes the derived
-bytes; checkpoint restoration rebuilds them without changing the checkpoint
-schema or native metric values.
+bytes; checkpoint restoration rebuilds them without changing native metric
+values. The receive-clock addition uses observer checkpoint version 3.
 
 Replay seek/reset uses the existing replay reset/recompute path. Selection
 rebuilds actual observations through the same owned reader to the existing
 cursor; it does not fabricate history from the selected current book. Live
 selection starts at its subscription boundary and cannot claim pre-subscription
 history. All analytical state, admission caches, dedup state, samples, trades,
-and elapsed flow-quality intervals are checkpointed or reset/reconstructed;
-presentation quantum/recenter preferences do not insert
+elapsed flow-quality intervals, and receive-clock projection are checkpointed or
+reset/reconstructed; presentation quantum/recenter preferences do not insert
 future market evidence. Playback speed changes pacing only.
 
 ## Ladder and proposal risk
