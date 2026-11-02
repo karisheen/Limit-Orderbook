@@ -53,7 +53,6 @@ test('v1 workspaces migrate to independent chart, tape and cursor settings', () 
   assert.equal(old.mode, 'candles');
   assert.equal(old.secondary.mode, 'footprint');
   assert.equal(old.secondary.priceStep, '');
-  assert.equal(old.secondary.bucket, '5000000000');
   assert.equal(old.leftWidth, 240);
   assert.equal(old.leftOpen, false);
   assert.equal(old.bottomOpen, false);
@@ -95,6 +94,46 @@ test('legacy and invalid saved chart time zones migrate safely without discardin
     assert.equal(restored.secondary.timeZone, 'UTC');
     assert.equal(restored.priceStep, '0.00001');
     assert.equal(restored.secondary.bucket, '10000000000');
+  }
+});
+
+test('saved footprint intervals and explicit overlays survive migration to detailed row preferences', () => {
+  for (const enabled of [true, false]) {
+    const legacy = { version: 1, bucket: '10000000000', showTrades: !enabled, showQuotes: !enabled,
+      secondary: { mode: 'footprint', bucket: '5000000000', rangeSeconds: 180, showTrades: enabled, showQuotes: enabled } };
+    const migrated = validatePreferences(JSON.parse(JSON.stringify(legacy)));
+    assert.equal(migrated.bucket, '10000000000');
+    assert.equal(migrated.showTrades, !enabled);
+    assert.equal(migrated.showQuotes, !enabled);
+    assert.equal(migrated.secondary.bucket, '5000000000');
+    assert.equal(migrated.secondary.rangeSeconds, 180);
+    assert.equal(migrated.secondary.showTrades, enabled);
+    assert.equal(migrated.secondary.showQuotes, enabled);
+    assert.equal(migrated.footprintOverview, false);
+    assert.equal(migrated.secondary.footprintOverview, false);
+  }
+});
+
+test('explicit overview and six-second follow preferences survive presets, reload and workspace slots independently', () => {
+  const saved = validatePreferences({ version: 1, footprintOverview: true,
+    secondary: { footprintOverview: false, bucket: '1000000000', rangeSeconds: 6, showTrades: false, showQuotes: true } });
+  const preset = validatePreferences({ ...saved, ...presetLayout('analysis') });
+  const reloaded = validatePreferences(JSON.parse(JSON.stringify(preset)));
+  assert.equal(reloaded.footprintOverview, true);
+  assert.equal(reloaded.secondary.footprintOverview, false);
+  assert.equal(reloaded.secondary.rangeSeconds, 6);
+  assert.equal(reloaded.secondary.showQuotes, true);
+  const slots = validateWorkspaceSlots([reloaded]);
+  const restored = applyWorkspaceSlot(validatePreferences(null), slots[0]!);
+  assert.equal(restored.footprintOverview, true);
+  assert.deepEqual(chartSettings(restored.secondary), chartSettings(reloaded.secondary));
+  const inverse = validatePreferences({ ...saved, footprintOverview: false, secondary: { ...saved.secondary, footprintOverview: true } });
+  assert.equal(inverse.footprintOverview, false);
+  assert.equal(inverse.secondary.footprintOverview, true);
+  for (const invalid of ['true', 1, null]) {
+    const rejected = validatePreferences({ ...saved, footprintOverview: invalid, secondary: { ...saved.secondary, footprintOverview: invalid } });
+    assert.equal(rejected.footprintOverview, false);
+    assert.equal(rejected.secondary.footprintOverview, false);
   }
 });
 

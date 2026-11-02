@@ -2,12 +2,18 @@ import type { VisualGrid } from './api';
 import { chartTimeTicks } from './chart-time';
 import type { ChartTimeZone } from './chart-time';
 import { CHART_LIMITS, COLORS, boundedSize, intensity, liquidityTileKey, plotArea, plotNumber, priceCellIndex, priceRowProjector, saturation, sideColor, timeAt, timeFraction } from './market-charts-model';
-import type { ChartCursor, ChartMode, PlotArea } from './market-charts-model';
+import type { ChartCursor, ChartMode, ChartRowViewport, PlotArea } from './market-charts-model';
 
 type Column = VisualGrid['columns'][number];
 type Surface = { canvas: HTMLCanvasElement; context: CanvasRenderingContext2D };
-export type RenderReport = { duration: number; tiles: number; allocated: number; dirty: number; trades: number; omittedTrades: number; omittedCells: number; pixelWidth: number; pixelHeight: number };
-export type RenderOptions = { mode: ChartMode; contrast: number; showTrades: boolean; showQuotes: boolean; timeZone: ChartTimeZone };
+export type RenderReport = { duration: number; tiles: number; allocated: number; dirty: number; trades: number; omittedTrades: number; omittedCells: number; pixelWidth: number; pixelHeight: number; compactFootprint: boolean };
+export type RenderOptions = { mode: ChartMode; contrast: number; showTrades: boolean; showQuotes: boolean; timeZone: ChartTimeZone; rowViewport: ChartRowViewport; quoteUnit?: string };
+
+const FOOTPRINT_LANES = [
+  [0, 'sell_base', COLORS.sell, 'SELL'],
+  [1, 'buy_base', COLORS.buy, 'BUY'],
+  [2, 'unknown_base', COLORS.unknown, '?'],
+] as const;
 
 /** One immutable two-side column tile. At most 640 × 2 × 256 RGBA pixels. */
 export class MarketRenderer {
@@ -79,7 +85,7 @@ export class MarketRenderer {
       for (let side = 0; side < 2; side++) {
         const sourceSide = occupiedSide ?? side;
         const value = sourceSide === 0 ? bid : ask;
-        context.globalAlpha = value == null ? 1 : value === 0 ? 0 : 0.15 + value * 0.85;
+        context.globalAlpha = value == null ? 1 : value * value;
         context.fillStyle = value == null ? COLORS.missing : sourceSide === 0 ? COLORS.bid : COLORS.ask;
         context.fillRect(side, canvas.height - row - 1, 1, 1);
       }
@@ -108,11 +114,13 @@ export class MarketRenderer {
     const area = plotArea(this.width, this.height);
     const x = (time: string) => area.x + timeFraction(time, view.start_ns, view.end_ns) * area.width;
     const priceRow = priceRowProjector(view.price_min, view.price_step);
-    const y = (price: string) => area.y + area.height - priceRow(price) / view.rows * area.height;
+    const { first, count } = options.rowViewport;
+    const y = (price: string) => area.y + area.height - (priceRow(price) - first) / count * area.height;
     const columns = view.columns.slice(-CHART_LIMITS.columns);
     const ctx = this.base.context;
-    const geometry = JSON.stringify([this.width, this.height, this.size.ratio, view.grid_id, view.start_ns, view.end_ns, view.price_min, view.rows, options.mode, saturation(options.contrast), options.timeZone]);
+    const geometry = JSON.stringify([this.width, this.height, this.size.ratio, view.grid_id, view.start_ns, view.end_ns, view.price_min, view.rows, first, count, options.mode, saturation(options.contrast), options.timeZone, options.quoteUnit]);
     let dirty = 0;
+    let compactFootprint = false;
     if (options.mode === 'heatmap') {
       const current = new Map(columns.map(column => [column.id, liquidityTileKey(view, column, options.contrast)]));
       const reset = geometry !== this.geometry || [...this.drawn.keys()].some(id => !current.has(id));
@@ -129,19 +137,20 @@ export class MarketRenderer {
         const width = x(column.end_ns) - left;
         if (width <= 0 || left >= area.x + area.width || left + width <= area.x) continue;
         ctx.clearRect(left, area.y, width, area.height);
-        ctx.drawImage(this.tile(view, column, options.contrast), left, area.y, width, area.height);
+        const tile = this.tile(view, column, options.contrast);
+        ctx.drawImage(tile, 0, view.rows - first - count, 2, count, left, area.y, width, area.height);
         if (!column.eligible) this.missing(ctx, left, area.y, width, area.height);
         else {
           // Unknown side depth is hatched; observed zero keeps the unmarked canvas.
           // Coalesce adjacent unknown rows so bounded tiles do not create a path per cell.
-          const height = area.height / view.rows;
+          const height = area.height / count;
           for (let side = 0; side < 2; side++) {
             let start = -1;
-            for (let row = 0; row <= view.rows; row++) {
-              const unknown = row < view.rows && column.cells[row]?.[side] == null;
+            for (let row = first; row <= first + count; row++) {
+              const unknown = row < first + count && column.cells[row]?.[side] == null;
               if (unknown && start < 0) start = row;
               if (!unknown && start >= 0) {
-                this.missing(ctx, left + side * width / 2, area.y + area.height - row * height, width / 2, (row - start) * height);
+                this.missing(ctx, left + side * width / 2, area.y + area.height - (row - first) * height, width / 2, (row - start) * height);
                 start = -1;
               }
             }
@@ -156,7 +165,7 @@ export class MarketRenderer {
       ctx.fillRect(0, 0, this.width, this.height);
       ctx.save();
       ctx.beginPath(); ctx.rect(area.x, area.y, area.width, area.height); ctx.clip();
-      if (options.mode !== 'profile') {
+      if (options.mode !== 'profile' && options.mode !== 'footprint') {
         this.missing(ctx, area.x, area.y, area.width, area.height);
         for (const column of columns) {
           const available = options.mode === 'candles' ? column.candle?.eligible : options.mode === 'cvd' || options.mode === 'ofi' ? column[options.mode]?.eligibility.eligible : column.eligible;
@@ -174,22 +183,66 @@ export class MarketRenderer {
           ctx.fillRect(middle - width / 2, Math.min(y(candle.open), y(candle.close)), width, Math.max(1, Math.abs(y(candle.close) - y(candle.open))));
         }
       } else if (options.mode === 'footprint') {
-        const rowHeight = area.height / view.rows;
+        const rowHeight = area.height / count;
         const bucketWidth = Number(BigInt(view.bucket_ns)) / Number(BigInt(view.end_ns) - BigInt(view.start_ns)) * area.width;
-        ctx.font = '10px ui-monospace, monospace';
-        for (const cell of view.footprints.slice(-CHART_LIMITS.footprints)) {
-          const left = x(cell.time_ns);
-          const top = y(cell.price) - rowHeight;
-          [cell.buy_base, cell.sell_base, cell.unknown_base].forEach((value, side) => {
-            ctx.globalAlpha = 0.18 + (intensity(value, options.contrast) ?? 0) * 0.82;
-            ctx.fillStyle = [COLORS.buy, COLORS.sell, COLORS.unknown][side] ?? COLORS.unknown;
-            if (plotNumber(value) !== 0) ctx.fillRect(left + side * bucketWidth / 3, top, Math.max(1, bucketWidth / 3 - 1), rowHeight);
-            ctx.globalAlpha = 1;
-            if (bucketWidth >= 125 && rowHeight >= 13) { ctx.fillStyle = '#ffffff'; ctx.fillText(value, left + side * bucketWidth / 3 + 2, top + rowHeight - 2, bucketWidth / 3 - 3); }
-          });
+        const cells = view.footprints.slice(-CHART_LIMITS.footprints).filter(cell => {
+          const row = priceCellIndex(view, cell.price);
+          return row >= first && row < first + count && x(cell.time_ns) < area.x + area.width && x(cell.time_ns) + bucketWidth > area.x;
+        });
+        const unknown = cells.some(cell => plotNumber(cell.unknown_base) !== 0);
+        const lanes = unknown ? 3 : 2;
+        const candleSpace = 12;
+        ctx.font = '11px ui-monospace, monospace';
+        // Edge buckets keep their native time bounds, but only their visible intersection can hold text.
+        compactFootprint = rowHeight < 18 || cells.some(cell => {
+          const bucketLeft = x(cell.time_ns);
+          const visibleWidth = Math.min(area.x + area.width, bucketLeft + bucketWidth) - Math.max(area.x, bucketLeft);
+          const laneWidth = (visibleWidth - candleSpace - 8) / lanes;
+          return laneWidth < 34 || FOOTPRINT_LANES.some(([side, field, , label]) =>
+            side < lanes && (ctx.measureText(cell[field]).width > laneWidth - 6 || ctx.measureText(label).width > laneWidth - 6));
+        });
+        ctx.strokeStyle = '#242a2f'; ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let row = 0; row <= count; row++) {
+          const py = area.y + row * rowHeight;
+          ctx.moveTo(area.x, py); ctx.lineTo(area.x + area.width, py);
         }
+        ctx.stroke();
+        for (const column of columns) {
+          const left = x(column.time_ns);
+          const candle = column.candle;
+          if (candle?.eligible) {
+            const middle = left + 5;
+            ctx.strokeStyle = ctx.fillStyle = priceRow(candle.close) >= priceRow(candle.open) ? COLORS.buy : COLORS.sell;
+            ctx.beginPath(); ctx.moveTo(middle, y(candle.high)); ctx.lineTo(middle, y(candle.low)); ctx.stroke();
+            ctx.fillRect(middle - 2, Math.min(y(candle.open), y(candle.close)), 4, Math.max(1, Math.abs(y(candle.close) - y(candle.open))));
+          }
+        }
+        ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+        for (const cell of cells) {
+          const bucketLeft = x(cell.time_ns);
+          const visibleLeft = Math.max(area.x, bucketLeft);
+          const visibleRight = Math.min(area.x + area.width, bucketLeft + bucketWidth);
+          const left = visibleLeft + (compactFootprint ? 0 : candleSpace);
+          const laneWidth = (visibleRight - left - (compactFootprint ? 0 : 8)) / lanes;
+          const top = area.y + area.height - (priceCellIndex(view, cell.price) - first + 1) * rowHeight;
+          for (const [side, field, color] of FOOTPRINT_LANES) {
+            if (side >= lanes) break;
+            const value = cell[field];
+            const strength = intensity(value, options.contrast) ?? 0;
+            ctx.fillStyle = color;
+            ctx.globalAlpha = plotNumber(value) === 0 ? 0 : 0.08 + strength * 0.3;
+            ctx.fillRect(left + side * laneWidth, top + 1, Math.max(0, laneWidth - Math.min(1, laneWidth / 2)), Math.max(1, rowHeight - 2));
+            ctx.globalAlpha = 1;
+            if (!compactFootprint) {
+              ctx.fillStyle = plotNumber(value) === 0 ? '#68747d' : color;
+              ctx.fillText(value, left + (side + 1) * laneWidth - 4, top + rowHeight / 2);
+            }
+          }
+        }
+        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
       } else if (options.mode === 'profile') {
-        const rowHeight = area.height / view.rows;
+        const rowHeight = area.height / count;
         for (const cell of view.profile.slice(0, CHART_LIMITS.rows)) {
           [cell.buy_base, cell.sell_base, cell.unknown_base].forEach((value, side) => {
             ctx.fillStyle = [COLORS.buy, COLORS.sell, COLORS.unknown][side] ?? COLORS.unknown;
@@ -204,9 +257,35 @@ export class MarketRenderer {
       this.drawn.clear();
     }
     this.geometry = geometry;
-    this.axes(view, options.mode, options.contrast, options.timeZone, x, area);
+    this.axes(view, options, x, area);
     const trades = this.overlays(view, options, columns, x, y, area);
-    return { duration: performance.now() - started, tiles: this.tiles.size, allocated: this.allocated, dirty, trades, omittedTrades: Math.max(0, view.trades.length - CHART_LIMITS.trades), omittedCells: options.mode === 'footprint' ? Math.max(0, view.footprints.length - CHART_LIMITS.footprints) : 0, pixelWidth: this.size.pixelWidth, pixelHeight: this.size.pixelHeight };
+    if (options.mode === 'footprint' && !compactFootprint) {
+      const width = Number(BigInt(view.bucket_ns)) / Number(BigInt(view.end_ns) - BigInt(view.start_ns)) * area.width;
+      const unknown = view.footprints.slice(-CHART_LIMITS.footprints).some(cell => {
+        const row = priceCellIndex(view, cell.price);
+        return row >= first && row < first + count && x(cell.time_ns) < area.x + area.width && x(cell.time_ns) + width > area.x && plotNumber(cell.unknown_base) !== 0;
+      });
+      const lanes = unknown ? 3 : 2;
+      const plotRight = area.x + area.width;
+      ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'center';
+      for (const column of columns) {
+        const bucketLeft = x(column.time_ns);
+        const left = Math.max(area.x, bucketLeft);
+        const right = Math.min(plotRight, bucketLeft + width);
+        const laneWidth = (right - left - 20) / lanes;
+        if (laneWidth < 34) continue;
+        for (const [side, , color, label] of FOOTPRINT_LANES) {
+          if (side >= lanes) break;
+          const px = left + 12 + (side + 0.5) * laneWidth;
+          const labelWidth = ctx.measureText(label).width;
+          if (labelWidth > laneWidth - 6 || px - labelWidth / 2 < left || px + labelWidth / 2 > right) continue;
+          ctx.fillStyle = color;
+          ctx.fillText(label, px, 11);
+        }
+      }
+      ctx.textAlign = 'left';
+    }
+    return { duration: performance.now() - started, tiles: this.tiles.size, allocated: this.allocated, dirty, trades, omittedTrades: Math.max(0, view.trades.length - CHART_LIMITS.trades), omittedCells: options.mode === 'footprint' ? Math.max(0, view.footprints.length - CHART_LIMITS.footprints) : 0, pixelWidth: this.size.pixelWidth, pixelHeight: this.size.pixelHeight, compactFootprint };
   }
 
   private missing(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number) {
@@ -242,26 +321,28 @@ export class MarketRenderer {
     ctx.stroke();
   }
 
-  private axes(view: VisualGrid, mode: ChartMode, contrast: number, timeZone: ChartTimeZone, x: (time: string) => number, area: PlotArea) {
+  private axes(view: VisualGrid, options: RenderOptions, x: (time: string) => number, area: PlotArea) {
+    const { mode, contrast, timeZone, rowViewport: { first, count }, quoteUnit } = options;
     const ctx = this.base.context;
     ctx.fillStyle = COLORS.background;
     ctx.fillRect(area.x + area.width, 0, this.width - area.x - area.width, this.height);
     ctx.fillRect(0, area.y + area.height, this.width, this.height - area.y - area.height);
-    ctx.font = '10px ui-monospace, monospace'; ctx.fillStyle = COLORS.text;
+    ctx.font = '11px ui-monospace, monospace'; ctx.fillStyle = COLORS.text;
     if (mode !== 'cvd' && mode !== 'ofi') {
-      const stride = Math.max(1, Math.ceil(view.rows / Math.max(2, Math.floor(area.height / 42))));
-      for (let index = 0; index < Math.min(view.rows, CHART_LIMITS.rows); index += stride) {
+      if (quoteUnit) ctx.fillText(quoteUnit, area.x + area.width + 7, 11);
+      const stride = Math.max(1, Math.ceil(count / Math.max(2, Math.floor(area.height / (mode === 'footprint' ? 20 : 42)))));
+      for (let index = first; index < Math.min(first + count, CHART_LIMITS.rows); index += stride) {
         const price = view.prices[index];
         if (price == null) continue;
-        const py = area.y + area.height - (index + 0.5) / view.rows * area.height;
-        ctx.fillText(price, area.x + area.width + 7, py + 3, 90);
+        const py = area.y + area.height - (index - first + 0.5) / count * area.height;
+        ctx.fillText(price, area.x + area.width + 7, py + 3);
       }
     }
     if (mode === 'profile') {
       for (let index = 0; index <= 4; index++) {
         const time = timeAt(index / 4, view.start_ns, view.end_ns);
         ctx.textAlign = index === 4 ? 'right' : 'left';
-        ctx.fillText(`${(saturation(contrast) * index / 4).toPrecision(3)} ${view.quantity_unit}`, x(time), area.y + area.height + 17, area.width / 4 - 4);
+        ctx.fillText(`${(saturation(contrast) * index / 4).toPrecision(3)} ${view.quantity_unit}`, x(time), area.y + area.height + 17);
       }
     } else {
       ctx.textAlign = 'center';
@@ -285,7 +366,7 @@ export class MarketRenderer {
     ctx.save(); ctx.beginPath(); ctx.rect(area.x, area.y, area.width, area.height); ctx.clip();
     if (options.showQuotes) {
       for (const side of ['best_bid', 'best_ask'] as const) {
-        ctx.strokeStyle = side === 'best_bid' ? COLORS.bid : COLORS.ask; ctx.lineWidth = 1.3;
+        ctx.strokeStyle = side === 'best_bid' ? COLORS.bid : COLORS.ask; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
         let previous: Column | undefined;
         ctx.beginPath();
         for (const column of columns) {
@@ -298,6 +379,7 @@ export class MarketRenderer {
         }
         ctx.stroke();
       }
+      ctx.setLineDash([]);
     }
     let count = 0;
     if (options.showTrades) {
@@ -316,10 +398,44 @@ export class MarketRenderer {
       }
     }
     ctx.restore();
+    if (options.mode === 'heatmap') {
+      const markers: { price: string; label: string; color: string; execution: boolean }[] = [];
+      const newestColumn = columns.at(-1);
+      const now = BigInt(view.now_ns), start = BigInt(view.start_ns), end = BigInt(view.end_ns);
+      if (options.showQuotes && view.clock_id && newestColumn?.eligible && newestColumn.asof?.clock_id === view.clock_id &&
+        BigInt(newestColumn.time_ns) < end && BigInt(newestColumn.end_ns) > start &&
+        BigInt(newestColumn.asof.receive_mono_ns) <= now && BigInt(newestColumn.asof.receive_mono_ns) <= end) {
+        if (newestColumn.best_bid !== null) markers.push({ price: newestColumn.best_bid, label: 'B', color: COLORS.bid, execution: false });
+        if (newestColumn.best_ask !== null) markers.push({ price: newestColumn.best_ask, label: 'A', color: COLORS.ask, execution: false });
+      }
+      let latest: VisualGrid['trades'][number] | undefined;
+      if (options.showTrades) {
+        for (const trade of view.trades.slice(-CHART_LIMITS.trades)) {
+          const time = BigInt(trade.time_ns), received = BigInt(trade.asof.receive_mono_ns);
+          if (trade.is_subscription_history || !view.clock_id || trade.asof.clock_id !== view.clock_id || time < start || time >= end || time > now || received > now || received > end || received < start) continue;
+          if (!latest || time > BigInt(latest.time_ns)) latest = trade;
+        }
+      }
+      if (latest) markers.push({ price: latest.price, label: 'T', color: sideColor(latest.taker_side), execution: true });
+      const visible = markers.filter(marker => y(marker.price) >= area.y && y(marker.price) <= area.y + area.height).sort((a, b) => y(a.price) - y(b.price));
+      ctx.font = '11px ui-monospace, monospace';
+      let previousY = area.y - 16;
+      for (const [index, marker] of visible.entries()) {
+        const py = y(marker.price);
+        const labelY = Math.max(previousY + 16, Math.min(py, area.y + area.height - (visible.length - index - 1) * 16));
+        previousY = labelY;
+        ctx.fillStyle = ctx.strokeStyle = marker.color;
+        ctx.setLineDash(marker.execution ? [] : [2, 2]);
+        ctx.beginPath(); ctx.moveTo(area.x + area.width - 16, py); ctx.lineTo(area.x + area.width, py); ctx.lineTo(area.x + area.width + 4, labelY); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = COLORS.background; ctx.fillRect(area.x + area.width + 5, labelY - 8, 94, 15);
+        ctx.fillStyle = marker.color; ctx.fillText(`${marker.label} ${marker.price}`, area.x + area.width + 7, labelY + 4);
+      }
+    }
     return count;
   }
 
-  drawCursor(view: VisualGrid | null, cursor: ChartCursor | null, mode: ChartMode) {
+  drawCursor(view: VisualGrid | null, cursor: ChartCursor | null, mode: ChartMode, rowViewport: ChartRowViewport) {
     const ctx = this.cursor.context;
     ctx.clearRect(0, 0, this.width, this.height);
     if (!view || !cursor) return;
@@ -331,8 +447,9 @@ export class MarketRenderer {
     ctx.beginPath();
     if (mode !== 'profile') { ctx.moveTo(px, area.y); ctx.lineTo(px, area.y + area.height); }
     const row = cursor.price == null ? -1 : priceCellIndex(view, cursor.price);
-    if (row >= 0 && cursor.price != null && mode !== 'cvd' && mode !== 'ofi') {
-      const py = area.y + area.height - priceRowProjector(view.price_min, view.price_step)(cursor.price) / view.rows * area.height;
+    if (row >= rowViewport.first && row < rowViewport.first + rowViewport.count && cursor.price != null && mode !== 'cvd' && mode !== 'ofi') {
+      const coordinate = mode === 'footprint' ? row + 0.5 : priceRowProjector(view.price_min, view.price_step)(cursor.price);
+      const py = area.y + area.height - (coordinate - rowViewport.first) / rowViewport.count * area.height;
       ctx.moveTo(area.x, py); ctx.lineTo(area.x + area.width, py);
     }
     ctx.stroke(); ctx.restore();

@@ -1,0 +1,325 @@
+{
+  "milestone": "M8 phase 3: chart readability and native-row density",
+  "recording": "4498db3b-f4a2-4fff-a32e-a97221fa21ee",
+  "delivery": "2057",
+  "instrument": "Binance-global BTCUSDT spot",
+  "viewports": [
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "panes": [
+        {
+          "pane": "heatmap",
+          "plot": {
+            "width": 960,
+            "height": 292.3125
+          },
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "ec3c19815acb48dfa19163c6f26321f7",
+            "paintedViewId": "ec3c19815acb48dfa19163c6f26321f7",
+            "rowFirst": "0",
+            "rowCount": "128",
+            "startNs": "104446000000000",
+            "endNs": "104450902484897",
+            "priceMin": "78047.5",
+            "priceStep": "0.5",
+            "drawMs": "6.300",
+            "tileCount": "5",
+            "tileAllocations": "5",
+            "dirtyColumns": "5",
+            "overlayPoints": "269",
+            "pixelWidth": "1200",
+            "pixelHeight": "365",
+            "receiveToPaintMs": "57.500"
+          },
+          "freshness": {
+            "frameId": "75",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "4ea4bf7e768141aa926f84b72a394f65",
+            "frozen": "false",
+            "sourceLagMs": "999.927698",
+            "evidenceResidentMs": "241.2999999821186",
+            "responseResidentMs": "302.59999999403954",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104449902557199",
+            "highwaterNs": "104450902484897",
+            "viewId": "ec3c19815acb48dfa19163c6f26321f7"
+          },
+          "text": "Liquidity\nHeatmap\nCandles\nFootprint\nProfile\nCVD\nOFI\nFollow\nLink\nSettings\nInspector\nFreeze\nRecenter\nMax\nReceive · 2026-11-01 UTC\nPartial window · truncated · BTC\n2 quality reasons · Inspector\nReplay\n· source lag 1000 ms\n· resident 241 ms"
+        },
+        {
+          "pane": "flow",
+          "plot": {
+            "width": 960,
+            "height": 212.75
+          },
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "54917311019640588a31548bc4a3df0a",
+            "paintedViewId": "54917311019640588a31548bc4a3df0a",
+            "rowFirst": "8",
+            "rowCount": "8",
+            "startNs": "104444902484897",
+            "endNs": "104450902484897",
+            "priceMin": "78063",
+            "priceStep": "1",
+            "drawMs": "10.200",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "5",
+            "overlayPoints": "0",
+            "pixelWidth": "1200",
+            "pixelHeight": "265",
+            "receiveToPaintMs": "47.800"
+          },
+          "freshness": {
+            "frameId": "75",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "4ea4bf7e768141aa926f84b72a394f65",
+            "frozen": "false",
+            "sourceLagMs": "936.246955",
+            "evidenceResidentMs": "118",
+            "responseResidentMs": "168.30000001192093",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104449966237942",
+            "highwaterNs": "104450902484897",
+            "viewId": "54917311019640588a31548bc4a3df0a"
+          },
+          "text": "Order flow\nFootprint\nCandles\nFollow\nLink\nSettings\nInspector\nFreeze\nRecenter\nMax\nReceive · 2026-11-01 UTC\nSELL left · BUY right · ? unknown · Rows 9–16 / 32\n↑\n↓\nPartial window · truncated · BTC\n5 quality reasons · Inspector\nReplay\n· source lag 936 ms\n· resident 118 ms"
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "overflow": false,
+      "panes": [
+        {
+          "pane": "heatmap",
+          "plot": {
+            "width": 1120,
+            "height": 348.3125
+          },
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "ec3c19815acb48dfa19163c6f26321f7",
+            "paintedViewId": "ec3c19815acb48dfa19163c6f26321f7",
+            "rowFirst": "0",
+            "rowCount": "128",
+            "startNs": "104446000000000",
+            "endNs": "104450902484897",
+            "priceMin": "78047.5",
+            "priceStep": "0.5",
+            "drawMs": "2.500",
+            "tileCount": "5",
+            "tileAllocations": "5",
+            "dirtyColumns": "5",
+            "overlayPoints": "269",
+            "pixelWidth": "1400",
+            "pixelHeight": "435"
+          },
+          "freshness": {
+            "frameId": "76",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "4ea4bf7e768141aa926f84b72a394f65",
+            "frozen": "false",
+            "sourceLagMs": "999.927698",
+            "evidenceResidentMs": "0",
+            "responseResidentMs": "571.8000000119209",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104449902557199",
+            "highwaterNs": "104450902484897",
+            "viewId": "ec3c19815acb48dfa19163c6f26321f7"
+          },
+          "text": "Liquidity\nHeatmap\nCandles\nFootprint\nProfile\nCVD\nOFI\nFollow\nLink\nSettings\nInspector\nFreeze\nRecenter\nMax\nReceive · 2026-11-01 UTC\nPartial window · truncated · BTC\n2 quality reasons · Inspector\nReplay\n· source lag 1000 ms\n· resident 0 ms"
+        },
+        {
+          "pane": "flow",
+          "plot": {
+            "width": 1120,
+            "height": 256.75
+          },
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "54917311019640588a31548bc4a3df0a",
+            "paintedViewId": "54917311019640588a31548bc4a3df0a",
+            "rowFirst": "7",
+            "rowCount": "10",
+            "startNs": "104444902484897",
+            "endNs": "104450902484897",
+            "priceMin": "78063",
+            "priceStep": "1",
+            "drawMs": "0.700",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "5",
+            "overlayPoints": "0",
+            "pixelWidth": "1400",
+            "pixelHeight": "320"
+          },
+          "freshness": {
+            "frameId": "76",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "4ea4bf7e768141aa926f84b72a394f65",
+            "frozen": "false",
+            "sourceLagMs": "0.343859",
+            "evidenceResidentMs": "0",
+            "responseResidentMs": "438.40000000596046",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104450902141038",
+            "highwaterNs": "104450902484897",
+            "viewId": "54917311019640588a31548bc4a3df0a"
+          },
+          "text": "Order flow\nFootprint\nCandles\nFollow\nLink\nSettings\nInspector\nFreeze\nRecenter\nMax\nReceive · 2026-11-01 UTC\nSELL left · BUY right · ? unknown · Rows 8–17 / 32\n↑\n↓\nPartial window · truncated · BTC\n5 quality reasons · Inspector\nReplay\n· source lag 0 ms\n· resident 0 ms"
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "overflow": false,
+      "panes": [
+        {
+          "pane": "heatmap",
+          "plot": {
+            "width": 1600,
+            "height": 446.875
+          },
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "ec3c19815acb48dfa19163c6f26321f7",
+            "paintedViewId": "ec3c19815acb48dfa19163c6f26321f7",
+            "rowFirst": "0",
+            "rowCount": "128",
+            "startNs": "104446000000000",
+            "endNs": "104450902484897",
+            "priceMin": "78047.5",
+            "priceStep": "0.5",
+            "drawMs": "1.600",
+            "tileCount": "5",
+            "tileAllocations": "5",
+            "dirtyColumns": "5",
+            "overlayPoints": "269",
+            "pixelWidth": "2000",
+            "pixelHeight": "557"
+          },
+          "freshness": {
+            "frameId": "77",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "4ea4bf7e768141aa926f84b72a394f65",
+            "frozen": "false",
+            "sourceLagMs": "999.927698",
+            "evidenceResidentMs": "32.099999994039536",
+            "responseResidentMs": "949.6999999880791",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104449902557199",
+            "highwaterNs": "104450902484897",
+            "viewId": "ec3c19815acb48dfa19163c6f26321f7"
+          },
+          "text": "Liquidity\nHeatmap\nCandles\nFootprint\nProfile\nCVD\nOFI\nFollow\nLink\nSettings\nInspector\nFreeze\nRecenter\nMax\nReceive · 2026-11-01 UTC\nPartial window · truncated · BTC\n2 quality reasons · Inspector\nReplay\n· source lag 1000 ms\n· resident 32 ms"
+        },
+        {
+          "pane": "flow",
+          "plot": {
+            "width": 1600,
+            "height": 334.1875
+          },
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "54917311019640588a31548bc4a3df0a",
+            "paintedViewId": "54917311019640588a31548bc4a3df0a",
+            "rowFirst": "5",
+            "rowCount": "14",
+            "startNs": "104444902484897",
+            "endNs": "104450902484897",
+            "priceMin": "78063",
+            "priceStep": "1",
+            "drawMs": "0.700",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "5",
+            "overlayPoints": "0",
+            "pixelWidth": "2000",
+            "pixelHeight": "417"
+          },
+          "freshness": {
+            "frameId": "77",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "4ea4bf7e768141aa926f84b72a394f65",
+            "frozen": "false",
+            "sourceLagMs": "0.343859",
+            "evidenceResidentMs": "31.099999994039536",
+            "responseResidentMs": "815.1999999880791",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104450902141038",
+            "highwaterNs": "104450902484897",
+            "viewId": "54917311019640588a31548bc4a3df0a"
+          },
+          "text": "Order flow\nFootprint\nCandles\nFollow\nLink\nSettings\nInspector\nFreeze\nRecenter\nMax\nReceive · 2026-11-01 UTC\nSELL left · BUY right · ? unknown · Rows 6–19 / 32\n↑\n↓\nPartial window · truncated · BTC\n5 quality reasons · Inspector\nReplay\n· source lag 0 ms\n· resident 31 ms"
+        }
+      ]
+    }
+  ],
+  "overviewPanRegression": {
+    "before": {
+      "origin": "78063",
+      "first": "7"
+    },
+    "after": {
+      "origin": "78067",
+      "first": "11"
+    },
+    "nativeStep": "1",
+    "bottomBefore": "78070",
+    "bottomAfter": "78078",
+    "failingBefore": {
+      "origin": "78067",
+      "first": "3",
+      "bottom": "78070"
+    }
+  },
+  "verification": {
+    "frontend": "ESLint,79 unit tests,TypeScript,Vite passed",
+    "browser": "6 pane-evidence/accessibility tests passed",
+    "visual": "Before/after actual recorded screenshots inspected at1280x800,1440x900,1920x1080; partial edge-bucket exact digits no longer clipped"
+  },
+  "corrections": [
+    "Strict tuple/index typing without fallback financial values",
+    "Painted mode travels with painted view/crop, not next requested mode",
+    "Overview pan advances held center",
+    "Initial crop excludes renderer-omitted footprint outliers",
+    "Partial edge buckets fit anatomy/text to actual visible intersection"
+  ],
+  "limits": [
+    "Crop is explicit; hidden rows remain native evidence but cannot establish displayed footprint freshness",
+    "At smaller viewports the crop can exclude newer prices, legitimately increasing displayed source-clock lag",
+    "No historical data fabricated; quote markers represent last eligible sampled quote, not live-price claims",
+    "Shell,DOM,tape chrome is unchanged in this phase"
+  ]
+}

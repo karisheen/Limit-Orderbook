@@ -27,6 +27,7 @@ export function useMarketView({ frame, connected, preferences: p, recenter, visu
   const latest = useRef(frame);
   latest.current = frame;
   const rangeStart = p.range?.start_ns, rangeEnd = p.range?.end_ns;
+  // Detailed footprint crops only the painted rows; native requests retain their 32-row floor.
   const rows = p.mode === 'footprint' || p.mode === 'profile' ? 32 : 128;
   useEffect(() => {
     const updateVisibility = () => setDocumentVisible(document.visibilityState === 'visible');

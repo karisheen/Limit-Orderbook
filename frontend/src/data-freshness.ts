@@ -1,5 +1,5 @@
 import type { Frame, Reference, VisualGrid } from './api';
-import type { ChartMode } from './market-charts-model';
+import type { ChartMode, ChartRowViewport } from './market-charts-model';
 import { CHART_LIMITS, priceCellIndex, priceRowProjector } from './market-charts-model';
 
 export interface SourcePoint { clock_id: string; mono_ns: string }
@@ -108,13 +108,21 @@ export function referenceLag(frame: Frame | null, reference: Reference | null, c
 }
 
 export interface ChartEvidence { reference: Reference | null; reason: string | null }
-export interface ChartEvidenceLayers { mode?: ChartMode }
+export interface ChartEvidenceLayers { mode?: ChartMode; rowViewport?: ChartRowViewport }
 
 /** Only the primary painted layer may establish chart freshness; overlays cannot rejuvenate it. */
-export function chartEvidence(view: VisualGrid | null, { mode = 'heatmap' }: ChartEvidenceLayers = {}): ChartEvidence {
+export function chartEvidence(view: VisualGrid | null, { mode = 'heatmap', rowViewport }: ChartEvidenceLayers = {}): ChartEvidence {
   if (!view) return { reference: null, reason: 'displayed chart unavailable' };
   const start = nativeNs(view.start_ns), end = nativeNs(view.end_ns), now = nativeNs(view.now_ns);
   if (start === null || end === null || now === null || end <= start) return { reference: null, reason: 'invalid chart source bounds' };
+  const firstRow = rowViewport?.first ?? 0;
+  const rowCount = rowViewport?.count ?? view.rows;
+  if (mode === 'footprint' && (!Number.isSafeInteger(view.rows) || view.rows <= 0 ||
+    !Number.isSafeInteger(firstRow) || !Number.isSafeInteger(rowCount) ||
+    firstRow < 0 || rowCount <= 0 || firstRow > view.rows - rowCount)) {
+    return { reference: null, reason: 'invalid displayed footprint row viewport' };
+  }
+  const rowEnd = firstRow + rowCount;
   let latest: Reference | null = null;
   let latestTime = -1n;
   let reason = 'eligible displayed evidence unavailable';
@@ -149,8 +157,13 @@ export function chartEvidence(view: VisualGrid | null, { mode = 'heatmap' }: Cha
   if (mode !== 'candles' && mode !== 'footprint' && mode !== 'profile') {
     return latest ? { reference: latest, reason: null } : { reference: null, reason };
   }
-  const footprintCells = new Set(mode === 'footprint' ? view.footprints.slice(-CHART_LIMITS.footprints)
-    .map(cell => `${cell.time_ns}:${priceCellIndex(view, cell.price)}`) : []);
+  const footprintCells = new Set<string>();
+  if (mode === 'footprint') {
+    for (const cell of view.footprints.slice(-CHART_LIMITS.footprints)) {
+      const row = priceCellIndex(view, cell.price);
+      if (row >= firstRow && row < rowEnd) footprintCells.add(`${cell.time_ns}:${row}`);
+    }
+  }
   const profileRows = new Set(mode === 'profile' ? view.profile.slice(0, CHART_LIMITS.rows).map(cell => priceCellIndex(view, cell.price)) : []);
   const bucket = nativeNs(view.bucket_ns);
   for (const trade of view.trades) {
@@ -163,7 +176,7 @@ export function chartEvidence(view: VisualGrid | null, { mode = 'heatmap' }: Cha
       const stamp = (time / bucket * bucket).toString();
       const candle = candles.get(`${stamp}:${trade.segment_id}`);
       aggregate = mode === 'profile' ? visiblePrice && profileRows.has(row)
-        : mode === 'footprint' ? visiblePrice && footprintCells.has(`${stamp}:${row}`)
+        : mode === 'footprint' ? visiblePrice && row >= firstRow && row < rowEnd && footprintCells.has(`${stamp}:${row}`)
           : mode === 'candles' && !!candle && time >= candle.start && time < candle.end;
     }
     if (aggregate) consider(trade.asof, end, true);

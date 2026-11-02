@@ -3,13 +3,13 @@ import type { Catalog, Mode, VisualGrid } from './api';
 import type { ChartTimeZone } from './chart-time';
 
 export type ChartMode = 'heatmap' | 'candles' | 'footprint' | 'profile' | 'cvd' | 'ofi';
-export type ChartSettings = Pick<WorkspacePreferences, 'mode' | 'contrast' | 'showTrades' | 'showQuotes' | 'timeZone' | 'priceStep' | 'bucket' | 'rangeSeconds' | 'range' | 'follow' | 'paused' | 'priceOffset'>;
+export type ChartSettings = Pick<WorkspacePreferences, 'mode' | 'contrast' | 'showTrades' | 'showQuotes' | 'footprintOverview' | 'timeZone' | 'priceStep' | 'bucket' | 'rangeSeconds' | 'range' | 'follow' | 'paused' | 'priceOffset'>;
 export type PaneId = 'heatmap' | 'flow' | 'dom' | 'tape';
 export interface WorkspacePreferences {
   version: 1; source: { mode: Mode; id: string } | null; sourceExplicit: boolean; instrument: string;
   preset: 'balanced' | 'analysis' | 'ladder'; leftWidth: number; rightWidth: number; bottomHeight: number;
   leftOpen: boolean; rightOpen: boolean; bottomOpen: boolean;
-  mode: ChartMode; contrast: number; showTrades: boolean; showQuotes: boolean; timeZone: ChartTimeZone;
+  mode: ChartMode; contrast: number; showTrades: boolean; showQuotes: boolean; footprintOverview: boolean; timeZone: ChartTimeZone;
   priceStep: string; bucket: string; rangeSeconds: number; range: { start_ns: string; end_ns: string } | null;
   follow: boolean; paused: boolean; domFrozen: boolean; domRows: number; priceOffset: number;
   domPriceStep: string; domUnit: 'base' | 'quote'; domCumulative: boolean;
@@ -20,14 +20,14 @@ export interface WorkspacePreferences {
 }
 export const preferenceKey = 'limit-orderbook.workspace.v1';
 const secondaryDefaults: ChartSettings = {
-  mode: 'footprint', contrast: 1, showTrades: true, showQuotes: true, timeZone: 'UTC',
-  priceStep: '', bucket: '5000000000', rangeSeconds: 180, range: null,
+  mode: 'footprint', contrast: 1, showTrades: false, showQuotes: false, footprintOverview: false, timeZone: 'UTC',
+  priceStep: '', bucket: '1000000000', rangeSeconds: 6, range: null,
   follow: true, paused: false, priceOffset: 0,
 };
 const defaults: WorkspacePreferences = {
   version: 1, source: null, sourceExplicit: false, instrument: '', preset: 'balanced', leftWidth: 222, rightWidth: 314, bottomHeight: 248,
   leftOpen: false, rightOpen: true, bottomOpen: false, mode: 'heatmap', contrast: 1,
-  showTrades: true, showQuotes: true, timeZone: 'UTC', priceStep: '', bucket: '1000000000', rangeSeconds: 180,
+  showTrades: true, showQuotes: true, footprintOverview: false, timeZone: 'UTC', priceStep: '', bucket: '1000000000', rangeSeconds: 180,
   range: null, follow: true, paused: false, domFrozen: false, domRows: 15, priceOffset: 0,
   domPriceStep: '', domUnit: 'base', domCumulative: false,
   secondary: secondaryDefaults, chartSplit: 56, tapeSplit: 60,
@@ -37,7 +37,7 @@ const defaults: WorkspacePreferences = {
 const bounded = (value: unknown, min: number, max: number, fallback: number) => typeof value === 'number' && Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
 const text = (value: unknown, max: number) => typeof value === 'string' && value.length <= max ? value : '';
 export function chartSettings(p: ChartSettings): ChartSettings {
-  return { mode: p.mode, contrast: p.contrast, showTrades: p.showTrades, showQuotes: p.showQuotes, timeZone: p.timeZone,
+  return { mode: p.mode, contrast: p.contrast, showTrades: p.showTrades, showQuotes: p.showQuotes, footprintOverview: p.footprintOverview, timeZone: p.timeZone,
     priceStep: p.priceStep, bucket: p.bucket, rangeSeconds: p.rangeSeconds, range: p.range,
     follow: p.follow, paused: p.paused, priceOffset: p.priceOffset };
 }
@@ -45,14 +45,14 @@ export function validatePreferences(value: unknown, nested = false): WorkspacePr
   if (!value || typeof value !== 'object' || !('version' in value) || value.version !== 1) return { ...defaults };
   const p = value as Record<string, unknown>;
   const next = { ...defaults };
-  for (const key of ['leftOpen', 'rightOpen', 'bottomOpen', 'showTrades', 'showQuotes', 'follow', 'paused', 'domFrozen', 'domCumulative', 'tapeFrozen'] as const) if (typeof p[key] === 'boolean') next[key] = p[key];
+  for (const key of ['leftOpen', 'rightOpen', 'bottomOpen', 'showTrades', 'showQuotes', 'footprintOverview', 'follow', 'paused', 'domFrozen', 'domCumulative', 'tapeFrozen'] as const) if (typeof p[key] === 'boolean') next[key] = p[key];
   next.leftWidth = Math.round(bounded(p.leftWidth, 180, 360, defaults.leftWidth));
   next.rightWidth = Math.round(bounded(p.rightWidth, 250, 500, defaults.rightWidth));
   next.bottomHeight = Math.round(bounded(p.bottomHeight, 170, 460, defaults.bottomHeight));
   next.contrast = bounded(p.contrast, 1e-12, 1e12, 1);
   next.domRows = Math.round(bounded(p.domRows, 1, 100, 15));
   next.priceOffset = Math.round(bounded(p.priceOffset, -10000, 10000, 0));
-  next.rangeSeconds = [30, 60, 180, 300, 600].includes(p.rangeSeconds as number) ? p.rangeSeconds as number : 180;
+  next.rangeSeconds = [6, 30, 60, 180, 300, 600].includes(p.rangeSeconds as number) ? p.rangeSeconds as number : (nested ? secondaryDefaults.rangeSeconds : defaults.rangeSeconds);
   next.bucket = ['1000000000', '5000000000', '10000000000'].includes(p.bucket as string) ? p.bucket as string : defaults.bucket;
   if (['balanced', 'analysis', 'ladder'].includes(p.preset as string)) next.preset = p.preset as WorkspacePreferences['preset'];
   if (['heatmap', 'candles', 'footprint', 'profile', 'cvd', 'ofi'].includes(p.mode as string)) next.mode = p.mode as ChartMode;

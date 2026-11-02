@@ -4,6 +4,7 @@ export type ChartMode = 'heatmap' | 'candles' | 'footprint' | 'profile' | 'cvd' 
 export type ChartCursor = { time_ns: string; price: string | null };
 export type ChartRange = { start_ns: string; end_ns: string };
 export type PlotArea = { x: number; y: number; width: number; height: number };
+export type ChartRowViewport = { first: number; count: number };
 export const CHART_LIMITS = { columns: 600, rows: 256, tiles: 640, trades: 2000, footprints: 12000, dpr: 2, width: 2048, height: 1280 } as const;
 export const PLOT_MARGIN = { left: 12, right: 100, top: 14, bottom: 30 } as const;
 export const COLORS = { bid: '#359d94', ask: '#bd6268', buy: '#57c4b4', sell: '#df7c81', unknown: '#a4adb5', background: '#131619', missing: '#1c2024', grid: '#292f34', text: '#a6afb7' } as const;
@@ -57,6 +58,34 @@ export function priceCellIndex(view: Pick<VisualGrid, 'price_min' | 'price_step'
   const unit = step.coefficient * 10n ** BigInt(scale - step.scale);
   if (unit <= 0n || offset < 0n || offset >= unit * BigInt(view.rows)) return -1;
   return Number(offset / unit);
+}
+
+/** The paintable bounded native span, not a quantity-weighted or rounded economic price. */
+export function footprintCenterRow(view: VisualGrid): number | null {
+  let first = view.rows, last = -1;
+  for (let index = Math.max(0, view.footprints.length - CHART_LIMITS.footprints); index < view.footprints.length; index++) {
+    const cell = view.footprints[index]!;
+    try {
+      if (decimalParts(cell.buy_base).coefficient <= 0n && decimalParts(cell.sell_base).coefficient <= 0n && decimalParts(cell.unknown_base).coefficient <= 0n) continue;
+      const row = priceCellIndex(view, cell.price);
+      if (row < 0) continue;
+      first = Math.min(first, row);
+      last = Math.max(last, row);
+    } catch {
+      // Malformed prices/quantities cannot establish a native occupied row.
+    }
+  }
+  return last < 0 ? null : (first + last) / 2;
+}
+
+/** A display-only subset: native price quantum, cells and quantities stay intact. */
+export function chartRowViewport(view: VisualGrid, mode: ChartMode, plotHeight: number, heldCenter: number | null, overview: boolean): ChartRowViewport {
+  const rows = Math.max(1, view.rows);
+  if (mode !== 'footprint' || overview) return { first: 0, count: rows };
+  const count = Math.min(rows, Math.max(1, Number.isFinite(plotHeight) ? Math.floor(plotHeight / 20) : 1));
+  const center = heldCenter !== null && Number.isFinite(heldCenter) ? heldCenter : footprintCenterRow(view) ?? (rows - 1) / 2;
+  const first = Math.max(0, Math.min(rows - count, Math.round(center - (count - 1) / 2)));
+  return { first, count };
 }
 
 /** Local-origin plotting avoids collapsing adjacent prices above Number's integer range.

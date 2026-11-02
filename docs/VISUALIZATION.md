@@ -136,15 +136,27 @@ source and generation, not separate feeds. Selection, replay reset/rewind and
 source-clock fences remain authoritative; an old viewport cannot carry future
 evidence across them.
 
+The readable footprint displays an explicit subset of the native 32-row grid,
+targeting 20-pixel rows without changing its price quantum or aggregating cells.
+Its initial center uses only paintable occupied rows; subsequent updates retain
+that center. Resize exposes more or fewer rows, price navigation reaches hidden
+rows, and **Full native-grid overview** explicitly restores the entire grid.
+SELL quantities are left of BUY quantities, with separate neutral unknown-side
+evidence and eligible native candle context. Narrow edge buckets use an explicit
+compact representation rather than clipping or squeezing exact digits; the
+Inspector retains exact values. New secondary panes use one-second buckets and
+a six-second follow window, with overlays off; saved explicit settings survive.
+
 The base sampling quantum is one second; explicit five- and ten-second requests
 select retained exact boundary evidence. No incoming range or percentile
 changes a historical price grid or liquidity hash. Color transfer belongs to
 explicit frontend presentation controls, not server normalization.
 
 The **Fixed contrast** slider selects a full-intensity base quantity on a
-logarithmic control spanning `1e-12` through `1e12`. Color intensity itself stays
-linear from zero to that fixed quantity; incoming liquidity never rescales old
-cells. This makes both small BTC quantities and large SOL quantities visible
+logarithmic control spanning `1e-12` through `1e12`. Quantity is normalized against
+that fixed cap; heatmap opacity is the square of the clamped ratio, subduing weak
+liquidity. Incoming data never rescales old cells. This makes both small BTC
+quantities and large SOL quantities adjustable
 without clipping everything at the former 10-unit control ceiling. For example,
 an explicitly selected 1,000-SOL scale reveals differences among 100–1,000-SOL
 levels. The legend and accessible slider value state the actual quantity/unit.
@@ -364,10 +376,11 @@ measurements distinct:
   observations. A matching current clock observation is required; the view alone
   is insufficient. Heatmap uses eligible overlapping depth columns; footprint,
   profile and candles use non-history, known-size trades contributing to the
-  displayed cells, rows or eligible candles. CVD/OFI use eligible displayed
-  metric references. Native time/price bounds, clock identity and renderer caps
-  qualify every candidate. Fresh overlays never substitute for missing or stale
-  primary-mode evidence.
+  displayed cells, rows or eligible candles. Footprint qualification uses the
+  actual painted row crop and mode, not the next requested viewport or mode.
+  CVD/OFI use eligible displayed metric references. Native time/price bounds,
+  clock identity and renderer caps qualify every candidate. Fresh overlays and
+  offscreen executions never substitute for missing or stale primary evidence.
 - **Evidence resident** is browser-monotonic elapsed time since that native
   evidence identity was first continuously displayed in the component. A fresh
   response or Frame carrying unchanged evidence does not reset it.

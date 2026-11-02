@@ -77,12 +77,12 @@ export interface ChartFreshnessProps extends ChartEvidenceLayers {
   frozen?: boolean;
 }
 
-export function ChartFreshness({ frame, view, receivedAtMs, connected, frozen = false, mode = 'heatmap' }: ChartFreshnessProps) {
-  const evidence = useMemo(() => chartEvidence(view, { mode }), [view, mode]);
+export function ChartFreshness({ frame, view, receivedAtMs, connected, frozen = false, mode = 'heatmap', rowViewport }: ChartFreshnessProps) {
+  const evidence = useMemo(() => chartEvidence(view, { mode, rowViewport }), [view, mode, rowViewport]);
   const key = evidenceIdentity(evidence.reference);
   const identity = key && frame ? `${frame.session_id}:${frame.generation}:${frame.source.id}:${key}` : null;
   const { now, residentMs } = useEvidenceResidence(identity);
-  const lag = useMemo(() => chartLag(frame, view, connected, { mode }, evidence), [frame, view, connected, mode, evidence]);
+  const lag = useMemo(() => chartLag(frame, view, connected, { mode, rowViewport }, evidence), [frame, view, connected, mode, rowViewport, evidence]);
   return <FreshnessBadge frame={frame} lag={lag} residentMs={residentMs} responseMs={browserResidencyMs(now, receivedAtMs)}
     label={`Displayed ${mode} chart (primary layer)`} frozen={frozen} testId="chart-freshness" viewId={view?.view_id} />;
 }

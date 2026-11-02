@@ -293,7 +293,7 @@ export default function App() {
     const reference = views.dom.data?.asof;
     setCrosshair(price !== null && reference ? { time_ns: reference.receive_mono_ns, price } : null);
   };
-  const chartProps = { frame, connected, visualization: terminal.visualization, ladder: terminal.ladder,
+  const chartProps = { frame, instrument: selected, connected, visualization: terminal.visualization, ladder: terminal.ladder,
     acknowledgeVisualization: terminal.acknowledgeVisualization, crosshair, onCrosshair: setCrosshair };
   const qualityReasons = [...new Set([...(frame?.health.reasons ?? []), ...(frame?.source.reasons ?? []), ...(frame?.book?.quality.reason_codes ?? [])])];
   const style = { '--left-width': `${p.leftOpen ? p.leftWidth : 0}px`, '--right-width': `${p.rightOpen ? p.rightWidth : 0}px`, '--bottom-height': `${p.bottomOpen ? p.bottomHeight : 0}px`, '--chart-split': `${p.chartSplit}%`, '--tape-split': `${p.tapeSplit}%` } as CSSProperties;
