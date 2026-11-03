@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applyWorkspaceSlot, chartSettings, mergeVisualGrid, presetLayout, validatePreferences, validateWorkspaceSlots } from './workspace.ts';
+import { applyWorkspaceSlot, chartSettings, mergeVisualGrid, presetLayout, validatePreferences, validateWorkspaceSlots, workspaceGeometry } from './workspace.ts';
 import type { VisualColumn, VisualGrid } from './api.ts';
 
 test('persisted workspace bounds reject unsafe identity, time, quantum and dimensions without retaining sessions', () => {
@@ -54,9 +54,6 @@ test('v1 workspaces migrate to independent chart, tape and cursor settings', () 
   assert.equal(old.secondary.mode, 'footprint');
   assert.equal(old.secondary.priceStep, '');
   assert.equal(old.leftWidth, 240);
-  assert.equal(old.leftOpen, false);
-  assert.equal(old.bottomOpen, false);
-  assert.equal(old.rightOpen, true);
   assert.deepEqual(old.links, { heatmap: true, flow: true, dom: true, tape: true });
   const independent = validatePreferences({ ...old, secondary: { ...old.secondary, mode: 'candles', priceStep: '0.00000000000001', rangeSeconds: 60 }, tapeRows: 25, tapeSide: 'unknown', links: { ...old.links, flow: false } });
   const restored = validatePreferences(JSON.parse(JSON.stringify(independent)));
@@ -176,7 +173,7 @@ test('four bounded workspace slots restore layout and pane settings without sour
   assert.equal(restored.instrument, current.instrument);
   assert.equal(restored.chartSplit, 64);
   assert.equal(restored.tapeSplit, 70);
-  assert.equal(restored.rightWidth, 420);
+  assert.equal(restored.rightWidth, saved.rightWidth);
   assert.equal(restored.domRows, 40);
   assert.equal(restored.tapeRows, 100);
   assert.equal(restored.tapeSide, 'sell');
@@ -188,6 +185,98 @@ test('four bounded workspace slots restore layout and pane settings without sour
   assert.equal(restored.tapeFrozen, false);
   assert.equal(restored.secondary.paused, false);
   assert.equal(restored.range, null);
+});
+
+test('balanced auto geometry gives charts the remainder at desktop evidence sizes', () => {
+  const settings = validatePreferences({ version: 1, ...presetLayout('balanced') });
+  for (const [viewport, width] of [[1280, 336], [1440, 360], [1920, 420]]) {
+    const geometry = workspaceGeometry(settings, viewport);
+    assert.equal(geometry.rightWidth, width);
+    assert.equal(geometry.min, 320);
+    assert.equal(geometry.stacked, false);
+    assert.ok(viewport - width - 6 >= 640);
+  }
+  assert.equal(settings.chartSplit, 52);
+  assert.equal(settings.tapeSplit, 60);
+  assert.equal(workspaceGeometry(settings, 966).rightWidth, 320);
+});
+
+test('legacy numeric widths conservatively migrate to manual, including old default widths', () => {
+  for (const rightWidth of [250, 300, 314, 420, 487]) {
+    const migrated = validatePreferences({ version: 1, rightWidth });
+    assert.equal(migrated.rightWidthMode, 'manual');
+    assert.equal(migrated.rightWidth, rightWidth);
+    assert.equal(workspaceGeometry(migrated, 1440).rightWidth, rightWidth);
+    const reloaded = validatePreferences(JSON.parse(JSON.stringify(migrated)));
+    assert.equal(reloaded.rightWidthMode, 'manual');
+    assert.equal(reloaded.rightWidth, rightWidth);
+    assert.equal(workspaceGeometry(reloaded, 1440).rightWidth, rightWidth);
+  }
+  for (const rightWidth of [undefined, null, Infinity, '420']) {
+    assert.equal(validatePreferences({ version: 1, rightWidth }).rightWidthMode, 'auto');
+  }
+  const manual = validatePreferences({ version: 1, rightWidth: 487 });
+  const reset = validatePreferences({ ...manual, ...presetLayout('balanced') });
+  assert.equal(reset.rightWidthMode, 'auto');
+  assert.equal(validatePreferences(JSON.parse(JSON.stringify(reset))).rightWidthMode, 'auto');
+});
+
+test('analysis retains its manual 300px pane through reload and workspace slots', () => {
+  const settings = validatePreferences({ version: 1, ...presetLayout('analysis') });
+  const reloaded = validatePreferences(JSON.parse(JSON.stringify(settings)));
+  const slots = validateWorkspaceSlots([reloaded]);
+  const restored = applyWorkspaceSlot(validatePreferences(null), slots[0]!);
+  for (const preferences of [settings, reloaded, restored]) {
+    assert.equal(preferences.rightWidthMode, 'manual');
+    assert.equal(preferences.rightWidth, 300);
+    assert.equal(workspaceGeometry(preferences, 1440).rightWidth, 300);
+  }
+});
+
+test('manual resize bounds allow narrowing below the automatic minimum down to 250px', () => {
+  const settings = validatePreferences({ version: 1, rightWidth: 300, rightWidthMode: 'manual' });
+  for (const rightWidth of [300, 290, 260, 250, 500]) {
+    const geometry = workspaceGeometry({ ...settings, rightWidth }, 1440);
+    assert.equal(geometry.rightWidth, rightWidth);
+    assert.equal(geometry.min, 250);
+    assert.equal(geometry.max, 500);
+  }
+  const minimum = workspaceGeometry({ ...settings, rightWidth: 250 }, 1440);
+  assert.equal(minimum.rightWidth, minimum.min);
+  const maximum = workspaceGeometry({ ...settings, rightWidth: 500 }, 1440);
+  assert.equal(maximum.rightWidth, maximum.max);
+});
+
+test('a viewport clamp below 320px preserves the hidden manual request for later restoration', () => {
+  for (const rightWidth of [300, 500]) {
+    const settings = Object.freeze(validatePreferences({ version: 1, rightWidth, leftOpen: true, leftWidth: 222 }));
+    const saved = JSON.stringify(settings);
+    const clamped = workspaceGeometry(settings, 1150);
+    assert.equal(clamped.min, 250);
+    assert.equal(clamped.max, 276);
+    assert.equal(clamped.rightWidth, 276);
+    assert.equal(settings.rightWidth, rightWidth);
+    assert.equal(JSON.stringify(settings), saved);
+    const reloaded = validatePreferences(JSON.parse(saved));
+    assert.equal(workspaceGeometry(reloaded, 1440).rightWidth, rightWidth);
+  }
+});
+
+test('viewport and watchlist constraints never rewrite requested manual geometry', () => {
+  const settings = validatePreferences({ version: 1, rightWidth: 487, leftOpen: true, leftWidth: 222 });
+  const saved = JSON.stringify(settings);
+  const narrow = workspaceGeometry(settings, 1280);
+  assert.equal(narrow.rightWidth, 406);
+  assert.ok(1280 - settings.leftWidth - 12 - narrow.rightWidth >= 640);
+  assert.equal(workspaceGeometry(settings, 1920).rightWidth, 487);
+  assert.equal(workspaceGeometry(settings, 966).rightWidth, 320);
+  assert.equal(workspaceGeometry(settings, 965).stacked, true);
+  assert.equal(JSON.stringify(settings), saved);
+  const slots = validateWorkspaceSlots([settings]);
+  const restored = applyWorkspaceSlot(validatePreferences(null), slots[0]!);
+  assert.equal(restored.rightWidthMode, 'manual');
+  assert.equal(restored.rightWidth, 487);
+  assert.equal(workspaceGeometry(restored, 1920).rightWidth, 487);
 });
 
 function column(time: number, hash = `immutable-${time}`): VisualColumn {

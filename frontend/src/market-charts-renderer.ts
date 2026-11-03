@@ -6,6 +6,7 @@ import type { ChartCursor, ChartMode, ChartRowViewport, PlotArea } from './marke
 
 type Column = VisualGrid['columns'][number];
 type Surface = { canvas: HTMLCanvasElement; context: CanvasRenderingContext2D };
+type FootprintBucket = { left: number; laneWidth: number; compact: boolean };
 export type RenderReport = { duration: number; tiles: number; allocated: number; dirty: number; trades: number; omittedTrades: number; omittedCells: number; pixelWidth: number; pixelHeight: number; compactFootprint: boolean };
 export type RenderOptions = { mode: ChartMode; contrast: number; showTrades: boolean; showQuotes: boolean; timeZone: ChartTimeZone; rowViewport: ChartRowViewport; quoteUnit?: string };
 
@@ -121,6 +122,8 @@ export class MarketRenderer {
     const geometry = JSON.stringify([this.width, this.height, this.size.ratio, view.grid_id, view.start_ns, view.end_ns, view.price_min, view.rows, first, count, options.mode, saturation(options.contrast), options.timeZone, options.quoteUnit]);
     let dirty = 0;
     let compactFootprint = false;
+    let footprintBuckets: Map<string, FootprintBucket> | undefined;
+    let footprintLanes = 2;
     if (options.mode === 'heatmap') {
       const current = new Map(columns.map(column => [column.id, liquidityTileKey(view, column, options.contrast)]));
       const reset = geometry !== this.geometry || [...this.drawn.keys()].some(id => !current.has(id));
@@ -190,17 +193,30 @@ export class MarketRenderer {
           return row >= first && row < first + count && x(cell.time_ns) < area.x + area.width && x(cell.time_ns) + bucketWidth > area.x;
         });
         const unknown = cells.some(cell => plotNumber(cell.unknown_base) !== 0);
-        const lanes = unknown ? 3 : 2;
-        const candleSpace = 12;
+        footprintLanes = unknown ? 3 : 2;
+        const lanes = footprintLanes;
+        const candleSpace = 10;
+        const buckets = new Map<string, FootprintBucket>();
+        footprintBuckets = buckets;
+        // Cache bounded, visible bucket geometry for cells and headers alike. A partial edge
+        // bucket must not decide whether any other bucket can display its exact quantities.
+        const bucketAt = (time: string): FootprintBucket => {
+          const cached = buckets.get(time);
+          if (cached) return cached;
+          const bucketLeft = x(time);
+          const visibleLeft = Math.max(area.x, bucketLeft);
+          const visibleWidth = Math.max(0, Math.min(area.x + area.width, bucketLeft + bucketWidth) - visibleLeft);
+          const detailedLaneWidth = (visibleWidth - candleSpace - 8) / lanes;
+          const compact = rowHeight < 18 || detailedLaneWidth < 34;
+          const bucket = {
+            left: visibleLeft + (compact ? 0 : candleSpace),
+            laneWidth: compact ? visibleWidth / lanes : detailedLaneWidth,
+            compact,
+          };
+          buckets.set(time, bucket);
+          return bucket;
+        };
         ctx.font = '11px ui-monospace, monospace';
-        // Edge buckets keep their native time bounds, but only their visible intersection can hold text.
-        compactFootprint = rowHeight < 18 || cells.some(cell => {
-          const bucketLeft = x(cell.time_ns);
-          const visibleWidth = Math.min(area.x + area.width, bucketLeft + bucketWidth) - Math.max(area.x, bucketLeft);
-          const laneWidth = (visibleWidth - candleSpace - 8) / lanes;
-          return laneWidth < 34 || FOOTPRINT_LANES.some(([side, field, , label]) =>
-            side < lanes && (ctx.measureText(cell[field]).width > laneWidth - 6 || ctx.measureText(label).width > laneWidth - 6));
-        });
         ctx.strokeStyle = '#242a2f'; ctx.lineWidth = 1;
         ctx.beginPath();
         for (let row = 0; row <= count; row++) {
@@ -210,6 +226,7 @@ export class MarketRenderer {
         ctx.stroke();
         for (const column of columns) {
           const left = x(column.time_ns);
+          bucketAt(column.time_ns);
           const candle = column.candle;
           if (candle?.eligible) {
             const middle = left + 5;
@@ -220,11 +237,7 @@ export class MarketRenderer {
         }
         ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
         for (const cell of cells) {
-          const bucketLeft = x(cell.time_ns);
-          const visibleLeft = Math.max(area.x, bucketLeft);
-          const visibleRight = Math.min(area.x + area.width, bucketLeft + bucketWidth);
-          const left = visibleLeft + (compactFootprint ? 0 : candleSpace);
-          const laneWidth = (visibleRight - left - (compactFootprint ? 0 : 8)) / lanes;
+          const { left, laneWidth, compact } = bucketAt(cell.time_ns);
           const top = area.y + area.height - (priceCellIndex(view, cell.price) - first + 1) * rowHeight;
           for (const [side, field, color] of FOOTPRINT_LANES) {
             if (side >= lanes) break;
@@ -234,9 +247,15 @@ export class MarketRenderer {
             ctx.globalAlpha = plotNumber(value) === 0 ? 0 : 0.08 + strength * 0.3;
             ctx.fillRect(left + side * laneWidth, top + 1, Math.max(0, laneWidth - Math.min(1, laneWidth / 2)), Math.max(1, rowHeight - 2));
             ctx.globalAlpha = 1;
-            if (!compactFootprint) {
-              ctx.fillStyle = plotNumber(value) === 0 ? '#68747d' : color;
+            const fits = !compact && ctx.measureText(value).width <= laneWidth - 6;
+            ctx.fillStyle = plotNumber(value) === 0 ? '#68747d' : color;
+            if (fits) {
               ctx.fillText(value, left + (side + 1) * laneWidth - 4, top + rowHeight / 2);
+            } else {
+              compactFootprint = true;
+              // A short mark denotes an exact quantity that cannot fit, including zero.
+              const markWidth = Math.min(4, Math.max(0, laneWidth - 2));
+              ctx.fillRect(left + (side + 0.5) * laneWidth - markWidth / 2, top + rowHeight / 2, markWidth, Math.min(1, rowHeight / 2));
             }
           }
         }
@@ -259,26 +278,14 @@ export class MarketRenderer {
     this.geometry = geometry;
     this.axes(view, options, x, area);
     const trades = this.overlays(view, options, columns, x, y, area);
-    if (options.mode === 'footprint' && !compactFootprint) {
-      const width = Number(BigInt(view.bucket_ns)) / Number(BigInt(view.end_ns) - BigInt(view.start_ns)) * area.width;
-      const unknown = view.footprints.slice(-CHART_LIMITS.footprints).some(cell => {
-        const row = priceCellIndex(view, cell.price);
-        return row >= first && row < first + count && x(cell.time_ns) < area.x + area.width && x(cell.time_ns) + width > area.x && plotNumber(cell.unknown_base) !== 0;
-      });
-      const lanes = unknown ? 3 : 2;
-      const plotRight = area.x + area.width;
+    if (footprintBuckets) {
       ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'center';
-      for (const column of columns) {
-        const bucketLeft = x(column.time_ns);
-        const left = Math.max(area.x, bucketLeft);
-        const right = Math.min(plotRight, bucketLeft + width);
-        const laneWidth = (right - left - 20) / lanes;
-        if (laneWidth < 34) continue;
+      for (const { left, laneWidth, compact } of footprintBuckets.values()) {
+        if (compact) continue;
         for (const [side, , color, label] of FOOTPRINT_LANES) {
-          if (side >= lanes) break;
-          const px = left + 12 + (side + 0.5) * laneWidth;
-          const labelWidth = ctx.measureText(label).width;
-          if (labelWidth > laneWidth - 6 || px - labelWidth / 2 < left || px + labelWidth / 2 > right) continue;
+          if (side >= footprintLanes) break;
+          const px = left + (side + 0.5) * laneWidth;
+          if (ctx.measureText(label).width > laneWidth - 6) continue;
           ctx.fillStyle = color;
           ctx.fillText(label, px, 11);
         }

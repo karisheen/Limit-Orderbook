@@ -1,0 +1,654 @@
+{
+  "milestone": "M8 phase4: compact workstation,DOM and tape",
+  "recording": "4498db3b-f4a2-4fff-a32e-a97221fa21ee",
+  "delivery": "2057",
+  "instrument": "Binance-global BTCUSDT spot",
+  "viewports": [
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "panes": [
+        {
+          "pane": "heatmap",
+          "plot": {
+            "width": 938,
+            "height": 294.625
+          },
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "9b03e7089f4b4b22a07d38681d281d76",
+            "paintedViewId": "9b03e7089f4b4b22a07d38681d281d76",
+            "rowFirst": "0",
+            "rowCount": "128",
+            "startNs": "104446000000000",
+            "endNs": "104450902484897",
+            "priceMin": "78047.5",
+            "priceStep": "0.5",
+            "drawMs": "5.600",
+            "tileCount": "5",
+            "tileAllocations": "5",
+            "dirtyColumns": "5",
+            "overlayPoints": "269",
+            "pixelWidth": "1172",
+            "pixelHeight": "367",
+            "receiveToPaintMs": "53.600"
+          },
+          "freshness": {
+            "frameId": "39",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "4ea4bf7e768141aa926f84b72a394f65",
+            "frozen": "false",
+            "sourceLagMs": "999.927698",
+            "evidenceResidentMs": "166.90000000596046",
+            "responseResidentMs": "222.59999999403954",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104449902557199",
+            "highwaterNs": "104450902484897",
+            "viewId": "9b03e7089f4b4b22a07d38681d281d76"
+          },
+          "text": "Heatmap\nCandles\nFootprint\nProfile\nCVD\nOFI\n1s\n5s\n10s\nAuto group\n0.01\n0.05\n0.1\n0.5\n1\n5\n10\nFollow\nCursor\nFreeze\nMax\nMore\n2026-11-01 UTC\n0–1 BTC\nPartial · truncated\nReplay\n· source lag 1000 ms\n· resident 167 ms"
+        },
+        {
+          "pane": "flow",
+          "plot": {
+            "width": 938,
+            "height": 267.375
+          },
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "a9ff3bcd03e94305b459e05aa3d06b2c",
+            "paintedViewId": "a9ff3bcd03e94305b459e05aa3d06b2c",
+            "rowFirst": "7",
+            "rowCount": "11",
+            "startNs": "104444902484897",
+            "endNs": "104450902484897",
+            "priceMin": "78063",
+            "priceStep": "1",
+            "drawMs": "1.100",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "5",
+            "overlayPoints": "0",
+            "pixelWidth": "1172",
+            "pixelHeight": "333",
+            "receiveToPaintMs": "45.900"
+          },
+          "freshness": {
+            "frameId": "39",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "4ea4bf7e768141aa926f84b72a394f65",
+            "frozen": "false",
+            "sourceLagMs": "0.343859",
+            "evidenceResidentMs": "40.599999994039536",
+            "responseResidentMs": "94.19999998807907",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104450902141038",
+            "highwaterNs": "104450902484897",
+            "viewId": "a9ff3bcd03e94305b459e05aa3d06b2c"
+          },
+          "text": "Footprint\nCandles\n1s\n5s\n10s\nAuto group\n0.01\n0.05\n0.1\n0.5\n1\n5\n10\nFollow\nCursor\nFreeze\nMax\nMore\n2026-11-01 UTC\nRows 8–18/32 · BTC\n↑\n↓\nPartial · truncated\nReplay\n· source lag 0 ms\n· resident 41 ms"
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "overflow": false,
+      "panes": [
+        {
+          "pane": "heatmap",
+          "plot": {
+            "width": 1074,
+            "height": 346.625
+          },
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "9b03e7089f4b4b22a07d38681d281d76",
+            "paintedViewId": "9b03e7089f4b4b22a07d38681d281d76",
+            "rowFirst": "0",
+            "rowCount": "128",
+            "startNs": "104446000000000",
+            "endNs": "104450902484897",
+            "priceMin": "78047.5",
+            "priceStep": "0.5",
+            "drawMs": "2.000",
+            "tileCount": "5",
+            "tileAllocations": "5",
+            "dirtyColumns": "5",
+            "overlayPoints": "269",
+            "pixelWidth": "1342",
+            "pixelHeight": "432"
+          },
+          "freshness": {
+            "frameId": "40",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "4ea4bf7e768141aa926f84b72a394f65",
+            "frozen": "false",
+            "sourceLagMs": "999.927698",
+            "evidenceResidentMs": "50.400000005960464",
+            "responseResidentMs": "472.59999999403954",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104449902557199",
+            "highwaterNs": "104450902484897",
+            "viewId": "9b03e7089f4b4b22a07d38681d281d76"
+          },
+          "text": "Heatmap\nCandles\nFootprint\nProfile\nCVD\nOFI\n1s\n5s\n10s\nAuto group\n0.01\n0.05\n0.1\n0.5\n1\n5\n10\nFollow\nCursor\nFreeze\nMax\nMore\n2026-11-01 UTC\n0–1 BTC\nPartial · truncated\nReplay\n· source lag 1000 ms\n· resident 50 ms"
+        },
+        {
+          "pane": "flow",
+          "plot": {
+            "width": 1074,
+            "height": 315.375
+          },
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "a9ff3bcd03e94305b459e05aa3d06b2c",
+            "paintedViewId": "a9ff3bcd03e94305b459e05aa3d06b2c",
+            "rowFirst": "6",
+            "rowCount": "13",
+            "startNs": "104444902484897",
+            "endNs": "104450902484897",
+            "priceMin": "78063",
+            "priceStep": "1",
+            "drawMs": "0.600",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "5",
+            "overlayPoints": "0",
+            "pixelWidth": "1342",
+            "pixelHeight": "393"
+          },
+          "freshness": {
+            "frameId": "40",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "4ea4bf7e768141aa926f84b72a394f65",
+            "frozen": "false",
+            "sourceLagMs": "0.343859",
+            "evidenceResidentMs": "49.099999994039536",
+            "responseResidentMs": "343.7999999821186",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104450902141038",
+            "highwaterNs": "104450902484897",
+            "viewId": "a9ff3bcd03e94305b459e05aa3d06b2c"
+          },
+          "text": "Footprint\nCandles\n1s\n5s\n10s\nAuto group\n0.01\n0.05\n0.1\n0.5\n1\n5\n10\nFollow\nCursor\nFreeze\nMax\nMore\n2026-11-01 UTC\nRows 7–19/32 · BTC\n↑\n↓\nPartial · truncated\nReplay\n· source lag 0 ms\n· resident 49 ms"
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "overflow": false,
+      "panes": [
+        {
+          "pane": "heatmap",
+          "plot": {
+            "width": 1494,
+            "height": 440.234375
+          },
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "9b03e7089f4b4b22a07d38681d281d76",
+            "paintedViewId": "9b03e7089f4b4b22a07d38681d281d76",
+            "rowFirst": "0",
+            "rowCount": "128",
+            "startNs": "104446000000000",
+            "endNs": "104450902484897",
+            "priceMin": "78047.5",
+            "priceStep": "0.5",
+            "drawMs": "1.700",
+            "tileCount": "5",
+            "tileAllocations": "5",
+            "dirtyColumns": "5",
+            "overlayPoints": "269",
+            "pixelWidth": "1867",
+            "pixelHeight": "550"
+          },
+          "freshness": {
+            "frameId": "40",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "4ea4bf7e768141aa926f84b72a394f65",
+            "frozen": "false",
+            "sourceLagMs": "999.927698",
+            "evidenceResidentMs": "0",
+            "responseResidentMs": "655.5999999940395",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104449902557199",
+            "highwaterNs": "104450902484897",
+            "viewId": "9b03e7089f4b4b22a07d38681d281d76"
+          },
+          "text": "Heatmap\nCandles\nFootprint\nProfile\nCVD\nOFI\n1s\n5s\n10s\nAuto group\n0.01\n0.05\n0.1\n0.5\n1\n5\n10\nFollow\nCursor\nFreeze\nMax\nMore\n2026-11-01 UTC\n0–1 BTC\nPartial · truncated\nReplay\n· source lag 1000 ms\n· resident 0 ms"
+        },
+        {
+          "pane": "flow",
+          "plot": {
+            "width": 1494,
+            "height": 401.765625
+          },
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "a9ff3bcd03e94305b459e05aa3d06b2c",
+            "paintedViewId": "a9ff3bcd03e94305b459e05aa3d06b2c",
+            "rowFirst": "4",
+            "rowCount": "17",
+            "startNs": "104444902484897",
+            "endNs": "104450902484897",
+            "priceMin": "78063",
+            "priceStep": "1",
+            "drawMs": "0.500",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "5",
+            "overlayPoints": "0",
+            "pixelWidth": "1867",
+            "pixelHeight": "501"
+          },
+          "freshness": {
+            "frameId": "40",
+            "generation": "2",
+            "testid": "chart-freshness",
+            "sourceMode": "replay",
+            "sourceId": "4ea4bf7e768141aa926f84b72a394f65",
+            "frozen": "false",
+            "sourceLagMs": "0.343859",
+            "evidenceResidentMs": "0",
+            "responseResidentMs": "527.7999999821186",
+            "clockId": "4a9613c2-dc07-476e-bf1c-5863324e0735",
+            "evidenceNs": "104450902141038",
+            "highwaterNs": "104450902484897",
+            "viewId": "a9ff3bcd03e94305b459e05aa3d06b2c"
+          },
+          "text": "Footprint\nCandles\n1s\n5s\n10s\nAuto group\n0.01\n0.05\n0.1\n0.5\n1\n5\n10\nFollow\nCursor\nFreeze\nMax\nMore\n2026-11-01 UTC\nRows 5–21/32 · BTC\n↑\n↓\nPartial · truncated\nReplay\n· source lag 0 ms\n· resident 0 ms"
+        }
+      ]
+    }
+  ],
+  "measuredShell": [
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "rightWidth": 336,
+      "topbarHeight": 40,
+      "sourceHeight": 28,
+      "replayHeight": 30,
+      "tapeHeaders": [
+        "TIME UTC",
+        "PRICE USDT",
+        "SIZE BTC",
+        "SIDE"
+      ],
+      "headers": [
+        32,
+        32
+      ]
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "rightWidth": 360,
+      "topbarHeight": 40,
+      "sourceHeight": 28,
+      "replayHeight": 30,
+      "tapeHeaders": [
+        "TIME UTC",
+        "PRICE USDT",
+        "SIZE BTC",
+        "SIDE"
+      ],
+      "headers": [
+        32,
+        32
+      ]
+    },
+    {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "rightWidth": 420,
+      "topbarHeight": 40,
+      "sourceHeight": 28,
+      "replayHeight": 30,
+      "tapeHeaders": [
+        "TIME UTC",
+        "PRICE USDT",
+        "SIZE BTC",
+        "SIDE"
+      ],
+      "headers": [
+        32,
+        32
+      ]
+    }
+  ],
+  "contextFocus": {
+    "inspectorInitialFocus": "Close Chart Inspector",
+    "inspectorEscape": {
+      "focus": "Order flow settings",
+      "inspectorVisible": false
+    },
+    "domEscapeAfterFix": {
+      "open": false,
+      "summaryFocused": true
+    }
+  },
+  "tradeInspection": {
+    "pinnedAcrossStreaming": true,
+    "before": "2057 / 4276 · 1×",
+    "after": "2060 / 4276 · 1×"
+  },
+  "savedWidthRegression": {
+    "before": {
+      "requested": 500,
+      "displayed": 406
+    },
+    "failure": {
+      "requested": 406,
+      "displayed": 406
+    },
+    "fixedBefore": {
+      "requested": 500,
+      "displayed": 406
+    },
+    "fixedAfter": {
+      "requested": 500,
+      "displayed": 500
+    }
+  },
+  "tapeContextRegression": {
+    "at1280x800": {
+      "pane": {
+        "top": 422,
+        "bottom": 526,
+        "height": 104
+      },
+      "controls": [
+        {
+          "label": "Tape rows",
+          "top": 459.5,
+          "bottom": 483.5,
+          "hit": true,
+          "hitElement": "SELECT"
+        },
+        {
+          "label": "Tape side",
+          "top": 459.5,
+          "bottom": 483.5,
+          "hit": true,
+          "hitElement": "SELECT"
+        }
+      ]
+    },
+    "shortPaneFailure": {
+      "viewport": {
+        "width": 1280,
+        "height": 560
+      },
+      "pane": {
+        "top": 288.78125,
+        "bottom": 348.375,
+        "height": 59.59375
+      },
+      "controls": [
+        {
+          "label": "Tape rows",
+          "top": 326.28125,
+          "bottom": 350.28125,
+          "withinPane": false,
+          "centerHit": true,
+          "bottomHit": false
+        },
+        {
+          "label": "Tape side",
+          "top": 326.28125,
+          "bottom": 350.28125,
+          "withinPane": false,
+          "centerHit": true,
+          "bottomHit": false
+        }
+      ]
+    },
+    "shortPaneFixed": {
+      "viewport": {
+        "width": 1280,
+        "height": 560
+      },
+      "controls": [
+        {
+          "label": "Tape rows",
+          "top": 330.28125,
+          "bottom": 354.28125,
+          "withinViewport": true,
+          "centerHit": true,
+          "bottomHit": true
+        },
+        {
+          "label": "Tape side",
+          "top": 330.28125,
+          "bottom": 354.28125,
+          "withinViewport": true,
+          "centerHit": true,
+          "bottomHit": true
+        }
+      ]
+    },
+    "scrolledMobile": {
+      "viewport": {
+        "width": 390,
+        "height": 900
+      },
+      "horizontalOverflow": false,
+      "controls": [
+        {
+          "label": "Tape rows",
+          "left": 196.6875,
+          "right": 246.6875,
+          "top": 620.4375,
+          "bottom": 644.4375,
+          "hit": true
+        },
+        {
+          "label": "Tape side",
+          "left": 280.71875,
+          "right": 356.71875,
+          "top": 620.4375,
+          "bottom": 644.4375,
+          "hit": true
+        }
+      ]
+    }
+  },
+  "workspaceSlot": {
+    "preset": "balanced",
+    "rightWidth": 360,
+    "workspaceMenuOpen": false,
+    "summaryFocused": true,
+    "cursor": "2057 / 4276 · 1×"
+  },
+  "stableFreshnessSamples": [
+    [
+      {
+        "pane": "heatmap",
+        "height": 346.625,
+        "evidence": "104449902557199",
+        "residentMs": "59.20000001788139"
+      },
+      {
+        "pane": "flow",
+        "height": 315.375,
+        "evidence": "104450902141038",
+        "residentMs": "58.39999997615814"
+      }
+    ],
+    [
+      {
+        "pane": "heatmap",
+        "height": 346.625,
+        "evidence": "104449902557199",
+        "residentMs": "496.90000000596046"
+      },
+      {
+        "pane": "flow",
+        "height": 315.375,
+        "evidence": "104450902141038",
+        "residentMs": "597.8999999761581"
+      }
+    ],
+    [
+      {
+        "pane": "heatmap",
+        "height": 346.625,
+        "evidence": "104449902557199",
+        "residentMs": "1054.4000000059605"
+      },
+      {
+        "pane": "flow",
+        "height": 315.375,
+        "evidence": "104450902141038",
+        "residentMs": "1053.199999988079"
+      }
+    ],
+    [
+      {
+        "pane": "heatmap",
+        "height": 346.625,
+        "evidence": "104449902557199",
+        "residentMs": "1597.9000000059605"
+      },
+      {
+        "pane": "flow",
+        "height": 315.375,
+        "evidence": "104450902141038",
+        "residentMs": "1641.7999999821186"
+      }
+    ],
+    [
+      {
+        "pane": "heatmap",
+        "height": 346.625,
+        "evidence": "104449902557199",
+        "residentMs": "2137.4000000059605"
+      },
+      {
+        "pane": "flow",
+        "height": 315.375,
+        "evidence": "104450902141038",
+        "residentMs": "2137.5"
+      }
+    ],
+    [
+      {
+        "pane": "heatmap",
+        "height": 346.625,
+        "evidence": "104449902557199",
+        "residentMs": "2676.4000000059605"
+      },
+      {
+        "pane": "flow",
+        "height": 315.375,
+        "evidence": "104450902141038",
+        "residentMs": "2675.7999999821186"
+      }
+    ],
+    [
+      {
+        "pane": "heatmap",
+        "height": 346.625,
+        "evidence": "104449902557199",
+        "residentMs": "3183.7000000178814"
+      },
+      {
+        "pane": "flow",
+        "height": 315.375,
+        "evidence": "104450902141038",
+        "residentMs": "3182.899999976158"
+      }
+    ],
+    [
+      {
+        "pane": "heatmap",
+        "height": 346.625,
+        "evidence": "104449902557199",
+        "residentMs": "3656.0999999940395"
+      },
+      {
+        "pane": "flow",
+        "height": 315.375,
+        "evidence": "104450902141038",
+        "residentMs": "3649.7999999821186"
+      }
+    ],
+    [
+      {
+        "pane": "heatmap",
+        "height": 346.625,
+        "evidence": "104449902557199",
+        "residentMs": "4055.0999999940395"
+      },
+      {
+        "pane": "flow",
+        "height": 315.375,
+        "evidence": "104450902141038",
+        "residentMs": "4053.899999976158"
+      }
+    ],
+    [
+      {
+        "pane": "heatmap",
+        "height": 346.625,
+        "evidence": "104449902557199",
+        "residentMs": "4676.0999999940395"
+      },
+      {
+        "pane": "flow",
+        "height": 315.375,
+        "evidence": "104450902141038",
+        "residentMs": "4432.799999982119"
+      }
+    ]
+  ],
+  "verification": {
+    "frontend": "ESLint,85 unit tests,TypeScript,Vite passed",
+    "browserInitial": "45 passed,1 expected network skip,2 failed in full suite",
+    "browserCorrections": "Both corrected cases passed: stable paused-book row comparison after proving replay progress; explicit5s interval for no-sampled-depth flow fixture",
+    "visual": "All3 actual recorded layouts inspected;11/13/17 readable footprintrows, no horizontal overflow or compact cells at matchedprefix"
+  },
+  "corrections": [
+    "Per-bucket/per-value compact fallback preserves readable neighbors;10px candle lane fits exact edge quantities at1280 without smallerfonts",
+    "Focused native disclosure Escape precedesmaximize",
+    "Legacy manual250–319px widths preserved and ineffectiveboundary gestures do notpersist viewportclamps",
+    "Tape settings use viewport-bounded placement and remainhit-testable in59.6px pane and390px scrolledviewport"
+  ],
+  "limitations": [
+    "Full final suite is run again after interaction phase",
+    "Source-clock lag and evidence residency are distinct from paint/ACK performance",
+    "Public-live sustained capacity has not been certified"
+  ]
+}

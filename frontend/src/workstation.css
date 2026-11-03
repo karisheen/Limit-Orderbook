@@ -1,14 +1,21 @@
 .workstation { height: 100dvh; min-height: 560px; display: flex; flex-direction: column; overflow: hidden; }
 .workstation > :not(.workstation-workspace) { flex-shrink: 0; }
-.workstation .topbar { gap: 8px; }
+.workstation .topbar { gap: 8px; min-height: 40px; padding: 3px 10px; flex-wrap: wrap; }
 .workstation .topbar > label { display: inline-flex; align-items: center; gap: 4px; }
-.workstation .selected-identity { flex: 0 1 230px; min-width: 205px; max-width: 230px; }
-.workstation .selected-identity > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workstation .topbar input, .workstation .topbar select, .workstation .topbar button { min-height: 24px; padding: 2px 6px; }
+.workstation .selected-identity { flex: 0 0 auto; min-width: 205px; max-width: 100%; gap: 0; }
+.workstation .selected-identity > * { white-space: normal; overflow-wrap: anywhere; }
+.workstation .selected-identity strong { line-height: 18px; }
+.workstation .selected-identity span { overflow: visible; line-height: 14px; }
+.workstation .top-search { max-width: 220px; }
 /* Keep changing readiness/status text out of the wrapping layout budget. */
-.workstation .source-banner { flex-wrap: nowrap; gap: 5px 10px; }
+.workstation .source-banner { min-height: 28px; padding: 2px 10px; flex-wrap: nowrap; gap: 5px 10px; }
 .workstation .source-banner > strong, .workstation .pane-toggles, .workstation .source-inspector { flex-shrink: 0; }
 .workstation .source-readiness { flex: 0 0 124px; white-space: nowrap; }
-.workstation .source-state { flex: 0 0 84px; white-space: nowrap; }
+.workstation .source-state { flex: 0 0 64px; white-space: nowrap; }
+.workstation .source-banner button { min-height: 22px; padding: 1px 5px; }
+.workstation .replay-controls { min-height: 30px; padding: 2px 10px; font-size: 11px; }
+.workstation .replay-controls button, .workstation .replay-controls input, .workstation .replay-controls select { min-height: 24px; padding: 2px 6px; }
 .workstation-workspace { position: relative; flex: 1; min-height: 0; display: grid; grid-template-columns: var(--left-width) 6px minmax(0, 1fr) 6px var(--right-width); grid-template-rows: minmax(0, 1fr) 6px minmax(0, min(var(--bottom-height), 42%)); overflow: hidden; }
 .workstation-workspace.left-collapsed { grid-template-columns: 0 0 minmax(0, 1fr) 6px var(--right-width); }
 .workstation-workspace.right-collapsed { grid-template-columns: var(--left-width) 6px minmax(0, 1fr) 0 0; }
@@ -25,22 +32,37 @@
 .workstation .chart-slot { min-width: 0; min-height: 0; overflow: hidden; }
 .workstation .chart-slot > .chart-pane { height: 100%; }
 .workstation .book-tape { grid-column: 5; grid-row: 1; display: grid; grid-template-rows: minmax(0, calc(var(--tape-split) - 3px)) 6px minmax(0, 1fr); min-width: 0; min-height: 0; }
-.workstation .dom-pane, .workstation .tape-pane { min-height: 0; min-width: 0; display: flex; flex-direction: column; overflow: auto; }
+.workstation .dom-pane, .workstation .tape-pane { min-height: 0; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+.workstation .dom-pane { overflow: visible; }
 .workstation .dom-pane > .ladder-panel, .workstation .tape-pane > .tape-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .workstation .dom-pane > .freshness, .workstation .tape-panel > .freshness { flex-shrink: 0; padding: 2px 5px; gap: 2px 4px; }
-.workstation .book-tape .freshness-value { white-space: normal; overflow-wrap: anywhere; }
+.workstation .book-tape .freshness-value { white-space: nowrap; }
 .workstation .dom-header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; margin-left: auto; }
-.workstation .book-tape .panel-heading { min-height: 29px; padding: 2px 5px; }
-.workstation .book-tape .panel-heading button { min-height: 23px; padding: 2px 4px; font-size: 11px; }
-.workstation .pane-actions { display: inline-flex; align-items: center; gap: 3px; }
-.workstation .ladder-panel .ladder-scroll { min-height: 150px; }
-.workstation .tape-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 3px 5px; flex-shrink: 0; font-size: 11px; }
+.workstation .book-tape .panel-heading { min-height: 32px; padding: 3px 5px; gap: 4px; flex-shrink: 0; }
+.workstation .book-tape .panel-heading button { min-height: 24px; padding: 2px 4px; font-size: 11px; }
+.workstation .pane-actions { display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0; }
+.workstation .ladder-panel .ladder-scroll { min-height: 0; }
+.workstation .tape-panel { position: relative; }
+.workstation .tape-panel .panel-heading h2 { margin-right: auto; white-space: nowrap; }
+.workstation .tape-settings { position: relative; flex-shrink: 0; font-size: 11px; }
+.workstation .tape-settings > summary { min-height: 24px; display: flex; align-items: center; padding: 2px 4px; }
+.workstation .tape-toolbar { position: fixed; top: 0; left: 0; z-index: 30; width: 225px; box-sizing: border-box; max-width: calc(100dvw - 16px); max-height: calc(100dvh - 16px); overflow: auto; visibility: hidden; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 6px 16px #0006; font-size: 11px; }
 .workstation .tape-toolbar label { display: inline-flex; align-items: center; gap: 3px; min-width: 0; }
-.workstation .tape-toolbar button, .workstation .tape-toolbar select { min-height: 24px; padding: 2px 4px; font-size: 11px; }
-.workstation .tape-toolbar select { max-width: 76px; }
-.workstation .tape-scroll { flex: 1; min-height: 50px; }
+.workstation .tape-toolbar select { min-height: 24px; padding: 2px 4px; font-size: 11px; max-width: 76px; }
+.workstation .tape-toolbar > span { color: var(--muted); }
+.workstation .tape-scroll { flex: 1; min-height: 0; }
+.workstation .tape-scroll table { width: 100%; font-size: 12px; font-variant-numeric: tabular-nums; }
 .workstation .tape-scroll td, .workstation .tape-scroll th { padding: 3px 5px; white-space: nowrap; }
-.workstation .tape-price { padding: 0; border: 0; min-height: 0; background: transparent; font: inherit; }
+.workstation .tape-scroll th { font-size: 11px; font-weight: 500; }
+.workstation .tape-scroll th:nth-child(2), .workstation .tape-scroll th:nth-child(3) { text-align: right; }
+.workstation .tape-scroll td:not(:last-child) { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+.workstation .tape-price, .workstation .tape-time { padding: 0; border: 0; min-height: 0; background: transparent; font: inherit; color: inherit; }
+.workstation .tape-time { text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.workstation .tape-origin { display: block; font-size: 11px; }
+.workstation .tape-inspector { position: absolute; inset: 32px 0 0; z-index: 11; overflow: auto; padding: 8px; background: var(--panel); border-top: 1px solid var(--line); }
+.workstation .tape-inspector-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; }
+.workstation .tape-inspector .metadata { margin-block: 10px; }
+.workstation .tape-inspector dd { overflow-wrap: anywhere; }
 .workstation .bottom-resizer { grid-column: 3 / 6; grid-row: 2; }
 .workstation .research-pane { grid-column: 3 / 6; grid-row: 3; min-height: 0; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
 .workstation .research-tabs { flex-shrink: 0; }
@@ -65,29 +87,25 @@
 .workstation .source-inspector-body { white-space: normal; }
 .workstation .source-inspector-body .metadata { margin-block: 8px; }
 .workstation .diagnostics { max-height: 30dvh; overflow: auto; border-top: 1px solid var(--line); }
-.workstation .diagnostics > summary { padding: 3px 8px; }
+.workstation .diagnostics > summary { min-height: 19px; padding: 2px 8px; font-size: 11px; line-height: 15px; }
 .workstation .diagnostics .telemetry { display: flex; flex-wrap: wrap; gap: 5px 16px; padding: 5px 8px; }
-@media (min-width: 1600px) {
-  .workstation .selected-identity { min-width: 180px; }
-  .workstation .topbar { min-height: 50px; }
-}
 @media (max-width: 1100px) {
   .workstation .topbar { flex-wrap: wrap; }
   .workstation .source-banner { flex-wrap: wrap; }
-  .workstation .brand { display: none; }
+  .workstation .selected-identity { min-width: 0; }
   .workstation .source-control { margin-left: 0; }
   .workstation .source-control select { width: 200px; }
   .workstation .sidebar { position: absolute; top: 0; bottom: 0; left: 0; width: var(--left-width); z-index: 10; }
   .workstation .left-resizer { display: none; }
-  .workstation-workspace, .workstation-workspace.left-collapsed { grid-template-columns: 0 0 minmax(0, 1fr) 6px min(var(--right-width), 38vw); }
+  .workstation-workspace, .workstation-workspace.left-collapsed { grid-template-columns: 0 0 minmax(0, 1fr) 6px var(--right-width); }
   .workstation-workspace.right-collapsed { grid-template-columns: 0 0 minmax(0, 1fr) 0 0; }
 }
-@media (max-width: 700px) {
+@media (max-width: 965px) {
   .workstation { min-height: 900px; height: auto; overflow: visible; }
   .workstation-workspace, .workstation-workspace.left-collapsed, .workstation-workspace.right-collapsed { flex: none; height: auto; display: flex; flex-direction: column; overflow: visible; }
   .workstation .sidebar { position: static; width: auto; height: min(440px, 60dvh); flex: none; }
-  .workstation .chart-stack { height: 620px; flex: none; }
-  .workstation .book-tape { height: 640px; flex: none; }
+  .workstation .chart-stack { height: 780px; flex: none; }
+  .workstation .book-tape { height: 760px; flex: none; }
   .workstation .right-resizer { display: none; }
   .workstation .research-pane { height: var(--bottom-height); flex: none; }
   .workstation .bottom-resizer { height: 6px; }
@@ -98,4 +116,8 @@
   .workstation .source-inspector { margin-left: auto; }
   .workstation .replay-controls { flex-wrap: wrap; }
   .workstation .top-search { min-width: 110px; }
+  .workstation .source-banner > strong, .workstation .pane-toggles { flex-shrink: 1; }
+  .workstation .source-readiness, .workstation .source-state { flex-basis: auto; }
+  .workstation .replay-controls form { margin-left: 0; }
+  .workstation .replay-controls .cursor { flex-basis: 100%; }
 }

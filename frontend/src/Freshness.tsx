@@ -40,6 +40,7 @@ function FreshnessBadge({ frame, lag, residentMs, responseMs, label, frozen, tes
   const explanation = `${label}: ${identity}${frozen ? ', frozen' : ''}. Source-clock lag compares the displayed evidence receive timestamp with the latest observed same-clock source/evaluation highwater. It is not exchange latency, transport latency, or wall-clock age; a silent source can stop its clock frontier. Replay uses recording time, never the recording’s wall date. Resident is browser elapsed time since this evidence was first displayed here; new frames with unchanged evidence do not reset it.${responseMs !== undefined ? ` Response resident: ${duration(responseMs)} since this displayed query response arrived, separate from draw/paint/ACK timing.` : ''}${lag.reason ? ` Source lag unavailable: ${lag.reason}.` : ` Clock: ${lag.clockId}; evidence: ${lag.evidenceNs} ns; highwater: ${lag.highwaterNs} ns.`}`;
   return <span className={`freshness freshness--${lag.ms === null ? 'unavailable' : 'available'}${frozen ? ' freshness--frozen' : ''}`}
     title={explanation} aria-label={`${label}: ${identity}, ${frozen ? 'frozen, ' : ''}source-clock lag ${duration(lag.ms)}${lag.reason ? ` (${lag.reason})` : ''}, evidence resident ${duration(residentMs)}`}
+    aria-description={explanation} tabIndex={0}
     data-frame-id={frame?.frame_id} data-generation={frame?.generation}
     data-testid={testId} data-source-mode={mode ?? 'unavailable'} data-source-id={frame?.source.id}
     data-source-lag-ms={lag.ms ?? undefined} data-evidence-resident-ms={residentMs ?? undefined}
@@ -47,8 +48,8 @@ function FreshnessBadge({ frame, lag, residentMs, responseMs, label, frozen, tes
     data-evidence-ns={lag.evidenceNs ?? undefined} data-highwater-ns={lag.highwaterNs ?? undefined}
     data-unavailable-reason={lag.reason ?? undefined} data-view-id={viewId} data-frozen={frozen}>
     <span className="freshness-identity">{identity}{frozen ? ' frozen' : ''}</span>
-    <span className="freshness-value"> · source lag {lag.ms === null ? `unavailable (${lag.reason})` : duration(lag.ms)}</span>
-    <span className="freshness-value"> · resident {duration(residentMs)}</span>
+    <span className="freshness-value"> · source lag {lag.ms === null ? 'unavailable' : duration(lag.ms)}</span>
+    <span className="freshness-value"> · resident {residentMs === null ? '—' : duration(residentMs)}</span>
   </span>;
 }
 

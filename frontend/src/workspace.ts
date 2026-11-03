@@ -8,6 +8,7 @@ export type PaneId = 'heatmap' | 'flow' | 'dom' | 'tape';
 export interface WorkspacePreferences {
   version: 1; source: { mode: Mode; id: string } | null; sourceExplicit: boolean; instrument: string;
   preset: 'balanced' | 'analysis' | 'ladder'; leftWidth: number; rightWidth: number; bottomHeight: number;
+  rightWidthMode?: 'auto' | 'manual';
   leftOpen: boolean; rightOpen: boolean; bottomOpen: boolean;
   mode: ChartMode; contrast: number; showTrades: boolean; showQuotes: boolean; footprintOverview: boolean; timeZone: ChartTimeZone;
   priceStep: string; bucket: string; rangeSeconds: number; range: { start_ns: string; end_ns: string } | null;
@@ -25,12 +26,12 @@ const secondaryDefaults: ChartSettings = {
   follow: true, paused: false, priceOffset: 0,
 };
 const defaults: WorkspacePreferences = {
-  version: 1, source: null, sourceExplicit: false, instrument: '', preset: 'balanced', leftWidth: 222, rightWidth: 314, bottomHeight: 248,
+  version: 1, source: null, sourceExplicit: false, instrument: '', preset: 'balanced', leftWidth: 222, rightWidth: 360, rightWidthMode: 'auto', bottomHeight: 248,
   leftOpen: false, rightOpen: true, bottomOpen: false, mode: 'heatmap', contrast: 1,
   showTrades: true, showQuotes: true, footprintOverview: false, timeZone: 'UTC', priceStep: '', bucket: '1000000000', rangeSeconds: 180,
   range: null, follow: true, paused: false, domFrozen: false, domRows: 15, priceOffset: 0,
   domPriceStep: '', domUnit: 'base', domCumulative: false,
-  secondary: secondaryDefaults, chartSplit: 56, tapeSplit: 60,
+  secondary: secondaryDefaults, chartSplit: 52, tapeSplit: 60,
   links: { heatmap: true, flow: true, dom: true, tape: true },
   tapeRows: 50, tapeSide: 'all', tapeFrozen: false,
 };
@@ -48,6 +49,9 @@ export function validatePreferences(value: unknown, nested = false): WorkspacePr
   for (const key of ['leftOpen', 'rightOpen', 'bottomOpen', 'showTrades', 'showQuotes', 'footprintOverview', 'follow', 'paused', 'domFrozen', 'domCumulative', 'tapeFrozen'] as const) if (typeof p[key] === 'boolean') next[key] = p[key];
   next.leftWidth = Math.round(bounded(p.leftWidth, 180, 360, defaults.leftWidth));
   next.rightWidth = Math.round(bounded(p.rightWidth, 250, 500, defaults.rightWidth));
+  // A numeric legacy width may be deliberate, even when it matches an old default.
+  next.rightWidthMode = p.rightWidthMode === 'auto' ? 'auto'
+    : p.rightWidthMode === 'manual' || typeof p.rightWidth === 'number' && Number.isFinite(p.rightWidth) ? 'manual' : 'auto';
   next.bottomHeight = Math.round(bounded(p.bottomHeight, 170, 460, defaults.bottomHeight));
   next.contrast = bounded(p.contrast, 1e-12, 1e12, 1);
   next.domRows = Math.round(bounded(p.domRows, 1, 100, 15));
@@ -149,10 +153,23 @@ export function useWorkspacePreferences() {
   };
   return { preferences, setPreferences, storageError, slots, saveSlot, loadSlot };
 }
-export function presetLayout(preset: WorkspacePreferences['preset']) {
-  return preset === 'analysis' ? { preset, leftWidth: 200, rightWidth: 300, bottomHeight: 260, chartSplit: 50, tapeSplit: 55, leftOpen: false, rightOpen: true, bottomOpen: true }
-    : preset === 'ladder' ? { preset, leftWidth: 200, rightWidth: 420, bottomHeight: 200, chartSplit: 55, tapeSplit: 72, leftOpen: false, rightOpen: true, bottomOpen: false }
-      : { preset, leftWidth: 222, rightWidth: 314, bottomHeight: 248, chartSplit: 56, tapeSplit: 60, leftOpen: false, rightOpen: true, bottomOpen: false };
+export function presetLayout(preset: WorkspacePreferences['preset']): Partial<WorkspacePreferences> {
+  return preset === 'analysis' ? { preset, leftWidth: 200, rightWidth: 300, rightWidthMode: 'manual', bottomHeight: 260, chartSplit: 50, tapeSplit: 55, leftOpen: false, rightOpen: true, bottomOpen: true }
+    : preset === 'ladder' ? { preset, leftWidth: 200, rightWidth: 420, rightWidthMode: 'manual', bottomHeight: 200, chartSplit: 55, tapeSplit: 72, leftOpen: false, rightOpen: true, bottomOpen: false }
+      : { preset, leftWidth: 222, rightWidth: 360, rightWidthMode: 'auto', bottomHeight: 248, chartSplit: 52, tapeSplit: 60, leftOpen: false, rightOpen: true, bottomOpen: false };
+}
+
+export function workspaceGeometry(preferences: Pick<WorkspacePreferences, 'rightWidth' | 'rightWidthMode' | 'leftOpen' | 'leftWidth'>, viewportWidth: number) {
+  const stacked = viewportWidth < 966;
+  const watchlistWidth = preferences.leftOpen && viewportWidth > 1100 ? preferences.leftWidth + 6 : 0;
+  // Manual layouts retain the persisted 250–500 range; only auto sizing needs 320.
+  const min = preferences.rightWidthMode === 'auto' ? 320 : 250;
+  const max = Math.max(min, Math.min(500, viewportWidth - watchlistWidth - 6 - 640));
+  const automatic = viewportWidth <= 1440
+    ? 336 + (Math.max(1280, viewportWidth) - 1280) * 24 / 160
+    : 360 + (Math.min(1920, viewportWidth) - 1440) * 60 / 480;
+  const requested = preferences.rightWidthMode === 'auto' ? automatic : preferences.rightWidth;
+  return { rightWidth: Math.round(Math.min(max, Math.max(min, requested))), min, max, stacked };
 }
 export function mergeVisualGrid(previous: VisualGrid | null, next: VisualGrid): VisualGrid {
   if (next.replace || !previous || previous.grid_id !== next.grid_id || previous.generation !== next.generation) return next;

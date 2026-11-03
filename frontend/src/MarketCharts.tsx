@@ -34,6 +34,7 @@ export interface MarketChartsProps {
   freshness?: ReactNode;
   inspectorOpen?: boolean;
   inspectorId?: string;
+  onInspectorClose?: () => void;
   diagnostics?: ReactNode;
 }
 
@@ -49,6 +50,7 @@ export function MarketCharts(props: MarketChartsProps): ReactNode {
   const base = useRef<HTMLCanvasElement>(null);
   const overlay = useRef<HTMLCanvasElement>(null);
   const cursor = useRef<HTMLCanvasElement>(null);
+  const inspectorClose = useRef<HTMLButtonElement>(null);
   const renderer = useRef<MarketRenderer | null>(null);
   const latest = useRef(props);
   const visible = useRef(true);
@@ -86,6 +88,9 @@ export function MarketCharts(props: MarketChartsProps): ReactNode {
   const pan = useRef(panPrice);
   pan.current = panPrice;
   useEffect(() => { latest.current = props; });
+  useEffect(() => {
+    if (props.inspectorOpen) inspectorClose.current?.focus();
+  }, [props.inspectorOpen]);
   const clearPresentation = useCallback(() => {
     setReport(null); setPaintMs(null); setPaintedViewId(null);
     latest.current.onPresented?.(null, null, null, null);
@@ -277,6 +282,9 @@ export function MarketCharts(props: MarketChartsProps): ReactNode {
   const reasons = [...new Set([...(view?.reasons ?? []), ...(view?.time_axis.reasons ?? []), ...(column?.reasons ?? []), ...(metric?.eligibility.reasons ?? []), ...(mode === 'candles' ? column?.candle?.reasons ?? [] : [])])];
   const available = view && (mode === 'profile' ? view.profile.length > 0 : mode === 'footprint' ? view.footprints.length > 0 : mode === 'candles' ? view.columns.some(item => item.candle?.eligible) : mode === 'cvd' || mode === 'ofi' ? view.columns.some(item => item[mode]?.eligibility.eligible && item[mode]?.value != null) : view.columns.some(item => item.eligible));
   const denseFootprint = mode === 'footprint' && report?.compactFootprint;
+  const displayCapped = !!view && (view.columns.length > CHART_LIMITS.columns || (report?.omittedTrades ?? 0) > 0 || (report?.omittedCells ?? 0) > 0);
+  const windowQuality = !view ? 'Unavailable' : !available ? `${view.complete_window ? '' : 'Partial · '}Ineligible` : view.complete_window ? 'Complete' : 'Partial';
+  const qualityDetails = `${view ? `${view.complete_window ? 'Complete window' : 'Partial window'}${view.truncated ? ' · truncated' : ''}${!available ? ' · no eligible evidence for this chart mode' : ''}` : 'Awaiting source evidence'}${displayCapped ? ' · display capped; native collection unchanged' : ''}${reasons.length ? ` · ${reasons.length} quality reasons: ${reasons.join('; ')}` : ''}`;
 
   return <section className="m4-charts" data-testid="market-charts" aria-label={MODE_LABEL[mode]} data-mode={mode} data-view-id={view?.view_id ?? ''}
     data-start-ns={view?.start_ns} data-end-ns={view?.end_ns} data-price-min={view?.price_min} data-price-step={view?.price_step}
@@ -305,9 +313,11 @@ export function MarketCharts(props: MarketChartsProps): ReactNode {
       </div> : null}
     </div>
     <aside id={props.inspectorId} className="m4-chart-inspector" aria-label="Chart Inspector" hidden={!props.inspectorOpen}>
+    <div className="m4-chart-inspector-header"><strong>Inspector</strong>{props.onInspectorClose ? <button ref={inspectorClose} aria-label="Close Chart Inspector" onClick={props.onInspectorClose}>Close</button> : null}</div>
     <details className="m4-chart-guide"><summary>Legend & navigation{loading ? ' · updating' : ''}</summary>
     <div className="m4-chart-legend" aria-label="Chart legend">
       <strong>{MODE_LABEL[mode]}</strong>
+      {mode === 'footprint' && view ? <span>SELL left · BUY right · ? unknown · {props.footprintOverview ? 'Full native grid' : `Rows ${rowViewport.first + 1}–${rowViewport.first + rowViewport.count} / ${view.rows}`}{denseFootprint ? ' · Compact cells; exact values below' : ''}</span> : null}
       {mode === 'heatmap' ? <><span className="m4-bid">Resting bid ▰</span><span className="m4-ask">Resting ask ▰</span><span className="m4-unknown">Hatch: unknown depth</span></> : null}
       {mode === 'cvd' || mode === 'ofi' ? <span>{metric?.unit ?? 'Unit unavailable'} · signed, viewport-scaled axis</span> : <>
         <span className="m4-buy">Executed buy ●</span><span className="m4-sell">Executed sell ●</span><span className="m4-unknown">Unknown side ◇</span>
@@ -328,7 +338,7 @@ export function MarketCharts(props: MarketChartsProps): ReactNode {
     </div>
     </details>
       {reasons.length ? <details className="m4-quality-reasons"><summary className="m4-chart-warning">{reasons.length} quality {reasons.length === 1 ? 'reason' : 'reasons'}</summary><ul>{reasons.map(reason => <li key={reason}>{reason}</li>)}</ul></details> : null}
-      {view && (view.columns.length > CHART_LIMITS.columns || (report?.omittedTrades ?? 0) > 0 || (report?.omittedCells ?? 0) > 0) ? <details className="m4-quality-reasons"><summary className="m4-chart-warning">Display capped</summary><p>Newest {CHART_LIMITS.columns} columns / {CHART_LIMITS.trades} trades / {CHART_LIMITS.footprints} footprint cells. Native collection unchanged.</p></details> : null}
+      {displayCapped ? <details className="m4-quality-reasons"><summary className="m4-chart-warning">Display capped</summary><p>Newest {CHART_LIMITS.columns} columns / {CHART_LIMITS.trades} trades / {CHART_LIMITS.footprints} footprint cells. Native collection unchanged.</p></details> : null}
     {view ? <details className="m4-chart-readout"><summary>Exact data / quality · {column?.time_ns ?? 'no sampled time'} ns · price {price ?? 'unavailable'}</summary>
       <dl><dt>Clock / instrument</dt><dd>{view.clock_id} / {view.instrument_id}</dd><dt>Window (source monotonic ns)</dt><dd>{view.start_ns} → {view.end_ns}</dd><dt>Retention starts</dt><dd>{view.retained_start_ns ?? 'Unavailable'}</dd><dt>Grid / price quantum</dt><dd>{view.grid_id} / {view.price_step}</dd><dt>Selected sample</dt><dd>{column ? `${column.time_ns} → ${column.end_ns} · ${column.segment_id}` : 'No sample at cursor'}</dd><dt>Best bid / ask</dt><dd>{column?.best_bid ?? 'Unknown'} / {column?.best_ask ?? 'Unknown'}</dd></dl>
       <dl>
@@ -353,15 +363,13 @@ export function MarketCharts(props: MarketChartsProps): ReactNode {
     </aside>
     </div>
     <div className="m4-chart-quality" role="status">
-      <span className="m4-chart-clock-context" aria-label="Chart receive-clock date and timezone">Receive · {clockContext}</span>
+      <span className="m4-chart-clock-context" aria-label={`Chart receive-clock date and timezone: ${clockContext}`} title={`Receive clock · ${clockContext}`}>{clockContext}</span>
       <span className="m4-chart-window-quality">
-        {mode === 'footprint' && view ? <span className="m4-footprint-density" data-testid="footprint-density">
-          <span>{denseFootprint ? 'Compact footprint · exact values in Inspector' : 'SELL left · BUY right · ? unknown'} · {props.footprintOverview ? 'Full native grid' : `Rows ${rowViewport.first + 1}–${rowViewport.first + rowViewport.count} / ${view.rows}`}</span>
+        {mode === 'footprint' && view ? <span className="m4-footprint-density" data-testid="footprint-density" tabIndex={0} aria-label={`${denseFootprint ? 'Compact cells marked with dashes; exact values in Inspector. ' : ''}SELL left, BUY right, question mark unknown. ${props.footprintOverview ? 'Full native grid' : `Visible native rows ${rowViewport.first + 1}–${rowViewport.first + rowViewport.count} of ${view.rows}`}. Quantities in ${view.quantity_unit}.`} title={`${denseFootprint ? 'Compact cells marked with dashes; exact values in Inspector. ' : ''}SELL left · BUY right · ? unknown. ${props.footprintOverview ? 'Full native grid' : `Visible native rows ${rowViewport.first + 1}–${rowViewport.first + rowViewport.count} of ${view.rows}`}. Quantities in ${view.quantity_unit}.`}>
+          <span>{denseFootprint ? 'Compact cells · ' : ''}{props.footprintOverview ? 'Full native grid' : `Rows ${rowViewport.first + 1}–${rowViewport.first + rowViewport.count}/${view.rows}`} · {view.quantity_unit}</span>
           {!props.footprintOverview && rowViewport.count < view.rows ? <><button aria-label="Show higher footprint rows" onClick={() => panPrice(4)}>↑</button><button aria-label="Show lower footprint rows" onClick={() => panPrice(-4)}>↓</button></> : null}
-        </span> : null}
-        <span>{view ? `${view.complete_window ? 'Complete window' : 'Partial window'}${view.truncated ? ' · truncated' : ''} · ${view.quantity_unit}` : 'Awaiting source evidence'}</span>
-        {reasons.length ? <span className="m4-chart-warning">{reasons.length} quality {reasons.length === 1 ? 'reason' : 'reasons'} · Inspector</span> : null}
-        {view && (view.columns.length > CHART_LIMITS.columns || (report?.omittedTrades ?? 0) > 0 || (report?.omittedCells ?? 0) > 0) ? <span className="m4-chart-warning">Display capped</span> : null}
+        </span> : <span className="m4-chart-units" title={mode === 'heatmap' || mode === 'profile' ? 'Fixed saturation cap. Incoming data never rescales historical colors.' : 'Chart quantity units'}>{mode === 'heatmap' || mode === 'profile' ? `0–${saturation(contrast)} ` : ''}{mode === 'cvd' || mode === 'ofi' ? metric?.unit ?? 'Unit unavailable' : view?.quantity_unit ?? 'Unit unavailable'}</span>}
+        <span className={`m4-chart-quality-badge${!view || !available || !view.complete_window || reasons.length ? ' m4-chart-warning' : ''}`} tabIndex={0} aria-label={qualityDetails} title={qualityDetails}>{windowQuality}{view?.truncated ? ' · truncated' : ''}{displayCapped ? ' · capped' : ''}</span>
       </span>
       <div className="m4-chart-freshness">{props.freshness}</div>
     </div>

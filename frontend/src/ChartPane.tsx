@@ -40,7 +40,6 @@ export function ChartPane({ id, title, frame, instrument, connected, preferences
   const pendingPriceReset = useRef<VisualGrid | null | undefined>(undefined);
   const host = useRef<HTMLElement>(null);
   const settingsTrigger = useRef<HTMLButtonElement>(null);
-  const inspectorTrigger = useRef<HTMLButtonElement>(null);
   const identity = frame ? `${frame.session_id}:${frame.generation}:${frame.source.mode}:${frame.source.id}:${frame.selection.instrument_id}` : '';
   const [localCursor, setLocalCursor] = useState<{ identity: string; value: ChartCursor | null } | null>(null);
   const paneCursor = linked ? crosshair : localCursor?.identity === identity ? localCursor.value : null;
@@ -70,6 +69,11 @@ export function ChartPane({ id, title, frame, instrument, connected, preferences
   }, [update, view]);
   const changeRange = useCallback((range: ChartRange) => update({ range, follow: false }), [update]);
   const panPrice = useCallback((rows: number) => update({ priceOffset: Math.max(-10000, Math.min(10000, p.priceOffset + Math.round(rows))) }), [p.priceOffset, update]);
+  const closeContext = useCallback(() => {
+    setSettingsOpen(false);
+    setInspectorOpen(false);
+    settingsTrigger.current?.focus();
+  }, []);
 
   useEffect(() => {
     if (!active) return;
@@ -89,32 +93,31 @@ export function ChartPane({ id, title, frame, instrument, connected, preferences
   const stepOptions = view?.step_options ?? [];
   const error = !usable ? `No current stream evidence${frame ? ` · ${frame.status}` : ''}.${view ? ' Retained chart is diagnostic only.' : ''}`
     : views.chart.error ? `Chart unavailable / retained snapshot stale: ${views.chart.error}` : null;
-  return <section ref={host} className="chart-pane" data-pane={id} data-testid={`chart-pane-${id}`} hidden={!active} aria-label={`${title} chart pane`} onKeyDown={event => {
+  return <section ref={host} className="chart-pane" data-pane={id} data-testid={`chart-pane-${id}`} hidden={!active} aria-label={`${title} chart pane`} onKeyDownCapture={event => {
     if (event.key !== 'Escape' || !settingsOpen && !inspectorOpen) return;
     event.preventDefault();
     event.stopPropagation();
-    const trigger = settingsOpen ? settingsTrigger : inspectorTrigger;
-    setSettingsOpen(false);
-    setInspectorOpen(false);
-    trigger.current?.focus();
+    closeContext();
   }}>
     <div className="chart-pane-toolbar">
     <header className="chart-pane-header">
-      <strong>{title}</strong>
       <select aria-label="Chart mode" value={p.mode} onChange={event => update({ mode: event.target.value as ChartMode })}>{(id === 'flow' ? ['footprint', 'candles'] as ChartMode[] : modes).map(mode => <option key={mode} value={mode}>{modeNames[mode]}</option>)}</select>
+      <select aria-label="Time bucket" title="Time bucket" value={p.bucket} onChange={event => update({ bucket: event.target.value })}>{['1000000000', '5000000000', '10000000000'].map((value, index) => <option key={value} value={value}>{[1, 5, 10][index]}s</option>)}</select>
+      <select className="chart-pane-price-group" aria-label="Price aggregation" title="Price aggregation: native presentation buckets. Auto-fit resolves on initial view and Recenter; native depth is unchanged." value={p.priceStep} onChange={event => { pendingPriceReset.current = view; const priceStep = event.target.value; update({ priceStep, priceOffset: 0 }); setRecenter(value => value + 1); }}><option value="">Auto group</option>{p.priceStep && !stepOptions.includes(p.priceStep) && <option value={p.priceStep}>{p.priceStep} · saved / validate</option>}{stepOptions.map(step => <option key={step}>{step}</option>)}</select>
       <span className="chart-pane-follow" title={p.paused ? 'Only this view is frozen; source capture and replay continue.' : p.follow ? 'Following observed source time' : 'Pinned source-time window'}>{p.paused ? 'Frozen' : p.follow ? 'Follow' : 'Pinned'}</span>
       <div className="chart-pane-actions">
-        <button aria-label={`Link ${title} cursor`} aria-pressed={linked} onClick={onLinked} title="Link exact source time and price with other panes">Link</button>
-        <button ref={settingsTrigger} aria-label={`${title} settings`} aria-expanded={settingsOpen} aria-controls={`${id}-settings`} onClick={() => { setSettingsOpen(value => !value); setInspectorOpen(false); }}>Settings</button>
-        <button ref={inspectorTrigger} aria-label={`${title} Inspector`} aria-expanded={inspectorOpen} aria-controls={`${id}-inspector`} onClick={() => { setInspectorOpen(value => !value); setSettingsOpen(false); }}>Inspector</button>
+        <button aria-label={`Link ${title} cursor`} aria-pressed={linked} onClick={onLinked} title="Link exact source time and price with other panes">Cursor</button>
         <button data-testid="view-freeze" aria-pressed={p.paused} onClick={() => update({ paused: !p.paused })}>{p.paused ? 'Resume' : 'Freeze'}</button>
-        <button data-testid="view-recenter" onClick={center}>Recenter</button>
         <button aria-label={`${maximized ? 'Restore' : 'Maximize'} ${title}`} onClick={onMaximize}>{maximized ? 'Restore' : 'Max'}</button>
+        <button ref={settingsTrigger} aria-label={`${title} settings`} aria-expanded={settingsOpen || inspectorOpen} aria-controls={inspectorOpen ? `${id}-inspector` : `${id}-settings`} onClick={() => { if (inspectorOpen) closeContext(); else setSettingsOpen(value => !value); }}>More</button>
       </div>
     </header>
-    {settingsOpen && <div id={`${id}-settings`} className="chart-pane-settings">
-      <label title="Native presentation buckets only. Auto-fit is resolved independently on initial view and Recenter; native depth is unchanged.">Price aggregation<select aria-label="Price aggregation" value={p.priceStep} onChange={event => { pendingPriceReset.current = view; const priceStep = event.target.value; update({ priceStep, priceOffset: 0 }); setRecenter(value => value + 1); }}><option value="">Auto-fit depth</option>{p.priceStep && !stepOptions.includes(p.priceStep) && <option value={p.priceStep}>{p.priceStep} · saved / validate</option>}{stepOptions.map(step => <option key={step}>{step}</option>)}</select></label>
-      <label>Time bucket<select aria-label="Time bucket" value={p.bucket} onChange={event => update({ bucket: event.target.value })}>{['1000000000', '5000000000', '10000000000'].map((value, index) => <option key={value} value={value}>{[1, 5, 10][index]}s</option>)}</select></label>
+    {settingsOpen && <div id={`${id}-settings`} className="chart-pane-settings" role="region" aria-label={`${title} settings`}>
+      <div className="chart-pane-context-actions">
+        <button aria-label={`${title} Inspector`} aria-controls={`${id}-inspector`} onClick={() => { setInspectorOpen(true); setSettingsOpen(false); }}>Inspector</button>
+        <button data-testid="view-recenter" onClick={() => { center(); closeContext(); }}>Recenter</button>
+        <button aria-label={`Close ${title} settings`} onClick={closeContext}>Close</button>
+      </div>
       <label>Time zone<select aria-label="Chart time zone" value={p.timeZone} onChange={event => update({ timeZone: event.target.value === 'local' ? 'local' : 'UTC' })}><option value="UTC">UTC</option><option value="local">{chartTimeZoneLabel('local')}</option></select></label>
       <label>Range<select aria-label="Chart range" value={p.rangeSeconds} onChange={event => update({ rangeSeconds: Number(event.target.value), range: null, follow: true })}>{[6, 30, 60, 180, 300, 600].map(value => <option key={value} value={value}>{value}s</option>)}</select></label>
       <label><input type="checkbox" checked={p.follow} onChange={event => update({ follow: event.target.checked, range: event.target.checked ? null : view ? { start_ns: view.start_ns, end_ns: view.end_ns } : null })} />Follow time</label>
@@ -129,7 +132,7 @@ export function ChartPane({ id, title, frame, instrument, connected, preferences
       footprintOverview={p.footprintOverview} priceResetToken={`${identity}:${cropReset}`} quoteUnit={instrument?.instrument_id === view?.instrument_id ? instrument?.quote.ticker : undefined}
       crosshair={paneCursor} onCrosshair={moveCursor} onRangeChange={changeRange} onPricePan={panPrice}
       freshness={<ChartFreshness frame={frame} view={displayed?.view ?? null} receivedAtMs={displayed?.receivedAtMs ?? null} rowViewport={displayed?.rowViewport} connected={connected} frozen={p.paused} mode={displayed?.mode} />}
-      inspectorOpen={inspectorOpen} inspectorId={`${id}-inspector`}
+      inspectorOpen={inspectorOpen} inspectorId={`${id}-inspector`} onInspectorClose={closeContext}
       diagnostics={<details className="chart-pane-diagnostics"><summary>Paint & cursor diagnostics</summary>
       <div className="chart-timing" data-testid="chart-telemetry" data-view-id={telemetry.measurement?.view_id}>Chart draw {milliseconds(telemetry.measurement?.draw_ms)} · Chart receive→paint {milliseconds(telemetry.measurement?.receive_ms)} · Chart publish→ACK ≤ {milliseconds(telemetry.measurement?.upper_bound_ms)}</div>
       <p>CPU draw and two visible animation-frame paint opportunities; ACK is a conservative round-trip upper bound, not GPU completion or one-way latency.</p>

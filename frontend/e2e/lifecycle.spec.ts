@@ -150,7 +150,6 @@ test('a real canvas render failure clears displayed freshness and cannot acknowl
   const initialId = await chart.getAttribute('data-painted-view-id');
   await expect(freshness).toHaveAttribute('data-view-id', initialId!);
   await expect.poll(() => acknowledgments.includes(initialId!)).toBe(true);
-  await pane.getByRole('button', { name: 'Liquidity settings' }).click();
 
   const nextView = (bucket: string) => page.waitForResponse(response => {
     if (!response.url().endsWith('/api/v1/visualization') || response.request().method() !== 'POST') return false;

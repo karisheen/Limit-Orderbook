@@ -21,25 +21,26 @@ test('paused fixture supports scale recovery and independent replay controls', a
     if (request.url().endsWith('/api/v1/replay') && request.method() === 'POST' && request.postDataJSON().action === 'play') plays++;
   });
   const created = creation(page);
-  // Default panes use different native bucket widths, including when the
-  // primary changes to footprint; native requests have no presentation pane ID.
-  const secondaryReady = page.waitForResponse(response => response.url().endsWith('/api/v1/visualization')
-    && response.request().method() === 'POST' && response.request().postDataJSON().rows === 32
-    && response.request().postDataJSON().bucket_ns === '5000000000');
   await page.goto(`/?source=${encodeURIComponent(demo.id)}`);
   const frame = await (await created).json() as Frame;
   await expect(page.locator('.status')).toHaveText('Connected');
-  expect((await secondaryReady).ok()).toBe(true);
   const primary = page.getByTestId('chart-pane-heatmap');
   await expect(primary).toBeVisible();
   const secondary = page.getByTestId('chart-pane-flow');
   await expect(secondary).toBeVisible();
+  // Choose distinct native buckets so responses remain attributable when the
+  // primary changes to footprint; native requests have no presentation pane ID.
+  await primary.getByLabel('Time bucket', { exact: true }).selectOption('1000000000');
+  const secondaryReady = page.waitForResponse(response => response.url().endsWith('/api/v1/visualization')
+    && response.request().method() === 'POST' && response.request().postDataJSON().rows === 32
+    && response.request().postDataJSON().bucket_ns === '5000000000');
+  await secondary.getByLabel('Time bucket', { exact: true }).selectOption('5000000000');
+  expect((await secondaryReady).ok()).toBe(true);
   expect(frame.status).toBe('paused');
   await expect(page.getByTestId('synthetic-guidance')).toBeVisible();
   await expect(page.getByTestId('grouped-ladder').locator('tr.bid').first()).toBeInViewport();
   await expect(page.getByTestId('grouped-ladder').locator('tr.ask').last()).toBeInViewport();
   expect(plays).toBe(0);
-  await primary.getByRole('button', { name: 'Liquidity settings', exact: true }).click();
   const aggregation = primary.getByLabel('Price aggregation');
   await expect(aggregation.locator('option').nth(1)).toBeAttached();
   const explicitStep = await aggregation.locator('option').nth(1).getAttribute('value') ?? await aggregation.locator('option').nth(1).textContent();
@@ -261,8 +262,9 @@ test('network launch migrates automatic legacy demo to actual public live with a
     && response.request().method() === 'POST' && response.request().postDataJSON().instrument_id === 'hyperliquid:info:perpetual:BTC');
   await page.locator('[data-instrument-id="hyperliquid:info:perpetual:BTC"]').click();
   expect(((await (await subscribed).json()) as Frame).selection.instrument_id).toBe('hyperliquid:info:perpetual:BTC');
-  await expect(page.locator('.dom-settings')).not.toHaveAttribute('open', '');
-  await page.locator('.dom-settings > summary').click();
+  if (await page.locator('.dom-settings').getAttribute('open') === null) {
+    await page.locator('.dom-settings > summary').click();
+  }
   await page.getByLabel('DOM price grouping').selectOption('100');
   await expect(page.getByTestId('grouped-ladder').locator('tr.bid').first()).toBeVisible();
   await expect(page.getByTestId('grouped-ladder').locator('tr.ask').last()).toBeVisible();

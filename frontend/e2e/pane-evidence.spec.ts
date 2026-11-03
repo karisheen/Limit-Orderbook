@@ -68,6 +68,8 @@ test('nondefault follow uses the evaluation frontier and frozen pan and zoom kee
   await pane.getByTestId('view-freeze').click();
   await expect(pane.getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'true');
   await pane.getByRole('button', { name: /Inspector$/ }).click();
+  await expect(pane.locator('.chart-pane-settings')).toHaveCount(0);
+  await expect(pane.locator('.chart-pane-actions').getByRole('button', { name: /settings$/ })).toHaveAttribute('aria-expanded', 'true');
   await pane.locator('.m4-chart-guide > summary').click();
   const chart = pane.getByTestId('market-charts');
   const start = BigInt((await chart.getAttribute('data-start-ns'))!);
@@ -102,8 +104,16 @@ test('flow freshness tracks primary evidence regardless of quote and trade overl
   await pane.getByLabel('Quotes', { exact: true }).uncheck();
   const pending = visualization(page, () => true, 32);
   const view = await body<VisualGrid>(pending);
-  await expect(pane.getByTestId('market-charts')).toHaveAttribute('data-painted-view-id', view.view_id);
-  const evidence = chartEvidence(view, { mode: 'footprint' });
+  const chart = pane.getByTestId('market-charts');
+  await expect(chart).toHaveAttribute('data-painted-view-id', view.view_id);
+  const rowViewport = {
+    first: Number(await chart.getAttribute('data-row-first')),
+    count: Number(await chart.getAttribute('data-row-count')),
+  };
+  expect(rowViewport.first).toBeGreaterThanOrEqual(0);
+  expect(rowViewport.count).toBeGreaterThan(0);
+  expect(rowViewport.first + rowViewport.count).toBeLessThanOrEqual(view.rows);
+  const evidence = chartEvidence(view, { mode: 'footprint', rowViewport });
   expect(evidence.reference, 'Native footprint fixture must contain displayed trade evidence').not.toBeNull();
   await expect(pane.getByTestId('chart-freshness')).toHaveAttribute('data-evidence-ns', evidence.reference!.receive_mono_ns);
   await expect(pane.getByTestId('chart-freshness')).toHaveAttribute('data-clock-id', view.clock_id);
