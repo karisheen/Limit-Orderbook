@@ -26,6 +26,85 @@ reasons rather than inventing cross-clock alignment. Source/gap transitions have
 separate segment identities; multi-segment candle/footprint buckets are omitted
 and report `interval_segment_discontinuity`.
 
+### Receive-clock display projection
+
+Every visual response carries a complete `time_axis`, including no-book and
+unchanged-column incremental responses. It is a native piecewise projection of
+the existing receive-monotonic admission coordinates, not exchange time and not
+a browser-estimated offset. Within an admitted segment:
+
+```text
+projected_wall_ns(t) = reference.receive_wall_ns
+                      + (t - reference.receive_mono_ns)
+```
+
+The original paired receive reference is retained exactly. `segment.start_ns`
+is its inclusive admission boundary, **not** the receive-mono anchor used in the
+equation. An initially late pair can therefore establish a projection at a later
+admission highwater without backfilling earlier coordinates. Clock reads at the
+receive boundary are sequential observations, not a claim of atomic measurement
+or synchronized exchange time.
+
+The first completed delivery establishes the initial segment even without a
+validated book. A strictly advancing delivery whose original receive mono equals
+the admission frontier establishes a new segment when its wall-minus-mono offset
+differs from the active offset by at least **1,000,000 ns**. Smaller changes leave
+the anchor unchanged; this threshold is an explicit display policy, not financial
+tolerance or an accuracy guarantee. Positive and negative steps affect only
+labels from the new boundary onward. Late and equal-highwater conflicting pairs
+never relabel existing coordinates; the latest retained conflict is exposed in
+`last_unapplied_pair` with `nonadvancing_receive_pair`.
+
+Projection coverage has inclusive endpoints, unlike the half-open financial
+window. There are no projected labels before the first admitted pair or beyond
+the captured frontier. A historical query returns the original predecessor
+segment at its coverage start and transitions through its end; future references
+and unapplied-pair diagnostics are excluded. Missing projection reports
+`receive_clock_unavailable`, never a fabricated date. Clock reasons are separate
+from financial eligibility and do not alter quantities, bucket ownership,
+sampling, candles, footprints or `complete_window`.
+
+The observer retains at most 1,801 immutable segments and one unapplied pair,
+covering at most the latest 1,800 seconds independently of book availability.
+Time eviction preserves the original predecessor needed at the retention floor.
+Segment-count and shared 32 MiB byte-budget eviction retire old coverage rather
+than merging unequal offsets or extrapolating a future anchor backwards.
+`receive_clock_history_truncated` and
+`requested_receive_clock_history_unavailable` disclose lost/requested coverage.
+
+Runtime supplies its established recording/demo/live `source_identity`.
+Standalone observers derive identity from the raw evidence session, leaving it
+empty before evidence when no identity is configured. `scope_id` identifies a
+contiguous source-session/clock epoch, with deterministic epoch numbering so an
+A → B → A transition cannot reuse the first A mapping. Source-clock cutovers
+discard the prior projection and report `source_clock_changed`. The query
+snapshot owns a copied bounded segment container and immutable records; accepting
+a query commits presentation state only and rejects reset, source or epoch
+cutovers, never replacing owner clock evidence.
+
+Observer checkpoints are version **3** and include projection policy, exact
+anchors, epoch, coverage, truncation and the unapplied pair. Restore rejects
+incompatible policy/source/version; reset clears evidence but preserves configured
+source identity. Replay continues to reset/recompute the actual prefix on seek,
+so later wall steps cannot leak into a rewind and pacing cannot select anchors.
+
+The M8 frontend formats this native projection as UTC or local clock labels,
+using time ticks appropriate to the visible duration, date boundaries and
+explicit clock-step markers. Detailed local labels disambiguate timezone
+offsets. BigInt coordinate arithmetic precedes bounded display conversion;
+formatting never changes the admission coordinates used by financial buckets.
+Missing projection coverage remains **Clock time unavailable**. Axis dates are
+receive-clock labels, not exchange execution times or freshness measurements.
+A clock-step tick retains its actual projected time with an appended `*`
+(`HH:mm:ss*`, or `HH:mm*` for wider windows), rather than replacing the only
+available time label with prose or a long numeric offset. The footer tooltip
+and **Inspector → Receive-clock mapping & steps** explain the marker; the
+Inspector retains the complete native `time_axis` and exact offsets, serialized
+lazily only while open. Native retention can remove older projection coverage;
+this never authorizes invented labels before the available boundary. Neither
+projection nor marker coordinates change with this presentation.
+
+
 The economic price grid remains zero-origin. Exact Decimal display steps use
 source-compatible quanta; known fixed ticks supply multiples, while
 variable/unknown ticks report `display_quantum_not_native_tick`. A display
@@ -73,15 +152,27 @@ source and generation, not separate feeds. Selection, replay reset/rewind and
 source-clock fences remain authoritative; an old viewport cannot carry future
 evidence across them.
 
+The readable footprint displays an explicit subset of the native 32-row grid,
+targeting 20-pixel rows without changing its price quantum or aggregating cells.
+Its initial center uses only paintable occupied rows; subsequent updates retain
+that center. Resize exposes more or fewer rows, price navigation reaches hidden
+rows, and **Full native-grid overview** explicitly restores the entire grid.
+SELL quantities are left of BUY quantities, with separate neutral unknown-side
+evidence and eligible native candle context. Narrow edge buckets use an explicit
+compact representation rather than clipping or squeezing exact digits; the
+Inspector retains exact values. New secondary panes use one-second buckets and
+a six-second follow window, with overlays off; saved explicit settings survive.
+
 The base sampling quantum is one second; explicit five- and ten-second requests
 select retained exact boundary evidence. No incoming range or percentile
 changes a historical price grid or liquidity hash. Color transfer belongs to
 explicit frontend presentation controls, not server normalization.
 
 The **Fixed contrast** slider selects a full-intensity base quantity on a
-logarithmic control spanning `1e-12` through `1e12`. Color intensity itself stays
-linear from zero to that fixed quantity; incoming liquidity never rescales old
-cells. This makes both small BTC quantities and large SOL quantities visible
+logarithmic control spanning `1e-12` through `1e12`. Quantity is normalized against
+that fixed cap; heatmap opacity is the square of the clamped ratio, subduing weak
+liquidity. Incoming data never rescales old cells. This makes both small BTC
+quantities and large SOL quantities adjustable
 without clipping everything at the former 10-unit control ceiling. For example,
 an explicitly selected 1,000-SOL scale reveals differences among 100–1,000-SOL
 levels. The legend and accessible slider value state the actual quantity/unit.
@@ -132,6 +223,37 @@ history. Profiles and footprints may contain the admitted eligible portion of
 an incomplete window; consumers must retain the response's reasons and
 `complete_window` disclosure. Warming, unavailable history, truncation, gaps,
 and partial trailing windows remain explicit.
+
+### Independent chart navigation and inspection
+
+Each chart owns its mode, native query, price origin/quantum, time bucket,
+timezone and freeze state. Cursor linking publishes exact source-time/price
+coordinates without synchronizing viewports. Optional **Link chart time ranges**
+instead synchronizes deliberate time navigation between the charts; it never
+links DOM/tape ranges, changes price aggregation or resumes a frozen sibling.
+Source/session/generation and clock-scope fences invalidate obsolete evidence.
+
+**Follow latest** advances at the qualified source frontier while retaining the
+painted duration. **Fit time** pins available native sample bounds for liquidity/
+OFI and the **returned native aggregates** for flow. There is no separate
+all-retained trade extent in the API; receive-clock label coverage is not
+financial-history coverage. **Recenter price** resets only that pane's fitted
+price geometry and held footprint crop, not time navigation or freeze.
+When live price moves outside a held viewport, eligible flow can become
+off-screen even though the feed continues. Focus that chart and press **R**, or
+use **More → Recenter price**, to request a native refit. It leaves the sibling
+origin and the chart's other settings unchanged; no automatic price following
+or incoming-data intensity rescale is implied.
+
+The readable footprint's crop, hit testing, linked cursor and freshness use the
+same painted rows. Exact sell/buy quantities remain available in the Inspector
+when a narrow cell uses a labeled compact mark. DOM rows expose exact grouped
+resting quantities and native spread; tape inspection pins one exact print with
+receive/exchange references and side provenance, rather than replacing it during
+streaming. Neither view implies individual order identity or invented executions.
+See [working controls](TERMINAL.md#working-controls) for keyboard navigation,
+responsive layout presets, independent freezes and focus restoration.
+
 
 ## Ownership, bounds, and incremental delivery
 
@@ -213,16 +335,16 @@ unchanged; this is not a larger queue, shallower native book or omitted evidence
 Closed metric provenance is encoded once per retained sample, within that same
 32 MiB budget. Queries decode fresh containers, so consumer mutation cannot
 alter native history or later responses. Eviction/reset removes the derived
-bytes; checkpoint restoration rebuilds them without changing the checkpoint
-schema or native metric values.
+bytes; checkpoint restoration rebuilds them without changing native metric
+values. The receive-clock addition uses observer checkpoint version 3.
 
 Replay seek/reset uses the existing replay reset/recompute path. Selection
 rebuilds actual observations through the same owned reader to the existing
 cursor; it does not fabricate history from the selected current book. Live
 selection starts at its subscription boundary and cannot claim pre-subscription
 history. All analytical state, admission caches, dedup state, samples, trades,
-and elapsed flow-quality intervals are checkpointed or reset/reconstructed;
-presentation quantum/recenter preferences do not insert
+elapsed flow-quality intervals, and receive-clock projection are checkpointed or
+reset/reconstructed; presentation quantum/recenter preferences do not insert
 future market evidence. Playback speed changes pacing only.
 
 ## Ladder and proposal risk
@@ -301,10 +423,11 @@ measurements distinct:
   observations. A matching current clock observation is required; the view alone
   is insufficient. Heatmap uses eligible overlapping depth columns; footprint,
   profile and candles use non-history, known-size trades contributing to the
-  displayed cells, rows or eligible candles. CVD/OFI use eligible displayed
-  metric references. Native time/price bounds, clock identity and renderer caps
-  qualify every candidate. Fresh overlays never substitute for missing or stale
-  primary-mode evidence.
+  displayed cells, rows or eligible candles. Footprint qualification uses the
+  actual painted row crop and mode, not the next requested viewport or mode.
+  CVD/OFI use eligible displayed metric references. Native time/price bounds,
+  clock identity and renderer caps qualify every candidate. Fresh overlays and
+  offscreen executions never substitute for missing or stale primary evidence.
 - **Evidence resident** is browser-monotonic elapsed time since that native
   evidence identity was first continuously displayed in the component. A fresh
   response or Frame carrying unchanged evidence does not reset it.

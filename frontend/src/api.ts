@@ -111,9 +111,25 @@ export interface PlotTrade {
 }
 export interface PlotProfile { price: string; buy_base: string; sell_base: string; unknown_base: string }
 export interface FootprintCell extends PlotProfile { time_ns: string }
+export interface ReceiveClockSegment {
+  id: string; start_ns: string; reference: Reference;
+  cause: 'initial_pair' | 'wall_offset_change'; offset_change_ns: string | null;
+}
+export interface UnappliedReceivePair {
+  admission_ns: string; reference: Reference; offset_change_ns: string;
+  reason: 'nonadvancing_receive_pair';
+}
+export interface ReceiveTimeAxis {
+  version: '1'; basis: 'receive_mono_highwater'; projection: 'piecewise_receive_pair_v1';
+  source_identity: string; clock_id: string; scope_id: string | null;
+  available_start_ns: string | null; available_end_ns: string | null;
+  offset_change_threshold_ns: '1000000'; segments: ReceiveClockSegment[];
+  last_unapplied_pair: UnappliedReceivePair | null; reasons: string[];
+}
 export interface VisualGrid {
   version: '1'; generation: string; grid_id: string; instrument_id: string; clock_id: string;
   view_id: string; published_mono_ns: string;
+  time_axis: ReceiveTimeAxis;
   quantity_unit: string; sampling: string; price_step: string; price_min: string; prices: string[]; rows: number;
   bucket_ns: string; start_ns: string; end_ns: string; now_ns: string; retained_start_ns: string | null;
   step_options: string[]; columns: VisualColumn[]; trades: PlotTrade[]; profile: PlotProfile[]; footprints: FootprintCell[];

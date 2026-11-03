@@ -5,7 +5,7 @@ import type { Frame } from '../src/api';
 // No route interception, fixture overlay, fake WebSocket or duplicate economic engine.
 test('exact selection, costs, replay and visible API errors', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('.status')).toHaveText('Connected');
+  await expect(page.locator('.status')).toContainText('Connected');
   await expect(page.locator('.source-banner')).toContainText('SYNTHETIC DEMO');
   await page.getByLabel('Search instruments').fill('ETH');
   const instrument = page.locator('[data-instrument-id]').first();
@@ -49,8 +49,8 @@ test('documents own independent sessions and closing releases one owner', async 
   await second.goto('/');
   const secondFrame = await (await secondCreated).json() as Frame;
   expect(firstFrame.session_id).not.toBe(secondFrame.session_id);
-  await expect(first.locator('.status')).toHaveText('Connected');
-  await expect(second.locator('.status')).toHaveText('Connected');
+  await expect(first.locator('.status')).toContainText('Connected');
+  await expect(second.locator('.status')).toContainText('Connected');
   const secondCursor = await second.locator('.cursor').textContent();
   await first.getByTestId('replay-step').click();
   await expect(second.locator('.cursor')).toHaveText(secondCursor ?? '');
@@ -60,23 +60,23 @@ test('documents own independent sessions and closing releases one owner', async 
     const body = await response.json() as { sessions: { id: string }[] };
     return body.sessions.map(session => session.id);
   }).not.toContain(firstFrame.session_id);
-  await expect(second.locator('.status')).toHaveText('Connected');
+  await expect(second.locator('.status')).toContainText('Connected');
 });
 
 test('laptop workspace retains controls and reconnect replaces a session', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/');
-  await expect(page.locator('.status')).toHaveText('Connected');
+  await expect(page.locator('.status')).toContainText('Connected');
   await page.getByLabel('Search instruments').fill('SOL');
   const selected = page.locator('[data-instrument-id]').first();
   await selected.click();
   await expect(selected).toHaveAttribute('aria-pressed', 'true');
   const created = page.waitForResponse(response => response.url().endsWith('/api/v1/sessions') && response.request().method() === 'POST');
-  await page.getByText('Diagnostics', { exact: true }).click();
+  await page.locator('.diagnostics > summary').click();
   const sessionBefore = await page.locator('.telemetry').textContent();
   await page.getByLabel('Reconnect terminal').click();
   const replacement = await (await created).json() as Frame;
-  await expect(page.locator('.status')).toHaveText('Connected');
+  await expect(page.locator('.status')).toContainText('Connected');
   await expect(selected).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('.telemetry')).toContainText(replacement.session_id.slice(0, 8));
   expect(sessionBefore).not.toContain(replacement.session_id.slice(0, 8));

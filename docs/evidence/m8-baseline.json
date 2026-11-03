@@ -1,0 +1,230 @@
+{
+  "source": "Recorded Binance-global/Hyperliquid public capture",
+  "recordingId": "4498db3b-f4a2-4fff-a32e-a97221fa21ee",
+  "delivery": 2057,
+  "totalDeliveries": 4276,
+  "deviceScaleFactor": 1.25,
+  "observations": [
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "overflow": false,
+      "source": "RECORDED\n4498db3b…\nRequired data ready\npaused\nWatchlist\nDOM / tape\nCosts / analytics\nSource & instrument details",
+      "panes": [
+        {
+          "pane": "heatmap",
+          "plot": {
+            "x": 0,
+            "y": 149,
+            "width": 960,
+            "height": 297.921875,
+            "top": 149,
+            "right": 960,
+            "bottom": 446.921875,
+            "left": 0
+          },
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "76a852f528dc48f2aadc7bf4ecd734d2",
+            "paintedViewId": "76a852f528dc48f2aadc7bf4ecd734d2",
+            "startNs": "104446000000000",
+            "endNs": "104450902484897",
+            "priceMin": "78047.5",
+            "priceStep": "0.5",
+            "drawMs": "1.300",
+            "tileCount": "5",
+            "tileAllocations": "5",
+            "dirtyColumns": "5",
+            "overlayPoints": "269",
+            "pixelWidth": "1200",
+            "pixelHeight": "371"
+          },
+          "freshness": "Replay · source lag 1000 ms · resident 266 ms"
+        },
+        {
+          "pane": "flow",
+          "plot": {
+            "x": 0,
+            "y": 523.3125,
+            "width": 960,
+            "height": 218.359375,
+            "top": 523.3125,
+            "right": 960,
+            "bottom": 741.671875,
+            "left": 0
+          },
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "5d54e3d883cb4d948f08a320ba80a828",
+            "paintedViewId": "5d54e3d883cb4d948f08a320ba80a828",
+            "startNs": "104445000000000",
+            "endNs": "104450902484897",
+            "priceMin": "78063",
+            "priceStep": "1",
+            "drawMs": "1.000",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "269",
+            "pixelWidth": "1200",
+            "pixelHeight": "272"
+          },
+          "freshness": "Replay · source lag 0 ms · resident 266 ms"
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "overflow": false,
+      "source": "RECORDED\n4498db3b…\nRequired data ready\npaused\nWatchlist\nDOM / tape\nCosts / analytics\nSource & instrument details",
+      "panes": [
+        {
+          "pane": "heatmap",
+          "plot": {
+            "x": 0,
+            "y": 149,
+            "width": 1120,
+            "height": 353.921875,
+            "top": 149,
+            "right": 1120,
+            "bottom": 502.921875,
+            "left": 0
+          },
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "76a852f528dc48f2aadc7bf4ecd734d2",
+            "paintedViewId": "76a852f528dc48f2aadc7bf4ecd734d2",
+            "startNs": "104446000000000",
+            "endNs": "104450902484897",
+            "priceMin": "78047.5",
+            "priceStep": "0.5",
+            "drawMs": "1.000",
+            "tileCount": "5",
+            "tileAllocations": "5",
+            "dirtyColumns": "5",
+            "overlayPoints": "269",
+            "pixelWidth": "1400",
+            "pixelHeight": "441"
+          },
+          "freshness": "Replay · source lag 1000 ms · resident 162 ms"
+        },
+        {
+          "pane": "flow",
+          "plot": {
+            "x": 0,
+            "y": 579.3125,
+            "width": 1120,
+            "height": 262.359375,
+            "top": 579.3125,
+            "right": 1120,
+            "bottom": 841.671875,
+            "left": 0
+          },
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "5d54e3d883cb4d948f08a320ba80a828",
+            "paintedViewId": "5d54e3d883cb4d948f08a320ba80a828",
+            "startNs": "104445000000000",
+            "endNs": "104450902484897",
+            "priceMin": "78063",
+            "priceStep": "1",
+            "drawMs": "0.800",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "269",
+            "pixelWidth": "1400",
+            "pixelHeight": "327"
+          },
+          "freshness": "Replay · source lag 0 ms · resident 161 ms"
+        }
+      ]
+    },
+    {
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "overflow": false,
+      "source": "RECORDED\n4498db3b…\nRequired data ready\npaused\nWatchlist\nDOM / tape\nCosts / analytics\nSource & instrument details",
+      "panes": [
+        {
+          "pane": "heatmap",
+          "plot": {
+            "x": 0,
+            "y": 153,
+            "width": 1600,
+            "height": 452.484375,
+            "top": 153,
+            "right": 1600,
+            "bottom": 605.484375,
+            "left": 0
+          },
+          "chart": {
+            "testid": "market-charts",
+            "mode": "heatmap",
+            "viewId": "0596f25f10fd4cea99f2e9ceaec6161e",
+            "paintedViewId": "76a852f528dc48f2aadc7bf4ecd734d2",
+            "startNs": "104446000000000",
+            "endNs": "104450902484897",
+            "priceMin": "78047.5",
+            "priceStep": "0.5",
+            "drawMs": "0.800",
+            "tileCount": "5",
+            "tileAllocations": "5",
+            "dirtyColumns": "0",
+            "overlayPoints": "269",
+            "pixelWidth": "2000",
+            "pixelHeight": "565"
+          },
+          "freshness": "Replay · source lag 1000 ms · resident 310 ms"
+        },
+        {
+          "pane": "flow",
+          "plot": {
+            "x": 0,
+            "y": 681.875,
+            "width": 1600,
+            "height": 339.796875,
+            "top": 681.875,
+            "right": 1600,
+            "bottom": 1021.671875,
+            "left": 0
+          },
+          "chart": {
+            "testid": "market-charts",
+            "mode": "footprint",
+            "viewId": "7669ba3534a440c1aa7c9771aa609aba",
+            "paintedViewId": "5d54e3d883cb4d948f08a320ba80a828",
+            "startNs": "104445000000000",
+            "endNs": "104450902484897",
+            "priceMin": "78063",
+            "priceStep": "1",
+            "drawMs": "0.700",
+            "tileCount": "0",
+            "tileAllocations": "0",
+            "dirtyColumns": "1",
+            "overlayPoints": "269",
+            "pixelWidth": "2000",
+            "pixelHeight": "423"
+          },
+          "freshness": "Replay · source lag 0 ms · resident 347 ms"
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "Initial URL incorrectly used recording UUID instead of server-opaque catalog source ID; explicitly selected verified recording.",
+    "No live or synthetic data substituted.",
+    "Short retained history is a native bound, not missing screenshot content."
+  ]
+}

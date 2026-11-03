@@ -12,19 +12,59 @@ test('a silent open socket loses current status and recovers with a new session'
     const server = client.connectToServer();
     server.onMessage(message => { if (!suppress) client.send(message); });
   });
+  const initialCreated = page.waitForResponse(response => response.url().endsWith('/api/v1/sessions') && response.request().method() === 'POST');
   await page.goto('/');
-  await expect(page.locator('.status')).toHaveText('Connected');
+  const initial = await (await initialCreated).json() as Frame;
+  await expect(page.locator('.status')).toContainText('Connected');
   await expect(page.locator('.ladder tbody tr').first()).toBeVisible();
+  const chart = page.getByTestId('chart-pane-heatmap').getByTestId('market-charts');
+  await expect(chart).toHaveAttribute('data-painted-view-id', /.+/);
+  const initialViewId = await chart.getAttribute('data-painted-view-id');
   await page.getByRole('button', { name: 'Costs / analytics', exact: true }).click();
+  const estimate = page.getByTestId('estimate');
+  await expect(estimate).toBeEnabled();
+  const incident = page.getByTestId('terminal-incident');
+  await incident.getByRole('button', { name: /^Diagnostics/ }).click();
+  const diagnostics = page.locator('.diagnostics');
+  await diagnostics.getByText('All terminal incidents and exact causes', { exact: true }).click();
+  const replacementCreated = page.waitForResponse(response => response.url().endsWith('/api/v1/sessions') && response.request().method() === 'POST');
+  const replacementView = page.waitForResponse(async response => {
+    if (!response.url().endsWith('/api/v1/visualization') || response.request().method() !== 'POST') return false;
+    const query = response.request().postDataJSON() as { session_id: string; rows: number };
+    if (query.rows !== 128) return false;
+    const replacement = await (await replacementCreated).json() as Frame;
+    return query.session_id === replacement.session_id;
+  });
   suppress = true;
-  await expect(page.locator('.status')).toHaveText('Disconnected · reconnecting', { timeout: 8000 });
-  await expect(page.getByTestId('estimate')).toBeDisabled();
+  // Invalidation persists through retry; the one-second disconnected label does not.
+  await expect(estimate).toBeDisabled({ timeout: 8000 });
   await expect(page.locator('.ladder tbody tr')).toHaveCount(0);
-  await expect(page.locator('.error-banner[role="alert"]')).toContainText('No stream frame received');
+  await expect(chart).toHaveAttribute('data-painted-view-id', '');
+  await expect(page.locator('.source-readiness')).toHaveText('Unavailable');
+  await expect(incident).toHaveCount(1);
+  await expect(incident).toHaveAttribute('data-incident', /^(terminal|transport)$/);
+  await expect(incident.getByRole('button', { name: 'Reconnect', exact: true })).toBeEnabled();
   suppress = false;
-  await expect(page.locator('.status')).toHaveText('Connected');
+  // Resume only transport delivery; the existing retry loop must create the
+  // replacement session without a manual reconnect.
+  const replacement = await (await replacementCreated).json() as Frame;
+  expect(replacement.session_id).not.toBe(initial.session_id);
+  expect(replacement.source.id).toBe(initial.source.id);
+  expect(replacement.selection.instrument_id).toBe(initial.selection.instrument_id);
+  await expect(page.locator('.status')).toContainText('Connected');
   expect(socketCount).toBeGreaterThan(1);
   await expect(page.locator('.ladder tbody tr').first()).toBeVisible();
+  await expect(estimate).toBeEnabled();
+  const visualization = await replacementView;
+  expect(visualization.ok()).toBe(true);
+  const recovered = await visualization.json() as VisualGrid;
+  expect(recovered.generation).toBe(replacement.generation);
+  expect(recovered.instrument_id).toBe(replacement.selection.instrument_id);
+  expect(recovered.view_id).not.toBe(initialViewId);
+  await expect(chart).toHaveAttribute('data-painted-view-id', recovered.view_id);
+  await expect(page.getByTestId('chart-pane-heatmap').getByTestId('chart-freshness')).toHaveAttribute('data-view-id', recovered.view_id);
+  await expect(diagnostics.locator('.telemetry')).toContainText(replacement.session_id.slice(0, 8));
+  await expect(incident).not.toHaveAttribute('data-incident', /^(terminal|transport)$/);
 });
 
 test('setup retries survive repeated HTTP failure without a manual reconnect', async ({ page }) => {
@@ -34,7 +74,7 @@ test('setup retries survive repeated HTTP failure without a manual reconnect', a
     else await route.continue();
   });
   await page.goto('/');
-  await expect(page.locator('.status')).toHaveText('Connected', { timeout: 20_000 });
+  await expect(page.locator('.status')).toContainText('Connected', { timeout: 20_000 });
   expect(failures).toBe(3);
   await expect(page.locator('.ladder tbody tr').first()).toBeVisible();
 });
@@ -53,20 +93,20 @@ test('a replaced session does not inherit an obsolete mutation lock', async ({ p
     await route.fulfill({ response }).catch(() => undefined);
   });
   await page.goto('/');
-  await expect(page.locator('.status')).toHaveText('Connected');
+  await expect(page.locator('.status')).toContainText('Connected');
   await page.getByTestId('replay-step').click();
   await responseCaptured;
   await expect(page.getByTestId('replay-step')).toBeDisabled();
   const created = page.waitForResponse(response => response.url().endsWith('/api/v1/sessions') && response.request().method() === 'POST');
   await page.getByLabel('Reconnect terminal').click();
   const replacement = await (await created).json() as Frame;
-  await expect(page.locator('.status')).toHaveText('Connected');
+  await expect(page.locator('.status')).toContainText('Connected');
   await expect(page.getByTestId('replay-step')).toBeEnabled();
   const before = await page.locator('.cursor').textContent();
   await page.getByTestId('replay-step').click();
   await expect(page.locator('.cursor')).not.toHaveText(before ?? '');
   release();
-  await page.getByText('Diagnostics', { exact: true }).click();
+  await page.locator('.diagnostics > summary').click();
   await expect(page.locator('.telemetry')).toContainText(replacement.session_id.slice(0, 8));
   await expect(page.getByTestId('replay-step')).toBeEnabled();
 });
@@ -82,12 +122,12 @@ test('catalog readiness refreshes without replacing the active session', async (
   const created = page.waitForResponse(response => response.url().endsWith('/api/v1/sessions') && response.request().method() === 'POST');
   await page.goto('/');
   const frame = await (await created).json() as Frame;
-  await expect(page.locator('.status')).toHaveText('Connected');
+  await expect(page.locator('.status')).toContainText('Connected');
   const source = page.getByLabel('Data source').locator(`option[value="${frame.source.id}"]`);
   await expect(source).toHaveJSProperty('disabled', true);
   loading = false;
   await expect(source).toHaveJSProperty('disabled', false, { timeout: 10_000 });
-  await page.getByText('Diagnostics', { exact: true }).click();
+  await page.locator('.diagnostics > summary').click();
   await expect(page.locator('.telemetry')).toContainText(frame.session_id.slice(0, 8));
 });
 
@@ -141,7 +181,7 @@ test('a real canvas render failure clears displayed freshness and cannot acknowl
   const demo = catalog.sources.find(source => source.mode === 'demo' && source.status === 'ready');
   if (!demo) throw new Error('Actual native catalog must expose a ready synthetic demo source');
   await page.goto(`/?source=${encodeURIComponent(demo.id)}`);
-  await expect(page.locator('.status')).toHaveText('Connected');
+  await expect(page.locator('.status')).toContainText('Connected');
   const pane = page.getByTestId('chart-pane-heatmap');
   const chart = pane.getByTestId('market-charts');
   const freshness = pane.getByTestId('chart-freshness');
@@ -150,7 +190,6 @@ test('a real canvas render failure clears displayed freshness and cannot acknowl
   const initialId = await chart.getAttribute('data-painted-view-id');
   await expect(freshness).toHaveAttribute('data-view-id', initialId!);
   await expect.poll(() => acknowledgments.includes(initialId!)).toBe(true);
-  await pane.getByRole('button', { name: 'Liquidity settings' }).click();
 
   const nextView = (bucket: string) => page.waitForResponse(response => {
     if (!response.url().endsWith('/api/v1/visualization') || response.request().method() !== 'POST') return false;

@@ -1,0 +1,344 @@
+{
+  "milestone": "M8",
+  "phase": "Interaction and incident model",
+  "source": {
+    "recording": "4498db3b-f4a2-4fff-a32e-a97221fa21ee",
+    "manifestSha256": "d12553c14ee31de1e66db3d2e9247000b81a976826f4f3da8ae072d4622ee5f5",
+    "sourceId": "4ea4bf7e768141aa926f84b72a394f65",
+    "mode": "replay",
+    "delivery": "2057",
+    "instrument": "binance-global:spot-v3:spot:BTCUSDT"
+  },
+  "assets": {
+    "javascript": "index-DRf3lSla.js",
+    "css": "index-BTDdL8SG.css"
+  },
+  "gates": {
+    "frontendUnits": {
+      "passed": 97
+    },
+    "eslint": "passed",
+    "typescript": "passed after bounded research-tab index narrowing",
+    "vite": "passed",
+    "fullBrowserAttempt": {
+      "passed": 47,
+      "skipped": 1,
+      "failed": 4,
+      "seconds": 473.77,
+      "output": "artifact://266"
+    },
+    "correctedBrowserCases": {
+      "passed": 11,
+      "seconds": 195.31,
+      "output": "artifact://273"
+    },
+    "note": "Full final-head suite remains a phase6 gate. No timeout, numerical or source-evidence thresholds were relaxed."
+  },
+  "manual": {
+    "linkedPan": {
+      "rangeLinked": true,
+      "links": {
+        "heatmap": false,
+        "flow": true,
+        "dom": true,
+        "tape": true
+      },
+      "heatmap": {
+        "follow": false,
+        "range": {
+          "start_ns": "104444902484897",
+          "end_ns": "104450902484897"
+        },
+        "followSpanNs": null,
+        "paused": false,
+        "bucket": "1000000000",
+        "priceStep": "",
+        "priceOffset": 0
+      },
+      "flow": {
+        "follow": false,
+        "range": {
+          "start_ns": "104444902484897",
+          "end_ns": "104450902484897"
+        },
+        "followSpanNs": null,
+        "paused": true,
+        "bucket": "1000000000",
+        "priceStep": "",
+        "priceOffset": 0
+      },
+      "plots": [
+        {
+          "pane": "heatmap",
+          "testid": "market-charts",
+          "mode": "heatmap",
+          "viewId": "9421b121d1754658b4c3db991fd135b8",
+          "paintedViewId": "9421b121d1754658b4c3db991fd135b8",
+          "rowFirst": "0",
+          "rowCount": "128",
+          "startNs": "104444902484897",
+          "endNs": "104450902484897",
+          "priceMin": "78047.5",
+          "priceStep": "0.5",
+          "drawMs": "1.700",
+          "tileCount": "5",
+          "tileAllocations": "5",
+          "dirtyColumns": "5",
+          "overlayPoints": "269",
+          "pixelWidth": "1342",
+          "pixelHeight": "432",
+          "receiveToPaintMs": "45.700"
+        },
+        {
+          "pane": "flow",
+          "testid": "market-charts",
+          "mode": "footprint",
+          "viewId": "82277f7ff85f4c3abb7ae73a2208a437",
+          "paintedViewId": "82277f7ff85f4c3abb7ae73a2208a437",
+          "rowFirst": "5",
+          "rowCount": "13",
+          "startNs": "104444902484897",
+          "endNs": "104450902484897",
+          "priceMin": "78063",
+          "priceStep": "1",
+          "drawMs": "0.500",
+          "tileCount": "0",
+          "tileAllocations": "0",
+          "dirtyColumns": "5",
+          "overlayPoints": "0",
+          "pixelWidth": "1342",
+          "pixelHeight": "393",
+          "receiveToPaintMs": "47.200"
+        }
+      ],
+      "active": {
+        "tag": "DIV",
+        "aria": "Resting liquidity interactive plot",
+        "pane": "heatmap"
+      },
+      "cursor": "2057 / 4276 · 1×"
+    },
+    "unlinkedAndCompletedZoom": {
+      "rangeLinked": false,
+      "links": {
+        "heatmap": false,
+        "flow": true,
+        "dom": true,
+        "tape": true
+      },
+      "heatmap": {
+        "follow": false,
+        "range": {
+          "start_ns": "104443702484897",
+          "end_ns": "104449702484897"
+        },
+        "followSpanNs": null,
+        "paused": false,
+        "bucket": "1000000000",
+        "priceStep": "",
+        "priceOffset": 0
+      },
+      "flow": {
+        "follow": false,
+        "range": {
+          "start_ns": "104445502484897",
+          "end_ns": "104450302484897"
+        },
+        "followSpanNs": null,
+        "paused": true,
+        "bucket": "1000000000",
+        "priceStep": "",
+        "priceOffset": 0
+      },
+      "plots": [
+        {
+          "pane": "heatmap",
+          "testid": "market-charts",
+          "mode": "heatmap",
+          "viewId": "01117ea5e60e40f29479439af9473e90",
+          "paintedViewId": "01117ea5e60e40f29479439af9473e90",
+          "rowFirst": "0",
+          "rowCount": "128",
+          "startNs": "104443702484897",
+          "endNs": "104449702484897",
+          "priceMin": "78047.5",
+          "priceStep": "0.5",
+          "drawMs": "0.900",
+          "tileCount": "5",
+          "tileAllocations": "5",
+          "dirtyColumns": "0",
+          "overlayPoints": "184",
+          "pixelWidth": "1074",
+          "pixelHeight": "346",
+          "receiveToPaintMs": "42.000"
+        },
+        {
+          "pane": "flow",
+          "testid": "market-charts",
+          "mode": "footprint",
+          "viewId": "f47fa356352647ea90d398c83097d2ed",
+          "paintedViewId": "f47fa356352647ea90d398c83097d2ed",
+          "rowFirst": "5",
+          "rowCount": "13",
+          "startNs": "104445502484897",
+          "endNs": "104450302484897",
+          "priceMin": "78063",
+          "priceStep": "1",
+          "drawMs": "0.500",
+          "tileCount": "0",
+          "tileAllocations": "0",
+          "dirtyColumns": "5",
+          "overlayPoints": "0",
+          "pixelWidth": "1074",
+          "pixelHeight": "315",
+          "receiveToPaintMs": "40.000"
+        }
+      ],
+      "active": {
+        "tag": "DIV",
+        "aria": "Executed-volume footprint interactive plot",
+        "pane": "flow"
+      },
+      "cursor": "2057 / 4276 · 1×"
+    },
+    "zoomPreservingFollow": {
+      "rangeLinked": false,
+      "links": {
+        "heatmap": false,
+        "flow": true,
+        "dom": true,
+        "tape": true
+      },
+      "heatmap": {
+        "follow": false,
+        "range": {
+          "start_ns": "104443702484897",
+          "end_ns": "104449702484897"
+        },
+        "followSpanNs": null,
+        "paused": false,
+        "bucket": "1000000000",
+        "priceStep": "",
+        "priceOffset": 0
+      },
+      "flow": {
+        "follow": true,
+        "range": null,
+        "followSpanNs": "4800000000",
+        "paused": true,
+        "bucket": "1000000000",
+        "priceStep": "",
+        "priceOffset": 0
+      },
+      "plots": [
+        {
+          "pane": "heatmap",
+          "testid": "market-charts",
+          "mode": "heatmap",
+          "viewId": "01117ea5e60e40f29479439af9473e90",
+          "paintedViewId": "01117ea5e60e40f29479439af9473e90",
+          "rowFirst": "0",
+          "rowCount": "128",
+          "startNs": "104443702484897",
+          "endNs": "104449702484897",
+          "priceMin": "78047.5",
+          "priceStep": "0.5",
+          "drawMs": "0.900",
+          "tileCount": "5",
+          "tileAllocations": "5",
+          "dirtyColumns": "0",
+          "overlayPoints": "184",
+          "pixelWidth": "1074",
+          "pixelHeight": "346",
+          "receiveToPaintMs": "42.000"
+        },
+        {
+          "pane": "flow",
+          "testid": "market-charts",
+          "mode": "footprint",
+          "viewId": "e9289b53eb0f448eae677fa90166b58b",
+          "paintedViewId": "e9289b53eb0f448eae677fa90166b58b",
+          "rowFirst": "5",
+          "rowCount": "13",
+          "startNs": "104446102484897",
+          "endNs": "104450902484897",
+          "priceMin": "78063",
+          "priceStep": "1",
+          "drawMs": "3.300",
+          "tileCount": "0",
+          "tileAllocations": "0",
+          "dirtyColumns": "4",
+          "overlayPoints": "0",
+          "pixelWidth": "1074",
+          "pixelHeight": "315",
+          "receiveToPaintMs": "54.700"
+        }
+      ],
+      "active": {
+        "tag": "DIV",
+        "aria": "Executed-volume footprint interactive plot",
+        "pane": "flow"
+      },
+      "cursor": "2057 / 4276 · 1×"
+    },
+    "nativeFit": {
+      "before": {
+        "start": "104420902484897",
+        "end": "104450902484897",
+        "priceMin": "78063",
+        "step": "1"
+      },
+      "nativeQuery": {
+        "session_id": "70596f3a237c479f86b2201aaee4947f",
+        "generation": "2",
+        "start_ns": "104446000000000",
+        "end_ns": "104450902484897",
+        "price_min": "78063",
+        "price_step": "1",
+        "price_offset_rows": 0,
+        "bucket_ns": "1000000000",
+        "rows": 32,
+        "max_columns": 6
+      },
+      "painted": {
+        "id": "95c5ba342ab64939be87821d823b974c",
+        "start": "104446000000000",
+        "end": "104450902484897",
+        "priceMin": "78063",
+        "step": "1",
+        "now": "104450902484897",
+        "footprintTimes": [
+          "104446000000000",
+          "104447000000000",
+          "104448000000000",
+          "104449000000000",
+          "104450000000000"
+        ]
+      },
+      "frozen": "true"
+    },
+    "frozenScreenshot": {
+      "path": "m8-after-recorded-frozen-1440.png",
+      "viewport": {
+        "width": 1440,
+        "height": 900,
+        "dpr": 1
+      },
+      "cursor": "2057 / 4276 · 1×",
+      "sourceMode": "replay",
+      "overflow": false
+    },
+    "paintQualification": "Early snapshots only waited for requested geometry; they are not used as completed-paint proof. Recorded linkedPan/zoom/follow receipts have matching requested and painted view IDs. Follow invoked during pending zoom correctly used the retained 6-second painted width; after zoom paint completed it preserved 4.8 seconds.",
+    "setup": "Recorded session creation was observed at 69.568s and 82.552s while the full browser gate was also running. The initial 60s manual readiness wait failed; actual 201 responses arrived later, without JS errors. This was not a rendering benchmark."
+  },
+  "corrections": [
+    "Scoped diagnostic assertions to exact-cause disclosure rather than all pre elements.",
+    "Waited for persisted freeze state before capturing an independence baseline.",
+    "Split independent per-pane accessibility scenarios at each viewport, preserving all checks and the 45s test timeout.",
+    "Added shared native clock-scope invalidation for held chart/DOM/tape data without toggling freezes."
+  ],
+  "limits": [
+    "Fit flow uses returned native aggregates; no separate all-retained trade extent exists in the current backend contract.",
+    "No live-capacity certification; analytical_queue_overflow remains explicit and requires operator investigation."
+  ]
+}

@@ -6,14 +6,16 @@ import { mergeVisualGrid } from './workspace';
 import { sourceFrontier } from './data-freshness';
 
 interface QueryState<T> { data: T | null; error: string | null; loading: boolean; identity: string; receivedAtMs?: number }
-export function useMarketView({ frame, connected, preferences: p, recenter, visualization, ladder, chartEnabled = true, domEnabled = true }: {
+export function useMarketView({ frame, connected, preferences: p, recenter, visualization, ladder, chartEnabled = true, domEnabled = true, onClockScopeChange, clockScopeRevision = 0 }: {
   frame: Frame | null; connected: boolean; preferences: WorkspacePreferences; recenter: number;
   chartEnabled?: boolean; domEnabled?: boolean;
+  onClockScopeChange?: () => void;
+  clockScopeRevision?: number;
   visualization: (input: VisualizationInput, signal: AbortSignal, onReceive?: (receivedAtMs: number) => void) => Promise<VisualGrid>;
   ladder: (input: LadderInput, signal: AbortSignal) => Promise<GroupedLadder>;
 }) {
   const [documentVisible, setDocumentVisible] = useState(() => document.visibilityState === 'visible');
-  const identity = frame ? `${frame.session_id}:${frame.generation}:${frame.source.mode}:${frame.source.id}:${frame.selection.instrument_id}` : '';
+  const identity = frame ? `${frame.session_id}:${frame.generation}:${frame.source.mode}:${frame.source.id}:${frame.selection.instrument_id}:${clockScopeRevision}` : '';
   const available = connected && !!frame && !['seeking', 'unavailable', 'error', 'loading'].includes(frame.status) && documentVisible;
   const [chart, setChart] = useState<QueryState<VisualGrid>>({ data: null, error: null, loading: false, identity: '' });
   const [dom, setDom] = useState<QueryState<GroupedLadder>>({ data: null, error: null, loading: false, identity: '' });
@@ -22,11 +24,18 @@ export function useMarketView({ frame, connected, preferences: p, recenter, visu
   const lastChartConfig = useRef('');
   const lastDomConfig = useRef('');
   const centered = useRef(0);
+  const lastTimeConfig = useRef('');
+  const boundClockScope = useRef<{ identity: string; scope: string; clockId: string } | null>(null);
+  const fencedTimeConfig = useRef<string | null>(null);
+  const [clockRevision, setClockRevision] = useState(0);
+  const clockScopeChange = useRef(onClockScopeChange);
+  clockScopeChange.current = onClockScopeChange;
   // Native origin and quantum belong to this pane, never to the session's last query.
   const origin = useRef<{ priceMin: string; step: string; offset: number; requestedStep: string; rows: number } | null>(null);
   const latest = useRef(frame);
   latest.current = frame;
   const rangeStart = p.range?.start_ns, rangeEnd = p.range?.end_ns;
+  // Detailed footprint crops only the painted rows; native requests retain their 32-row floor.
   const rows = p.mode === 'footprint' || p.mode === 'profile' ? 32 : 128;
   useEffect(() => {
     const updateVisibility = () => setDocumentVisible(document.visibilityState === 'visible');
@@ -38,28 +47,50 @@ export function useMarketView({ frame, connected, preferences: p, recenter, visu
     lastChartConfig.current = '';
     centered.current = 0;
     origin.current = null;
+    lastTimeConfig.current = '';
+    boundClockScope.current = null;
+    fencedTimeConfig.current = null;
     setChart({ data: null, error: null, loading: false, identity });
   }, [identity]);
   useEffect(() => {
     if (!available || !chartEnabled) return;
     const controller = new AbortController();
     let timer: number | undefined;
-    const config = JSON.stringify([identity, p.follow, p.priceStep, p.bucket, p.priceOffset, p.rangeSeconds, rangeStart, rangeEnd, recenter, rows]);
+    const timeConfig = JSON.stringify([p.follow, p.followSpanNs, p.rangeSeconds, rangeStart, rangeEnd]);
+    const config = JSON.stringify([identity, timeConfig, p.priceStep, p.bucket, p.priceOffset, recenter, rows]);
     let after: string | undefined;
+    const fenceClockScope = () => {
+      fencedTimeConfig.current = timeConfig;
+      chartRef.current = null;
+      origin.current = null;
+      lastChartConfig.current = '';
+      lastTimeConfig.current = '';
+      setChart({ data: null, error: null, loading: false, identity });
+      clockScopeChange.current?.();
+      setClockRevision(value => value + 1);
+    };
     const refresh = async () => {
       if (controller.signal.aborted) return;
+      const evidence = latest.current;
+      const bound = boundClockScope.current;
+      if (bound?.identity === identity && sourceFrontier(evidence, bound.clockId) === null && sourceFrontier(evidence) !== null) {
+        // A qualified new frame clock must not receive a pinned query from the old clock.
+        boundClockScope.current = null;
+        fenceClockScope();
+        return;
+      }
       // Freeze holds the already rendered evidence, not the replay/recording clock.
       if (p.paused && chartRef.current && lastChartConfig.current === config) {
         setChart(previous => ({ ...previous, loading: false }));
         return;
       }
       setChart(previous => ({ ...previous, loading: true, identity }));
-      const evidence = latest.current;
       const end = sourceFrontier(evidence, chartRef.current?.clock_id);
-      const width = BigInt(p.rangeSeconds) * 1_000_000_000n;
-      const range = !p.follow && rangeStart && rangeEnd ? { start_ns: rangeStart, end_ns: rangeEnd }
-        : p.paused && chartRef.current ? { start_ns: chartRef.current.start_ns, end_ns: chartRef.current.end_ns }
-          : p.rangeSeconds !== 180 && end !== null && end > 0n ? { start_ns: (end > width ? end - width : 0n).toString(), end_ns: end.toString() } : {};
+      const fenced = fencedTimeConfig.current === timeConfig;
+      const width = !fenced && p.followSpanNs ? BigInt(p.followSpanNs) : BigInt(p.rangeSeconds) * 1_000_000_000n;
+      const range = !fenced && !p.follow && rangeStart && rangeEnd ? { start_ns: rangeStart, end_ns: rangeEnd }
+        : p.paused && chartRef.current && lastTimeConfig.current === timeConfig ? { start_ns: chartRef.current.start_ns, end_ns: chartRef.current.end_ns }
+          : !fenced && (p.followSpanNs !== null || p.rangeSeconds !== 180) && end !== null && end > 0n ? { start_ns: (end > width ? end - width : 0n).toString(), end_ns: end.toString() } : {};
       try {
         let receivedAtMs = performance.now();
         const visibleWidth = range.start_ns && range.end_ns ? BigInt(range.end_ns) - BigInt(range.start_ns) : width;
@@ -73,6 +104,14 @@ export function useMarketView({ frame, connected, preferences: p, recenter, visu
         const next = await visualization({ ...range, ...price, bucket_ns: p.bucket, rows, max_columns: maxColumns,
           ...(!resetOrigin && after ? { after_column: after } : {}) }, controller.signal, time => { receivedAtMs = time; });
         if (controller.signal.aborted) return;
+        const scope = JSON.stringify([next.clock_id, next.time_axis.source_identity, next.time_axis.scope_id]);
+        const previousScope = boundClockScope.current;
+        boundClockScope.current = { identity, scope, clockId: next.clock_id };
+        if (previousScope?.identity === identity && previousScope.scope !== scope) {
+          // Never publish a query made with coordinates from the previous native clock.
+          fenceClockScope();
+          return;
+        }
         if (resetOrigin) {
           // Keep the returned lower bound as the base; subtract the initial UI offset
           // on later requests instead of adding it again to every returned snapshot.
@@ -90,6 +129,8 @@ export function useMarketView({ frame, connected, preferences: p, recenter, visu
         }
         centered.current = recenter;
         lastChartConfig.current = config;
+        lastTimeConfig.current = timeConfig;
+        fencedTimeConfig.current = null;
         after = next.next_after ?? undefined;
         const data = mergeVisualGrid(chartRef.current, next);
         chartRef.current = data;
@@ -102,7 +143,7 @@ export function useMarketView({ frame, connected, preferences: p, recenter, visu
     };
     timer = window.setTimeout(() => { void refresh(); }, 120);
     return () => { controller.abort(); clearTimeout(timer); };
-  }, [identity, available, chartEnabled, p.paused, p.follow, p.priceStep, p.bucket, p.priceOffset, p.rangeSeconds, rangeStart, rangeEnd, recenter, rows, visualization]);
+  }, [identity, available, chartEnabled, p.paused, p.follow, p.followSpanNs, p.priceStep, p.bucket, p.priceOffset, p.rangeSeconds, rangeStart, rangeEnd, recenter, rows, visualization, clockRevision]);
   useEffect(() => {
     domRef.current = null;
     lastDomConfig.current = '';

@@ -23,7 +23,7 @@ from .costs import (
     _validate_price,
     _valuation_reason,
 )
-from .events import Control, Gap, SubscriptionKey
+from .events import Control, EventEnvelopeRef, Gap, SubscriptionKey
 from .precision import (
     DECIMAL_CONTEXT,
     DERIVED_DECIMAL_POLICY,
@@ -41,6 +41,9 @@ MAX_BYTES = 32 * 1024 * 1024
 MAX_CELLS = 65536
 MAX_QUERY_LEVELS = 500_000
 SAMPLING = "last_completed_observation_at_boundary_v1"
+WALL_OFFSET_CHANGE_THRESHOLD_NS = 1_000_000
+MAX_TIME_AXIS_SEGMENTS = 1801
+TIME_AXIS_PROJECTION = "piecewise_receive_pair_v1"
 
 
 def exact(value):
@@ -161,6 +164,41 @@ class ObservedTrade:
     print: TapePrint
 
 
+@dataclass(frozen=True)
+class ReceiveClockSegment:
+    id: str
+    start_ns: int
+    reference: EventEnvelopeRef
+    cause: str
+    offset_change_ns: int | None
+
+
+@dataclass(frozen=True)
+class UnappliedReceivePair:
+    admission_ns: int
+    reference: EventEnvelopeRef
+    offset_change_ns: int
+    reason: str = "nonadvancing_receive_pair"
+
+
+ClockSegmentState = tuple[str, int, EventEnvelopeRef, str, int | None]
+UnappliedPairState = tuple[int, EventEnvelopeRef, int, str]
+TimeAxisState = tuple[
+    str,
+    int,
+    str,
+    int,
+    str | None,
+    tuple[str, str] | None,
+    int | None,
+    int | None,
+    bool,
+    bool,
+    tuple[ClockSegmentState, ...],
+    UnappliedPairState | None,
+]
+
+
 SampleState = tuple[
     int,
     str,
@@ -192,6 +230,7 @@ CheckpointState = tuple[
     int,
     tuple[int, ...],
     tuple[FlowState, ...],
+    TimeAxisState,
 ]
 
 
@@ -199,10 +238,17 @@ class VisualHistory:
     """One bounded selected-instrument observer, owned by the session worker."""
 
     observer_id = "visualization_with_analytics"
-    version = "2"
+    version = "3"
 
-    def __init__(self, engine: AnalyticsEngine, key: SubscriptionKey | None = None):
+    def __init__(
+        self,
+        engine: AnalyticsEngine,
+        key: SubscriptionKey | None = None,
+        *,
+        source_identity: str | None = None,
+    ):
         self.engine, self.key = engine, key
+        self._configured_source_identity = source_identity
         self.instrument = next(
             (s.instrument for s in engine.streams if s.key == key), None
         )
@@ -248,6 +294,20 @@ class VisualHistory:
         self.accounted_bytes = 256 * 1024  # bounded query fingerprints/ownership
         self._books = {}
         self._last_query = None
+        self.source_identity = self._configured_source_identity or ""
+        self.clock_segments: deque[ReceiveClockSegment] = deque()
+        self._clock_segment_sizes: deque[int] = deque()
+        self.clock_scope = None
+        self._clock_epoch = 0
+        self._clock_epoch_key = None
+        self._clock_floor = None
+        self._clock_frontier = None
+        self._clock_truncated = False
+        self._clock_changed = False
+        self.last_unapplied_pair = None
+        self._unapplied_pair_size = 0
+        # Publication fence is private ownership, not part of deterministic IDs.
+        self._query_epoch = object()
 
     def select(self, key):
         self.key = key
@@ -324,7 +384,160 @@ class VisualHistory:
                 del self._books[identity]
         self.truncated = True
 
+    @staticmethod
+    def _clock_record_bytes(record):
+        return 1024 + 4 * len(json.dumps(exact(record), separators=(",", ":")))
+
+    def _drop_clock_segment(self):
+        self.clock_segments.popleft()
+        self.accounted_bytes -= self._clock_segment_sizes.popleft()
+        self._clock_truncated = True
+        assert self._clock_floor is not None
+        self._clock_floor = (
+            max(self._clock_floor, self.clock_segments[0].start_ns)
+            if self.clock_segments
+            else None
+        )
+
+    def _set_unapplied_pair(self, pair):
+        self.accounted_bytes -= self._unapplied_pair_size
+        self.last_unapplied_pair = pair
+        self._unapplied_pair_size = self._clock_record_bytes(pair) if pair else 0
+        self.accounted_bytes += self._unapplied_pair_size
+
+    def _observe_receive_clock(self, reference, reading):
+        epoch_key = (str(reference.session_id), reading.clock_id)
+        if epoch_key != self._clock_epoch_key:
+            changed = self._clock_epoch_key is not None
+            while self.clock_segments:
+                self._drop_clock_segment()
+            self._set_unapplied_pair(None)
+            self.source_identity = self._configured_source_identity or str(
+                reference.session_id
+            )
+            self._clock_epoch += 1
+            self._clock_epoch_key = epoch_key
+            self.clock_scope = digest(
+                (
+                    TIME_AXIS_PROJECTION,
+                    self.source_identity,
+                    reading.clock_id,
+                    self._clock_epoch,
+                    reference,
+                )
+            )
+            self._clock_floor = None
+            self._clock_frontier = None
+            self._clock_truncated = False
+            self._clock_changed = changed
+            self._query_epoch = object()
+        frontier = reading.mono_ns
+        previous = self._clock_frontier
+        self._clock_frontier = frontier
+        change = None
+        if self.clock_segments:
+            active = self.clock_segments[-1].reference
+            change = (
+                reference.receive_wall_ns
+                - reference.receive_mono_ns
+                - (active.receive_wall_ns - active.receive_mono_ns)
+            )
+            if abs(change) < WALL_OFFSET_CHANGE_THRESHOLD_NS:
+                return
+            if frontier <= previous or reference.receive_mono_ns != frontier:
+                self._set_unapplied_pair(
+                    UnappliedReceivePair(frontier, reference, change)
+                )
+                return
+        segment = ReceiveClockSegment(
+            digest((self.clock_scope, frontier, reference)),
+            frontier,
+            reference,
+            "initial_pair" if not self.clock_segments else "wall_offset_change",
+            change,
+        )
+        self.clock_segments.append(segment)
+        size = self._clock_record_bytes(segment)
+        self._clock_segment_sizes.append(size)
+        self.accounted_bytes += size
+        if self._clock_floor is None:
+            self._clock_floor = frontier
+
+    def _trim_receive_clock(self):
+        if self.clock_segments:
+            assert self._clock_floor is not None and self._clock_frontier is not None
+            floor_ns = max(
+                self._clock_floor, self._clock_frontier - MAX_COLUMNS * SECOND
+            )
+            if floor_ns > self._clock_floor:
+                self._clock_truncated = True
+                self._clock_floor = floor_ns
+            # Preserve the original predecessor, not a viewport-relative anchor.
+            while (
+                len(self.clock_segments) > 1
+                and self.clock_segments[1].start_ns <= floor_ns
+            ):
+                self._drop_clock_segment()
+            while len(self.clock_segments) > MAX_TIME_AXIS_SEGMENTS:
+                self._drop_clock_segment()
+        if self.last_unapplied_pair and (
+            self._clock_floor is None
+            or self.last_unapplied_pair.admission_ns < self._clock_floor
+        ):
+            self._set_unapplied_pair(None)
+
+    def _time_axis(self, start, end, clock_id):
+        reasons = []
+        segments = []
+        lower = upper = None
+        if self.clock_segments and end >= self._clock_floor:
+            lower = max(start, self._clock_floor)
+            upper = min(end, self._clock_frontier)
+            if lower <= upper:
+                for segment in self.clock_segments:
+                    if segment.start_ns > upper:
+                        break
+                    if segment.start_ns <= lower:
+                        segments = [segment]
+                    else:
+                        segments.append(segment)
+            else:
+                lower = upper = None
+        if not segments:
+            lower = upper = None
+            reasons.append("receive_clock_unavailable")
+        if self._clock_truncated:
+            reasons.append("receive_clock_history_truncated")
+        if self._clock_floor is not None and start < self._clock_floor:
+            reasons.append("requested_receive_clock_history_unavailable")
+        if any(segment.cause == "wall_offset_change" for segment in segments):
+            reasons.append("wall_offset_change")
+        pair = self.last_unapplied_pair
+        if pair is not None and not (
+            lower is not None and lower <= pair.admission_ns <= upper
+        ):
+            pair = None
+        if pair:
+            reasons.append("nonadvancing_receive_pair")
+        if self._clock_changed and segments:
+            reasons.append("source_clock_changed")
+        return {
+            "version": "1",
+            "basis": "receive_mono_highwater",
+            "projection": TIME_AXIS_PROJECTION,
+            "source_identity": self.source_identity,
+            "clock_id": clock_id,
+            "scope_id": self.clock_scope,
+            "available_start_ns": exact(lower),
+            "available_end_ns": exact(upper),
+            "offset_change_threshold_ns": str(WALL_OFFSET_CHANGE_THRESHOLD_NS),
+            "segments": [exact(segment) for segment in segments],
+            "last_unapplied_pair": exact(pair),
+            "reasons": reasons,
+        }
+
     def _trim(self):
+        self._trim_receive_clock()
         while len(self.samples) > MAX_COLUMNS:
             self._drop_sample()
         while len(self.trades) > MAX_TRADES:
@@ -337,17 +550,46 @@ class VisualHistory:
         while len(self.flow) > MAX_COLUMNS:
             self._drop_flow()
         while self.accounted_bytes > MAX_BYTES and (
-            self.samples or self.trades or self.flow
+            self.samples
+            or self.trades
+            or self.flow
+            or self.clock_segments
+            or self.last_unapplied_pair
         ):
             oldest = min(
                 (self.samples[0].time_ns if self.samples else float("inf"), "sample"),
                 (self.trades[0].time_ns if self.trades else float("inf"), "trade"),
                 (self.flow[0][0] if self.flow else float("inf"), "flow"),
+                (
+                    self.clock_segments[0].start_ns
+                    if self.clock_segments
+                    and (
+                        len(self.clock_segments) > 1
+                        or not (
+                            self.samples
+                            or self.trades
+                            or self.flow
+                            or self.last_unapplied_pair
+                        )
+                    )
+                    else float("inf"),
+                    "clock",
+                ),
+                (
+                    self.last_unapplied_pair.admission_ns
+                    if self.last_unapplied_pair
+                    else float("inf"),
+                    "pair",
+                ),
             )[1]
             if oldest == "sample":
                 self._drop_sample()
             elif oldest == "trade":
                 self._drop_trade()
+            elif oldest == "clock":
+                self._drop_clock_segment()
+            elif oldest == "pair":
+                self._set_unapplied_pair(None)
             else:
                 self._drop_flow()
         if self.samples:
@@ -489,6 +731,8 @@ class VisualHistory:
             self.trade_floor = None
             self.discontinuities.clear()
         self.engine.on_batch(batch, books, clock)
+        if batch.events:
+            self._observe_receive_clock(batch.events[0].ref(), reading)
         self.clock = reading
         self.book = next((book for book in books if book.key == self.key), None)
         relevant = [
@@ -583,6 +827,28 @@ class VisualHistory:
             self.bucket_ns,
             tuple(self.discontinuities),
             tuple(self.flow),
+            (
+                TIME_AXIS_PROJECTION,
+                WALL_OFFSET_CHANGE_THRESHOLD_NS,
+                self.source_identity,
+                self._clock_epoch,
+                self.clock_scope,
+                self._clock_epoch_key,
+                self._clock_floor,
+                self._clock_frontier,
+                self._clock_truncated,
+                self._clock_changed,
+                tuple(
+                    tuple(getattr(segment, field.name) for field in fields(segment))
+                    for segment in self.clock_segments
+                ),
+                tuple(
+                    getattr(self.last_unapplied_pair, field.name)
+                    for field in fields(self.last_unapplied_pair)
+                )
+                if self.last_unapplied_pair
+                else None,
+            ),
         )
         return dumps(state, decimal_policy=DERIVED_DECIMAL_POLICY)
 
@@ -590,6 +856,15 @@ class VisualHistory:
         saved = loads(state, CheckpointState, decimal_policy=DERIVED_DECIMAL_POLICY)
         if saved[0] != self.version or saved[1] != self.key:
             raise ValueError("incompatible visualization checkpoint")
+        axis = saved[19]
+        if (
+            axis[:2] != (TIME_AXIS_PROJECTION, WALL_OFFSET_CHANGE_THRESHOLD_NS)
+            or self._configured_source_identity is not None
+            and axis[2] != self._configured_source_identity
+            or self.source_identity
+            and axis[2] != self.source_identity
+        ):
+            raise ValueError("incompatible visualization clock checkpoint")
         self.reset()
         self.engine.restore(saved[2])
         (
@@ -605,9 +880,26 @@ class VisualHistory:
             self.anchor,
             self.price_step,
             self.bucket_ns,
-        ) = saved[5:-2]
-        self.discontinuities.extend(saved[-2])
-        for stamp, reasons, validated in saved[-1]:
+        ) = saved[5:17]
+        (
+            self.source_identity,
+            self._clock_epoch,
+            self.clock_scope,
+            self._clock_epoch_key,
+            self._clock_floor,
+            self._clock_frontier,
+            self._clock_truncated,
+            self._clock_changed,
+        ) = axis[2:10]
+        for state in axis[10]:
+            segment = ReceiveClockSegment(*state)
+            self.clock_segments.append(segment)
+            size = self._clock_record_bytes(segment)
+            self._clock_segment_sizes.append(size)
+            self.accounted_bytes += size
+        self._set_unapplied_pair(UnappliedReceivePair(*axis[11]) if axis[11] else None)
+        self.discontinuities.extend(saved[17])
+        for stamp, reasons, validated in saved[18]:
             self.flow.append((stamp, reasons, validated))
             self.accounted_bytes += self._flow_bytes(reasons)
         for sample in saved[3]:
@@ -624,13 +916,20 @@ class VisualHistory:
         snapshot.flow = self.flow.copy()
         snapshot.discontinuities = self.discontinuities.copy()
         snapshot._sample_metrics = self._sample_metrics.copy()
+        snapshot.clock_segments = self.clock_segments.copy()
         return snapshot
 
     def accept_query(self, snapshot):
         """Commit presentation state only, never overwrite advancing evidence."""
         current_clock = self.clock.clock_id if self.clock else None
         queried_clock = snapshot.clock.clock_id if snapshot.clock else None
-        if self.key != snapshot.key or current_clock != queried_clock:
+        if (
+            self.key != snapshot.key
+            or current_clock != queried_clock
+            or self.source_identity != snapshot.source_identity
+            or self.clock_scope != snapshot.clock_scope
+            or self._query_epoch is not snapshot._query_epoch
+        ):
             return False
         if snapshot.anchor is not None:
             self.anchor = snapshot.anchor
@@ -1020,6 +1319,7 @@ class VisualHistory:
             "grid_id": grid,
             "instrument_id": str(instrument.instrument_id),
             "clock_id": clock_id,
+            "time_axis": self._time_axis(start, end, clock_id),
             "quantity_unit": str(instrument.base.asset_id)
             if _valuation(instrument, Decimal(1), Decimal(1))[0] is not None
             else "unavailable",

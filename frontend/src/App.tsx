@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { Analytics, CostInput, Costs, Frame, Instrument, Metric, Pair, ReplayAction, Source } from './api';
 import { errorMessage } from './api';
@@ -10,8 +10,9 @@ import { Freshness } from './Freshness';
 import { DepthLadder } from './DepthLadder';
 import { ProposalRiskPanel } from './ProposalRiskPanel';
 import { useMarketView } from './useMarketView';
-import { chartSettings, presetLayout, useWorkspacePreferences } from './workspace';
-import type { PaneId, WorkspacePreferences } from './workspace';
+import { chartSettings, navigateChartTime, presetLayout, useWorkspacePreferences, workspaceGeometry } from './workspace';
+import type { ChartTimeIntent, PaneId, WorkspacePreferences } from './workspace';
+import { terminalIncidents } from './terminal-incident';
 import './workstation.css';
 import { Details, Empty, Panel, Reasons, Value } from './WorkflowUI';
 import { AlertsPanel, ContextPanel, ResearchPanel } from './SignalPanels';
@@ -80,7 +81,7 @@ function ResizeHandle({ axis, value, min, max, reverse = false, proportional = f
 }
 
 function PaneActions({ pane, linked, onLinked, maximized, onMaximize }: { pane: string; linked: boolean; onLinked: () => void; maximized: boolean; onMaximize: () => void }) {
-  return <span className="pane-actions"><button aria-label={`Link ${pane} cursor`} aria-pressed={linked} onClick={onLinked}>Link</button><button aria-label={`${maximized ? 'Restore' : 'Maximize'} ${pane}`} onClick={onMaximize}>{maximized ? 'Restore' : 'Max'}</button></span>;
+  return <span className="pane-actions"><button aria-label={`Link ${pane} cursor`} aria-pressed={linked} onClick={onLinked}>Cursor</button><button aria-label={`${maximized ? 'Restore' : 'Maximize'} ${pane}`} onClick={onMaximize}>{maximized ? 'Restore' : 'Max'}</button></span>;
 }
 
 function Tape({ frame, connected, instrument, preferences: p, update, crosshair, onCrosshair, maximized, onMaximize }: {
@@ -90,8 +91,74 @@ function Tape({ frame, connected, instrument, preferences: p, update, crosshair,
 }) {
   const [snapshot, setSnapshot] = useState<Analytics['tape'] | null>(null);
   const [localCursor, setLocalCursor] = useState<ChartCursor | null>(null);
+  const [inspected, setInspected] = useState<{ print: Analytics['tape'][number]; source: Frame['source']; trigger: HTMLButtonElement } | null>(null);
+  const headerAction = useRef<HTMLButtonElement | null>(null);
+  const inspector = useRef<HTMLDivElement | null>(null);
+  const focusedPrint = useRef<HTMLElement | null>(null);
+  const settings = useRef<HTMLDetailsElement | null>(null);
+  const settingsSummary = useRef<HTMLElement | null>(null);
+  const settingsToolbar = useRef<HTMLDivElement | null>(null);
+  const positionSettings = useCallback(() => {
+    const menu = settingsToolbar.current;
+    const summary = settingsSummary.current;
+    if (!menu || !summary) return;
+    if (!settings.current?.open) {
+      menu.style.visibility = 'hidden';
+      return;
+    }
+    // Fixed positioning escapes the clipped tape body; clamp to the visible
+    // viewport rather than assuming there is room above or below a short pane.
+    const viewport = window.visualViewport;
+    const left = (viewport?.offsetLeft ?? 0) + 8;
+    const top = (viewport?.offsetTop ?? 0) + 8;
+    const width = Math.max(0, (viewport?.width ?? document.documentElement.clientWidth) - 16);
+    const height = Math.max(0, (viewport?.height ?? document.documentElement.clientHeight) - 16);
+    menu.style.width = `${Math.min(225, width)}px`;
+    menu.style.maxHeight = `${height}px`;
+    const anchor = summary.getBoundingClientRect();
+    const bounds = menu.getBoundingClientRect();
+    const below = anchor.bottom + 4;
+    const above = anchor.top - bounds.height - 4;
+    const preferredTop = below + bounds.height <= top + height ? below : above >= top ? above : below;
+    menu.style.left = `${Math.max(left, Math.min(anchor.right - bounds.width, left + width - bounds.width))}px`;
+    menu.style.top = `${Math.max(top, Math.min(preferredTop, top + height - bounds.height))}px`;
+    menu.style.visibility = 'visible';
+  }, []);
+  useLayoutEffect(positionSettings, [positionSettings, p, maximized]);
+  useLayoutEffect(() => {
+    const disclosure = settings.current;
+    const summary = settingsSummary.current;
+    const menu = settingsToolbar.current;
+    if (!disclosure || !summary || !menu) return;
+    const observer = new ResizeObserver(positionSettings);
+    observer.observe(summary);
+    observer.observe(menu);
+    const panel = disclosure.closest('.tape-panel');
+    if (panel) observer.observe(panel);
+    const workspace = disclosure.closest('.workstation-workspace');
+    if (workspace) observer.observe(workspace);
+    disclosure.addEventListener('toggle', positionSettings);
+    window.addEventListener('resize', positionSettings);
+    window.addEventListener('scroll', positionSettings, true);
+    const viewport = window.visualViewport;
+    viewport?.addEventListener('resize', positionSettings);
+    viewport?.addEventListener('scroll', positionSettings);
+    return () => {
+      observer.disconnect();
+      disclosure.removeEventListener('toggle', positionSettings);
+      window.removeEventListener('resize', positionSettings);
+      window.removeEventListener('scroll', positionSettings, true);
+      viewport?.removeEventListener('resize', positionSettings);
+      viewport?.removeEventListener('scroll', positionSettings);
+    };
+  }, [positionSettings]);
   const tapeCursor = p.links.tape ? crosshair : localCursor;
   const setTapeCursor = p.links.tape ? onCrosshair : setLocalCursor;
+  useEffect(() => {
+    const clear = () => setLocalCursor(null);
+    window.addEventListener('terminal-clear-cursor', clear);
+    return () => window.removeEventListener('terminal-clear-cursor', clear);
+  }, []);
   const available = connected && !!frame && !['seeking', 'unavailable', 'error', 'loading'].includes(frame.status);
   useEffect(() => {
     if (!p.tapeFrozen) setSnapshot(null);
@@ -99,22 +166,62 @@ function Tape({ frame, connected, instrument, preferences: p, update, crosshair,
   }, [p.tapeFrozen, available, frame?.analytics, snapshot]);
   const tape = available ? (p.tapeFrozen ? snapshot : frame?.analytics?.tape) ?? [] : [];
   const prints = tape.filter(item => p.tapeSide === 'all' || (p.tapeSide === 'unknown' ? !['buy', 'sell'].includes(item.trade.taker_side) : item.trade.taker_side === p.tapeSide)).slice(-p.tapeRows).reverse();
-  return <Panel title="Time & sales" className="tape-panel" extra={<PaneActions pane="tape" linked={p.links.tape} onLinked={() => { onCrosshair(null); setLocalCursor(null); update({ links: { ...p.links, tape: !p.links.tape } }); }} maximized={maximized} onMaximize={onMaximize} />}>
-    <div className="tape-toolbar"><button aria-pressed={p.tapeFrozen} onClick={() => { setSnapshot(p.tapeFrozen || !available ? null : frame?.analytics?.tape ?? null); update({ tapeFrozen: !p.tapeFrozen }); }}>{p.tapeFrozen ? 'Resume tape' : 'Freeze tape'}</button>
+  useLayoutEffect(() => {
+    if (inspected) inspector.current?.focus();
+  }, [inspected]);
+  useLayoutEffect(() => {
+    if (!inspected && focusedPrint.current && !focusedPrint.current.isConnected) {
+      focusedPrint.current = null;
+      if (document.activeElement === document.body) headerAction.current?.focus();
+    }
+  });
+  const closeInspector = () => {
+    if (!inspected) return;
+    const target = inspected.trigger.isConnected ? inspected.trigger : headerAction.current;
+    setInspected(null);
+    target?.focus();
+  };
+  return <Panel title="Time & sales" className="tape-panel" extra={<>
+    <button ref={headerAction} aria-label={p.tapeFrozen ? 'Resume tape' : 'Freeze tape'} aria-pressed={p.tapeFrozen} onClick={() => { setSnapshot(p.tapeFrozen || !available ? null : frame?.analytics?.tape ?? null); update({ tapeFrozen: !p.tapeFrozen }); }}>{p.tapeFrozen ? 'Resume' : 'Freeze'}</button>
+    <PaneActions pane="tape" linked={p.links.tape} onLinked={() => { onCrosshair(null); setLocalCursor(null); update({ links: { ...p.links, tape: !p.links.tape } }); }} maximized={maximized} onMaximize={onMaximize} />
+    <details ref={settings} className="tape-settings"><summary ref={settingsSummary} aria-label="Tape settings">More</summary><div ref={settingsToolbar} className="tape-toolbar">
       <label>Rows<select aria-label="Tape rows" value={p.tapeRows} onChange={event => update({ tapeRows: Number(event.target.value) })}>{[25, 50, 100].map(rows => <option key={rows}>{rows}</option>)}</select></label>
       <label>Side<select aria-label="Tape side" value={p.tapeSide} onChange={event => update({ tapeSide: event.target.value as WorkspacePreferences['tapeSide'] })}>{['all', 'buy', 'sell', 'unknown'].map(side => <option key={side}>{side}</option>)}</select></label>
-    </div>
+      <span>Receive time UTC · native prints. Select a time for exact provenance.</span>
+    </div></details>
+  </>}>
     <Freshness frame={frame} reference={prints[0]?.asof ?? null} connected={connected} label="Trades" frozen={p.tapeFrozen} />
     <div className="scroll tape-scroll">{!prints.length ? <Empty>{available ? 'No public trades observed at this cursor. No past prints are invented.' : 'Stream evidence unavailable.'}</Empty> : <table>
-      <thead><tr><th>Receive UTC</th><th>Side</th><th>Price {instrument?.quote.ticker}</th><th>Base size</th><th>Origin</th></tr></thead>
-      <tbody>{prints.map(item => <tr key={`${item.stream_id}:${item.trade.dedup_key}`} className={tapeCursor?.price === item.trade.price ? 'cursor-linked' : ''}
+      <thead><tr><th scope="col">TIME <span className="muted">UTC</span></th><th scope="col">PRICE <span className="muted">{instrument?.quote.ticker}</span></th><th scope="col">SIZE <span className="muted">{instrument?.base.ticker ?? 'base'}</span></th><th scope="col">SIDE</th></tr></thead>
+      <tbody>{prints.map(item => <tr key={JSON.stringify([item.stream_id, item.trade.dedup_key])} className={tapeCursor?.price === item.trade.price ? 'cursor-linked' : ''}
+        onFocusCapture={event => { focusedPrint.current = event.target as HTMLElement; }}
+        onBlurCapture={event => { if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget as Node)) focusedPrint.current = null; }}
         onPointerEnter={() => setTapeCursor({ time_ns: item.asof.receive_mono_ns, price: item.trade.price })} onPointerLeave={() => setTapeCursor(null)}>
-        <td title={`Receive ${item.asof.receive_wall_ns}; exchange ${exact(item.asof.exchange_event_wall_ns)}`}>{timestamp(item.asof.receive_wall_ns)}</td>
-        <td className={item.trade.taker_side === 'buy' ? 'bid' : item.trade.taker_side === 'sell' ? 'ask' : 'muted'} title={item.trade.side_provenance}>{item.trade.taker_side}</td>
+        <td><button className="tape-time" aria-label={`Inspect trade ${item.trade.trade_id ?? item.trade.dedup_key}`}
+          title={`Receive UTC ${timestamp(item.asof.receive_wall_ns)}; receive ns ${item.asof.receive_wall_ns}; exchange ns ${exact(item.asof.exchange_event_wall_ns)}`}
+          onClick={event => { if (frame) setInspected({ print: item, source: frame.source, trigger: event.currentTarget }); }}>{timestamp(item.asof.receive_wall_ns).replace(/\.\d{3}$/, '')}</button></td>
         <td className="numeric"><button className="tape-price" aria-label={`Link trade price ${item.trade.price}`}
-          onFocus={() => setTapeCursor({ time_ns: item.asof.receive_mono_ns, price: item.trade.price })} onBlur={() => setTapeCursor(null)}><Value value={item.trade.price} /></button></td>
-        <td className="numeric"><Value value={item.base_quantity} /></td><td>{item.trade.is_subscription_history ? <span className="warning">History</span> : frame?.source.synthetic ? 'Synthetic' : 'Observed'}</td>
+          onFocus={() => setTapeCursor({ time_ns: item.asof.receive_mono_ns, price: item.trade.price })} onBlur={() => setTapeCursor(null)}>{item.trade.price}</button></td>
+        <td className="numeric">{exact(item.base_quantity)}</td>
+        <td className={item.trade.taker_side === 'buy' ? 'bid' : item.trade.taker_side === 'sell' ? 'ask' : 'muted'} title={item.trade.side_provenance}>
+          {item.trade.taker_side}
+          {item.trade.is_subscription_history && <span className="tape-origin warning">History</span>}
+          {frame?.source.synthetic && <span className="tape-origin warning">Synthetic</span>}
+          {item.trade.side_provenance === 'unknown' && ['buy', 'sell'].includes(item.trade.taker_side) && <span className="tape-origin warning">Unknown provenance</span>}
+        </td>
       </tr>)}</tbody></table>}</div>
+    {inspected && <div ref={inspector} className="tape-inspector" role="dialog" aria-label="Trade inspector" tabIndex={-1}
+      onKeyDown={event => {
+        if (event.key !== 'Escape') return;
+        event.preventDefault(); event.stopPropagation();
+        const disclosure = (event.target as HTMLElement).closest<HTMLDetailsElement>('details[open]');
+        if (disclosure) { disclosure.open = false; disclosure.querySelector<HTMLElement>(':scope > summary')?.focus(); }
+        else closeInspector();
+      }}>
+      <div className="tape-inspector-heading"><strong>Native print · pinned snapshot</strong><button onClick={closeInspector} aria-label="Close trade inspector">Close</button></div>
+      <dl className="metadata"><dt>Receive UTC</dt><dd>{timestamp(inspected.print.asof.receive_wall_ns)}</dd><dt>Source</dt><dd>{inspected.source.label} · {inspected.source.synthetic ? 'Synthetic' : inspected.source.recording ? 'Recorded' : inspected.source.mode}</dd><dt>Origin</dt><dd>{inspected.print.trade.is_subscription_history ? 'Subscription history' : 'Observed print'}</dd><dt>Side provenance</dt><dd>{inspected.print.trade.side_provenance}</dd></dl>
+      <Details title="Exact native print, timestamps, units and source" value={{ print: inspected.print, source: inspected.source }} />
+    </div>}
   </Panel>;
 }
 
@@ -206,8 +313,23 @@ export default function App() {
   const [instrumentPage, setInstrumentPage] = useState(0);
   const [bottomTab, setBottomTab] = useState<WorkflowTab>('costs');
   const [maximized, setMaximized] = useState<PaneId | null>(null);
+  const [interactionPane, setInteractionPane] = useState<PaneId>('heatmap');
+  const [clockScopeRevision, setClockScopeRevision] = useState(0);
+  const shell = useRef<HTMLDivElement | null>(null);
+  const lastFocus = useRef<HTMLElement | null>(null);
+  const maximizeReturn = useRef<HTMLElement | null>(null);
+  const pendingFocus = useRef<HTMLElement | null>(null);
+  const diagnostics = useRef<HTMLDetailsElement | null>(null);
+  const sourceInspector = useRef<HTMLDetailsElement | null>(null);
   const [slot, setSlot] = useState(0);
   const [slotNotice, setSlotNotice] = useState('');
+  const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth);
+  useEffect(() => {
+    const resized = () => setViewportWidth(window.innerWidth);
+    window.addEventListener('resize', resized);
+    return () => window.removeEventListener('resize', resized);
+  }, []);
+  const geometry = workspaceGeometry(p, viewportWidth);
   const fence = frame ? `${frame.session_id}:${frame.generation}:${frame.source.id}:${frame.selection.instrument_id}` : '';
   const attachedFence = useRef<string | null>(null);
   const initialSource = useRef(p.source);
@@ -238,9 +360,25 @@ export default function App() {
     ...previous, secondary: chartSettings({ ...previous.secondary, ...value }),
   })), [setPreferences]);
   const resetViews = useCallback(() => setPreferences(previous => ({
-    ...previous, priceStep: '', domPriceStep: '', range: null, follow: true, priceOffset: 0, paused: false, domFrozen: false, tapeFrozen: false,
-    secondary: { ...previous.secondary, priceStep: '', range: null, follow: true, priceOffset: 0, paused: false },
+    ...previous, priceStep: '', domPriceStep: '', range: null, followSpanNs: null, follow: true, priceOffset: 0, paused: false, domFrozen: false, tapeFrozen: false,
+    secondary: { ...previous.secondary, priceStep: '', range: null, followSpanNs: null, follow: true, priceOffset: 0, paused: false },
   })), [setPreferences]);
+  const resetClockScope = useCallback(() => {
+    setCursor(null); setDomCursor(null);
+    setClockScopeRevision(previous => previous + 1);
+    window.dispatchEvent(new Event('terminal-clear-cursor'));
+    setPreferences(previous => ({ ...previous, range: null, followSpanNs: null, follow: true,
+      secondary: { ...previous.secondary, range: null, followSpanNs: null, follow: true } }));
+  }, [setPreferences]);
+  const changeChartTime = (pane: 'heatmap' | 'flow', intent: ChartTimeIntent) => {
+    setPreferences(previous => navigateChartTime(previous, pane, intent));
+  };
+  const toggleTimeLink = (pane: 'heatmap' | 'flow', intent: ChartTimeIntent | null) => {
+    setPreferences(previous => {
+      const next = { ...previous, rangeLinked: !previous.rangeLinked };
+      return next.rangeLinked && intent ? navigateChartTime(next, pane, intent) : next;
+    });
+  };
   const changeSource = (source: Source) => {
     resetViews();
     update({ source: { mode: source.mode, id: source.id }, sourceExplicit: true });
@@ -252,7 +390,7 @@ export default function App() {
     terminal.source(source.mode, source.id);
   };
   const liveSource = catalog?.sources.find(source => source.mode === 'live' && source.status === 'ready');
-  const views = useMarketView({ frame, connected: usable, preferences: p, recenter: 0, visualization: terminal.visualization, ladder: terminal.ladder, chartEnabled: false, domEnabled: p.rightOpen && (!maximized || maximized === 'dom') });
+  const views = useMarketView({ frame, connected: usable, preferences: p, recenter: 0, visualization: terminal.visualization, ladder: terminal.ladder, chartEnabled: false, domEnabled: p.rightOpen && (!maximized || maximized === 'dom'), clockScopeRevision });
   const selectContextInstrument = useCallback(async (id: string) => { resetViews(); await select(id); }, [select, resetViews]);
   const workflow = { frame, instruments, connected: usable, busy: terminal.busy, request: terminal.workflow };
   const sourceId = frame?.source.id, sourceMode = frame?.source.mode, instrumentId = frame?.selection.instrument_id;
@@ -272,43 +410,114 @@ export default function App() {
       return;
     }
     setCursor(null); setDomCursor(null);
-    setPreferences(previous => ({ ...previous, paused: false, domFrozen: false, tapeFrozen: false, range: null, follow: true,
-      secondary: { ...previous.secondary, paused: false, range: null, follow: true } }));
+    setPreferences(previous => ({ ...previous, paused: false, domFrozen: false, tapeFrozen: false, range: null, followSpanNs: null, follow: true,
+      secondary: { ...previous.secondary, paused: false, range: null, followSpanNs: null, follow: true } }));
   }, [fence, sourceId, sourceMode, resetViews, setPreferences]);
+  useLayoutEffect(() => {
+    const visible = (element: HTMLElement | null): element is HTMLElement => !!element?.isConnected && element.getClientRects().length > 0;
+    const pane = maximized ?? (!p.rightOpen && (interactionPane === 'dom' || interactionPane === 'tape') ? 'heatmap' : interactionPane);
+    if (pane !== interactionPane) setInteractionPane(pane);
+    const requested = pendingFocus.current;
+    pendingFocus.current = null;
+    if (visible(requested)) { requested.focus(); return; }
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && active !== document.body && visible(active)) return;
+    if (!lastFocus.current && !requested) return;
+    const container = shell.current?.querySelector<HTMLElement>(`[data-interaction-pane="${pane}"]`);
+    container?.querySelector<HTMLElement>('button, [tabindex="0"], summary')?.focus();
+  }, [fence, maximized, p.leftOpen, p.rightOpen, p.bottomOpen, p.preset, interactionPane]);
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { setMaximized(null); return; }
+      if (event.defaultPrevented) return;
       const target = event.target;
+      if (event.key === 'Escape') {
+        const disclosure = target instanceof Element ? target.closest<HTMLDetailsElement>('details[open]') : null;
+        if (disclosure) {
+          event.preventDefault();
+          event.stopPropagation();
+          disclosure.open = false;
+          disclosure.querySelector<HTMLElement>(':scope > summary')?.focus();
+          return;
+        }
+        const close = [...(shell.current?.querySelectorAll<HTMLButtonElement>('.chart-pane-settings button, .m4-chart-inspector button, .tape-inspector button') ?? [])]
+          .reverse().find(button => button.getClientRects().length > 0 && /^Close /.test(button.getAttribute('aria-label') ?? ''));
+        if (close) { event.preventDefault(); close.click(); return; }
+        const open = [...(shell.current?.querySelectorAll<HTMLDetailsElement>('.tape-settings[open], .dom-settings[open], .workspace-slots[open], .source-inspector[open]') ?? [])].reverse()
+          .find(details => details.getClientRects().length > 0);
+        if (open) { event.preventDefault(); open.open = false; open.querySelector<HTMLElement>(':scope > summary')?.focus(); return; }
+        event.preventDefault();
+        if (maximized) { pendingFocus.current = maximizeReturn.current; setMaximized(null); }
+        else { setCursor(null); setDomCursor(null); window.dispatchEvent(new Event('terminal-clear-cursor')); }
+        return;
+      }
       if (event.ctrlKey || event.metaKey || event.altKey || event.repeat || target instanceof Element && target.closest('input,select,textarea,button,[contenteditable]:not([contenteditable="false"]),[role="textbox"]')) return;
       if (event.key === '/') { event.preventDefault(); update({ leftOpen: true }); search.current?.focus(); }
       else if (event.key.toLowerCase() === 'd') setPreferences(previous => ({ ...previous, domFrozen: !previous.domFrozen }));
     };
     window.addEventListener('keydown', keydown);
     return () => window.removeEventListener('keydown', keydown);
-  }, [setPreferences, update]);
-  const toggleMaximize = (pane: PaneId) => setMaximized(previous => previous === pane ? null : pane);
+  }, [setPreferences, update, maximized]);
+  const toggleMaximize = (pane: PaneId) => {
+    if (maximized === pane) pendingFocus.current = maximizeReturn.current;
+    else maximizeReturn.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setMaximized(previous => previous === pane ? null : pane);
+  };
   const toggleLink = (pane: PaneId) => { setCrosshair(null); update({ links: { ...p.links, [pane]: !p.links[pane] } }); };
   const linkPrice = (price: string | null) => {
     if (!p.links.dom) { setDomCursor({ fence, price }); return; }
     const reference = views.dom.data?.asof;
     setCrosshair(price !== null && reference ? { time_ns: reference.receive_mono_ns, price } : null);
   };
-  const chartProps = { frame, connected, visualization: terminal.visualization, ladder: terminal.ladder,
-    acknowledgeVisualization: terminal.acknowledgeVisualization, crosshair, onCrosshair: setCrosshair };
+  const chartProps = { frame, instrument: selected, connected, visualization: terminal.visualization, ladder: terminal.ladder,
+    acknowledgeVisualization: terminal.acknowledgeVisualization, crosshair, onCrosshair: setCrosshair, onClockScopeChange: resetClockScope, clockScopeRevision };
   const qualityReasons = [...new Set([...(frame?.health.reasons ?? []), ...(frame?.source.reasons ?? []), ...(frame?.book?.quality.reason_codes ?? [])])];
-  const style = { '--left-width': `${p.leftOpen ? p.leftWidth : 0}px`, '--right-width': `${p.rightOpen ? p.rightWidth : 0}px`, '--bottom-height': `${p.bottomOpen ? p.bottomHeight : 0}px`, '--chart-split': `${p.chartSplit}%`, '--tape-split': `${p.tapeSplit}%` } as CSSProperties;
-  return <div className="terminal workstation" style={style}>
-    <header className="topbar"><div className="brand">LIMIT<span>ORDERBOOK</span></div>
+  const incidents = terminalIncidents({ terminalError: terminal.error, frameError: frame?.error ?? null,
+    catalogError: terminal.catalogError, storageError, connection: terminal.connection, status: frame?.status ?? null,
+    ready: frame?.health.ready ?? false, qualityReasons, synthetic: frame?.source.synthetic ?? false });
+  const incident = incidents[0];
+  const incidentHint = incident?.recovery === 'wait'
+    ? incident.id === 'catalog' ? 'Retrying automatically · current session retained' : 'Reconstruction in progress'
+    : incident?.recovery === 'storage' ? 'Settings remain in memory; allow browser storage to persist.' : '';
+  const openDetails = (details: HTMLDetailsElement | null) => {
+    if (!details) return;
+    details.open = true;
+    details.querySelector<HTMLElement>(':scope > summary')?.focus();
+  };
+  const style = { '--left-width': `${p.leftOpen ? p.leftWidth : 0}px`, '--right-width': `${p.rightOpen ? geometry.rightWidth : 0}px`, '--bottom-height': `${p.bottomOpen ? p.bottomHeight : 0}px`, '--chart-split': `${p.chartSplit}%`, '--tape-split': `${p.tapeSplit}%` } as CSSProperties;
+  return <div ref={shell} className="terminal workstation" style={style}
+    onFocusCapture={event => {
+      lastFocus.current = event.target as HTMLElement;
+      const pane = (event.target as HTMLElement).closest<HTMLElement>('[data-interaction-pane]')?.dataset.interactionPane;
+      if (pane) setInteractionPane(pane as PaneId);
+    }}
+    onPointerDownCapture={event => {
+      const pane = (event.target as HTMLElement).closest<HTMLElement>('[data-interaction-pane]')?.dataset.interactionPane;
+      if (pane) setInteractionPane(pane as PaneId);
+    }}>
+    <header className="topbar">
       <div className="selected-identity"><strong>{selected ? `${selected.base.ticker} / ${selected.quote.ticker}` : 'Select instrument'}</strong><span title={selected ? `${selected.venue} · ${selected.market_type} · ${selected.native_symbol}` : undefined}>{selected ? `${selected.venue} · ${selected.market_type} · ${selected.native_symbol}` : 'Exact public-market identities'}</span></div>
       <input ref={search} className="top-search" aria-label="Search instruments" placeholder="Search instruments /" type="search" value={query} onChange={event => { setQuery(event.target.value); update({ leftOpen: true }); }} />
       <label className="source-control">Source<select aria-label="Data source" title={frame?.source.label} value={frame?.source.id ?? p.source?.id ?? ''} disabled={!catalog} onChange={event => { const source = catalog?.sources.find(item => item.id === event.target.value); if (source?.status === 'ready') changeSource(source); }}>{!frame && <option value="">Choose source…</option>}{catalog?.sources.map(source => <option key={source.id} value={source.id} disabled={source.status !== 'ready'} title={[source.label, ...source.reasons].join('; ')}>{abbreviateCaptureLabel(source.label)} · {source.mode} · {source.status}{source.synthetic ? ' · SYNTHETIC' : ''}{source.reasons.length ? ` · ${source.reasons.join('; ')}` : ''}</option>)}</select></label>
       <label>Preset<select aria-label="Workspace preset" value={p.preset} onChange={event => { setMaximized(null); update(presetLayout(event.target.value as WorkspacePreferences['preset'])); }}><option value="balanced">Balanced</option><option value="analysis">Analysis</option><option value="ladder">DOM focus</option></select></label>
       <details className="workspace-slots"><summary>Workspaces</summary><div className="workspace-slot-controls"><label>Slot<select aria-label="Workspace slot" value={slot} onChange={event => { setSlot(Number(event.target.value)); setSlotNotice(''); }}>{slots.map((saved, index) => <option key={index} value={index}>Slot {index + 1}{saved ? ' · saved' : ' · empty'}</option>)}</select></label><button onClick={() => { saveSlot(slot); setSlotNotice(`Slot ${slot + 1} captured`); }}>Save workspace</button><button disabled={!slots[slot]} onClick={() => { loadSlot(slot); setMaximized(null); setCrosshair(null); setSlotNotice(`Slot ${slot + 1} loaded`); }}>Load workspace</button><span role="status">{slotNotice}</span></div></details>
-      <span className={`status ${connected ? 'positive' : 'warning'}`}>{terminal.connection}</span><button onClick={terminal.reconnect} aria-label="Reconnect terminal">Reconnect</button>
+      <span className="status muted" title="Transport connection only; source readiness and pane freshness are separate.">Transport: {terminal.connection}</span><button onClick={terminal.reconnect} aria-label="Reconnect terminal">Reconnect</button>
     </header>
-    <div className="source-banner"><strong>{frame?.source.synthetic ? 'SYNTHETIC DEMO' : frame?.source.recording ? 'RECORDED' : frame?.source.mode.toUpperCase() ?? 'CONNECTING'}</strong><span title={frame?.source.label}>{abbreviateCaptureLabel(frame?.source.label ?? 'Opening independent session')}</span><span className={`source-readiness ${frame?.health.ready && usable ? 'positive' : 'warning'}`} title={qualityReasons.join('; ')}>{frame?.health.ready && usable ? 'Required data ready' : 'Not ready / diagnostic'}</span><span className="source-state">{label(frame?.status ?? 'loading')}</span>
+    <div className="source-banner"><strong>{frame?.source.synthetic ? 'SYNTHETIC DEMO' : frame?.source.recording ? 'RECORDED' : frame?.source.mode.toUpperCase() ?? 'CONNECTING'}</strong><span className={`source-readiness ${frame?.health.ready && usable ? 'positive' : 'warning'}`} title={qualityReasons.join('; ')}>{frame?.health.ready && usable ? frame.book && !frame.book.quality.coverage.full_depth ? 'Ready · partial depth' : 'Ready' : usable ? 'Partial / not ready' : 'Unavailable'}</span><span className="source-state">{label(frame?.status ?? 'loading')}</span>
+      {incident && <div className={`terminal-incident ${incident.severity}`} role={incident.severity === 'error' ? 'alert' : 'status'} data-testid="terminal-incident" data-incident={incident.id}>
+        <span className="incident-message" title={incidentHint ? `${incident.message} · ${incidentHint}` : incident.message}><span>{incident.message}</span>{incidentHint && <span className="muted"> · {incidentHint}</span>}</span>
+        {incident.recovery === 'reconnect' && <button onClick={terminal.reconnect}>Reconnect</button>}
+        {incident.recovery === 'source' && <button onClick={() => openDetails(sourceInspector.current)}>Inspect source</button>}
+        {incident.recovery === 'synthetic' && <>
+          <button aria-label="Play synthetic demo" title="Play synthetic demo" disabled={terminal.busy || !connected || frame?.status !== 'paused'} onClick={() => void terminal.replay('play')}>Play demo</button>
+          {liveSource ? <button aria-label="Switch to public live data" title="Switch to public live data" disabled={terminal.busy} onClick={() => changeSource(liveSource)}>Public live data</button>
+            : <button aria-label="Inspect live availability" title="Inspect live availability" onClick={() => openDetails(sourceInspector.current)}>Live availability</button>}
+        </>}
+        <button onClick={() => openDetails(diagnostics.current)}>Diagnostics{incidents.length > 1 ? ` (${incidents.length})` : ''}</button>
+      </div>}
+      {!incident && <span className="source-label" title={frame?.source.label}>{abbreviateCaptureLabel(frame?.source.label ?? 'Opening independent session')}</span>}
       <div className="pane-toggles">{(['leftOpen', 'rightOpen', 'bottomOpen'] as const).map((key, index) => <button key={key} aria-pressed={p[key]} onClick={() => { setMaximized(null); update({ [key]: !p[key] }); }}>{['Watchlist', 'DOM / tape', 'Costs / analytics'][index]}</button>)}</div>
-      <details className="source-inspector"><summary>Source &amp; instrument details</summary><div className="source-inspector-body">
+      <details ref={sourceInspector} className="source-inspector"><summary>Source &amp; instrument details</summary><div className="source-inspector-body">
+        <p className="caption">Limit Orderbook · exact public-market workstation</p>
         {terminal.preferenceNotice && <p role="status" className="caption" data-testid="source-preference-notice">{terminal.preferenceNotice}</p>}
         <p>{frame?.source.recording ? 'Recorded capture · playback' : 'Not recording'}</p>
         <p className="caption">Current source, feed and readiness reasons</p>
@@ -318,19 +527,9 @@ export default function App() {
         {frame?.book && (frame.book.presentation.bids_omitted > 0 || frame.book.presentation.asks_omitted > 0) && <p className="caption">Frame carries the first {frame.book.presentation.depth_limit} levels per side. Native reconstruction, grouped ladder and cost walks retain full source depth.</p>}
         <Details title="Exact instrument metadata" value={selected ?? null} /><Details title="Source & capture descriptor" value={frame?.source ?? null} />
         <Details title="Available source readiness & reasons" value={catalog?.sources ?? []} /><Details title={`Live ingestion evidence · ${frame?.telemetry.ingestion.length ?? 0} streams`} value={frame?.telemetry.ingestion ?? []} />
+        <Details title="All terminal incidents and exact causes" value={{ incidents, qualityReasons }} />
       </div></details>
     </div>
-    {frame?.source.synthetic && <div className="warning-banner" role="status" data-testid="synthetic-guidance">
-      <strong>Synthetic demo — not live market data.</strong>{' '}
-      Sparse fixture L2; only observations delivered at the replay cursor.{' '}
-      <button disabled={terminal.busy || !connected || frame.status !== 'paused'} onClick={() => void terminal.replay('play')}>Play synthetic demo</button>{' '}
-      {liveSource ? <button disabled={terminal.busy} onClick={() => changeSource(liveSource)}>Switch to public live data</button>
-        : <span>Public live data is unavailable{catalog?.sources.filter(source => source.mode === 'live').map(source => ` · ${source.status}${source.reasons.length ? `: ${source.reasons.join('; ')}` : ''}`).join('') || ' · operator must launch serve --network'}. No live data is substituted.</span>}
-    </div>}
-    {(terminal.error || frame?.error) && <div className="error-banner" role="alert">{terminal.error ?? frame?.error}</div>}
-    {storageError && <div className="warning-banner" role="status">{storageError}</div>}
-    {terminal.catalogError && <div className="warning-banner" role="status">{terminal.catalogError} · retrying automatically without replacing the current session.</div>}
-    {frame?.status === 'seeking' && <div className="warning-banner" role="status">Seeking and rebuilding analytics. Previous evidence is unavailable until reconstruction completes.</div>}
     {frame?.replay && <ReplayControls frame={frame} busy={terminal.busy || !connected} replay={terminal.replay} />}
     <main className={`workspace workstation-workspace ${p.leftOpen ? '' : 'left-collapsed'} ${p.rightOpen ? '' : 'right-collapsed'} ${p.bottomOpen ? '' : 'bottom-collapsed'}`} data-testid="workspace" data-maximized={maximized ?? ''}>
       {p.leftOpen && <aside className="sidebar"><Panel title="Instruments" extra={<span className="muted">{filtered.length}</span>}>
@@ -345,20 +544,28 @@ export default function App() {
       </Panel></aside>}
       {p.leftOpen && <div className="left-resizer"><ResizeHandle axis="horizontal" name="Watchlist width" value={p.leftWidth} min={180} max={360} onChange={leftWidth => update({ leftWidth })} /></div>}
       <section className="chart-stack" aria-label="Market visualizations">
-        <div className="chart-slot primary-chart" hidden={!!maximized && maximized !== 'heatmap'}><ChartPane {...chartProps} key={`heatmap:${fence}`} id="heatmap" title="Liquidity" preferences={p} update={update} linked={p.links.heatmap} onLinked={() => toggleLink('heatmap')} maximized={maximized === 'heatmap'} onMaximize={() => toggleMaximize('heatmap')} active={!maximized || maximized === 'heatmap'} /></div>
+        <div className="chart-slot primary-chart" data-interaction-pane="heatmap" data-interaction-active={interactionPane === 'heatmap'} hidden={!!maximized && maximized !== 'heatmap'}><ChartPane {...chartProps} key={`heatmap:${fence}`} id="heatmap" title="Liquidity" preferences={p} update={update} linked={p.links.heatmap} onLinked={() => toggleLink('heatmap')} timeLinked={p.rangeLinked} onTimeChange={intent => changeChartTime('heatmap', intent)} onTimeLinked={intent => toggleTimeLink('heatmap', intent)} interactionActive={interactionPane === 'heatmap'} maximized={maximized === 'heatmap'} onMaximize={() => toggleMaximize('heatmap')} active={!maximized || maximized === 'heatmap'} /></div>
         <div className="chart-splitter"><ResizeHandle axis="vertical" proportional name="Chart split" value={p.chartSplit} min={30} max={70} onChange={chartSplit => update({ chartSplit })} /></div>
-        <div className="chart-slot secondary-chart" hidden={!!maximized && maximized !== 'flow'}><ChartPane {...chartProps} key={`flow:${fence}`} id="flow" title="Order flow" preferences={{ ...p, ...p.secondary }} update={updateSecondary} linked={p.links.flow} onLinked={() => toggleLink('flow')} maximized={maximized === 'flow'} onMaximize={() => toggleMaximize('flow')} active={!maximized || maximized === 'flow'} /></div>
+        <div className="chart-slot secondary-chart" data-interaction-pane="flow" data-interaction-active={interactionPane === 'flow'} hidden={!!maximized && maximized !== 'flow'}><ChartPane {...chartProps} key={`flow:${fence}`} id="flow" title="Order flow" preferences={{ ...p, ...p.secondary }} update={updateSecondary} linked={p.links.flow} onLinked={() => toggleLink('flow')} timeLinked={p.rangeLinked} onTimeChange={intent => changeChartTime('flow', intent)} onTimeLinked={intent => toggleTimeLink('flow', intent)} interactionActive={interactionPane === 'flow'} maximized={maximized === 'flow'} onMaximize={() => toggleMaximize('flow')} active={!maximized || maximized === 'flow'} /></div>
       </section>
-      {p.rightOpen && <><div className="right-resizer"><ResizeHandle axis="horizontal" reverse name="DOM width" value={p.rightWidth} min={250} max={500} onChange={rightWidth => update({ rightWidth })} /></div><aside className="book-tape">
-        <section className="dom-pane" data-pane="dom" hidden={!!maximized && maximized !== 'dom'}>
+      {p.rightOpen && <><div className="right-resizer"><ResizeHandle axis="horizontal" reverse name="DOM width" value={geometry.rightWidth} min={geometry.min} max={geometry.max} onChange={rightWidth => { if (rightWidth !== geometry.rightWidth) update({ rightWidth, rightWidthMode: 'manual' }); }} /></div><aside className="book-tape">
+        <section className="dom-pane" data-pane="dom" data-interaction-pane="dom" data-interaction-active={interactionPane === 'dom'} hidden={!!maximized && maximized !== 'dom'}>
+          <DepthLadder key={`${fence}:${clockScopeRevision}`} extra={<PaneActions pane="DOM" linked={p.links.dom} onLinked={() => toggleLink('dom')} maximized={maximized === 'dom'} onMaximize={() => toggleMaximize('dom')} />} data={usable ? views.dom.data : null} loading={views.dom.loading} error={!usable ? 'Stream evidence unavailable' : views.dom.error} frozen={p.domFrozen} viewPaused={false} rows={p.domRows} onRows={domRows => update({ domRows })} onFreeze={() => update({ domFrozen: !p.domFrozen })} crosshair={p.links.dom ? crosshair?.price ?? null : domCursor?.fence === fence ? domCursor.price : null} onPrice={linkPrice} priceStep={p.domPriceStep} onPriceStep={domPriceStep => update({ domPriceStep })} unit={p.domUnit} onUnit={domUnit => update({ domUnit })} cumulative={p.domCumulative} onCumulative={domCumulative => update({ domCumulative })} sourceMode={frame?.source.mode ?? 'demo'} />
           <Freshness frame={frame} reference={usable ? views.dom.data?.asof ?? null : null} connected={connected} label="Book" frozen={p.domFrozen} />
-          <DepthLadder key={fence} extra={<PaneActions pane="DOM" linked={p.links.dom} onLinked={() => toggleLink('dom')} maximized={maximized === 'dom'} onMaximize={() => toggleMaximize('dom')} />} data={usable ? views.dom.data : null} loading={views.dom.loading} error={!usable ? 'Stream evidence unavailable' : views.dom.error} frozen={p.domFrozen} viewPaused={false} rows={p.domRows} onRows={domRows => update({ domRows })} onFreeze={() => update({ domFrozen: !p.domFrozen })} crosshair={p.links.dom ? crosshair?.price ?? null : domCursor?.fence === fence ? domCursor.price : null} onPrice={linkPrice} priceStep={p.domPriceStep} onPriceStep={domPriceStep => update({ domPriceStep })} unit={p.domUnit} onUnit={domUnit => update({ domUnit })} cumulative={p.domCumulative} onCumulative={domCumulative => update({ domCumulative })} sourceMode={frame?.source.mode ?? 'demo'} />
         </section>
         <div className="tape-splitter"><ResizeHandle axis="vertical" proportional name="DOM and tape split" value={p.tapeSplit} min={30} max={75} onChange={tapeSplit => update({ tapeSplit })} /></div>
-        <section className="tape-pane" data-pane="tape" hidden={!!maximized && maximized !== 'tape'}><Tape key={fence} frame={frame} connected={connected} instrument={selected} preferences={p} update={update} crosshair={crosshair} onCrosshair={setCrosshair} maximized={maximized === 'tape'} onMaximize={() => toggleMaximize('tape')} /></section>
+        <section className="tape-pane" data-pane="tape" data-interaction-pane="tape" data-interaction-active={interactionPane === 'tape'} hidden={!!maximized && maximized !== 'tape'}><Tape key={`${fence}:${clockScopeRevision}`} frame={frame} connected={connected} instrument={selected} preferences={p} update={update} crosshair={crosshair} onCrosshair={setCrosshair} maximized={maximized === 'tape'} onMaximize={() => toggleMaximize('tape')} /></section>
       </aside></>}
       {p.bottomOpen && <><div className="bottom-resizer"><ResizeHandle axis="vertical" reverse name="Research pane height" value={p.bottomHeight} min={170} max={460} onChange={bottomHeight => update({ bottomHeight })} /></div><section className="research-pane">
-        <div className="tabs research-tabs" role="tablist" aria-label="Research pane">{workflowTabs.map(([id, name]) => <button key={id} id={`workflow-tab-${id}`} role="tab" aria-selected={bottomTab === id} aria-controls={`workflow-panel-${id}`} onClick={() => setBottomTab(id)}>{name}</button>)}<span className="muted">Shared-core evidence · no execution</span></div>
+        <div className="tabs research-tabs" role="tablist" aria-label="Research pane">{workflowTabs.map(([id, name], index) => <button key={id} id={`workflow-tab-${id}`} role="tab" tabIndex={bottomTab === id ? 0 : -1} aria-selected={bottomTab === id} aria-controls={`workflow-panel-${id}`} onClick={() => setBottomTab(id)}
+          onKeyDown={event => {
+            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+            event.preventDefault();
+            const next = event.key === 'Home' ? 0 : event.key === 'End' ? workflowTabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + workflowTabs.length) % workflowTabs.length;
+            const nextTab = workflowTabs[next]!;
+            setBottomTab(nextTab[0]);
+            document.getElementById(`workflow-tab-${nextTab[0]}`)?.focus();
+          }}>{name}</button>)}<span className="muted">Shared-core evidence · no execution</span></div>
         <div className="research-scroll">
           <div id="workflow-panel-costs" role="tabpanel" aria-labelledby="workflow-tab-costs" hidden={bottomTab !== 'costs'}><CostsPanel frame={frame} instruments={instruments} connected={usable} calculate={terminal.costs} /><ProposalRiskPanel frame={frame} connected={usable} calculate={terminal.proposalRisk} /></div>
           <div id="workflow-panel-analytics" role="tabpanel" aria-labelledby="workflow-tab-analytics" hidden={bottomTab !== 'analytics'}><AnalyticsPanel analytics={usable ? frame?.analytics ?? null : null} /></div>
@@ -370,6 +577,10 @@ export default function App() {
         </div>
       </section></>}
     </main>
-    <details className="diagnostics"><summary>Diagnostics</summary><footer className="telemetry"><span>Session {frame?.session_id.slice(0, 8) ?? '—'} · generation {frame?.generation ?? '—'}</span><span>Queue {frame?.telemetry.queue_depth ?? '—'} / high {frame?.telemetry.queue_highwater ?? '—'}</span><span>Coalesced {frame?.telemetry.coalesced ?? '—'} · overflow {frame?.telemetry.overflows ?? '—'}</span><span title="ACKs evicted from the bounded server buffer">ACK expired {frame?.telemetry.ack_expired ?? '—'}</span><span>Observer {milliseconds(frame?.telemetry.observer_duration_ms)}</span><span title="Two paint opportunities; not GPU completion">Receive→paint {milliseconds(frame?.telemetry.browser_receive_to_paint_ms)}</span><span title="Conservative round-trip upper bound">Publish→ACK ≤ {milliseconds(frame?.telemetry.publish_to_ack_upper_bound_ms)}</span></footer><Details title={`Live ingestion evidence · ${frame?.telemetry.ingestion.length ?? 0} streams`} value={frame?.telemetry.ingestion ?? []} /></details>
+    <details ref={diagnostics} className="diagnostics"><summary>Diagnostics</summary>
+      <Details title="All terminal incidents and exact causes" value={{ incidents, qualityReasons }} />
+      <Reasons reasons={qualityReasons} />
+      <p className="caption">Transport connection and browser rendering timings do not establish market-data freshness. Analytical queue overflow requires investigation of native ingestion; reconnecting does not fix capacity.</p>
+      <footer className="telemetry"><span>Session {frame?.session_id.slice(0, 8) ?? '—'} · generation {frame?.generation ?? '—'}</span><span>Queue {frame?.telemetry.queue_depth ?? '—'} / high {frame?.telemetry.queue_highwater ?? '—'}</span><span>Coalesced {frame?.telemetry.coalesced ?? '—'} · overflow {frame?.telemetry.overflows ?? '—'}</span><span title="ACKs evicted from the bounded server buffer">ACK expired {frame?.telemetry.ack_expired ?? '—'}</span><span>Observer {milliseconds(frame?.telemetry.observer_duration_ms)}</span><span title="Two paint opportunities; not GPU completion">Receive→paint {milliseconds(frame?.telemetry.browser_receive_to_paint_ms)}</span><span title="Conservative round-trip upper bound">Publish→ACK ≤ {milliseconds(frame?.telemetry.publish_to_ack_upper_bound_ms)}</span></footer><Details title={`Live ingestion evidence · ${frame?.telemetry.ingestion.length ?? 0} streams`} value={frame?.telemetry.ingestion ?? []} /></details>
   </div>;
 }

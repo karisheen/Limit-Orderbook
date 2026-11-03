@@ -42,6 +42,10 @@ function column(asof = reference(), time = '1000000000'): VisualColumn {
 function grid(columns = [column()]): VisualGrid {
   return { version: '1', generation: '3', grid_id: 'grid', instrument_id: 'BTC', clock_id: 'recorded-clock',
     view_id: 'view-1', published_mono_ns: '88888888888888888', quantity_unit: 'base', sampling: 'sampled',
+    time_axis: { version: '1', basis: 'receive_mono_highwater', projection: 'piecewise_receive_pair_v1',
+      source_identity: 'source-session', clock_id: 'recorded-clock', scope_id: null,
+      available_start_ns: null, available_end_ns: null, offset_change_threshold_ns: '1000000',
+      segments: [], last_unapplied_pair: null, reasons: ['receive_clock_unavailable'] },
     price_step: '1', price_min: '0', prices: [], rows: 0, bucket_ns: '1000000000', start_ns: '0',
     end_ns: '3000000000', now_ns: '3000000000', retained_start_ns: '0', step_options: [], columns,
     trades: [], profile: [], footprints: [], reasons: [], truncated: false, complete_window: true, replace: true, next_after: null };
@@ -218,6 +222,113 @@ test('trade-derived modes retain actual painted evidence and residence identity 
       evidenceIdentity(chartEvidence({ ...view, view_id: 'new-response' }, { mode }).reference));
   }
   assert.equal(chartEvidence(view).reference, null);
+});
+
+test('footprint source lag follows painted rows rather than newer offscreen native flow', () => {
+  const view = flowGrid();
+  const current = frame(reference('3000000000'));
+  const cropped = { mode: 'footprint' as const, rowViewport: { first: 0, count: 1 } };
+  assert.equal(chartEvidence(view, cropped).reference?.receive_mono_ns, '1500000000');
+  assert.equal(chartLag(current, view, true, cropped).ms, 1500);
+  assert.equal(chartLag(current, view, true, { mode: 'footprint' }).ms, 1200,
+    'omitting the viewport retains full native-grid behavior');
+  assert.equal(chartLag(current, view, true, { ...cropped, rowViewport: { first: 0, count: 2 } }).ms, 1200);
+  assert.equal(view.columns[0]!.eligible, false, 'eligible flow does not require a valid depth sample');
+});
+
+test('footprint price crop includes its lower edge and excludes its upper edge using exact native cells', () => {
+  const view = flowGrid();
+  view.price_min = '9007199254740993.000';
+  view.price_step = '0.001';
+  view.rows = 4;
+  view.prices = ['9007199254740993.000', '9007199254740993.001', '9007199254740993.002', '9007199254740993.003'];
+  view.footprints = view.prices.map(price => ({
+    time_ns: '1000000000', price, buy_base: '1', sell_base: '0', unknown_base: '0',
+  }));
+  const layers = { mode: 'footprint' as const, rowViewport: { first: 1, count: 2 } };
+  for (const [price, visible] of [
+    ['9007199254740993.000999999', false],
+    ['9007199254740993.001', true],
+    ['9007199254740993.002', true],
+    ['9007199254740993.002999999', true],
+    ['9007199254740993.003', false],
+  ] as const) {
+    view.trades = [trade('1500000000', price)];
+    assert.equal(chartLag(frame(reference('3000000000')), view, true, layers).ms, visible ? 1500 : null, price);
+  }
+  view.trades = [trade('1500000000', '9007199254740993.001')];
+  view.footprints = [view.footprints[0]!];
+  assert.equal(chartLag(frame(), view, true, layers).ms, null,
+    'a visible trade cannot borrow an offscreen native footprint cell');
+});
+
+test('painted crop changes select new evidence on the same response while a frozen crop ages with source time', () => {
+  const view = flowGrid();
+  const lower = { mode: 'footprint' as const, rowViewport: { first: 0, count: 1 } };
+  const upper = { mode: 'footprint' as const, rowViewport: { first: 1, count: 1 } };
+  const expanded = { mode: 'footprint' as const, rowViewport: { first: 0, count: 2 } };
+  const firstIdentity = evidenceIdentity(chartEvidence(view, lower).reference);
+  assert.notEqual(firstIdentity, evidenceIdentity(chartEvidence(view, upper).reference));
+  assert.equal(chartLag(frame(reference('3000000000')), view, true, upper).ms, 1200);
+  assert.equal(chartLag(frame(reference('3000000000')), view, true, expanded).ms, 1200);
+  const painted = chartEvidence(view, lower);
+  assert.equal(chartLag(frame(reference('9000000000')), view, true, lower, painted).ms, 7500);
+  assert.equal(evidenceIdentity(painted.reference), firstIdentity);
+  assert.equal(evidenceIdentity(chartEvidence(view, lower).reference), firstIdentity,
+    'returning to a crop retains the native evidence identity, not a query or crop identity');
+  assert.equal(view.view_id, 'view-1');
+});
+
+test('cropped footprint evidence obeys the displayed time window and captured frontier', () => {
+  const view = flowGrid();
+  view.start_ns = '1200000000';
+  view.end_ns = '1800000000';
+  view.now_ns = '1700000000';
+  const layers = { mode: 'footprint' as const, rowViewport: { first: 0, count: 1 } };
+  for (const [time, expectedLag] of [
+    ['1199999999', null], ['1200000000', 1800], ['1700000000', 1300],
+    ['1700000001', null], ['1800000000', null],
+  ] as const) {
+    view.trades = [trade(time)];
+    assert.equal(chartLag(frame(reference('3000000000')), view, true, layers).ms, expectedLag, time);
+  }
+});
+
+test('no eligible flow inside a painted crop remains unavailable without overlay or candle fallback', () => {
+  const view = flowGrid();
+  view.columns[0]!.eligible = true;
+  view.columns[0]!.asof = reference('1900000000');
+  view.columns[0]!.best_bid = '10';
+  const layers = { mode: 'footprint' as const, rowViewport: { first: 0, count: 1 } };
+  for (const ineligible of [
+    trade('1600000000', '10', { is_subscription_history: true }),
+    trade('1600000000', '10', { base_quantity: null }),
+    trade('1600000000', '10', { asof: reference('1600000000', 'foreign') }),
+    trade('1600000000', '10', { asof: reference('4000000000') }),
+  ]) {
+    view.trades = [ineligible, trade('1800000000', '11')];
+    assert.equal(chartEvidence(view, layers).reference, null);
+    assert.equal(chartLag(frame(reference('3000000000')), view, true, layers).ms, null);
+  }
+  view.trades = [trade('1800000000', '11')];
+  assert.equal(chartLag(frame(reference('3000000000')), view, true, layers).ms, null,
+    'native flow elsewhere in the grid does not freshen an empty crop');
+});
+
+test('empty and invalid footprint row geometry never advertises source freshness', () => {
+  const view = flowGrid();
+  for (const rowViewport of [
+    { first: 0, count: 0 }, { first: 0, count: -1 }, { first: -1, count: 1 },
+    { first: 2, count: 1 }, { first: 1, count: 2 }, { first: 0.5, count: 1 },
+    { first: 0, count: 1.5 }, { first: Number.NaN, count: 1 }, { first: 0, count: Number.POSITIVE_INFINITY },
+  ]) {
+    const lag = chartLag(frame(), view, true, { mode: 'footprint', rowViewport });
+    assert.equal(lag.ms, null);
+    assert.match(lag.reason!, /row viewport/);
+  }
+  assert.equal(chartLag(frame(), { ...view, rows: 0 }, true, { mode: 'footprint' }).ms, null);
+  assert.equal(chartLag(frame(), null, true, { mode: 'footprint', rowViewport: { first: 0, count: 1 } }).ms, null,
+    'a cleared backing store has no painted evidence');
 });
 
 test('flow evidence excludes unpainted aggregates, history, unknown size, wrong clocks and outside bounds', () => {

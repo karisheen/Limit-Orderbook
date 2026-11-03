@@ -1,60 +1,132 @@
 import { useEffect, useState } from 'react';
 import type { Catalog, Mode, VisualGrid } from './api';
+import type { ChartTimeZone } from './chart-time';
 
 export type ChartMode = 'heatmap' | 'candles' | 'footprint' | 'profile' | 'cvd' | 'ofi';
-export type ChartSettings = Pick<WorkspacePreferences, 'mode' | 'contrast' | 'showTrades' | 'showQuotes' | 'priceStep' | 'bucket' | 'rangeSeconds' | 'range' | 'follow' | 'paused' | 'priceOffset'>;
+export type ChartSettings = Pick<WorkspacePreferences, 'mode' | 'contrast' | 'showTrades' | 'showQuotes' | 'footprintOverview' | 'timeZone' | 'priceStep' | 'bucket' | 'rangeSeconds' | 'range' | 'follow' | 'followSpanNs' | 'paused' | 'priceOffset'>;
+export type ChartTimeIntent = { kind: 'pin'; range: { start_ns: string; end_ns: string } } | { kind: 'follow'; span_ns: string | null; rangeSeconds?: number };
 export type PaneId = 'heatmap' | 'flow' | 'dom' | 'tape';
 export interface WorkspacePreferences {
   version: 1; source: { mode: Mode; id: string } | null; sourceExplicit: boolean; instrument: string;
   preset: 'balanced' | 'analysis' | 'ladder'; leftWidth: number; rightWidth: number; bottomHeight: number;
+  rightWidthMode?: 'auto' | 'manual';
   leftOpen: boolean; rightOpen: boolean; bottomOpen: boolean;
-  mode: ChartMode; contrast: number; showTrades: boolean; showQuotes: boolean;
+  mode: ChartMode; contrast: number; showTrades: boolean; showQuotes: boolean; footprintOverview: boolean; timeZone: ChartTimeZone;
   priceStep: string; bucket: string; rangeSeconds: number; range: { start_ns: string; end_ns: string } | null;
-  follow: boolean; paused: boolean; domFrozen: boolean; domRows: number; priceOffset: number;
+  follow: boolean; followSpanNs: string | null; paused: boolean; domFrozen: boolean; domRows: number; priceOffset: number;
   domPriceStep: string; domUnit: 'base' | 'quote'; domCumulative: boolean;
   secondary: ChartSettings;
   chartSplit: number; tapeSplit: number;
   links: Record<PaneId, boolean>;
+  rangeLinked: boolean;
   tapeRows: number; tapeSide: 'all' | 'buy' | 'sell' | 'unknown'; tapeFrozen: boolean;
 }
 export const preferenceKey = 'limit-orderbook.workspace.v1';
 const secondaryDefaults: ChartSettings = {
-  mode: 'footprint', contrast: 1, showTrades: true, showQuotes: true,
-  priceStep: '', bucket: '5000000000', rangeSeconds: 180, range: null,
-  follow: true, paused: false, priceOffset: 0,
+  mode: 'footprint', contrast: 1, showTrades: false, showQuotes: false, footprintOverview: false, timeZone: 'UTC',
+  priceStep: '', bucket: '1000000000', rangeSeconds: 6, range: null,
+  follow: true, followSpanNs: null, paused: false, priceOffset: 0,
 };
 const defaults: WorkspacePreferences = {
-  version: 1, source: null, sourceExplicit: false, instrument: '', preset: 'balanced', leftWidth: 222, rightWidth: 314, bottomHeight: 248,
+  version: 1, source: null, sourceExplicit: false, instrument: '', preset: 'balanced', leftWidth: 222, rightWidth: 360, rightWidthMode: 'auto', bottomHeight: 248,
   leftOpen: false, rightOpen: true, bottomOpen: false, mode: 'heatmap', contrast: 1,
-  showTrades: true, showQuotes: true, priceStep: '', bucket: '1000000000', rangeSeconds: 180,
-  range: null, follow: true, paused: false, domFrozen: false, domRows: 15, priceOffset: 0,
+  showTrades: true, showQuotes: true, footprintOverview: false, timeZone: 'UTC', priceStep: '', bucket: '1000000000', rangeSeconds: 180,
+  range: null, follow: true, followSpanNs: null, paused: false, domFrozen: false, domRows: 15, priceOffset: 0,
   domPriceStep: '', domUnit: 'base', domCumulative: false,
-  secondary: secondaryDefaults, chartSplit: 56, tapeSplit: 60,
+  secondary: secondaryDefaults, chartSplit: 52, tapeSplit: 60,
   links: { heatmap: true, flow: true, dom: true, tape: true },
+  rangeLinked: false,
   tapeRows: 50, tapeSide: 'all', tapeFrozen: false,
 };
 const bounded = (value: unknown, min: number, max: number, fallback: number) => typeof value === 'number' && Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
 const text = (value: unknown, max: number) => typeof value === 'string' && value.length <= max ? value : '';
 export function chartSettings(p: ChartSettings): ChartSettings {
-  return { mode: p.mode, contrast: p.contrast, showTrades: p.showTrades, showQuotes: p.showQuotes,
+  return { mode: p.mode, contrast: p.contrast, showTrades: p.showTrades, showQuotes: p.showQuotes, footprintOverview: p.footprintOverview, timeZone: p.timeZone,
     priceStep: p.priceStep, bucket: p.bucket, rangeSeconds: p.rangeSeconds, range: p.range,
-    follow: p.follow, paused: p.paused, priceOffset: p.priceOffset };
+    follow: p.follow, followSpanNs: p.followSpanNs, paused: p.paused, priceOffset: p.priceOffset };
+}
+
+/** A duration, never an absolute source clock coordinate; retain exact nanoseconds. */
+export function chartFollowSpan(value: unknown): string | null {
+  if (typeof value !== 'string' || !/^\d{1,24}$/.test(value)) return null;
+  const span = BigInt(value);
+  return span > 0n && span <= 1_800_000_000_000n ? span.toString() : null;
+}
+
+export function navigateChartTime(preferences: WorkspacePreferences, pane: 'heatmap' | 'flow', intent: ChartTimeIntent): WorkspacePreferences {
+  let time: Pick<ChartSettings, 'follow' | 'range' | 'followSpanNs'> & Partial<Pick<ChartSettings, 'rangeSeconds'>>;
+  if (intent.kind === 'pin') {
+    const { start_ns, end_ns } = intent.range;
+    if (!/^\d{1,24}$/.test(start_ns) || !/^\d{1,24}$/.test(end_ns)) return preferences;
+    const start = BigInt(start_ns), end = BigInt(end_ns);
+    if (end <= start || !chartFollowSpan((end - start).toString())) return preferences;
+    time = { follow: false, range: { start_ns: start.toString(), end_ns: end.toString() }, followSpanNs: null };
+  } else {
+    const span = chartFollowSpan(intent.span_ns);
+    if (intent.span_ns !== null && span === null) return preferences;
+    if (intent.rangeSeconds !== undefined && ![6, 30, 60, 180, 300, 600].includes(intent.rangeSeconds)) return preferences;
+    time = { follow: true, range: null, followSpanNs: span,
+      ...(intent.rangeSeconds === undefined ? {} : { rangeSeconds: intent.rangeSeconds }) };
+  }
+  return { ...preferences, ...(pane === 'heatmap' || preferences.rangeLinked ? time : {}),
+    secondary: pane === 'flow' || preferences.rangeLinked ? { ...preferences.secondary, ...time } : preferences.secondary };
+}
+
+/** Depth has a retained sample bound; flow can only fit its returned, paintable aggregates. */
+export function retainedChartRange(view: VisualGrid, mode: ChartMode): { start_ns: string; end_ns: string } | null {
+  let start: bigint | null = null;
+  let end: bigint | null = null;
+  const now = BigInt(view.now_ns);
+  if (mode === 'heatmap' || mode === 'ofi') {
+    if (view.retained_start_ns === null) return null;
+    start = BigInt(view.retained_start_ns);
+    end = now;
+  } else {
+    if (mode === 'footprint' || mode === 'profile') {
+      const bucket = BigInt(view.bucket_ns);
+      for (const cell of view.footprints) {
+        const first = BigInt(cell.time_ns), last = first + bucket;
+        if (start === null || first < start) start = first;
+        if (end === null || last > end) end = last;
+      }
+    } else {
+      for (const column of view.columns) {
+        if (!(mode === 'candles' ? column.candle?.eligible : column.cvd?.eligibility.eligible && column.cvd.value !== null)) continue;
+        const first = BigInt(column.time_ns), last = BigInt(column.end_ns);
+        if (start === null || first < start) start = first;
+        if (end === null || last > end) end = last;
+      }
+    }
+    if (start === null || end === null) return null;
+    const queryStart = BigInt(view.start_ns), queryEnd = BigInt(view.end_ns);
+    if (start < queryStart) start = queryStart;
+    if (end > queryEnd) end = queryEnd;
+    if (end > now) end = now;
+  }
+  if (end <= start) return null;
+  // Native requests reject durations over 30 minutes. Never invent older history.
+  if (end - start > 1_800_000_000_000n) start = end - 1_800_000_000_000n;
+  return { start_ns: start.toString(), end_ns: end.toString() };
 }
 export function validatePreferences(value: unknown, nested = false): WorkspacePreferences {
   if (!value || typeof value !== 'object' || !('version' in value) || value.version !== 1) return { ...defaults };
   const p = value as Record<string, unknown>;
   const next = { ...defaults };
-  for (const key of ['leftOpen', 'rightOpen', 'bottomOpen', 'showTrades', 'showQuotes', 'follow', 'paused', 'domFrozen', 'domCumulative', 'tapeFrozen'] as const) if (typeof p[key] === 'boolean') next[key] = p[key];
+  for (const key of ['leftOpen', 'rightOpen', 'bottomOpen', 'showTrades', 'showQuotes', 'footprintOverview', 'follow', 'paused', 'domFrozen', 'domCumulative', 'tapeFrozen', 'rangeLinked'] as const) if (typeof p[key] === 'boolean') next[key] = p[key];
   next.leftWidth = Math.round(bounded(p.leftWidth, 180, 360, defaults.leftWidth));
   next.rightWidth = Math.round(bounded(p.rightWidth, 250, 500, defaults.rightWidth));
+  // A numeric legacy width may be deliberate, even when it matches an old default.
+  next.rightWidthMode = p.rightWidthMode === 'auto' ? 'auto'
+    : p.rightWidthMode === 'manual' || typeof p.rightWidth === 'number' && Number.isFinite(p.rightWidth) ? 'manual' : 'auto';
   next.bottomHeight = Math.round(bounded(p.bottomHeight, 170, 460, defaults.bottomHeight));
   next.contrast = bounded(p.contrast, 1e-12, 1e12, 1);
   next.domRows = Math.round(bounded(p.domRows, 1, 100, 15));
   next.priceOffset = Math.round(bounded(p.priceOffset, -10000, 10000, 0));
-  next.rangeSeconds = [30, 60, 180, 300, 600].includes(p.rangeSeconds as number) ? p.rangeSeconds as number : 180;
+  next.rangeSeconds = [6, 30, 60, 180, 300, 600].includes(p.rangeSeconds as number) ? p.rangeSeconds as number : (nested ? secondaryDefaults.rangeSeconds : defaults.rangeSeconds);
   next.bucket = ['1000000000', '5000000000', '10000000000'].includes(p.bucket as string) ? p.bucket as string : defaults.bucket;
   if (['balanced', 'analysis', 'ladder'].includes(p.preset as string)) next.preset = p.preset as WorkspacePreferences['preset'];
   if (['heatmap', 'candles', 'footprint', 'profile', 'cvd', 'ofi'].includes(p.mode as string)) next.mode = p.mode as ChartMode;
+  if (p.timeZone === 'UTC' || p.timeZone === 'local') next.timeZone = p.timeZone;
   for (const key of ['priceStep', 'domPriceStep'] as const) {
     const step = text(p[key], 128);
     next[key] = /^(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d{1,4})?$/.test(step) && /[1-9]/.test(step.split(/[eE]/)[0] ?? '') ? step : '';
@@ -70,6 +142,7 @@ export function validatePreferences(value: unknown, nested = false): WorkspacePr
     if (end > start && end - start <= 1_800_000_000_000n) next.range = { start_ns: start.toString(), end_ns: end.toString() };
   }
   if (!next.range) next.follow = true;
+  next.followSpanNs = next.follow ? chartFollowSpan(p.followSpanNs) : null;
   next.chartSplit = Math.round(bounded(p.chartSplit, 30, 70, defaults.chartSplit));
   next.tapeSplit = Math.round(bounded(p.tapeSplit, 30, 75, defaults.tapeSplit));
   next.tapeRows = [25, 50, 100].includes(p.tapeRows as number) ? p.tapeRows as number : defaults.tapeRows;
@@ -147,10 +220,23 @@ export function useWorkspacePreferences() {
   };
   return { preferences, setPreferences, storageError, slots, saveSlot, loadSlot };
 }
-export function presetLayout(preset: WorkspacePreferences['preset']) {
-  return preset === 'analysis' ? { preset, leftWidth: 200, rightWidth: 300, bottomHeight: 260, chartSplit: 50, tapeSplit: 55, leftOpen: false, rightOpen: true, bottomOpen: true }
-    : preset === 'ladder' ? { preset, leftWidth: 200, rightWidth: 420, bottomHeight: 200, chartSplit: 55, tapeSplit: 72, leftOpen: false, rightOpen: true, bottomOpen: false }
-      : { preset, leftWidth: 222, rightWidth: 314, bottomHeight: 248, chartSplit: 56, tapeSplit: 60, leftOpen: false, rightOpen: true, bottomOpen: false };
+export function presetLayout(preset: WorkspacePreferences['preset']): Partial<WorkspacePreferences> {
+  return preset === 'analysis' ? { preset, leftWidth: 200, rightWidth: 300, rightWidthMode: 'manual', bottomHeight: 260, chartSplit: 50, tapeSplit: 55, leftOpen: false, rightOpen: true, bottomOpen: true }
+    : preset === 'ladder' ? { preset, leftWidth: 200, rightWidth: 420, rightWidthMode: 'manual', bottomHeight: 200, chartSplit: 55, tapeSplit: 72, leftOpen: false, rightOpen: true, bottomOpen: false }
+      : { preset, leftWidth: 222, rightWidth: 360, rightWidthMode: 'auto', bottomHeight: 248, chartSplit: 52, tapeSplit: 60, leftOpen: false, rightOpen: true, bottomOpen: false };
+}
+
+export function workspaceGeometry(preferences: Pick<WorkspacePreferences, 'rightWidth' | 'rightWidthMode' | 'leftOpen' | 'leftWidth'>, viewportWidth: number) {
+  const stacked = viewportWidth < 966;
+  const watchlistWidth = preferences.leftOpen && viewportWidth > 1100 ? preferences.leftWidth + 6 : 0;
+  // Manual layouts retain the persisted 250–500 range; only auto sizing needs 320.
+  const min = preferences.rightWidthMode === 'auto' ? 320 : 250;
+  const max = Math.max(min, Math.min(500, viewportWidth - watchlistWidth - 6 - 640));
+  const automatic = viewportWidth <= 1440
+    ? 336 + (Math.max(1280, viewportWidth) - 1280) * 24 / 160
+    : 360 + (Math.min(1920, viewportWidth) - 1440) * 60 / 480;
+  const requested = preferences.rightWidthMode === 'auto' ? automatic : preferences.rightWidth;
+  return { rightWidth: Math.round(Math.min(max, Math.max(min, requested))), min, max, stacked };
 }
 export function mergeVisualGrid(previous: VisualGrid | null, next: VisualGrid): VisualGrid {
   if (next.replace || !previous || previous.grid_id !== next.grid_id || previous.generation !== next.generation) return next;

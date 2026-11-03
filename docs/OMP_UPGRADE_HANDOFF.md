@@ -612,6 +612,10 @@ contract and controls.
 
 ## M7 — dedicated order-flow workstation redesign
 
+Historical M7 audit retained as the pre-M8 record (2026-11-02). The gate counts,
+assets, screenshots and timings in this section belong to that implementation,
+not to the M8 source tree; see the [M8 handoff](#m8--market-first-workstation).
+
 Started from verified `main` at `a372354` on
 `upgrade/m7-orderflow-workstation`. The preexisting untracked root
 `test-results/` was preserved. README, this handoff and the terminal/API/
@@ -764,8 +768,303 @@ withheld current DOM/tape evidence:
 This milestone does not certify sustained live-cohort capacity, uninterrupted
 feeds, isolated-host throughput or the unrun 24-hour soak.
 
+## M8 — market-first workstation
+
+### Implemented scope and design references
+
+M8 retains the native financial, quality, causal replay and ownership contracts
+while improving how the four simultaneous panes expose their evidence:
+
+- Compact responsive chart/DOM/tape headers and contextual settings preserve
+  readable market text. Balanced, Analysis and DOM-focus presets, keyboard
+  separators, maximize/restore and four browser-local workspace slots remain
+  independent of native feed/session ownership.
+- Native piecewise receive-clock projection supplies UTC/local time labels,
+  date boundaries and clock-step markers. Exact admission coordinates still
+  govern buckets; exchange timestamps remain original references, not the
+  chart's coordinate clock. Missing mapping remains unavailable.
+- Footprints show a held, explicitly disclosed crop of native rows with readable
+  SELL/BUY quantities, separate unknown-side evidence and exact Inspector access.
+  Compact marks disclose cells that cannot fit numbers; cropping does not
+  regroup or invent executions. Fixed contrast never rescales incoming history.
+- DOM grouping, quantity units, cumulative depth, held bar cap, follow/recenter
+  and independent freeze expose native aggregate-L2 evidence and exact spread.
+  Tape filters are presentation-only; per-print inspection pins exact receive/
+  exchange/source/side evidence while new prints arrive.
+- Cursor links and optional chart-time links are independent. Time navigation
+  leaves price origins, aggregation, buckets and freeze flags separate.
+  Follow latest retains the painted duration; Fit time uses native sample bounds
+  or **returned flow aggregates**, not a nonexistent all-retained trade extent;
+  Recenter price changes only price geometry and footprint crop.
+- Scoped keyboard shortcuts and focus restoration preserve access through
+  menus, inspectors, drawers and maximize. One prioritized incident keeps all
+  concurrent native causes inspectable; reconnect is not a collector-capacity
+  repair.
+
+Design influence comes from [Flowsurface](https://flowsurface.com/) and its
+[primary screenshot](https://raw.githubusercontent.com/flowsurface-rs/flowsurface/main/assets/screenshot.png),
+[OpenMarket's footprint guide](https://openmarket.xyz/learn/order-flow/footprint)
+and [TradingView's footprint documentation](https://www.tradingview.com/support/solutions/43000726164/):
+dense pane hierarchy, readable executed-flow numbers and contextual navigation.
+[aggr.trade](https://aggr.trade/) informs economical tape presentation;
+[Hyperliquid](https://app.hyperliquid.xyz/) and [Lighter](https://app.lighter.xyz/)
+inform the chart/DOM/tape column hierarchy.
+No reference code or assets are copied, no chart package is adopted and no
+external product's financial semantics or feature parity are claimed.
+
+### Source-specific implementation evidence
+
+The [matched baseline](evidence/m8-baseline.json) uses verified recorded public
+capture `4498db3b-f4a2-4fff-a32e-a97221fa21ee`, Binance-global spot BTCUSDT at
+delivery **2057 / 4276**, with device scale **1.25**:
+[1280 × 800](evidence/m8-before-recorded-1280.png),
+[1440 × 900](evidence/m8-before-recorded-1440.png) and
+[1920 × 1080](evidence/m8-before-recorded-1920.png). This is recorded evidence,
+not a live-feed or capacity claim. Server catalog source IDs are opaque runtime
+identifiers, not the recording UUID.
+
+Final matched screenshots use the same recording/delivery and DPR:
+[1280 × 800](evidence/m8-after-recorded-1280.png),
+[1440 × 900](evidence/m8-after-recorded-1440.png) and
+[1920 × 1080](evidence/m8-after-recorded-1920.png). All before/after images were
+visually inspected. The exact instrument is
+`binance-global:spot-v3:spot:BTCUSDT`; source clock is
+`4a9613c2-dc07-476e-bf1c-5863324e0735`, manifest SHA-256
+`d12553c14ee31de1e66db3d2e9247000b81a976826f4f3da8ae072d4622ee5f5`.
+The browser's opaque catalog source ID in this run is
+`4ea4bf7e768141aa926f84b72a394f65`, not a portable recording identifier.
+Native automatic price quanta remain **0.5 / 1** for heatmap/footprint,
+matching the baseline; readability did not come from coarsening native prices.
+
+| Viewport (CSS px) | Heatmap plot (CSS px) | Footprint plot (CSS px) | Readable native rows | Horizontal overflow |
+|---|---:|---:|---:|---|
+| 1280 × 800 | 938 × 294.625 | 938 × 267.375 | 11 | None |
+| 1440 × 900 | 1074 × 346.625 | 1074 × 315.375 | 13 | None |
+| 1920 × 1080 | 1494 × 440.234375 | 1494 × 401.765625 | 17 | None |
+
+The [browser receipt](evidence/m8-validation.json) also records real
+unavailable/earlier/frozen states: delivery **25** exposes `no_validated_book`
+without fabricated depth ([unavailable view](evidence/m8-unavailable-recorded-1440.png));
+delivery **900** retains quiet, narrow-price activity
+([earlier view](evidence/m8-earlier-recorded-1440.png)).
+An actual reconnect created a new session and reset replay to delivery 25;
+seeking to 900 then succeeded.
+
+At paused delivery 900, fresh query IDs retained unchanged source evidence and
+source lag while browser evidence residence increased approximately **2.2 s**.
+The primary chart's **Space** shortcut then froze its presentation; playback
+advanced **900 → 1022** while its exact painted view/evidence stayed fixed and
+source lag increased **901.287 → 3505.862 ms**. The independent footprint and
+tape continued advancing. The [frozen streaming screenshot](evidence/m8-streaming-frozen-recorded-1440.png)
+is evidence of that separation, not a healthy-live throughput observation.
+
+Phase receipts retain [clock projection](evidence/m8-clock-phase.json),
+[readable charts](evidence/m8-chart-phase.json),
+[compact workstation](evidence/m8-workstation-phase.json) and
+[interaction/incident evidence](evidence/m8-interaction-phase.json).
+They preserve their own source/assets and exercised results, including failed
+attempts; they are not substitutes for a final matched-source acceptance run.
+
+Source-clock lag measures the primary **painted** evidence against the comparable
+source frontier. Browser evidence residence measures how long that identity has
+remained displayed; a new response carrying old evidence cannot rejuvenate it.
+Response residence, CPU draw, receive-to-paint opportunities and server
+publication-to-ACK upper bounds are separate measurements. None is synchronized
+exchange-to-screen latency, GPU completion or a freshness SLA. Paused replay and
+silent source frontiers require this distinction.
+
+### Executed project gate
+
+`bash tools/check.sh -q --tb=short` passed **1,261 native tests** and
+**97 frontend tests**, Ruff/format, mypy, ESLint, TypeScript and Vite production
+build in **353.59 s**. The existing Starlette/httpx TestClient deprecation warning
+remains visible. The intermediate compact-marker build passed frontend lint,
+**97 tests**, TypeScript and Vite in **31.09 s**. A subsequent regression
+reproduced the only available projected time disappearing at a clock-step
+marker. After retaining that time with `*`, all **98 frontend tests**, lint,
+TypeScript and Vite passed in **14.06 s**. Final production assets are
+`index-BOT8nKm2.js` / `index-BwIcajpp.css`; all three matched screenshots were
+recaptured on this build at delivery **2057**, DPR **1.25**, with unchanged
+geometry, native price quanta and readable row counts.
+Independent displayed-age measurement review reported no findings; chart review
+reported no remaining findings after memoizing the footprint-center scan.
+
+The first full browser attempt passed **54**, failed **1**, and skipped the
+network-only scenario in **392.78 s**. Its transient disconnected-text assertion
+missed automatic recovery already showing Awaiting stream; invalidated panes/
+actions remained safe. The corrected test asserts durable safety and arms the
+replacement response before fault injection; its focused actual-socket recovery
+run passed **1 test in 12.1 s**, plus lint. A focused correction is not a full
+browser-suite result or a rendering/live-capacity claim.
+
+The final production build's complete actual-backend Chromium suite passed
+**55 tests with one expected network-only skip** in **6.4 minutes**.
+The earlier failed attempt remains in the validation receipt; neither its
+focused correction nor the earlier 55-pass build substitutes for this final run.
+
+At recorded delivery **3733**, the [readable step screenshot](evidence/m8-clock-step-readable-1440.png)
+shows **`09:47:18*`** followed by 09:47:20/21. The corresponding
+[Inspector](evidence/m8-clock-step-inspector-1440.png) exposes exact native offset
+**1000155 ns** and available projection bounds
+**104486968960846–104489308325295 ns**, with retained-history truncation.
+The marker preserves actual projected time; it does not invent earlier labels.
+
+### Actual public-live observations
+
+The [validation receipt](evidence/m8-validation.json) retains **40 samples at
+each of 1280 × 800, 1440 × 900 and 1920 × 1080**, including real ready ↔
+`owner_busy` / `last_completed_presentation` transitions. The fixed status
+strip stayed **28 px** high; each viewport retained one unchanged plot geometry
+and no horizontal overflow. Source clock:
+`26f3aaa3-3ca9-4a67-8a07-319bdf73d621`. This is finite public-live evidence, not
+sustained collector-capacity certification.
+
+An initially held footprint origin of **77302.5** left a latest print at
+**77272** outside its price range. Focused **R** requested a native origin of
+**77264**, restoring eligible displayed flow while preserving the primary
+origin and secondary preferences. This was held-price behavior, not a missing
+feed. Use **R** or **More → Recenter price** on that pane when market activity
+leaves its held range; no automatic price rescale was added.
+
+Four-pane live screenshots on the earlier `index-EC_OstmG.js` /
+`index-BwIcajpp.css` build, after explicit independent recentering:
+[1280](evidence/m8-final-live-1280.png),
+[1440](evidence/m8-final-live-1440.png),
+[1920](evidence/m8-final-live-1920.png). All were visually inspected.
+Ending samples had available native ages in all panes: heatmap approximately
+**1.4–2.4 s**, footprint **1.1–3.0 s**, DOM **281–519 ms**, tape
+**160–3049 ms**. These are observed ending samples across viewports, **not
+benchmark percentiles or an SLA**.
+
+The live [Inspector evidence](evidence/m8-clock-inspector-live-1440.png) contains
+one initial native segment in that specific view, not an invented clock step.
+These finite live observations precede the final time-plus-`*` marker format;
+they are not screenshots of `index-BOT8nKm2.js`. Earlier `m8-after-live-*`
+images additionally retain pre-compact-marker and held-price out-of-range
+observations. The validation receipt pins builds per scenario.
+
+### Final recorded rendering and displayed-age acceptance
+
+The final same-tool, hash-bracketed acceptance runs completed successfully at
+[1280 × 800](evidence/m8-render-1280-acceptance.json),
+[1440 × 900](evidence/m8-render-1440-acceptance.json) and
+[1920 × 1080](evidence/m8-render-1920-acceptance.json). Each report records
+`completed`, `certified: true`, `budgets_met: true`, unchanged code and no
+provenance errors. Chromium **145.0.7632.6** ran recorded **30-second 1× and 2×**
+cohorts serially on the final `index-BOT8nKm2.js` build. Benchmark DPR is **1**,
+distinct from the matched/manual screenshots' **1.25**. All six benchmark
+screenshots were visually inspected. Tool SHA-256 is identical in all reports:
+`59e1e3ac50e394fe578b63defc02f98a64bb03e3c13a8cb1ca97a8e0e6e98606`.
+The serialized acceptance command completed in **412.42 s**; this includes
+startup/preparation/cleanup, not just the measured cohorts.
+
+| Viewport | Speed | Chart ACK samples | p95 publication→ACK ms | p95 receive→paint ms | p95 CPU draw ms |
+|---|---:|---:|---:|---:|---:|
+| 1280 × 800 | 1× | 55 | 117.757 | 50.9 | 2.0 |
+| 1280 × 800 | 2× | 54 | 118.994 | 52.4 | 2.6 |
+| 1440 × 900 | 1× | 55 | 122.727 | 51.1 | 1.9 |
+| 1440 × 900 | 2× | 55 | 152.047 | 51.7 | 2.4 |
+| 1920 × 1080 | 1× | 55 | 130.053 | 49.9 | 2.5 |
+| 1920 × 1080 | 2× | 55 | 148.367 | 52.5 | 2.3 |
+
+Every cohort met the unchanged **250 ms** publication-to-ACK budget. These are
+aggregate chart round-trip upper bounds and browser paint opportunities, not
+per-pane one-way latency, GPU completion or public-live capacity certification.
+The benchmark explicitly selects a 30-second primary window and native price
+quantum 10; it is not the default matched-screenshot preset. Missing retained
+history remains hatched, and the independently held footprint price window
+can lose eligible visible flow.
+
+Displayed-age badges were sampled nominally every **500 ms**, separately from
+render events. Available/unavailable counts below refer to source-clock lag.
+Each nearest-rank p95 uses that metric's own valid finite observations, rounded
+to one decimal: residence can remain measurable when source lag is unavailable.
+Missing values are never zero or counted as fresh. Response residence is
+chart-only (`—` for DOM/tape).
+Exact samples, clock/evidence/view identities, transitions and all quantiles
+remain in each report.
+
+| Viewport / speed | Pane | Available / unavailable | Source lag p95 ms | Evidence residence p95 ms | Response residence p95 ms |
+|---|---|---:|---:|---:|---:|
+| 1280 / 1× | Heatmap | 56 / 0 | 2201.2 | 1058.5 | 1105.5 |
+| 1280 / 1× | Footprint | 56 / 0 | 1968.6 | 1004.4 | 1048.1 |
+| 1280 / 1× | DOM | 50 / 6 | 617.1 | 697.7 | — |
+| 1280 / 1× | Tape | 56 / 0 | 686.6 | 507.8 | — |
+| 1280 / 2× | Heatmap | 56 / 0 | 3249.5 | 1055.2 | 1071.4 |
+| 1280 / 2× | Footprint | 23 / 33 | 3921.8 | 1195.0 | 1002.6 |
+| 1280 / 2× | DOM | 48 / 8 | 1302.2 | 670.4 | — |
+| 1280 / 2× | Tape | 56 / 0 | 823.0 | 250.2 | — |
+| 1440 / 1× | Heatmap | 56 / 0 | 2209.0 | 1097.5 | 1057.4 |
+| 1440 / 1× | Footprint | 56 / 0 | 2121.9 | 1362.1 | 1053.2 |
+| 1440 / 1× | DOM | 52 / 4 | 721.6 | 751.1 | — |
+| 1440 / 1× | Tape | 56 / 0 | 685.8 | 523.0 | — |
+| 1440 / 2× | Heatmap | 57 / 0 | 3106.6 | 1033.9 | 1089.7 |
+| 1440 / 2× | Footprint | 27 / 30 | 6521.3 | 2667.2 | 1097.2 |
+| 1440 / 2× | DOM | 49 / 8 | 1300.3 | 751.5 | — |
+| 1440 / 2× | Tape | 57 / 0 | 782.2 | 362.1 | — |
+| 1920 / 1× | Heatmap | 56 / 0 | 1986.4 | 1261.3 | 1050.6 |
+| 1920 / 1× | Footprint | 56 / 0 | 1912.5 | 1596.3 | 1039.1 |
+| 1920 / 1× | DOM | 52 / 4 | 700.9 | 751.5 | — |
+| 1920 / 1× | Tape | 56 / 0 | 775.4 | 602.7 | — |
+| 1920 / 2× | Heatmap | 56 / 0 | 3241.6 | 1051.1 | 1104.2 |
+| 1920 / 2× | Footprint | 26 / 30 | 6019.7 | 1757.8 | 1002.6 |
+| 1920 / 2× | DOM | 47 / 9 | 1680.5 | 752.0 | — |
+| 1920 / 2× | Tape | 56 / 0 | 580.9 | 346.0 | — |
+
+All cohorts reported zero invalid ages and zero identity mismatches.
+At 2×, footprints explicitly reported `eligible displayed evidence unavailable`
+for **33/56**, **30/57** and **30/56** observations as activity left the held
+price view; their available-sample quantiles cannot describe the missing
+observations. DOM unavailable samples reported
+`source clock skew / evidence ahead of highwater`: independently returned
+ladder evidence was ahead of the comparable observed Frame frontier. Those
+samples remain unavailable rather than mixing clocks or manufacturing zero lag.
+Heatmap lag p95 spans approximately **1.99–3.25 s** despite **118–152 ms**
+chart ACK p95. Rendering acceptance therefore establishes **no freshness SLA**.
+
+### Retained attempts and measurement corrections
+
+Earlier reports remain evidence, not rewritten successes:
+
+- [Initial 1280](evidence/m8-render-1280.json) passed its workload, while
+  [initial 1440](evidence/m8-render-1440.json) failed the strict API gate despite
+  meeting timing budgets. An old Demo request survived a pre-cohort source
+  replacement into teardown. Setup now resolves the verified recording's opaque
+  catalog ID and opens its explicit source URL directly. Exact request-failed
+  state also prevents reporting the same cancellation twice.
+- [Direct-source 1440 attempt](evidence/m8-render-1440-final.json) failed its
+  first cold catalog lookup at a newly introduced ten-second deadline; setup
+  now uses the remaining existing **120-second startup deadline**, not a
+  relaxed measured-cohort budget.
+- [1920 bad-path attempt](evidence/m8-render-1920-verified.json) used an invalid
+  capture path and produced no native runtime/cohorts. Its
+  [corrected-path report](evidence/m8-render-1920-verified-capture.json) is
+  separate; neither is silently substituted for final production acceptance.
+- [1920 release attempt](evidence/m8-render-1920-release.json) failed the 1×
+  strict gate when a post-window response reader remained until browser-context
+  close; 2× passed. The request was issued **411 ms after** the measured window.
+  Playwright response completion did not resolve the already failed request.
+  Cleanup now races the exact request-failed event, removes its listener,
+  navigates away and drains readers before closing the context. Known HTTP
+  errors remain errors; genuine cohort failures remain fatal. Final acceptance
+  reports have **zero pending response readers** after drain.
+
+Node syntax and three real tool smokes passed. No native quality rule, source
+history, queue/depth limit, API failure gate or **250 ms** rendering threshold
+was relaxed. Final acceptance uses one corrected tool version and one final
+production build at all three viewports; previous build-specific successes
+remain historical rather than becoming final-head claims.
+
+### Retained boundaries
+
+Native missing/partial history, source-clock discontinuities, unknown fees/FX,
+bounded depth and flow eligibility remain explicit. The known public-live
+`analytical_queue_overflow` boundary remains a separate capacity limitation.
+No 24-hour soak, uninterrupted live ingestion, execution readiness or profitable
+signals are established by the redesigned interface.
+
 ## Decisions and next action
 
 Use one local asyncio backend worker, exact immutable domain contracts, explicit quality gates, direct venue adapters, a React/TypeScript terminal, native Canvas heatmap, Parquet/raw compressed recording and SQLite metadata. Preserve the legacy entrypoint during cutover; do not duplicate analytics. Detailed decisions/contracts/backlog are in the accompanying M0 documents.
 
-M0–M6 integration and the M7 implementation/local verification are complete. Start locally using `README.md`; use `READINESS.md` for separate correctness, UI/operations, research and execution boundaries. Optional next operator validation is the documented 24-hour soak, which has not run, and blocked Bybit live access if it becomes available. The known live analytical-queue overflow remains a separate capacity boundary; M7 does not remove it. Funding/OI provenance and research limits remain explicit. No live exchange execution or external deployment is authorized or implemented.
+M8 implementation and local verification are complete; this supersedes the M7 next-action statement while preserving its historical audit above. Start with `README.md`, inspect exact source identity/quality and use **R / Recenter price** when activity leaves a held chart range. Use `READINESS.md` for separate correctness, UI/operations, research and execution boundaries. The next capacity work is investigation and measured remediation of the known live `analytical_queue_overflow`, not another browser reconnect or an inference from recorded rendering passes. The optional documented 24-hour soak remains unrun; Bybit live validation remains conditional on access. Funding/OI provenance, native returned-flow Fit limits, unknown fees/FX and research limitations remain explicit. No live exchange execution or external deployment is authorized or implemented. Git publication, remote CI and PR/merge outcomes require their own actual receipts; local evidence is not a claim of those outcomes.

@@ -541,7 +541,6 @@ class ClientSession:
         )
         self.streams = streams
         self.engine = AnalyticsEngine(streams)
-        self.visuals = VisualHistory(self.engine)
         if isinstance(self.reader, RecordingReader):
             manifest_hash = sha256(
                 (self.reader.path / "manifest.json").read_bytes()
@@ -553,6 +552,7 @@ class ClientSession:
             self.source_identity = (
                 "demo:" + sha256(dumps(self.reader.descriptor)).hexdigest()
             )
+        self.visuals = VisualHistory(self.engine, source_identity=self.source_identity)
         self._initialize_consumers()
         self.replay = ReplaySession(self.reader, observers=self._observers())
         # Deliver the entire bootstrap and first scenario second, not a reduced
@@ -593,8 +593,6 @@ class ClientSession:
         self.streams = streams
         self.choose(instrument_id)
         self.engine = AnalyticsEngine(streams)
-        self.visuals = VisualHistory(self.engine, self.key)
-        self.visuals.initialize_books(baseline)
         self.live_books = baseline
         self.live_clock.observe_frontier(
             ClockReading(clock_id, time.monotonic_ns(), time.time_ns())
@@ -602,11 +600,15 @@ class ClientSession:
         now = self.live_clock.reading
         assert now is not None
         if self.paper is None:
-            # Independent live sessions have different delivered histories even
-            # when they share a physical source. Never resume across either ID.
+            # Establish the native source fence before constructing its observer.
             self.source_identity = (
                 "live:" + sha256(dumps((clock_id, self.id))).hexdigest()
             )
+        self.visuals = VisualHistory(
+            self.engine, self.key, source_identity=self.source_identity
+        )
+        self.visuals.initialize_books(baseline)
+        if self.paper is None:
             self._initialize_consumers()
             assert self.paper is not None
             self.paper.initialize_books(baseline, now)
