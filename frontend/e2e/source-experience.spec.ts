@@ -23,7 +23,7 @@ test('paused fixture supports scale recovery and independent replay controls', a
   const created = creation(page);
   await page.goto(`/?source=${encodeURIComponent(demo.id)}`);
   const frame = await (await created).json() as Frame;
-  await expect(page.locator('.status')).toHaveText('Connected');
+  await expect(page.locator('.status')).toContainText('Connected');
   const primary = page.getByTestId('chart-pane-heatmap');
   await expect(primary).toBeVisible();
   const secondary = page.getByTestId('chart-pane-flow');
@@ -37,7 +37,8 @@ test('paused fixture supports scale recovery and independent replay controls', a
   await secondary.getByLabel('Time bucket', { exact: true }).selectOption('5000000000');
   expect((await secondaryReady).ok()).toBe(true);
   expect(frame.status).toBe('paused');
-  await expect(page.getByTestId('synthetic-guidance')).toBeVisible();
+  await expect(page.getByTestId('terminal-incident')).toHaveAttribute('data-incident', 'synthetic');
+  await expect(page.getByTestId('terminal-incident').getByRole('button', { name: 'Play synthetic demo', exact: true })).toBeEnabled();
   await expect(page.getByTestId('grouped-ladder').locator('tr.bid').first()).toBeInViewport();
   await expect(page.getByTestId('grouped-ladder').locator('tr.ask').last()).toBeInViewport();
   expect(plays).toBe(0);
@@ -88,7 +89,14 @@ test('missing URL source never opens demo and explicit recovery persists the sou
   let sessions = 0;
   page.on('request', request => { if (request.url().endsWith('/api/v1/sessions') && request.method() === 'POST') sessions++; });
   await page.goto('/?source=missing-source-regression');
-  await expect(page.locator('.error-banner[role="alert"]')).toBeVisible();
+  const incident = page.getByTestId('terminal-incident');
+  await expect(incident).toHaveCount(1);
+  await expect(incident).toHaveAttribute('data-incident', 'terminal');
+  await expect(incident.getByRole('button', { name: 'Reconnect', exact: true })).toBeEnabled();
+  await incident.getByRole('button', { name: /^Diagnostics/ }).click();
+  await page.locator('.diagnostics').getByText('All terminal incidents and exact causes', { exact: true }).click();
+  await expect(page.locator('.diagnostics').getByText('All terminal incidents and exact causes', { exact: true }).locator('..').locator('pre')).toContainText('missing-source-regression');
+  await expect(page.getByTestId('grouped-ladder')).toHaveCount(0);
   expect(sessions).toBe(0);
   const created = creation(page);
   await page.getByLabel('Data source').selectOption(demo.id);
@@ -112,7 +120,7 @@ test('explicit saved paused demo survives a server live preference and URL overr
   const frame = await (await created).json() as Frame;
   expect(frame.source.id).toBe(demo.id);
   expect(frame.status).toBe('paused');
-  await expect(page.locator('.status')).toHaveText('Connected');
+  await expect(page.locator('.status')).toContainText('Connected');
   await expect(page.getByTestId('chart-pane-heatmap').getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByTestId('chart-pane-flow').getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'true');
   await expect.poll(() => page.evaluate(key => JSON.parse(localStorage.getItem(key) ?? '{}'), preferenceKey))
@@ -121,7 +129,7 @@ test('explicit saved paused demo survives a server live preference and URL overr
   await page.reload();
   const restored = await (await reloaded).json() as Frame;
   expect(restored.source.id).toBe(demo.id);
-  await expect(page.locator('.status')).toHaveText('Connected');
+  await expect(page.locator('.status')).toContainText('Connected');
   await expect.poll(() => page.evaluate(key => JSON.parse(localStorage.getItem(key) ?? '{}'), preferenceKey))
     .toMatchObject({ ...savedView, secondary: savedView, domPriceStep: '100', domFrozen: true, tapeFrozen: true });
   // A replacement in this document must not inherit the old evidence fence.
@@ -129,15 +137,16 @@ test('explicit saved paused demo survives a server live preference and URL overr
   await page.getByLabel('Reconnect terminal').click();
   const replacement = await (await reconnected).json() as Frame;
   expect(replacement.session_id).not.toBe(restored.session_id);
-  await expect(page.locator('.status')).toHaveText('Connected');
+  await expect(page.locator('.status')).toContainText('Connected');
   await expect(page.getByTestId('chart-pane-heatmap').getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'false');
   await expect(page.getByTestId('chart-pane-flow').getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'false');
   await expect.poll(() => page.evaluate(key => JSON.parse(localStorage.getItem(key) ?? '{}'), preferenceKey))
     .toMatchObject({ paused: false, range: null, follow: true, domFrozen: false, tapeFrozen: false,
       secondary: { paused: false, range: null, follow: true } });
   await page.goto('/?source=missing-explicit-override');
-  await expect(page.locator('.error-banner[role="alert"]')).toBeVisible();
-  await expect(page.getByTestId('synthetic-guidance')).toHaveCount(0);
+  await expect(page.getByTestId('terminal-incident')).toHaveAttribute('data-incident', 'terminal');
+  await expect(page.getByRole('button', { name: 'Play synthetic demo', exact: true })).toHaveCount(0);
+  await expect(page.getByTestId('grouped-ladder')).toHaveCount(0);
 });
 
 for (const resolution of ['URL override', 'server preference'] as const) {
@@ -152,7 +161,7 @@ for (const resolution of ['URL override', 'server preference'] as const) {
     const created = creation(page);
     await page.goto(resolution === 'URL override' ? `/?source=${encodeURIComponent(demo.id)}` : '/');
     expect((await (await created).json() as Frame).source.id).toBe(expectedSource);
-    await expect(page.locator('.status')).toHaveText('Connected');
+    await expect(page.locator('.status')).toContainText('Connected');
     await expect(page.getByTestId('chart-pane-heatmap').getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'false');
     await expect(page.getByTestId('chart-pane-flow').getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'false');
     await expect(page.getByRole('button', { name: 'Freeze tape', exact: true })).toHaveAttribute('aria-pressed', 'false');
@@ -174,7 +183,7 @@ test('persisted tape freeze captures first eligible trades and holds them until 
   await page.goto(`/?source=${encodeURIComponent(demo.id)}`);
   const initial = await (await created).json() as Frame;
   expect(initial.analytics!.tape.length).toBeGreaterThan(0);
-  await expect(page.locator('.status')).toHaveText('Connected');
+  await expect(page.locator('.status')).toContainText('Connected');
   const rows = page.locator('.tape-panel tbody tr');
   const prices = page.locator('.tape-panel .tape-price');
   await expect(rows).toHaveCount(initial.analytics!.tape.slice(-50).length);
@@ -203,6 +212,114 @@ test('persisted tape freeze captures first eligible trades and holds them until 
   await expect(page.getByRole('button', { name: 'Freeze tape', exact: true })).toHaveAttribute('aria-pressed', 'false');
 });
 
+test('research tabs support roving keyboard focus without chart shortcuts', async ({ page }) => {
+  const { demo } = await demoCatalog(page);
+  await page.goto(`/?source=${encodeURIComponent(demo.id)}`);
+  await expect(page.locator('.ladder tbody tr').first()).toBeVisible();
+  const toggle = page.getByRole('button', { name: 'Costs / analytics', exact: true });
+  if (await toggle.getAttribute('aria-pressed') !== 'true') await toggle.click();
+  const tabs = page.getByRole('tablist', { name: 'Research pane', exact: true });
+  const names = await tabs.getByRole('tab').allTextContents();
+  expect(names.length).toBeGreaterThan(2);
+  const first = tabs.getByRole('tab').first();
+  const last = tabs.getByRole('tab').last();
+  await first.click();
+  await first.press('End');
+  await expect(last).toBeFocused();
+  await expect(last).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tabpanel', { name: names.at(-1)!, exact: true })).toBeVisible();
+  await last.press('ArrowRight');
+  await expect(first).toBeFocused();
+  await expect(first).toHaveAttribute('aria-selected', 'true');
+  await first.press('ArrowLeft');
+  await expect(last).toBeFocused();
+  await last.press('Home');
+  await expect(first).toBeFocused();
+  await first.press('ArrowRight');
+  await expect(tabs.getByRole('tab').nth(1)).toBeFocused();
+  await expect(tabs.getByRole('tab').nth(1)).toHaveAttribute('aria-selected', 'true');
+  await expect(tabs.locator('[role="tab"][tabindex="0"]')).toHaveCount(1);
+  await expect(page.getByRole('tabpanel', { name: names[1], exact: true })).toBeVisible();
+  await expect(page.getByTestId('chart-pane-heatmap').getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByTestId('chart-pane-flow').getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('trade inspection retains exact native print identity and restores focus through Escape and generation changes', async ({ page }) => {
+  const { demo } = await demoCatalog(page);
+  const created = creation(page);
+  await page.goto(`/?source=${encodeURIComponent(demo.id)}`);
+  const initial = await (await created).json() as Frame;
+  const print = initial.analytics!.tape.at(-1)!;
+  expect(print).toBeDefined();
+  const tape = page.locator('[data-pane="tape"]');
+  const maximize = tape.getByRole('button', { name: 'Maximize tape', exact: true });
+  await maximize.click();
+  const workspace = page.getByTestId('workspace');
+  await expect(workspace).toHaveAttribute('data-maximized', 'tape');
+  const trigger = tape.getByRole('button', { name: `Inspect trade ${print.trade.trade_id ?? print.trade.dedup_key}`, exact: true });
+  await trigger.click();
+  const inspector = page.getByRole('dialog', { name: 'Trade inspector', exact: true });
+  await expect(inspector).toBeFocused();
+  const details = inspector.getByText('Exact native print, timestamps, units and source', { exact: true });
+  await details.click();
+  const inspected = JSON.parse(await inspector.locator('pre').innerText()) as { print: typeof print; source: Frame['source'] };
+  expect(inspected.print).toEqual(print);
+  expect(inspected.source.id).toBe(initial.source.id);
+
+  // Innermost disclosure, inspector, then maximize: one layer per Escape.
+  await page.keyboard.press('Escape');
+  await expect(inspector.locator('details')).not.toHaveAttribute('open');
+  await expect(details).toBeFocused();
+  await expect(workspace).toHaveAttribute('data-maximized', 'tape');
+  await page.keyboard.press('Escape');
+  await expect(inspector).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+  await expect(workspace).toHaveAttribute('data-maximized', 'tape');
+  await page.keyboard.press('Escape');
+  await expect(workspace).toHaveAttribute('data-maximized', '');
+  await expect(maximize).toBeFocused();
+
+  // Filtering out the trigger must not retarget the inspector or recycle focus
+  // onto another print when it closes.
+  await trigger.click();
+  await details.click();
+  // New real deliveries update the tape, not the selected native snapshot.
+  const response = await page.request.post('/api/v1/replay', {
+    data: { session_id: initial.session_id, generation: initial.generation, action: 'step', count: 100 },
+  });
+  expect(response.ok()).toBe(true);
+  const advanced = await response.json() as Frame;
+  expect(advanced.generation).toBe(initial.generation);
+  expect(advanced.analytics!.tape.length).toBeGreaterThan(initial.analytics!.tape.length);
+  await expect(page.locator('.cursor')).toContainText(`${advanced.replay!.cursor.delivery_index} /`);
+  expect(JSON.parse(await inspector.locator('pre').innerText())).toEqual(inspected);
+  await expect(details).toBeFocused();
+
+  await tape.getByLabel('Tape settings', { exact: true }).click();
+  await tape.getByLabel('Tape side', { exact: true }).selectOption(print.trade.taker_side === 'buy' ? 'sell' : 'buy');
+  await expect(trigger).toHaveCount(0);
+  await tape.getByLabel('Tape settings', { exact: true }).click();
+  expect(JSON.parse(await inspector.locator('pre').innerText())).toEqual(inspected);
+  await inspector.getByRole('button', { name: 'Close trade inspector', exact: true }).click();
+  await expect(tape.getByRole('button', { name: 'Freeze tape', exact: true })).toBeFocused();
+
+  await tape.getByLabel('Tape settings', { exact: true }).click();
+  await tape.getByLabel('Tape side', { exact: true }).selectOption('all');
+  await tape.getByLabel('Tape settings', { exact: true }).click();
+  await tape.locator('.tape-time').first().click();
+  await expect(inspector).toBeFocused();
+  const seek = await page.request.post('/api/v1/replay', {
+    data: { session_id: advanced.session_id, generation: advanced.generation, action: 'seek', delivery_index: '0' },
+  });
+  expect(seek.ok()).toBe(true);
+  const rewound = await seek.json() as Frame;
+  expect(rewound.generation).not.toBe(advanced.generation);
+  await expect(page.locator('.cursor')).toContainText('0 /');
+  await expect(inspector).toHaveCount(0);
+  await expect(tape.locator('.tape-time')).toHaveCount(0);
+  await expect(tape.getByRole('button', { name: 'Freeze tape', exact: true })).toBeFocused();
+});
+
 test('network launch migrates automatic legacy demo to actual public live with an inspectable notice', async ({ page }) => {
   test.setTimeout(90_000);
   const { catalog, demo } = await demoCatalog(page);
@@ -216,7 +333,8 @@ test('network launch migrates automatic legacy demo to actual public live with a
   await page.getByText('Source & instrument details', { exact: true }).click();
   await expect(page.getByTestId('source-preference-notice')).toBeVisible();
   await page.getByText('Source & instrument details', { exact: true }).click();
-  await expect(page.getByTestId('synthetic-guidance')).toHaveCount(0);
+  await expect(page.locator('[data-testid="terminal-incident"][data-incident="synthetic"]')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Play synthetic demo', exact: true })).toHaveCount(0);
   await expect(page.getByTestId('grouped-ladder').locator('tr.bid').first()).toBeInViewport();
   await expect(page.getByTestId('grouped-ladder').locator('tr.ask').last()).toBeInViewport();
   await page.getByLabel('Workspace preset').selectOption('ladder');

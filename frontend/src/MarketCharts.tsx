@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { VisualGrid } from './api';
 import { chartTimeZoneLabel, formatChartDateContext, formatChartTime, projectReceiveTime } from './chart-time';
@@ -21,6 +21,8 @@ export interface MarketChartsProps {
   showQuotes: boolean;
   timeZone: ChartTimeZone;
   footprintOverview?: boolean;
+  interactionActive?: boolean;
+  interactionScope?: string;
   priceResetToken?: string;
   quoteUnit?: string;
   crosshair: ChartCursor | null;
@@ -87,7 +89,7 @@ export function MarketCharts(props: MarketChartsProps): ReactNode {
   }, [view, mode, onPricePan, rowViewport, centerIdentity]);
   const pan = useRef(panPrice);
   pan.current = panPrice;
-  useEffect(() => { latest.current = props; });
+  useLayoutEffect(() => { latest.current = props; });
   useEffect(() => {
     if (props.inspectorOpen) inspectorClose.current?.focus();
   }, [props.inspectorOpen]);
@@ -173,7 +175,7 @@ export function MarketCharts(props: MarketChartsProps): ReactNode {
 
   useEffect(() => { renderer.current?.drawCursor(view, crosshair, mode, rowViewport); }, [view, crosshair, mode, rowViewport]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const element = host.current;
     if (!element) return;
     let cursorFrame = 0;
@@ -198,7 +200,9 @@ export function MarketCharts(props: MarketChartsProps): ReactNode {
     };
     const pointerDown = (event: PointerEvent) => {
       const current = latest.current;
-      if (!current.view || event.button !== 0) return;
+      if (event.button !== 0) return;
+      element.focus({ preventScroll: true });
+      if (!current.view) return;
       const bounds = element.getBoundingClientRect();
       const area = plotArea(bounds.width, bounds.height);
       drag = { x: event.clientX, y: event.clientY, pointer: event.pointerId, range: { start_ns: current.view.start_ns, end_ns: current.view.end_ns }, rows: crop.current.count, width: area.width, height: area.height };
@@ -236,15 +240,15 @@ export function MarketCharts(props: MarketChartsProps): ReactNode {
     };
     const keyboard = (event: KeyboardEvent) => {
       const current = latest.current;
-      if (event.target instanceof Element && event.target.closest('button,input,select,textarea')) return;
-      if (!current.view) return;
+      if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || event.target instanceof Element && event.target.closest('form,button,input,select,textarea,summary,[contenteditable]:not([contenteditable="false"]),[role="menu"],[role="menuitem"],[role="textbox"],[role="combobox"],[role="listbox"]')) return;
+      if (!current.view || current.interactionActive === false) return;
       if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
         event.preventDefault(); current.onRangeChange(shiftedRange(current.view, event.key === 'ArrowLeft' ? -0.2 : 0.2));
       } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
         event.preventDefault(); pan.current(event.key === 'ArrowUp' ? 4 : -4);
       } else if (event.key === '+' || event.key === '=' || event.key === '-') {
         event.preventDefault(); current.onRangeChange(zoomedRange(current.view, 0.5, event.key === '-' ? 1.25 : 0.8, current.view.bucket_ns));
-      } else if (event.key === 'Escape') { current.onCrosshair(null); }
+      }
     };
     element.addEventListener('pointermove', pointerMove);
     element.addEventListener('pointerdown', pointerDown);
@@ -256,12 +260,14 @@ export function MarketCharts(props: MarketChartsProps): ReactNode {
     element.addEventListener('keydown', keyboard);
     return () => {
       cancelAnimationFrame(cursorFrame); cancelAnimationFrame(wheelFrame);
+      if (drag && element.hasPointerCapture(drag.pointer)) element.releasePointerCapture(drag.pointer);
+      pointerCancel();
       element.removeEventListener('pointermove', pointerMove); element.removeEventListener('pointerdown', pointerDown);
       element.removeEventListener('pointerup', pointerUp); element.removeEventListener('pointercancel', pointerCancel);
       element.removeEventListener('lostpointercapture', pointerCancel); element.removeEventListener('pointerleave', pointerLeave);
       element.removeEventListener('wheel', wheel); element.removeEventListener('keydown', keyboard);
     };
-  }, []);
+  }, [props.interactionScope]);
 
   const column = view ? crosshair ? columnAt(view, crosshair.time_ns) : view.columns.at(-1) : undefined;
   const clockContextTime = view && view.time_axis.available_start_ns !== null && BigInt(view.time_axis.available_start_ns) > BigInt(view.start_ns)

@@ -61,7 +61,7 @@ async function openDemo(page: Page) {
   const catalog = await body<Catalog>(catalogResponse);
   expect(frame.source.mode).toBe('demo');
   expect(frame.source.synthetic).toBe(true);
-  await expect(page.locator('.status')).toHaveText('Connected');
+  await expect(page.locator('.status')).toContainText('Connected');
   await expect(page.locator('.source-banner')).toContainText('SYNTHETIC DEMO');
   await page.getByRole('button', { name: 'Costs / analytics', exact: true }).click();
   for (const name of ['Alerts', 'Context', 'Paper', 'Journal', 'Research']) {
@@ -249,7 +249,7 @@ test('native alert support, explicit spot IOC and linked journal survive rewind 
   await page.getByLabel('Reconnect terminal', { exact: true }).click();
   let replacement = await body<Frame>(replacementResponse);
   expect(replacement.session_id).not.toBe(frame.session_id);
-  await expect(page.locator('.status')).toHaveText('Connected');
+  await expect(page.locator('.status')).toContainText('Connected');
   replacement = await seek(page, executed.delivery_index);
   await panel(page, 'Paper');
   const unconfigured = await readPaper(page, paper, replacement.generation);
@@ -361,7 +361,7 @@ test('failed and pane-aborted resume never claim success or retry; explicit retr
   expect(afterAbort.snapshot).toEqual(baseline.snapshot);
   expect(attempts).toBe(2);
   await expect(paper.locator('.paper-notice').filter({ hasText: /^Resume requested:/ })).toContainText('Not yet confirmed');
-  await expect(page.locator('.error-banner')).toHaveCount(0);
+  await expect(page.getByTestId('terminal-incident')).toHaveAttribute('data-incident', 'synthetic');
 
   const resumedResponse = nextResponse(page, 'paper/resume', input => input.run_id === run.run_id);
   await runRow(paper, run.run_id).getByRole('button', { name: 'Resume this run at cursor', exact: true }).click();

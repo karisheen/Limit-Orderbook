@@ -35,6 +35,14 @@ export function DepthLadder({ data, loading, error, frozen, viewPaused, rows, on
   const scroll = useRef<HTMLDivElement>(null);
   const middle = useRef<HTMLTableRowElement>(null);
   const table = useRef<HTMLTableElement>(null);
+  const headerAction = useRef<HTMLButtonElement | null>(null);
+  const focusedRow = useRef<HTMLTableRowElement | null>(null);
+  useLayoutEffect(() => {
+    if (focusedRow.current && !focusedRow.current.isConnected) {
+      focusedRow.current = null;
+      if (document.activeElement === document.body) headerAction.current?.focus();
+    }
+  });
   const [following, setFollowing] = useState(true);
   const follow = useRef(true);
   const expectedScroll = useRef<number | null>(null);
@@ -145,7 +153,9 @@ export function DepthLadder({ data, loading, error, frozen, viewPaused, rows, on
     const change = !held && !diagnostic && previous.current?.identity === identity ? highlights.get(key) : undefined;
     return <tr key={key} data-side={row.side} data-price={row.price} tabIndex={0}
       className={`${row.side}${best ? ' dom-best' : ''}${crosshair === row.price ? ' crosshair-row' : ''}${change ? ` dom-${change}` : ''}`}
-      onPointerEnter={() => onPrice(row.price)} onPointerLeave={() => onPrice(null)} onFocus={() => onPrice(row.price)} onBlur={() => onPrice(null)}>
+      onPointerEnter={() => onPrice(row.price)} onPointerLeave={() => onPrice(null)}
+      onFocus={event => { focusedRow.current = event.currentTarget; onPrice(row.price); }}
+      onBlur={event => { if (event.relatedTarget) focusedRow.current = null; onPrice(null); }}>
       <td title={best ? `Bucket containing native best ${row.side}: ${nativeBest}` : undefined}>{row.side}{best && <span className="dom-best-marker" aria-label={`native best ${row.side} bucket`}> •</span>}</td>
       <td><AlignedValue value={row.price} places={precision.price} /></td>
       <td className="dom-quantity" style={{ '--depth-width': `${(width ?? 0) * 100}%` } as CSSProperties}>
@@ -163,7 +173,7 @@ export function DepthLadder({ data, loading, error, frozen, viewPaused, rows, on
     data?.coverage?.full_depth ? 'Full-depth feed' : 'Partial / bounded depth',
     ...(data?.reasons.map(label) ?? []),
   ].filter(Boolean).join(' · ');
-  return <Panel title="Order book" className="ladder-panel depth-ladder" extra={<div className="dom-header-actions"><div className="tabs"><button aria-label={frozen ? 'Unfreeze DOM' : 'Freeze DOM'} aria-pressed={frozen} onClick={onFreeze} data-testid="dom-freeze">{frozen ? 'Resume' : 'Freeze'}</button></div>{extra}</div>}>
+  return <Panel title="Order book" className="ladder-panel depth-ladder" extra={<div className="dom-header-actions"><div className="tabs"><button ref={headerAction} aria-label={frozen ? 'Unfreeze DOM' : 'Freeze DOM'} aria-pressed={frozen} onClick={onFreeze} data-testid="dom-freeze">{frozen ? 'Resume' : 'Freeze'}</button></div>{extra}</div>}>
     <div className="dom-toolbar">
       <label className="dom-group">Group<select aria-label="DOM price grouping" value={priceStep} onChange={event => onPriceStep(event.target.value)}><option value="">{data?.tick_size ? `Tick ${data.tick_size}` : 'Tick unknown'}</option>{priceStep && !stepOptions.includes(priceStep) && <option value={priceStep}>{priceStep}</option>}{stepOptions.map(step => <option key={step} value={step}>{step}</option>)}</select></label>
       <div className="dom-status" aria-busy={loading} title={healthDetail}>

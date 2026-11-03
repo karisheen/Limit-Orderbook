@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applyWorkspaceSlot, chartSettings, mergeVisualGrid, presetLayout, validatePreferences, validateWorkspaceSlots, workspaceGeometry } from './workspace.ts';
+import { applyWorkspaceSlot, chartFollowSpan, chartSettings, mergeVisualGrid, navigateChartTime, presetLayout, retainedChartRange, validatePreferences, validateWorkspaceSlots, workspaceGeometry } from './workspace.ts';
 import type { VisualColumn, VisualGrid } from './api.ts';
 
 test('persisted workspace bounds reject unsafe identity, time, quantum and dimensions without retaining sessions', () => {
@@ -279,6 +279,72 @@ test('viewport and watchlist constraints never rewrite requested manual geometry
   assert.equal(workspaceGeometry(restored, 1920).rightWidth, 487);
 });
 
+test('unlinked pin and follow gestures isolate the other chart even with all cursor links enabled', () => {
+  const initial = validatePreferences({ version: 1, followSpanNs: '9999999999', priceStep: '0.01', priceOffset: 48, paused: true,
+    domFrozen: true, tapeFrozen: true, secondary: { priceStep: '25', priceOffset: -13, bucket: '10000000000', rangeSeconds: 30 } });
+  const range = { start_ns: '9007199254740993123', end_ns: '9007199264740993124' };
+  const pinned = navigateChartTime(initial, 'flow', { kind: 'pin', range });
+  assert.deepEqual(pinned, { ...initial, secondary: { ...initial.secondary, follow: false, range, followSpanNs: null } });
+  const following = navigateChartTime(pinned, 'heatmap', { kind: 'follow', span_ns: '10000000001' });
+  assert.deepEqual(following, { ...pinned, range: null, follow: true, followSpanNs: '10000000001' });
+  assert.equal(following.secondary, pinned.secondary);
+});
+
+test('enabling time link aligns to the actor then mirrors only time intent, not scales, overlays or independent freezes', () => {
+  const initial = validatePreferences({ version: 1, mode: 'heatmap', paused: true, priceStep: '0.0001', priceOffset: 87,
+    contrast: 100, bucket: '5000000000', timeZone: 'local', domFrozen: true, tapeFrozen: false, domRows: 40,
+    links: { heatmap: false, flow: false }, secondary: { mode: 'candles', priceStep: '50', priceOffset: -21,
+      rangeSeconds: 30, showTrades: false, showQuotes: false, paused: false } });
+  const range = { start_ns: '9007199254740993123', end_ns: '9007199264740993124' };
+  const enabled = { ...initial, rangeLinked: true };
+  const pinned = navigateChartTime(enabled, 'heatmap', { kind: 'pin', range });
+  const pinFields = { follow: false, range, followSpanNs: null };
+  assert.deepEqual(pinned, { ...enabled, ...pinFields, secondary: { ...enabled.secondary, ...pinFields } });
+  const followFields = { follow: true, range: null, followSpanNs: '6000000000', rangeSeconds: 6 };
+  const followed = navigateChartTime(pinned, 'flow', { kind: 'follow', span_ns: '6000000000', rangeSeconds: 6 });
+  assert.deepEqual(followed, { ...pinned, ...followFields, secondary: { ...pinned.secondary, ...followFields } });
+  const disabled = { ...followed, rangeLinked: false };
+  const independent = navigateChartTime(disabled, 'flow', { kind: 'follow', span_ns: '12345678901' });
+  assert.deepEqual(independent, { ...disabled, secondary: { ...disabled.secondary, followSpanNs: '12345678901' } });
+});
+
+test('time intents reject malformed coordinates and durations rather than treating an absolute clock as a width', () => {
+  const initial = validatePreferences({ version: 1, rangeLinked: true, paused: true });
+  for (const span of ['0', '-1', '1.5', '1e9', '', 'NaN', '9007199254740993123', '1800000000001']) {
+    assert.equal(chartFollowSpan(span), null);
+    assert.equal(navigateChartTime(initial, 'heatmap', { kind: 'follow', span_ns: span }), initial);
+  }
+  assert.equal(chartFollowSpan('000000001'), '1');
+  assert.equal(chartFollowSpan('1800000000000'), '1800000000000');
+  for (const range of [
+    { start_ns: '9', end_ns: '9' }, { start_ns: '10', end_ns: '9' }, { start_ns: '-1', end_ns: '9' },
+    { start_ns: '1e3', end_ns: '2000' }, { start_ns: '0', end_ns: '1800000000001' },
+  ]) assert.equal(navigateChartTime(initial, 'flow', { kind: 'pin', range }), initial);
+  assert.equal(navigateChartTime(initial, 'flow', { kind: 'follow', span_ns: '1', rangeSeconds: 7 }), initial);
+});
+
+test('custom exact follow spans and time-link choice survive presets, serialization and source-independent slots', () => {
+  const saved = validatePreferences({ version: 1, rangeLinked: true, followSpanNs: '12345678901',
+    secondary: { followSpanNs: '9876543210', rangeSeconds: 30 }, links: { heatmap: false, flow: true } });
+  const reloaded = validatePreferences(JSON.parse(JSON.stringify({ ...saved, ...presetLayout('ladder') })));
+  assert.equal(reloaded.followSpanNs, '12345678901');
+  assert.equal(reloaded.secondary.followSpanNs, '9876543210');
+  assert.equal(reloaded.rangeLinked, true);
+  assert.deepEqual(reloaded.links, saved.links);
+  const current = validatePreferences({ version: 1, source: { mode: 'live', id: 'different-native-clock' } });
+  const restored = applyWorkspaceSlot(current, validateWorkspaceSlots([reloaded])[0]!);
+  assert.equal(restored.followSpanNs, saved.followSpanNs);
+  assert.equal(restored.secondary.followSpanNs, saved.secondary.followSpanNs);
+  assert.equal(restored.rangeLinked, true);
+  assert.deepEqual(restored.source, current.source);
+  const invalid = validatePreferences({ ...saved, followSpanNs: '9007199254740993123', secondary: { ...saved.secondary, followSpanNs: '-1' } });
+  assert.equal(invalid.followSpanNs, null);
+  assert.equal(invalid.secondary.followSpanNs, null);
+  const pinned = validatePreferences({ ...saved, follow: false, range: { start_ns: '1', end_ns: '3' } });
+  assert.equal(pinned.followSpanNs, null);
+  assert.deepEqual(pinned.range, { start_ns: '1', end_ns: '3' });
+});
+
 function column(time: number, hash = `immutable-${time}`): VisualColumn {
   return { id: String(time), time_ns: String(time), end_ns: String(time + 1), segment_id: 'segment', asof: null,
     eligible: false, reasons: ['missing_depth'], liquidity_hash: hash, cells: [[null, '0']], best_bid: null, best_ask: null,
@@ -315,4 +381,27 @@ test('seek, quantum replacement and explicit replace cannot retain future or for
   }
   const panned = mergeVisualGrid(previous, grid([], { start_ns: '0', end_ns: '90' }));
   assert.equal(panned.columns.length, 0);
+});
+
+test('Fit time uses actual retained depth, not a requested window or receive-clock projection coverage', () => {
+  const view = grid([], { start_ns: '9000000000000000000', end_ns: '9000000001000000000',
+    retained_start_ns: '9000000000123456789', now_ns: '9000000001987654321' });
+  assert.deepEqual(retainedChartRange(view, 'heatmap'), { start_ns: '9000000000123456789', end_ns: '9000000001987654321' });
+  const noDepth = { ...view, retained_start_ns: null, time_axis: { ...view.time_axis,
+    available_start_ns: '9000000000000000000', available_end_ns: '9000000001000000000' } };
+  assert.equal(retainedChartRange(noDepth, 'heatmap'), null);
+  assert.equal(retainedChartRange(noDepth, 'footprint'), null);
+  const capped = grid([], { retained_start_ns: '1', now_ns: '1800000000100' });
+  assert.deepEqual(retainedChartRange(capped, 'heatmap'), { start_ns: '100', end_ns: '1800000000100' });
+});
+
+test('flow Fit time bounds actual native aggregates without filling absent history or extending beyond source now', () => {
+  const view = grid([], { start_ns: '9007199254740993123', end_ns: '9007199259740993123',
+    now_ns: '9007199258740993123', retained_start_ns: '1', bucket_ns: '1000000000',
+    footprints: [{ time_ns: '9007199255000000000', price: '0', buy_base: '1', sell_base: '0', unknown_base: '0' },
+      { time_ns: '9007199258000000000', price: '0', buy_base: '0', sell_base: '2', unknown_base: '0' }] });
+  assert.deepEqual(retainedChartRange(view, 'footprint'), { start_ns: '9007199255000000000', end_ns: '9007199258740993123' });
+  assert.equal(retainedChartRange({ ...view, footprints: [] }, 'footprint'), null);
+  assert.equal(retainedChartRange(view, 'candles'), null);
+  assert.deepEqual(retainedChartRange(view, 'profile'), retainedChartRange(view, 'footprint'));
 });

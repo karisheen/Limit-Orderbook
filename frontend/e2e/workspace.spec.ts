@@ -76,7 +76,7 @@ async function openDemo(page: Page) {
   expect(frame.source.mode).toBe('demo');
   expect(frame.source.synthetic).toBe(true);
   expect(frame.replay).not.toBeNull();
-  await expect(page.locator('.status')).toHaveText('Connected');
+  await expect(page.locator('.status')).toContainText(/\bConnected$/i);
   await expect(page.locator('.source-banner')).toContainText('SYNTHETIC DEMO');
   await expect(page.getByTestId('grouped-ladder').locator('tbody tr').first()).toBeVisible();
   return { frame, catalog, latestFrame: () => latest ?? frame };
@@ -297,16 +297,24 @@ test('exact instrument selection, grouped cumulative depth and pinned time range
   const centeredResponse = nextResponse(page, 'visualization', request => request.recenter === true && request.price_offset_rows === 0);
   await recenterChart(page);
   const centered = await body<VisualGrid>(centeredResponse);
+  expect(centered.start_ns).toBe(repriced.start_ns);
+  expect(centered.end_ns).toBe(repriced.end_ns);
+  await expect(chart).toHaveAttribute('data-painted-view-id', centered.view_id);
   await openChartSettings(page);
-  await expect(primary(page).getByLabel('Follow time', { exact: true })).toBeChecked();
+  await expect(primary(page).getByLabel('Follow time', { exact: true })).not.toBeChecked();
+  const followingResponse = nextResponse(page, 'visualization', request => typeof request.start_ns === 'string'
+    && typeof request.end_ns === 'string' && BigInt(request.end_ns) - BigInt(request.start_ns) === BigInt(centered.end_ns) - BigInt(centered.start_ns));
+  await primary(page).getByRole('button', { name: 'Follow latest', exact: true }).click();
+  const following = await body<VisualGrid>(followingResponse);
+  await expect(chart).toHaveAttribute('data-painted-view-id', following.view_id);
   await plot.press('Escape');
   await openChartInspector(page);
   await openDisclosure(primary(page).locator('.chart-pane-diagnostics'));
   await page.getByTestId('grouped-ladder').locator('tbody tr').first().hover();
   const linked = await primary(page).locator('.linked-readout').textContent();
   const linkedTime = BigInt(/source monotonic ns (\d+)/.exec(linked ?? '')![1]!);
-  expect(linkedTime).toBeGreaterThanOrEqual(BigInt(centered.start_ns));
-  expect(linkedTime).toBeLessThan(BigInt(centered.end_ns));
+  expect(linkedTime).toBeGreaterThanOrEqual(BigInt(following.start_ns));
+  expect(linkedTime).toBeLessThan(BigInt(following.end_ns));
 });
 
 test('linked DOM price outside the chart viewport never selects a different price row', async ({ page }) => {
@@ -451,7 +459,7 @@ test('independent chart settings and saved resized workspace survive reload with
   expect(replacement.session_id).not.toBe(first.session_id);
   expect(replacement.selection).toEqual(selected.selection);
   expect(replacement.source.id).toBe(first.source.id);
-  await expect(page.locator('.status')).toHaveText('Connected');
+  await expect(page.locator('.status')).toContainText(/\bConnected$/i);
   await openDisclosure(page.locator('.workspace-slots'));
   await page.getByLabel('Workspace preset').selectOption('balanced');
   await page.getByRole('button', { name: 'Load workspace', exact: true }).click();
@@ -649,19 +657,19 @@ test('workspace keyboard shortcuts ignore editable fields and act outside them',
   await page.getByTestId('dom-freeze').click();
   for (const input of [page.getByLabel('Search instruments'), page.getByLabel('Order size', { exact: true })]) {
     await input.fill('');
-    await input.pressSequentially('r d / 123456');
-    await expect(input).toHaveValue('r d / 123456');
+    await input.pressSequentially('r f F d / 123456');
+    await expect(input).toHaveValue('r f F d / 123456');
     await expect(input).toBeFocused();
     await expect(primary(page).getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByTestId('dom-freeze')).toHaveAttribute('aria-pressed', 'true');
     await expect(primary(page).getByLabel('Follow time', { exact: true })).not.toBeChecked();
     await expect(primary(page).getByLabel('Chart mode', { exact: true })).toHaveValue('cvd');
   }
-  await primary(page).locator('.chart-pane-follow').click();
+  await primary(page).locator('.m4-chart-plot').focus();
   await page.keyboard.press('/');
   await expect(page.getByLabel('Search instruments')).toBeFocused();
   await page.getByLabel('Search instruments').fill('');
-  await primary(page).locator('.chart-pane-follow').click();
+  await primary(page).locator('.m4-chart-plot').focus();
   await page.keyboard.press('Space');
   await expect(primary(page).getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'false');
   await page.keyboard.press('d');
@@ -669,6 +677,8 @@ test('workspace keyboard shortcuts ignore editable fields and act outside them',
   await page.keyboard.press('2');
   await expect(primary(page).getByLabel('Chart mode', { exact: true })).toHaveValue('candles');
   await page.keyboard.press('r');
+  await expect(primary(page).getByLabel('Follow time', { exact: true })).not.toBeChecked();
+  await page.keyboard.press('f');
   await expect(primary(page).getByLabel('Follow time', { exact: true })).toBeChecked();
   await expect(page.getByTestId('replay-play')).toBeEnabled();
   await expect(page.getByTestId('replay-pause')).toBeDisabled();
