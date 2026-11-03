@@ -9,9 +9,9 @@ one exact instrument while keeping independent view settings and native queries.
 The supported Streamlit dashboard is a thin native-API observation client, not a
 second market-data engine.
 
-[![Recorded-source workstation with simultaneous liquidity and footprint charts, depth ladder and time & sales](docs/evidence/m7-after-recorded-1440.png)](docs/evidence/m7-after-recorded-1440.png)
+[![Recorded-source M8 workstation with readable liquidity and footprint charts, depth ladder and time & sales](docs/evidence/m8-after-recorded-1440.png)](docs/evidence/m8-after-recorded-1440.png)
 
-*Recorded-source M7 workstation view, not a live-feed or latency certification. Click the screenshot to view full size; see the [evidence handoff](docs/OMP_UPGRADE_HANDOFF.md) for executed verification and capture provenance.*
+*Recorded-source M8 workstation at delivery 2057 / 4276, 1440 × 900 CSS pixels; not a live-feed or latency certification. Click to view full size. The [M8 evidence handoff](docs/OMP_UPGRADE_HANDOFF.md#m8--market-first-workstation) records matched viewport/source provenance and executed verification; the earlier M7 audit remains historical.*
 
 ## Upgrade progress
 
@@ -42,6 +42,14 @@ second market-data engine.
   measurements remain distinct. Implementation is not a gate result: current
   verification and visual evidence belong in the
   [delivery/evidence handoff](docs/OMP_UPGRADE_HANDOFF.md).
+- **M8:** the market-first workstation adds native receive-clock date/time labels,
+  readable numeric footprints, compact responsive pane controls and exact
+  DOM/print inspection. Cursor linking and optional chart-time navigation are
+  independent; follow, fit and recenter have separate meanings. Keyboard
+  navigation, layout presets and prioritized incidents retain access to exact
+  evidence without turning transport health into market-data quality. See the
+  [M8 handoff](docs/OMP_UPGRADE_HANDOFF.md#m8--market-first-workstation)
+  for implementation scope and source-specific evidence.
 
 For current acceptance status and executed evidence, see the
 [operational readiness and recovery](docs/READINESS.md),
@@ -78,14 +86,26 @@ exclusions. No order is sent to an exchange. See
 [terminal controls](docs/TERMINAL.md), [API](docs/API.md),
 [analytics](docs/ANALYTICS.md) and [costs](docs/COSTS.md).
 
-The [operator guide](docs/TERMINAL.md) covers independent chart settings, explicit
-cursor links, keyboard resizing/shortcuts, four local workspace slots and source/
-diagnostics inspectors. Workspace preferences never save a mutable backend
-session; replay age is measured against its source clock, not today's wall clock.
-The visual direction references [Flowsurface](https://flowsurface.com/) and its
-[primary repository](https://github.com/flowsurface-rs/flowsurface), but the terminal
-and native Canvas renderer are independently implemented: no Flowsurface source
-or assets are copied.
+The [operator guide](docs/TERMINAL.md) covers independent chart settings, cursor
+and time-range links, keyboard navigation/resizing, layout presets, four local
+workspace slots and source/diagnostics inspectors. Workspace preferences never
+save a mutable backend session. Chart dates project native paired receive clocks;
+replay age is measured against its source clock, not today's wall clock. **Fit
+time** for flow fits returned native aggregates, not an invented all-history
+extent. Compact footprints crop native rows for legibility without regrouping
+prices or quantities; exact values remain inspectable.
+
+The visual direction references [Flowsurface](https://flowsurface.com/),
+[OpenMarket's footprint guide](https://openmarket.xyz/learn/order-flow/footprint)
+and [TradingView's footprint documentation](https://www.tradingview.com/support/solutions/43000726164/):
+dense market panes, readable bid/ask numbers and contextual chart controls.
+[aggr.trade](https://aggr.trade/) informs tape minimalism, while
+[Hyperliquid](https://app.hyperliquid.xyz/) and [Lighter](https://app.lighter.xyz/)
+inform the chart/DOM/tape column hierarchy; these are influences, not parity claims.
+The terminal and native Canvas renderer are independently implemented; no
+reference implementation's code or assets are copied, and no chart package is
+adopted. Public-live `analytical_queue_overflow` remains a known collector-capacity
+boundary, not something the frontend redesign or reconnect repairs.
 
 ## Local alerts, paper, journal and research
 

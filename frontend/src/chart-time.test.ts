@@ -170,11 +170,22 @@ test('forward and backward wall steps keep monotonic positions and explicit disc
   const ticks = chartTimeTicks(view, 1000);
   const markers = ticks.filter(tick => tick.kind === 'discontinuity');
   assert.deepEqual(markers.map(tick => tick.time_ns), [(MONO + 7n * SECOND).toString(), (MONO + 14n * SECOND).toString()]);
-  assert.match(markers[0]!.label, /\+5s/);
-  assert.match(markers[1]!.label, /-9s/);
   assert.equal(projectReceiveTime(view, (MONO + 14n * SECOND).toString()), (WALL + 10n * SECOND).toString());
   const narrow = chartTimeTicks(view, 40);
   assert.equal(narrow.filter(tick => tick.kind === 'discontinuity').length, 2);
+});
+
+test('truncated clock coverage retains readable time at its only step marker', () => {
+  const view = grid(WALL, 6n * SECOND);
+  const boundary = MONO + 5_500_000_000n;
+  const marker = step(view, boundary, boundary, 1_001_335n);
+  view.time_axis.segments = [marker];
+  view.time_axis.available_start_ns = boundary.toString();
+  view.time_axis.available_end_ns = (MONO + 5_800_000_000n).toString();
+  view.now_ns = view.time_axis.available_end_ns;
+  const ticks = chartTimeTicks(view, 960);
+  assert.deepEqual(ticks.map(tick => tick.time_ns), [boundary.toString()]);
+  assert.equal(ticks[0]!.label.match(/\d{2}:\d{2}:\d{2}/)?.[0], '00:00:05');
 });
 
 test('local repeated DST hours have distinct detailed offsets and calendar days respect DST', () => {

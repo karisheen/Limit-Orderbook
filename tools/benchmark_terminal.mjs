@@ -53,7 +53,7 @@ async function waitWithin(promise, milliseconds) {
 const limits = { samples: 20000, errors: 100, responseTasks: 128, apiRequests: 256, logBytes: 65536, assetBytes: 16 * 1024 * 1024, runtimeReportBytes: 4 * 1024 * 1024, runtimeFiles: 4096, drainMs: 15000, startupMs: 120000 };
 const minimumSamples = { ack: 20, draw: 20, frame_interval: 120, input_paint_opportunity: 20, telemetry: 20 };
 const report = {
-  schema: 'terminal-browser-benchmark-3', status: 'running', command: [process.execPath, ...process.execArgv, ...process.argv.slice(1)],
+  schema: 'terminal-browser-benchmark-4', status: 'running', command: [process.execPath, ...process.execArgv, ...process.argv.slice(1)],
   runtime: process.version, platform: `${platform()} ${release()}`, cpus: cpus().map(cpu => cpu.model), logical_cpus: cpus().length, memory_bytes: totalmem(),
   viewport: { width: options.width, height: options.height }, limits, minimum_samples: minimumSamples,
   requested_seconds_per_scenario: options.seconds, tool_sha256: null, scenarios: [], served_assets: [], provenance_errors: [],
@@ -68,6 +68,9 @@ const report = {
     'Frontend source hashes are context only; built bytes and actual browser document/script/stylesheet responses identify the measured surface.',
     'Input paint opportunities are responsiveness evidence, not proof of a particular GPU pixel completion.',
     'Coalesced book revisions and frame ACK evictions are retained as distinct telemetry, not relabeled as dropped market events.',
+    'Displayed data ages are observational 500ms DOM samples of the rendered Freshness badges, not response-arrival estimates. Browser performance.now and Node observation times have distinct origins and are never subtracted.',
+    'Source-clock lag is same-clock receive-monotonic evidence-to-highwater distance, not exchange, transport or wall-clock latency. Evidence residence and optional response residence are separate browser elapsed ages; badge values update at the UI cadence.',
+    'Unavailable, missing, offscreen, partial and transitioning displayed evidence is reported without assigning zero or inventing a freshness SLA. Rendering-budget success is not freshness or live-capacity certification.',
     'No live collector, private credentials, execution or external deployment is started.'
   ]
 };
@@ -261,6 +264,99 @@ function progressEvidence(points, field, start, end, speed) {
   const maximumStall=Math.max(3000,3000/Number(speed));
   return { passed:monotonic&&advances>=3&&stall<=maximumStall, count:selected.length, advances, monotonic, maximum_stall_wall_ms:stall, maximum_allowed_stall_ms:maximumStall, first_value:first[field], last_value:last[field], span:(BigInt(last[field])-BigInt(first[field])).toString(), wall_span_ms:last.received_at_ms-first.received_at_ms };
 }
+const displayedPanes = ['heatmap', 'flow', 'dom', 'tape'];
+function displayedAges() {
+  return {
+    sample_interval_ms: 500, raw_sample_limit_per_pane: limits.samples, dropped_samples: 0,
+    units: { ages: 'milliseconds', native_timestamps: 'exact integer nanosecond strings', browser_sample_at_ms: 'browser performance.now', node_observed_at_ms: 'Node performance.now' },
+    scope: 'Rendered badge values only; chart identity/crop is the retained painted view, never the requested geometry. Quantiles exclude invalid, identity-mismatched, missing, offscreen and mismatched-painted-evidence observations. A pending requested replacement does not invalidate the retained painted evidence. Partial visibility is included and counted. Unavailable source lag remains null; optional residence may still be observed. Counts of unavailability, invalidity, identity mismatch and coverage can overlap. No freshness SLA.',
+    panes: Object.fromEntries(displayedPanes.map(pane => [pane, { samples: [], dropped_samples: 0 }]))
+  };
+}
+function retainDisplayedAges(ages, snapshot, pin, observedAt) {
+  for (const pane of displayedPanes) {
+    const target = ages.panes[pane];
+    if (target.samples.length >= limits.samples) { target.dropped_samples++; ages.dropped_samples++; continue; }
+    const sample = { ...snapshot.panes[pane], browser_sample_at_ms: snapshot.browser_sample_at_ms, node_observed_at_ms: observedAt };
+    const invalid = [], mismatches = [], reasons = [];
+    const number = (field, integer = false) => {
+      const value = sample[field];
+      if (value === null) return;
+      if (typeof value !== 'string' || value.trim() === '' || !Number.isFinite(Number(value)) || Number(value) < 0 || (integer && !Number.isSafeInteger(Number(value)))) {
+        invalid.push(`invalid_${field}`); sample[field] = null;
+      } else sample[field] = Number(value);
+    };
+    if (!Number.isFinite(snapshot.browser_sample_at_ms) || snapshot.browser_sample_at_ms < 0 || !Number.isFinite(observedAt)) invalid.push('invalid_sample_clock');
+    if (sample.badge_count > 1 || sample.chart_count > 1) invalid.push('ambiguous_rendered_element');
+    for (const field of ['source_lag_ms', 'evidence_resident_ms', 'response_resident_ms']) number(field);
+    for (const field of ['painted_row_first', 'painted_row_count']) number(field, true);
+    for (const field of ['evidence_ns', 'highwater_ns', 'generation']) {
+      if (sample[field] !== null && !canonicalInteger(sample[field])) invalid.push(`invalid_${field}`);
+    }
+    if (sample.present) {
+      for (const field of ['source_id', 'session_id', 'generation', 'source_mode']) {
+        if (sample[field] === null) invalid.push(`missing_${field}`);
+        else if (sample[field] !== pin?.[field]) mismatches.push(field);
+      }
+      if (!['true', 'false'].includes(sample.frozen)) invalid.push('invalid_frozen');
+      if (sample.unavailable_reason !== null) {
+        reasons.push(sample.unavailable_reason);
+        if (sample.source_lag_ms !== null) invalid.push('unavailable_with_source_lag');
+      } else if (sample.source_lag_ms === null) invalid.push('missing_source_lag_without_reason');
+      if (sample.source_lag_ms !== null) {
+        if (!sample.clock_id || !canonicalInteger(sample.evidence_ns) || !canonicalInteger(sample.highwater_ns)) invalid.push('missing_source_clock_evidence');
+        else if (BigInt(sample.evidence_ns) > BigInt(sample.highwater_ns)) invalid.push('evidence_after_highwater');
+        if (sample.evidence_resident_ms === null) invalid.push('missing_evidence_residence');
+      }
+      if (pane === 'heatmap' || pane === 'flow') {
+        if (sample.view_id !== null) {
+          if (!['heatmap', 'footprint', 'candles', 'profile', 'cvd', 'ofi'].includes(sample.painted_mode)) invalid.push('invalid_painted_mode');
+          if (sample.painted_row_first === null || sample.painted_row_count === null || sample.painted_row_count === 0) invalid.push('invalid_painted_crop');
+          if (sample.view_id !== sample.painted_view_id) mismatches.push('painted_view_id');
+        } else if (sample.source_lag_ms !== null) invalid.push('source_lag_without_painted_view');
+      }
+    } else reasons.push('missing_badge');
+    sample.transition = (pane === 'heatmap' || pane === 'flow') && (sample.requested_view_id !== sample.painted_view_id || sample.view_id !== sample.painted_view_id);
+    // A pending replacement alone is not a transition of the retained painted evidence.
+    sample.evidence_transition = sample.present && (pane === 'heatmap' || pane === 'flow') && sample.view_id !== sample.painted_view_id;
+    if (sample.transition) reasons.push('view_transition');
+    if (sample.coverage !== 'visible') reasons.push(sample.coverage);
+    if (mismatches.length) reasons.push('identity_mismatch');
+    reasons.push(...invalid);
+    sample.invalid_reasons = invalid;
+    sample.identity_mismatches = mismatches;
+    sample.reasons = reasons;
+    sample.valid = sample.present && !invalid.length && !mismatches.length;
+    sample.quantile_eligible = sample.valid && ['visible', 'partial'].includes(sample.coverage) && !sample.evidence_transition;
+    sample.status = invalid.length || mismatches.length ? 'invalid' : !sample.present ? 'missing' : sample.unavailable_reason !== null ? 'unavailable' : 'available';
+    target.samples.push(sample);
+  }
+}
+function summarizeDisplayedAges(ages) {
+  ages.invalid_samples = 0; ages.identity_mismatches = 0;
+  for (const target of Object.values(ages.panes)) {
+    const samples = target.samples, eligible = samples.filter(sample => sample.quantile_eligible);
+    const counts = field => {
+      const result = {};
+      for (const sample of samples) for (const reason of Array.isArray(sample[field]) ? sample[field] : [sample[field]]) result[reason] = (result[reason] ?? 0) + 1;
+      return result;
+    };
+    target.summary = {
+      total: samples.length, available: samples.filter(sample => sample.status === 'available').length,
+      unavailable: samples.filter(sample => sample.unavailable_reason !== null).length,
+      missing: samples.filter(sample => !sample.present).length, invalid: samples.filter(sample => sample.status === 'invalid').length,
+      identity_mismatch: samples.filter(sample => sample.identity_mismatches.length).length,
+      transitions: samples.filter(sample => sample.transition).length, evidence_transitions: samples.filter(sample => sample.evidence_transition).length,
+      quantile_eligible: eligible.length, reason_counts: counts('reasons'), invalid_reason_counts: counts('invalid_reasons'),
+      identity_mismatch_counts: counts('identity_mismatches'), coverage_counts: counts('coverage'), pane_coverage_counts: counts('pane_coverage'),
+      source_clock_lag: quantiles(eligible.map(sample => sample.source_lag_ms).filter(value => value !== null)),
+      evidence_residence: quantiles(eligible.map(sample => sample.evidence_resident_ms).filter(value => value !== null)),
+      response_residence: quantiles(eligible.map(sample => sample.response_resident_ms).filter(value => value !== null))
+    };
+    ages.invalid_samples += target.summary.invalid;
+    ages.identity_mismatches += target.summary.identity_mismatch;
+  }
+}
 function verdict(scenario) {
   const m = scenario.measurements;
   const failure = [];
@@ -284,6 +380,9 @@ function verdict(scenario) {
   if (m?.dropped_samples) failure.push('dropped_measurement_samples');
   if (m?.invalid_browser_samples) failure.push('invalid_browser_timing');
   if (m && Object.values(m).some(value => value?.invalid_count > 0)) failure.push('invalid_timing');
+  if (scenario.displayed_data_ages.dropped_samples) failure.push('displayed_age_buffer_overflow');
+  if (scenario.displayed_data_ages.invalid_samples) failure.push('invalid_displayed_age_instrumentation');
+  if (scenario.displayed_data_ages.identity_mismatches) failure.push('displayed_age_identity_mismatch');
   scenario.functional_correctness = { passed: failure.length === 0, failures: failure };
   const counts = { ack: m?.publish_to_ack_upper_bound.count ?? 0, draw: m?.draw.count ?? 0, frame_interval: m?.frame_interval.count ?? 0, input_paint_opportunity: m?.input_paint_opportunity.count ?? 0, telemetry: scenario.frame_telemetry.length };
   const completed_requested_window = !scenario.capture_ended_early && scenario.measured_wall_seconds >= options.seconds;
@@ -312,7 +411,7 @@ async function runScenario(speed) {
     && response.request().postDataJSON().rows === 128
     && response.request().postDataJSON().bucket_ns === '1000000000';
   const scenario = { speed, status: 'starting', acks: [], requests: [], unresolved_requests: [], response_errors: [], browser_errors: [], visual_responses: 0, response_tasks_lost: 0, request_records_lost: 0, error_records_lost: 0, api_error_count: 0, telemetry_dropped: 0, telemetry_invalid: 0, queue_overflows: 0, frame_ack_baseline: null, frame_ack_evictions: 0, source_mismatches: 0, frame_failures: 0, frame_telemetry: [], source_frame: null, received_view: null, served_assets: [], catalog_sources: [] };
-  Object.assign(scenario, { positive_cells_received: 0, visible_trade_points_received: 0, controls: [], non_cohort_cancellations: [], lifecycle_errors: [], chart_progress: [], cohort_pin:null });
+  Object.assign(scenario, { positive_cells_received: 0, visible_trade_points_received: 0, controls: [], non_cohort_cancellations: [], lifecycle_errors: [], chart_progress: [], cohort_pin:null, displayed_data_ages: displayedAges() });
   report.scenarios.push(scenario);
   let measuring = false, sequence = 0, expectedSourceId = options.source === 'demo' ? 'synthetic-demo-v3-180s' : null;
   const pending = new Set(), inflight = new Map(), records = new WeakMap(), ackIdentities = new Set();
@@ -320,7 +419,7 @@ async function runScenario(speed) {
   const apiError = (record, detail) => {
     // Retain superseded setup queries and post-cohort cleanup cancellations.
     // All cohort failures remain fatal; obsolete setup generations are checked in verdict.
-    if (record && !record.cohort && !measuring && detail.error === 'net::ERR_ABORTED' && (scenario.window_end_ms !== undefined || ['/api/v1/visualization','/api/v1/ladder','/api/v1/instruments'].includes(record.path))) {
+    if (record && !record.cohort && !measuring && (record.status === undefined || record.status < 400) && detail.error === 'net::ERR_ABORTED' && (scenario.window_end_ms !== undefined || ['/api/v1/visualization','/api/v1/ladder','/api/v1/instruments'].includes(record.path))) {
       addError(scenario.non_cohort_cancellations, { id:record.id,path:record.path,phase:scenario.window_end_ms===undefined?'preparation':'after_cohort',...detail });
       return;
     }
@@ -401,7 +500,7 @@ async function runScenario(speed) {
   });
   page.on('requestfailed', request => {
     const record = records.get(request);
-    if (record) { apiError(record, { error: request.failure()?.errorText ?? 'request failed' }); settle(request, record, 'failed'); }
+    if (record && record.state !== 'failed') { apiError(record, { error: request.failure()?.errorText ?? 'request failed' }); settle(request, record, 'failed'); }
   });
   page.on('response', response => {
     const request = response.request(), target = new URL(response.url()), path = target.pathname;
@@ -427,8 +526,17 @@ async function runScenario(speed) {
     if (!record) { scenario.request_records_lost++; return; }
     record.status = response.status();
     task(async () => {
+      if (record.state === 'failed') return;
+      // Playwright's finished() resolves on requestfinished, not requestfailed.
+      // Let the already-classified failure release this reader before teardown.
+      let onFailure;
+      const failed = new Promise(resolve => {
+        onFailure = candidate => { if (candidate === request) resolve(null); };
+        page.on('requestfailed', onFailure);
+      });
       try {
-        const finishedError = await response.finished();
+        const finishedError = await Promise.race([response.finished(), failed]);
+        if (record.state === 'failed') return; // requestfailed already classified this cancellation.
         if (finishedError) throw finishedError;
         if (!response.ok()) {
           const detail=response.status()===409?(await response.json()).detail:undefined;
@@ -456,7 +564,10 @@ async function runScenario(speed) {
           if (!scenario.received_view) scenario.received_view = { grid_id:view.grid_id, instrument_id:view.instrument_id, clock_id:view.clock_id, rows:view.rows, columns:view.columns.length, eligible_columns:view.columns.filter(column=>column.eligible).length, sampling:view.sampling, quantity_unit:view.quantity_unit, price_step:view.price_step, bucket_ns:view.bucket_ns, reasons:view.reasons, truncated:view.truncated };
         }
         settle(request, record, 'completed');
-      } catch (error) { apiError(record, { error: errorText(error) }); settle(request, record, 'failed'); }
+      } catch (error) {
+        if (record.state === 'failed') return; // Do not count the same failed request again when its reader closes.
+        apiError(record, { error: errorText(error) }); settle(request, record, 'failed');
+      } finally { page.off('requestfailed', onFailure); }
     });
   });
   // No external browser fetches, even if a mistakenly built surface tries one.
@@ -475,19 +586,34 @@ async function runScenario(speed) {
   });
   const startup = performance.now();
   try {
-    await page.goto(url.origin);
-    await page.locator('.status').filter({ hasText:/^Connected$/ }).waitFor({ timeout:60000 });
     if (options.manifest) {
+      // Resolve the verified opaque ID before opening the app. Starting Demo and
+      // then replacing it can strand an intentionally cancelled response reader.
       const deadline = performance.now() + limits.startupMs;
-      while (!scenario.catalog_sources.some(source => source.label === options.source && source.recording && source.status === 'ready') && performance.now() < deadline) { assertRunning(); await sleep(100); }
-      const matches = scenario.catalog_sources.filter(source => source.label === options.source && source.recording && source.status === 'ready');
-      if (matches.length !== 1) throw new Error('Exact recorded source is unavailable or not unique in the verified catalog');
-      expectedSourceId = matches[0].id;
-      await page.waitForFunction(id => [...document.querySelectorAll('select[aria-label="Data source"] option')].some(option => !option.disabled && option.value === id), expectedSourceId, { timeout:30000 });
-      await page.getByLabel('Data source').selectOption(expectedSourceId);
-      await page.locator('.source-banner > strong').filter({hasText:/^RECORDED$/}).waitFor({timeout:120000});
+      while (performance.now() < deadline) {
+        assertRunning();
+        const response = await fetch(new URL('/api/v1/instruments', url), { signal: AbortSignal.timeout(Math.max(1, Math.ceil(deadline - performance.now()))), redirect: 'error' });
+        if (!response.ok) throw new Error(`Recorded source catalog returned ${response.status}`);
+        const catalog = await response.json();
+        if (!Array.isArray(catalog.sources) || catalog.sources.length > 1024) throw new Error('Invalid source catalog');
+        scenario.catalog_sources = catalog.sources;
+        const matches = catalog.sources.filter(source => source.label === options.source && source.recording && source.status === 'ready');
+        if (matches.length > 1) throw new Error('Exact recorded source is not unique in the verified catalog');
+        if (matches.length === 1) { expectedSourceId = matches[0].id; break; }
+        await sleep(100);
+      }
+      if (typeof expectedSourceId !== 'string' || !expectedSourceId) throw new Error('Exact recorded source is unavailable in the verified catalog');
     }
     scenario.expected_source = { id: expectedSourceId, label: options.source, capture: options.manifest ? dirname(options.manifest) : null };
+    const launch = new URL(url.origin);
+    if (options.manifest) launch.searchParams.set('source', expectedSourceId);
+    scenario.launch_url = launch.href;
+    await page.goto(launch.href);
+    await page.locator('.status').filter({ hasText:/^Transport: Connected$/ }).waitFor({ timeout:60000 });
+    if (options.manifest) {
+      await page.waitForFunction(id => document.querySelector('select[aria-label="Data source"]')?.value === id, expectedSourceId, { timeout:30000 });
+      await page.locator('.source-banner > strong').filter({hasText:/^RECORDED$/}).waitFor({timeout:120000});
+    }
     if (options.instrument) {
       await page.getByLabel('Search instruments').fill(options.instrument);
       await page.locator('[data-instrument-id='+JSON.stringify(options.instrument)+']').click();
@@ -515,6 +641,10 @@ async function runScenario(speed) {
     fresh=nextView();
     await primary.getByLabel('Chart range').selectOption('30');
     await waitPaint(fresh);
+    fresh=nextView();
+    await primary.getByRole('button',{name:'Recenter price',exact:true}).click();
+    await waitPaint(fresh);
+    await primary.getByRole('button',{name:'Liquidity settings',exact:true}).click();
     await page.getByLabel('Replay speed').selectOption(speed);
     const started=page.waitForResponse(response=>response.url().endsWith('/api/v1/replay')&&response.request().postDataJSON()?.action==='play'&&response.ok());
     await page.getByTestId('replay-play').click();
@@ -551,10 +681,11 @@ async function runScenario(speed) {
         const input=response.request().postDataJSON();
         return canonicalInteger(input?.end_ns)&&BigInt(input.end_ns)>BigInt(changed.end_ns);
       });
-      await primary.getByLabel('Follow time',{exact:true}).check();
-      const following=await waitPaint(fresh);
+      await primary.getByRole('button',{name:'Follow latest',exact:true}).click();
+      const following=await waitPaint(fresh), followingPainted=performance.now();
+      await primary.getByRole('button',{name:'Liquidity settings',exact:true}).click();
       if(!await primary.getByLabel('Follow time',{exact:true}).isChecked())throw new Error('Follow recovery did not remain enabled');
-      scenario.controls.push({kind,method:kind==='pan'?'ArrowLeft':'wheel -80',before_window:{start_ns:before.startNs,end_ns:before.endNs},after_window:{start_ns:changed.start_ns,end_ns:changed.end_ns},requested_view_id:changed.view_id,following_view_id:following.view_id,control_to_paint_ms:painted-issued,follow_recovery_to_paint_ms:performance.now()-followIssued});
+      scenario.controls.push({kind,method:kind==='pan'?'ArrowLeft':'wheel -80',before_window:{start_ns:before.startNs,end_ns:before.endNs},after_window:{start_ns:changed.start_ns,end_ns:changed.end_ns},requested_view_id:changed.view_id,following_view_id:following.view_id,control_to_paint_ms:painted-issued,follow_recovery_to_paint_ms:followingPainted-followIssued});
     }
     await primary.getByRole('button',{name:'Liquidity settings',exact:true}).click();
     await waitPaint(nextView());
@@ -568,7 +699,7 @@ async function runScenario(speed) {
     scenario.renderer_metrics_before=(await cdp.send('Performance.getMetrics')).metrics;
     const pinned=scenario.source_frame;
     if(!pinned||!canonicalInteger(pinned.generation)||pinned.status!=='playing'||pinned.replay?.status!=='playing'||pinned.replay?.speed!==speed)throw new Error('Replay is not playing at the requested speed at the cohort fence');
-    scenario.cohort_pin={session_id:pinned.session_id,generation:pinned.generation,source_id:pinned.source.id,instrument_id:pinned.selection.instrument_id,speed};
+    scenario.cohort_pin={session_id:pinned.session_id,generation:pinned.generation,source_id:pinned.source.id,source_mode:pinned.source.mode,instrument_id:pinned.selection.instrument_id,speed};
     await page.evaluate(()=>{window.__lobBenchmark.started_at_ms=performance.now();window.__lobBenchmark.active=true;window.__lobBenchmark.lastFrame=null;});
     scenario.window_start_ms=performance.now();
     measuring=true;
@@ -581,9 +712,47 @@ async function runScenario(speed) {
       }
       await page.waitForTimeout(500);
       iteration++;
-      if(scenario.chart_progress.length<limits.samples)scenario.chart_progress.push({received_at_ms:performance.now(),end_ns:await primaryChart.getAttribute('data-end-ns')});
+      const displayed = await page.evaluate(() => {
+        const coverage = element => {
+          if (!element) return 'missing';
+          const rect = element.getBoundingClientRect(), style = getComputedStyle(element);
+          if (!rect.width || !rect.height || style.visibility === 'hidden' || style.display === 'none') return 'hidden';
+          let left = Math.max(0, rect.left), top = Math.max(0, rect.top), right = Math.min(innerWidth, rect.right), bottom = Math.min(innerHeight, rect.bottom);
+          for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+            const clip = getComputedStyle(parent), bounds = parent.getBoundingClientRect();
+            if (clip.visibility === 'hidden' || clip.display === 'none' || clip.opacity === '0') return 'hidden';
+            if (/(auto|scroll|hidden|clip)/.test(clip.overflowX)) { left = Math.max(left, bounds.left); right = Math.min(right, bounds.right); }
+            if (/(auto|scroll|hidden|clip)/.test(clip.overflowY)) { top = Math.max(top, bounds.top); bottom = Math.min(bottom, bounds.bottom); }
+          }
+          if (right <= left || bottom <= top) return 'offscreen';
+          return left > rect.left || top > rect.top || right < rect.right || bottom < rect.bottom ? 'partial' : 'visible';
+        };
+        const panes = {};
+        for (const pane of ['heatmap', 'flow', 'dom', 'tape']) {
+          const chartPane = pane === 'heatmap' || pane === 'flow';
+          const container = document.querySelector(chartPane ? `[data-testid="chart-pane-${pane}"]` : `[data-pane="${pane}"]`);
+          const badges = container?.querySelectorAll(chartPane ? '[data-testid="chart-freshness"]' : '[data-testid="data-freshness"]');
+          const charts = chartPane ? container?.querySelectorAll('[data-testid="market-charts"]') : null;
+          const badge = badges?.[0], chart = charts?.[0];
+          const sample = {
+            present: Boolean(badge), badge_count: badges?.length ?? 0, chart_count: charts?.length ?? 0,
+            coverage: coverage(badge), pane_coverage: coverage(container),
+            painted_view_id: chart?.getAttribute('data-painted-view-id') ?? null,
+            requested_view_id: chart?.getAttribute('data-view-id') ?? null,
+            requested_mode: chart?.getAttribute('data-mode') ?? null
+          };
+          for (const field of ['frame_id', 'session_id', 'source_mode', 'source_id', 'generation', 'view_id', 'clock_id', 'evidence_ns', 'highwater_ns', 'source_lag_ms', 'evidence_resident_ms', 'response_resident_ms', 'unavailable_reason', 'frozen', 'painted_mode', 'painted_row_first', 'painted_row_count']) {
+            sample[field] = badge?.getAttribute(`data-${field.replaceAll('_', '-')}`) ?? null;
+          }
+          panes[pane] = sample;
+        }
+        return { browser_sample_at_ms: performance.now(), end_ns: document.querySelector('[data-testid="chart-pane-heatmap"] [data-testid="market-charts"]')?.getAttribute('data-end-ns') ?? null, panes };
+      });
+      const observedAt = performance.now();
+      if(scenario.chart_progress.length<limits.samples)scenario.chart_progress.push({received_at_ms:observedAt,browser_sample_at_ms:displayed.browser_sample_at_ms,end_ns:displayed.end_ns});
       else scenario.telemetry_dropped++;
-      if (/\bended\b/i.test(await page.locator('.source-banner').innerText())) { scenario.capture_ended_early=true; break; }
+      retainDisplayedAges(scenario.displayed_data_ages, displayed, scenario.cohort_pin, observedAt);
+      if (/\bended\b/i.test(await page.locator('.source-banner .source-state').innerText())) { scenario.capture_ended_early=true; break; }
     }
     scenario.window_end_ms=performance.now();
     measuring=false;
@@ -606,10 +775,11 @@ async function runScenario(speed) {
     scenario.measurements={publish_to_ack_upper_bound:quantiles(scenario.acks.map(v=>v.publish_to_ack_upper_bound_ms)),receive_to_paint:quantiles(scenario.acks.map(v=>v.browser_receive_to_paint_ms)),draw:quantiles(measured.draw),frame_interval:quantiles(measured.frame_intervals),input_paint_opportunity:quantiles(measured.input_paint),long_tasks:quantiles(measured.long_tasks),longtask_supported:measured.longtask_supported,dropped_samples:measured.dropped,invalid_browser_samples:measured.invalid};
     scenario.raw_browser_measurements=measured;
     scenario.final_cursor=await page.locator('.cursor').innerText();
+    await primary.getByRole('button',{name:'Liquidity settings',exact:true}).click();
     await primary.getByRole('button',{name:'Liquidity Inspector',exact:true}).click();
     await primary.locator('.chart-pane-diagnostics > summary').click();
     scenario.pane_paint_diagnostics=await primary.getByTestId('chart-telemetry').innerText();
-    await primary.getByRole('button',{name:'Liquidity Inspector',exact:true}).click();
+    await primary.getByRole('button',{name:'Close Chart Inspector',exact:true}).click();
     const screenshot=options.output.replace(/\.json$/,'')+`-${speed}x.png`;
     // Never overwrite an earlier screenshot, including after a failed run.
     const image=await page.screenshot({fullPage:true});
@@ -620,11 +790,20 @@ async function runScenario(speed) {
     measuring=false;
     if (scenario.window_start_ms && !scenario.window_end_ms) scenario.window_end_ms=performance.now();
     for (const record of scenario.requests) if (record.state==='issued' && !scenario.unresolved_requests.some(value=>value.id===record.id)) scenario.unresolved_requests.push({...record});
+    scenario.cleanup = { method: 'navigate-away-and-drain', pending_before_navigation: pending.size };
+    // Stop page polling and deliver real network cancellation events while the
+    // context is still alive. Closing it first can destroy an unmeasured reader.
+    await page.goto('about:blank', { waitUntil: 'load', timeout: limits.drainMs }).catch(error => { scenario.error ??= errorText(error); });
+    const readerDeadline = performance.now() + limits.drainMs;
+    while (pending.size && performance.now() < readerDeadline) await sleep(50);
+    scenario.cleanup.pending_before_context_close = pending.size;
+    if (pending.size) scenario.error ??= 'Response readers did not drain before context closure';
     await context.close().catch(error=>{scenario.error ??= errorText(error);});
     const deadline=performance.now()+limits.drainMs;
     while (pending.size && performance.now()<deadline) await sleep(50);
     if (pending.size) scenario.response_tasks_lost+=pending.size;
     for (const kind of ['document','script','stylesheet']) if (!scenario.served_assets.some(asset=>asset.resource_type===kind&&asset.matched)) apiError(null,{error:`Missing measured frontend ${kind} evidence`});
+    summarizeDisplayedAges(scenario.displayed_data_ages);
     verdict(scenario);
     await persist();
   }

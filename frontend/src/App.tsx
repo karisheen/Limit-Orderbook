@@ -475,6 +475,9 @@ export default function App() {
     catalogError: terminal.catalogError, storageError, connection: terminal.connection, status: frame?.status ?? null,
     ready: frame?.health.ready ?? false, qualityReasons, synthetic: frame?.source.synthetic ?? false });
   const incident = incidents[0];
+  const incidentHint = incident?.recovery === 'wait'
+    ? incident.id === 'catalog' ? 'Retrying automatically · current session retained' : 'Reconstruction in progress'
+    : incident?.recovery === 'storage' ? 'Settings remain in memory; allow browser storage to persist.' : '';
   const openDetails = (details: HTMLDetailsElement | null) => {
     if (!details) return;
     details.open = true;
@@ -499,7 +502,19 @@ export default function App() {
       <details className="workspace-slots"><summary>Workspaces</summary><div className="workspace-slot-controls"><label>Slot<select aria-label="Workspace slot" value={slot} onChange={event => { setSlot(Number(event.target.value)); setSlotNotice(''); }}>{slots.map((saved, index) => <option key={index} value={index}>Slot {index + 1}{saved ? ' · saved' : ' · empty'}</option>)}</select></label><button onClick={() => { saveSlot(slot); setSlotNotice(`Slot ${slot + 1} captured`); }}>Save workspace</button><button disabled={!slots[slot]} onClick={() => { loadSlot(slot); setMaximized(null); setCrosshair(null); setSlotNotice(`Slot ${slot + 1} loaded`); }}>Load workspace</button><span role="status">{slotNotice}</span></div></details>
       <span className="status muted" title="Transport connection only; source readiness and pane freshness are separate.">Transport: {terminal.connection}</span><button onClick={terminal.reconnect} aria-label="Reconnect terminal">Reconnect</button>
     </header>
-    <div className="source-banner"><strong>{frame?.source.synthetic ? 'SYNTHETIC DEMO' : frame?.source.recording ? 'RECORDED' : frame?.source.mode.toUpperCase() ?? 'CONNECTING'}</strong><span title={frame?.source.label}>{abbreviateCaptureLabel(frame?.source.label ?? 'Opening independent session')}</span><span className={`source-readiness ${frame?.health.ready && usable ? 'positive' : 'warning'}`} title={qualityReasons.join('; ')}>{frame?.health.ready && usable ? frame.book && !frame.book.quality.coverage.full_depth ? 'Ready · partial depth' : 'Ready' : usable ? 'Partial / not ready' : 'Unavailable'}</span><span className="source-state">{label(frame?.status ?? 'loading')}</span>
+    <div className="source-banner"><strong>{frame?.source.synthetic ? 'SYNTHETIC DEMO' : frame?.source.recording ? 'RECORDED' : frame?.source.mode.toUpperCase() ?? 'CONNECTING'}</strong><span className={`source-readiness ${frame?.health.ready && usable ? 'positive' : 'warning'}`} title={qualityReasons.join('; ')}>{frame?.health.ready && usable ? frame.book && !frame.book.quality.coverage.full_depth ? 'Ready · partial depth' : 'Ready' : usable ? 'Partial / not ready' : 'Unavailable'}</span><span className="source-state">{label(frame?.status ?? 'loading')}</span>
+      {incident && <div className={`terminal-incident ${incident.severity}`} role={incident.severity === 'error' ? 'alert' : 'status'} data-testid="terminal-incident" data-incident={incident.id}>
+        <span className="incident-message" title={incidentHint ? `${incident.message} · ${incidentHint}` : incident.message}><span>{incident.message}</span>{incidentHint && <span className="muted"> · {incidentHint}</span>}</span>
+        {incident.recovery === 'reconnect' && <button onClick={terminal.reconnect}>Reconnect</button>}
+        {incident.recovery === 'source' && <button onClick={() => openDetails(sourceInspector.current)}>Inspect source</button>}
+        {incident.recovery === 'synthetic' && <>
+          <button aria-label="Play synthetic demo" title="Play synthetic demo" disabled={terminal.busy || !connected || frame?.status !== 'paused'} onClick={() => void terminal.replay('play')}>Play demo</button>
+          {liveSource ? <button aria-label="Switch to public live data" title="Switch to public live data" disabled={terminal.busy} onClick={() => changeSource(liveSource)}>Public live data</button>
+            : <button aria-label="Inspect live availability" title="Inspect live availability" onClick={() => openDetails(sourceInspector.current)}>Live availability</button>}
+        </>}
+        <button onClick={() => openDetails(diagnostics.current)}>Diagnostics{incidents.length > 1 ? ` (${incidents.length})` : ''}</button>
+      </div>}
+      {!incident && <span className="source-label" title={frame?.source.label}>{abbreviateCaptureLabel(frame?.source.label ?? 'Opening independent session')}</span>}
       <div className="pane-toggles">{(['leftOpen', 'rightOpen', 'bottomOpen'] as const).map((key, index) => <button key={key} aria-pressed={p[key]} onClick={() => { setMaximized(null); update({ [key]: !p[key] }); }}>{['Watchlist', 'DOM / tape', 'Costs / analytics'][index]}</button>)}</div>
       <details ref={sourceInspector} className="source-inspector"><summary>Source &amp; instrument details</summary><div className="source-inspector-body">
         <p className="caption">Limit Orderbook · exact public-market workstation</p>
@@ -515,19 +530,6 @@ export default function App() {
         <Details title="All terminal incidents and exact causes" value={{ incidents, qualityReasons }} />
       </div></details>
     </div>
-    {incident && <div className={`terminal-incident ${incident.severity}`} role={incident.severity === 'error' ? 'alert' : 'status'} data-testid="terminal-incident" data-incident={incident.id}>
-      <span className="incident-message" title={incident.message}>{incident.message}</span>
-      {incident.recovery === 'reconnect' && <button onClick={terminal.reconnect}>Reconnect</button>}
-      {incident.recovery === 'source' && <button onClick={() => openDetails(sourceInspector.current)}>Inspect source</button>}
-      {incident.recovery === 'wait' && <span className="muted">{incident.id === 'catalog' ? 'Retrying automatically · current session retained' : 'Reconstruction in progress'}</span>}
-      {incident.recovery === 'storage' && <span className="muted">Settings remain in memory; allow browser storage to persist.</span>}
-      {incident.recovery === 'synthetic' && <>
-        <button disabled={terminal.busy || !connected || frame?.status !== 'paused'} onClick={() => void terminal.replay('play')}>Play synthetic demo</button>
-        {liveSource ? <button disabled={terminal.busy} onClick={() => changeSource(liveSource)}>Switch to public live data</button>
-          : <button onClick={() => openDetails(sourceInspector.current)}>Inspect live availability</button>}
-      </>}
-      <button onClick={() => openDetails(diagnostics.current)}>Diagnostics{incidents.length > 1 ? ` (${incidents.length})` : ''}</button>
-    </div>}
     {frame?.replay && <ReplayControls frame={frame} busy={terminal.busy || !connected} replay={terminal.replay} />}
     <main className={`workspace workstation-workspace ${p.leftOpen ? '' : 'left-collapsed'} ${p.rightOpen ? '' : 'right-collapsed'} ${p.bottomOpen ? '' : 'bottom-collapsed'}`} data-testid="workspace" data-maximized={maximized ?? ''}>
       {p.leftOpen && <aside className="sidebar"><Panel title="Instruments" extra={<span className="muted">{filtered.length}</span>}>

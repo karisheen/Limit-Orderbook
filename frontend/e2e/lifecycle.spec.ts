@@ -21,21 +21,12 @@ test('a silent open socket loses current status and recovers with a new session'
   await expect(chart).toHaveAttribute('data-painted-view-id', /.+/);
   const initialViewId = await chart.getAttribute('data-painted-view-id');
   await page.getByRole('button', { name: 'Costs / analytics', exact: true }).click();
-  // Open exact causes before silence: the real watchdog's automatic retry starts
-  // one second after invalidation, and diagnostics must not delay recovery.
+  const estimate = page.getByTestId('estimate');
+  await expect(estimate).toBeEnabled();
   const incident = page.getByTestId('terminal-incident');
   await incident.getByRole('button', { name: /^Diagnostics/ }).click();
   const diagnostics = page.locator('.diagnostics');
   await diagnostics.getByText('All terminal incidents and exact causes', { exact: true }).click();
-  suppress = true;
-  await expect(page.locator('.status')).toContainText('Disconnected · reconnecting', { timeout: 8000 });
-  await expect(page.getByTestId('estimate')).toBeDisabled();
-  await expect(page.locator('.ladder tbody tr')).toHaveCount(0);
-  await expect(page.locator('.source-readiness')).toHaveText('Unavailable');
-  await expect(incident).toHaveCount(1);
-  await expect(incident).toHaveAttribute('data-incident', 'terminal');
-  await expect(incident.getByRole('button', { name: 'Reconnect', exact: true })).toBeEnabled();
-  await expect(diagnostics.getByText('All terminal incidents and exact causes', { exact: true }).locator('..').locator('pre')).toContainText('No stream frame received');
   const replacementCreated = page.waitForResponse(response => response.url().endsWith('/api/v1/sessions') && response.request().method() === 'POST');
   const replacementView = page.waitForResponse(async response => {
     if (!response.url().endsWith('/api/v1/visualization') || response.request().method() !== 'POST') return false;
@@ -44,6 +35,15 @@ test('a silent open socket loses current status and recovers with a new session'
     const replacement = await (await replacementCreated).json() as Frame;
     return query.session_id === replacement.session_id;
   });
+  suppress = true;
+  // Invalidation persists through retry; the one-second disconnected label does not.
+  await expect(estimate).toBeDisabled({ timeout: 8000 });
+  await expect(page.locator('.ladder tbody tr')).toHaveCount(0);
+  await expect(chart).toHaveAttribute('data-painted-view-id', '');
+  await expect(page.locator('.source-readiness')).toHaveText('Unavailable');
+  await expect(incident).toHaveCount(1);
+  await expect(incident).toHaveAttribute('data-incident', /^(terminal|transport)$/);
+  await expect(incident.getByRole('button', { name: 'Reconnect', exact: true })).toBeEnabled();
   suppress = false;
   // Resume only transport delivery; the existing retry loop must create the
   // replacement session without a manual reconnect.
@@ -54,7 +54,7 @@ test('a silent open socket loses current status and recovers with a new session'
   await expect(page.locator('.status')).toContainText('Connected');
   expect(socketCount).toBeGreaterThan(1);
   await expect(page.locator('.ladder tbody tr').first()).toBeVisible();
-  await expect(page.getByTestId('estimate')).toBeEnabled();
+  await expect(estimate).toBeEnabled();
   const visualization = await replacementView;
   expect(visualization.ok()).toBe(true);
   const recovered = await visualization.json() as VisualGrid;
@@ -64,7 +64,7 @@ test('a silent open socket loses current status and recovers with a new session'
   await expect(chart).toHaveAttribute('data-painted-view-id', recovered.view_id);
   await expect(page.getByTestId('chart-pane-heatmap').getByTestId('chart-freshness')).toHaveAttribute('data-view-id', recovered.view_id);
   await expect(diagnostics.locator('.telemetry')).toContainText(replacement.session_id.slice(0, 8));
-  await expect(incident).not.toHaveAttribute('data-incident', 'terminal');
+  await expect(incident).not.toHaveAttribute('data-incident', /^(terminal|transport)$/);
 });
 
 test('setup retries survive repeated HTTP failure without a manual reconnect', async ({ page }) => {

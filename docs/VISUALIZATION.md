@@ -88,6 +88,22 @@ incompatible policy/source/version; reset clears evidence but preserves configur
 source identity. Replay continues to reset/recompute the actual prefix on seek,
 so later wall steps cannot leak into a rewind and pacing cannot select anchors.
 
+The M8 frontend formats this native projection as UTC or local clock labels,
+using time ticks appropriate to the visible duration, date boundaries and
+explicit clock-step markers. Detailed local labels disambiguate timezone
+offsets. BigInt coordinate arithmetic precedes bounded display conversion;
+formatting never changes the admission coordinates used by financial buckets.
+Missing projection coverage remains **Clock time unavailable**. Axis dates are
+receive-clock labels, not exchange execution times or freshness measurements.
+A clock-step tick retains its actual projected time with an appended `*`
+(`HH:mm:ss*`, or `HH:mm*` for wider windows), rather than replacing the only
+available time label with prose or a long numeric offset. The footer tooltip
+and **Inspector → Receive-clock mapping & steps** explain the marker; the
+Inspector retains the complete native `time_axis` and exact offsets, serialized
+lazily only while open. Native retention can remove older projection coverage;
+this never authorizes invented labels before the available boundary. Neither
+projection nor marker coordinates change with this presentation.
+
 
 The economic price grid remains zero-origin. Exact Decimal display steps use
 source-compatible quanta; known fixed ticks supply multiples, while
@@ -207,6 +223,37 @@ history. Profiles and footprints may contain the admitted eligible portion of
 an incomplete window; consumers must retain the response's reasons and
 `complete_window` disclosure. Warming, unavailable history, truncation, gaps,
 and partial trailing windows remain explicit.
+
+### Independent chart navigation and inspection
+
+Each chart owns its mode, native query, price origin/quantum, time bucket,
+timezone and freeze state. Cursor linking publishes exact source-time/price
+coordinates without synchronizing viewports. Optional **Link chart time ranges**
+instead synchronizes deliberate time navigation between the charts; it never
+links DOM/tape ranges, changes price aggregation or resumes a frozen sibling.
+Source/session/generation and clock-scope fences invalidate obsolete evidence.
+
+**Follow latest** advances at the qualified source frontier while retaining the
+painted duration. **Fit time** pins available native sample bounds for liquidity/
+OFI and the **returned native aggregates** for flow. There is no separate
+all-retained trade extent in the API; receive-clock label coverage is not
+financial-history coverage. **Recenter price** resets only that pane's fitted
+price geometry and held footprint crop, not time navigation or freeze.
+When live price moves outside a held viewport, eligible flow can become
+off-screen even though the feed continues. Focus that chart and press **R**, or
+use **More → Recenter price**, to request a native refit. It leaves the sibling
+origin and the chart's other settings unchanged; no automatic price following
+or incoming-data intensity rescale is implied.
+
+The readable footprint's crop, hit testing, linked cursor and freshness use the
+same painted rows. Exact sell/buy quantities remain available in the Inspector
+when a narrow cell uses a labeled compact mark. DOM rows expose exact grouped
+resting quantities and native spread; tape inspection pins one exact print with
+receive/exchange references and side provenance, rather than replacing it during
+streaming. Neither view implies individual order identity or invented executions.
+See [working controls](TERMINAL.md#working-controls) for keyboard navigation,
+responsive layout presets, independent freezes and focus restoration.
+
 
 ## Ownership, bounds, and incremental delivery
 

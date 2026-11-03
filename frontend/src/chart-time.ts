@@ -158,14 +158,6 @@ function nextMidnight(wall: bigint, zone: ChartTimeZone): bigint | null {
   return Number.isFinite(date.getTime()) ? BigInt(date.getTime()) * NS_PER_MS : null;
 }
 
-function stepLabel(segment: Segment): string {
-  const change = integer(segment.original.offset_change_ns, true);
-  if (change === null) return 'Clock step';
-  const magnitude = change < 0n ? -change : change;
-  const fraction = (magnitude % NS_PER_SECOND).toString().padStart(9, '0').replace(/0+$/, '');
-  return `Clock step ${change < 0n ? '-' : '+'}${magnitude / NS_PER_SECOND}${fraction ? `.${fraction}` : ''}s`;
-}
-
 /** Wall-aligned labels only; every returned coordinate remains in native monotonic geometry. */
 export function chartTimeTicks(view: VisualGrid, width: number, zone: ChartTimeZone = 'UTC'): ChartTimeTick[] {
   const mapping = projection(view), start = integer(view.start_ns), end = integer(view.end_ns);
@@ -190,8 +182,11 @@ export function chartTimeTicks(view: VisualGrid, width: number, zone: ChartTimeZ
     const segmentHigh = following && following.start <= high ? following.start - 1n : high;
     if (segmentHigh < segmentLow) continue;
     const wallLow = segmentLow + segment.offset, wallHigh = segmentHigh + segment.offset;
-    if (!dateAt(wallLow) || !dateAt(wallHigh)) continue;
-    if (segment.original.cause === 'wall_offset_change') add(segment.start, 'discontinuity', stepLabel(segment));
+    const firstDate = dateAt(wallLow);
+    if (!firstDate || !dateAt(wallHigh)) continue;
+    if (segment.original.cause === 'wall_offset_change' && segment.start >= low) {
+      add(segment.start, 'discontinuity', `${timeLabel(firstDate, zone, seconds)}*`);
+    }
     const offset = localOffset(wallLow, zone);
     let wall = (floorDiv(wallLow + offset, interval) * interval) - offset;
     if (wall < wallLow) wall += interval;

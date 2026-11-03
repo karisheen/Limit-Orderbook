@@ -2,6 +2,19 @@
 
 The React/TypeScript terminal is a presentation client of the versioned Runtime HTTP/WebSocket API. Its primary Liquidity chart, secondary footprint/candlestick chart, order book and tape are simultaneous market panes for one shared exact instrument. Each chart has its own native visualization query and presentation settings; independent panes do **not** mean independent instruments or feeds. The browser does not collect feeds, construct books, calculate financial metrics, estimate fills, or inject fallback fixtures. Python analytics/cost/visualization and M5 alert/context/paper/journal/research engines supply authoritative values. Canvas/proposed-risk views and workflow tabs share native source identity and causal replay boundaries. Implementation is not acceptance or performance certification.
 
+M8 keeps the four-pane market surface compact while making footprint numbers,
+receive-clock labels and exact DOM/tape inspection readable. Contextual controls
+preserve plot space; responsive panes wrap or stack rather than shrinking market
+text. Cursor sharing is separate from optional chart-time navigation, and a
+single prioritized incident points to full native reasons instead of repeating
+warnings across the workspace. The controls below describe implementation;
+source-matched screenshots, executed gates and measurement limitations belong
+in the [M8 handoff](OMP_UPGRADE_HANDOFF.md#m8--market-first-workstation).
+Additional visual influences are [aggr.trade](https://aggr.trade/)'s restrained
+tape and [Hyperliquid](https://app.hyperliquid.xyz/) /
+[Lighter](https://app.lighter.xyz/)'s column hierarchy, not copied assets,
+financial semantics or feature-parity commitments.
+
 ## Launch
 
 From the repository root with the locked Python environment already installed:
@@ -77,6 +90,19 @@ bounded depth remains compact pane quality, not a repeated warning paragraph.
 `analytical_queue_overflow` remains an explicit evidence failure requiring
 operator investigation of collector capacity; browser reconnect is not a repair.
 A connected transport is not proof of fresh or eligible market evidence.
+
+Chart dates and time ticks use the native piecewise **receive-clock** projection
+of source receive-monotonic admission coordinates, with selectable UTC/local
+labels and explicit clock-step boundaries. They are not exchange timestamps or
+a browser-estimated wall-clock offset. Detailed labels identify their timezone;
+missing native coverage says clock time is unavailable instead of fabricating
+an epoch or extrapolating history. Exact original receive/exchange references
+remain inspectable. See [receive-clock projection](VISUALIZATION.md#receive-clock-display-projection).
+**Inspector → Receive-clock mapping & steps** exposes the exact native
+`time_axis` object and offset evidence. Axis step markers keep the projected
+time readable (`HH:mm:ss*`, or `HH:mm*` for wider ranges); the footer tooltip and
+Inspector explain `*`. Missing older mapping is not extrapolated. The disclosure
+serializes exact evidence only while open.
 
 The pinned freshness strips distinguish the displayed chart, DOM and tape
 evidence from the newest session evidence. A frozen or retained old snapshot
@@ -264,11 +290,11 @@ Chart timing is separate from frame timing. Visualization HTTP receipt is record
 
 Build/tool dependencies: Vite **7.3.1** ([MIT](https://github.com/vitejs/vite/blob/v7.3.1/LICENSE)), TypeScript **5.9.3** ([Apache-2.0](https://github.com/microsoft/TypeScript/blob/v5.9.3/LICENSE.txt)), ESLint/@eslint/js **9.39.2** (MIT), typescript-eslint **8.54.0** (MIT), eslint-plugin-react-hooks **7.0.1** (MIT), @types/react **19.2.10** and @types/react-dom **19.2.3** (MIT), and Playwright Test **1.58.1** ([Apache-2.0](https://github.com/microsoft/playwright/blob/v1.58.1/LICENSE)). Development packages retain their own license/notice files in locked npm distributions. npm reports the selected ESLint 9 release as deprecated; it remains an explicit lock, not a silent update. No project-wide license was inferred: the private frontend package is marked `UNLICENSED` rather than granting rights absent from the repository.
 
-M0's [ADR-004](ARCHITECTURE.md#adr-004--native-canvas2d-heatmap-measured-before-expanding-dependencies) selected independently implemented native Canvas2D. **No chart package is adopted.** The M7 aesthetic direction references the primary [Flowsurface site](https://flowsurface.com/), [Flowsurface repository](https://github.com/flowsurface-rs/flowsurface) and [repository screenshot](https://raw.githubusercontent.com/flowsurface-rs/flowsurface/main/assets/screenshot.png): dense dark order-flow panes, restrained chrome and a legible plot-first hierarchy. This is an independent implementation, not a port; no Flowsurface GPL source or assets are copied. No external fonts, icons, UI source, screenshots or chart examples are redistributed as terminal assets. Accessible HTML controls, legends, evidence and summaries accompany the Canvas. Current performance, screenshots and acceptance belong in the [integration handoff](OMP_UPGRADE_HANDOFF.md); implementation alone is not a latency or parity certification.
+M0's [ADR-004](ARCHITECTURE.md#adr-004--native-canvas2d-heatmap-measured-before-expanding-dependencies) selected independently implemented native Canvas2D. **No chart package is adopted.** The M7/M8 visual direction references the primary [Flowsurface site](https://flowsurface.com/), [repository](https://github.com/flowsurface-rs/flowsurface) and [screenshot](https://raw.githubusercontent.com/flowsurface-rs/flowsurface/main/assets/screenshot.png) for dense market panes and restrained chrome; [OpenMarket's footprint guide](https://openmarket.xyz/learn/order-flow/footprint) and [TradingView's footprint documentation](https://www.tradingview.com/support/solutions/43000726164/) inform readable sell/buy rows and contextual chart controls. These are design references, not adopted financial semantics or feature-parity claims. This is an independent implementation, not a port; no reference source code or assets are copied. No external fonts, icons, UI source, screenshots or chart examples are redistributed as terminal assets. Accessible HTML controls, legends, evidence and summaries accompany the Canvas. Current performance, screenshots and acceptance belong in the [integration handoff](OMP_UPGRADE_HANDOFF.md); implementation alone is not a latency or parity certification.
 
 ## Verification commands and interaction selectors
 
-The following M3 evidence is historical, not a claim that current M7 changes have passed gates: M3 integration passed frontend lint, three exact-format unit tests, TypeScript and production Vite build; real-server Chromium passed **8 tests in 33.4 s** after correcting a disabled-option matcher. Current executed checks belong in the integration handoff.
+The following M3 evidence is historical, not a claim that current M8 changes have passed gates: M3 integration passed frontend lint, three exact-format unit tests, TypeScript and production Vite build; real-server Chromium passed **8 tests in 33.4 s** after correcting a disabled-option matcher. Current executed checks belong in the integration handoff.
 
 M4 workspace tests cover grouped depth, aggregation/range, independent freeze, persisted layout/new sessions, streaming pane geometry, risk availability and exact costs. Workspace unit coverage includes preference trust boundaries and bounded incremental history/seek replacement. Commands below are integration entrypoints, not results from this documentation update.
 

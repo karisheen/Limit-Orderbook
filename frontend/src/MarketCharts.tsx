@@ -63,9 +63,13 @@ export function MarketCharts(props: MarketChartsProps): ReactNode {
   const [report, setReport] = useState<RenderReport | null>(null);
   const [paintMs, setPaintMs] = useState<number | null>(null);
   const [paintedViewId, setPaintedViewId] = useState<string | null>(null);
+  const [clockMappingOpen, setClockMappingOpen] = useState(false);
+  const clockMapping = view?.time_axis;
+  const clockDetails = useMemo(() => props.inspectorOpen && clockMappingOpen && clockMapping
+    ? JSON.stringify(clockMapping, null, 2) : null, [props.inspectorOpen, clockMappingOpen, clockMapping]);
   const [heldCenter, setHeldCenter] = useState<{ identity: string; origin: string; row: number; occupied: boolean } | null>(null);
   const centerIdentity = view ? JSON.stringify([view.instrument_id, view.generation, view.clock_id, view.time_axis.source_identity, view.time_axis.scope_id, view.price_step, props.priceResetToken]) : '';
-  const occupiedCenter = view ? footprintCenterRow(view) : null;
+  const occupiedCenter = useMemo(() => mode === 'footprint' && view ? footprintCenterRow(view) : null, [mode, view]);
   const activeCenter = heldCenter?.identity === centerIdentity ? heldCenter : null;
   useEffect(() => {
     if (!view || mode !== 'footprint' || activeCenter?.occupied) return;
@@ -364,12 +368,15 @@ export function MarketCharts(props: MarketChartsProps): ReactNode {
       <table><caption>Executed prints at selected time bucket · newest {Math.min(20, selectedTrades.length)} of {selectedTrades.length} displayed candidates · hollow/dashed = subscription history or unknown size</caption><thead><tr><th>Projected receive clock</th><th>Source monotonic ns</th><th>Original receive (UTC / ns)</th><th>Original receive monotonic ns</th><th>Original exchange event (UTC / ns)</th><th>Price</th><th>Base quantity</th><th>Taker side</th><th>Provenance</th></tr></thead><tbody>{selectedTrades.slice(-20).map(trade => <tr key={trade.id}><td>{formatChartTime(view, trade.time_ns, timeZone, true)}</td><td>{trade.time_ns}</td><td>{timestamp(trade.asof.receive_wall_ns)} · {trade.asof.receive_wall_ns} ns</td><td>{trade.asof.receive_mono_ns}</td><td>{timestamp(trade.asof.exchange_event_wall_ns)} · {trade.asof.exchange_event_wall_ns ?? 'Unavailable'} ns</td><td>{trade.price}</td><td>{trade.base_quantity ?? 'Unknown'}</td><td>{trade.taker_side}</td><td>{trade.segment_id} · {trade.is_subscription_history ? 'Subscription history (excluded from observed flow)' : 'Observed execution'} · ordinal {trade.asof.ingest_ordinal}</td></tr>)}</tbody></table>
       {column?.asof ? <details><summary>Sample reference</summary><pre>{JSON.stringify(column.asof, null, 2)}</pre></details> : null}
     </details> : null}
+    {view ? <details className="m4-clock-mapping" open={clockMappingOpen} onToggle={event => setClockMappingOpen(event.currentTarget.open)}>
+      <summary>Receive-clock mapping & steps</summary><p>An asterisk on a clock label marks a receive-clock offset change. Exact native pairs and retained coverage follow.</p><pre>{clockDetails}</pre>
+    </details> : null}
     <details className="m4-chart-performance"><summary>Renderer diagnostics</summary>{report ? `Draw CPU ${report.duration.toFixed(2)} ms · dirty ${report.dirty} · tiles ${report.tiles}/${CHART_LIMITS.tiles} · trades ${report.trades} · receive→paint ${paintMs == null ? 'unmeasured' : `${paintMs.toFixed(1)} ms`}` : 'Render timing unavailable'} · paint opportunities, not GPU completion.</details>
       {props.diagnostics}
     </aside>
     </div>
     <div className="m4-chart-quality" role="status">
-      <span className="m4-chart-clock-context" aria-label={`Chart receive-clock date and timezone: ${clockContext}`} title={`Receive clock · ${clockContext}`}>{clockContext}</span>
+      <span className="m4-chart-clock-context" aria-label={`Chart receive-clock date and timezone: ${clockContext}. Asterisk marks a clock step.`} title={`Receive clock · ${clockContext}. * marks a clock step; exact mapping is in Inspector.`}>{clockContext}</span>
       <span className="m4-chart-window-quality">
         {mode === 'footprint' && view ? <span className="m4-footprint-density" data-testid="footprint-density" tabIndex={0} aria-label={`${denseFootprint ? 'Compact cells marked with dashes; exact values in Inspector. ' : ''}SELL left, BUY right, question mark unknown. ${props.footprintOverview ? 'Full native grid' : `Visible native rows ${rowViewport.first + 1}–${rowViewport.first + rowViewport.count} of ${view.rows}`}. Quantities in ${view.quantity_unit}.`} title={`${denseFootprint ? 'Compact cells marked with dashes; exact values in Inspector. ' : ''}SELL left · BUY right · ? unknown. ${props.footprintOverview ? 'Full native grid' : `Visible native rows ${rowViewport.first + 1}–${rowViewport.first + rowViewport.count} of ${view.rows}`}. Quantities in ${view.quantity_unit}.`}>
           <span>{denseFootprint ? 'Compact cells · ' : ''}{props.footprintOverview ? 'Full native grid' : `Rows ${rowViewport.first + 1}–${rowViewport.first + rowViewport.count}/${view.rows}`} · {view.quantity_unit}</span>
