@@ -1,0 +1,234 @@
+[
+  {
+    "depth": 4096,
+    "touched_per_message": 1,
+    "snapshot_ms": [
+      152.105549,
+      153.878758
+    ],
+    "before": {
+      "count": 24,
+      "p50_ms": 0.703427,
+      "p95_ms": 1.010893
+    },
+    "after": {
+      "count": 24,
+      "p50_ms": 0.285714,
+      "p95_ms": 0.514545
+    },
+    "before_cpu": {
+      "count": 24,
+      "p50_ms": 0.6845000000000001,
+      "p95_ms": 0.979
+    },
+    "after_cpu": {
+      "count": 24,
+      "p50_ms": 0.2805,
+      "p95_ms": 0.447
+    },
+    "exact_final_levels": true
+  },
+  {
+    "depth": 4096,
+    "touched_per_message": 16,
+    "snapshot_ms": [
+      127.332675,
+      116.521849
+    ],
+    "before": {
+      "count": 24,
+      "p50_ms": 0.7554055,
+      "p95_ms": 1.301029
+    },
+    "after": {
+      "count": 24,
+      "p50_ms": 0.45895450000000004,
+      "p95_ms": 0.966823
+    },
+    "before_cpu": {
+      "count": 24,
+      "p50_ms": 0.752,
+      "p95_ms": 1.13
+    },
+    "after_cpu": {
+      "count": 24,
+      "p50_ms": 0.4545,
+      "p95_ms": 0.865
+    },
+    "exact_final_levels": true
+  },
+  {
+    "depth": 4096,
+    "touched_per_message": 128,
+    "snapshot_ms": [
+      143.588691,
+      123.468031
+    ],
+    "before": {
+      "count": 24,
+      "p50_ms": 2.4014360000000003,
+      "p95_ms": 2.906524
+    },
+    "after": {
+      "count": 24,
+      "p50_ms": 2.3273715,
+      "p95_ms": 3.592363
+    },
+    "before_cpu": {
+      "count": 24,
+      "p50_ms": 2.357,
+      "p95_ms": 2.762
+    },
+    "after_cpu": {
+      "count": 24,
+      "p50_ms": 2.2815000000000003,
+      "p95_ms": 3.461
+    },
+    "exact_final_levels": true
+  },
+  {
+    "depth": 4096,
+    "touched_per_message": 512,
+    "snapshot_ms": [
+      154.870184,
+      145.576623
+    ],
+    "before": {
+      "count": 24,
+      "p50_ms": 9.289114000000001,
+      "p95_ms": 12.5691
+    },
+    "after": {
+      "count": 24,
+      "p50_ms": 10.3312135,
+      "p95_ms": 14.093037
+    },
+    "before_cpu": {
+      "count": 24,
+      "p50_ms": 8.785499999999999,
+      "p95_ms": 10.873
+    },
+    "after_cpu": {
+      "count": 24,
+      "p50_ms": 9.518,
+      "p95_ms": 12.394
+    },
+    "exact_final_levels": true
+  },
+  {
+    "depth": 4096,
+    "touched_per_message": 1024,
+    "snapshot_ms": [
+      144.821136,
+      164.551143
+    ],
+    "before": {
+      "count": 24,
+      "p50_ms": 16.243859,
+      "p95_ms": 21.418325
+    },
+    "after": {
+      "count": 24,
+      "p50_ms": 15.924799499999999,
+      "p95_ms": 23.894516
+    },
+    "before_cpu": {
+      "count": 24,
+      "p50_ms": 15.3915,
+      "p95_ms": 17.713
+    },
+    "after_cpu": {
+      "count": 24,
+      "p50_ms": 15.4225,
+      "p95_ms": 19.308
+    },
+    "exact_final_levels": true
+  },
+  {
+    "depth": 4096,
+    "touched_per_message": 4096,
+    "snapshot_ms": [
+      140.477819,
+      126.616153
+    ],
+    "before": {
+      "count": 24,
+      "p50_ms": 85.2800735,
+      "p95_ms": 113.075376
+    },
+    "after": {
+      "count": 24,
+      "p50_ms": 81.49001150000001,
+      "p95_ms": 168.508889
+    },
+    "before_cpu": {
+      "count": 24,
+      "p50_ms": 71.00450000000001,
+      "p95_ms": 89.196
+    },
+    "after_cpu": {
+      "count": 24,
+      "p50_ms": 71.25550000000001,
+      "p95_ms": 91.669
+    },
+    "exact_final_levels": true
+  },
+  {
+    "depth": 20000,
+    "touched_per_message": 2048,
+    "snapshot_ms": [
+      827.924437,
+      715.380213
+    ],
+    "before": {
+      "count": 24,
+      "p50_ms": 37.843554,
+      "p95_ms": 54.490079
+    },
+    "after": {
+      "count": 24,
+      "p50_ms": 45.0234865,
+      "p95_ms": 64.079939
+    },
+    "before_cpu": {
+      "count": 24,
+      "p50_ms": 35.085,
+      "p95_ms": 45.528
+    },
+    "after_cpu": {
+      "count": 24,
+      "p50_ms": 40.8125,
+      "p95_ms": 48.201
+    },
+    "exact_final_levels": true
+  },
+  {
+    "depth": 20000,
+    "touched_per_message": 2500,
+    "snapshot_ms": [
+      724.521533,
+      643.538863
+    ],
+    "before": {
+      "count": 24,
+      "p50_ms": 51.726191,
+      "p95_ms": 69.964029
+    },
+    "after": {
+      "count": 24,
+      "p50_ms": 52.480376500000006,
+      "p95_ms": 100.030356
+    },
+    "before_cpu": {
+      "count": 24,
+      "p50_ms": 46.25,
+      "p95_ms": 50.895
+    },
+    "after_cpu": {
+      "count": 24,
+      "p50_ms": 49.784,
+      "p95_ms": 58.63
+    },
+    "exact_final_levels": true
+  }
+]

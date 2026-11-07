@@ -1,0 +1,28 @@
+{
+  "schema": "lob-workspace-cycle-before-assets-1",
+  "original_capture_directory": "/tmp/lob-frontend-before-dist",
+  "scope": "Original saved before frontend build; hashes only, build JavaScript/CSS/HTML are not archived.",
+  "files": [
+    {
+      "path": "index.html",
+      "sha256": "20302c62ef23e3340cf12ae546894449931c194282f43403e83d6767b9e77cab",
+      "size_bytes": 593
+    },
+    {
+      "path": "assets/index-BwIcajpp.css",
+      "sha256": "24e66a0d92c4881905e4ed8d88f30cc8ca306a75cbd22d1d3d2dcbedc5badebd",
+      "size_bytes": 41549
+    },
+    {
+      "path": "assets/index-BOT8nKm2.js",
+      "sha256": "994a038441765009dac753acf38e87acb84c29ef2c6e5ca731e5ff8067d1dfc0",
+      "size_bytes": 415540
+    }
+  ],
+  "baseline_git_revision": "49f2d0a4bb07a4d0816c0644890756d740b3cc7d",
+  "original_book_source_git_path": "src/workstation/book.py",
+  "original_book_source_sha256": "f908201f41719b1d7726af4a38df0a3a166660c7312d21c4e9428e63053e4a74",
+  "original_book_source_hash_provenance": "Supplied by the original investigation; core-before.py and crossover.py retrieve source read-only with git show at baseline_git_revision and require this SHA256 before executing it in memory. Source-code hash, not a replay book-state hash.",
+  "before_core_report_hash_caveat": "tools/benchmark_core.py reports core_source_sha256 by reading the current checkout path in the loaded module's __file__. For core-before.py this report field therefore hashes the current checkout, not the historical code executed in memory. The wrapper's explicit ORIGINAL_BOOK_SHA256, checked against the git-show bytes and printed to stderr, is authoritative for the executed book module.",
+  "reproducer_output": "core-before.py preserves benchmark arguments; callers must pass the existing --output option to choose a destination. crossover.py, paper-workload.py, and replay-workload.py emit JSON to stdout without automatically overwriting evidence files."
+}

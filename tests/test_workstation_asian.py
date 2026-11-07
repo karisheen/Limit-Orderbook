@@ -988,6 +988,71 @@ def test_global_deep_changes_do_not_invent_bootstrap_coverage(side, far_price):
     assert restored.checkpoint().state_hash == reducer.checkpoint().state_hash
 
 
+def test_global_sparse_boundary_deltas_preserve_lexical_state_and_restore():
+    adapter, instrument, key, reducer = bounded_global_book()
+    before = reducer.book
+    expected = [
+        {level.price: (str(level.price), str(level.quantity)) for level in side}
+        for side in (before.bids, before.asks)
+    ]
+    floor, ceiling = before.bids[-1].price, before.asks[-1].price
+    # The 5000-level sides and at most three touched prices per side exercise
+    # sparse ordering, including levels discarded by the bootstrap boundary.
+    changes = (
+        (
+            [["9950.0100", "2.000"], ["9950.02", "0"], ["9950.00", "3.000"]],
+            [["10050.9900", "2.000"], ["10050.98", "0"], ["10051.00", "3.000"]],
+        ),
+        (
+            [["9950.0200", "4.000"], ["9950.01", "0"], ["9950.00", "5.000"]],
+            [["10050.9800", "4.000"], ["10050.99", "0"], ["10051.00", "5.000"]],
+        ),
+        (
+            [["9950.01000", "6.0000"], ["9950.02", "0"], ["9950.00", "0"]],
+            [["10050.99000", "6.0000"], ["10050.98", "0"], ["10051.00", "0"]],
+        ),
+    )
+    restored = None
+    for ordinal, (bids, asks) in enumerate(changes, start=3):
+        update_id = ordinal + 99
+        source = events(
+            adapter, instrument, key, diff(update_id, update_id, bids, asks), ordinal
+        )
+        result = reducer.apply(source)
+        assert result.recovery is None
+        assert result.events == source
+        assert not result.book.quality.coverage.full_depth
+        assert (
+            result.book.quality.coverage.subscribed_depth
+            == before.quality.coverage.subscribed_depth
+        )
+        for index, rows in enumerate((bids, asks)):
+            for price_text, quantity_text in rows:
+                price = Decimal(price_text)
+                if index == 0 and price < floor or index == 1 and price > ceiling:
+                    continue
+                if Decimal(quantity_text) == 0:
+                    expected[index].pop(price, None)
+                else:
+                    expected[index][price] = (price_text, quantity_text)
+        for index, levels in enumerate((result.book.bids, result.book.asks)):
+            assert [(str(level.price), str(level.quantity)) for level in levels] == [
+                expected[index][price]
+                for price in sorted(expected[index], reverse=index == 0)
+            ]
+        checkpoint = reducer.checkpoint()
+        if restored is None:
+            restored = adapter.new_reducer(instrument, key)
+            restored.restore(checkpoint)
+            assert restored.book == result.book
+        else:
+            replayed = restored.apply(source)
+            assert replayed.recovery is None
+            assert replayed.book == result.book
+        # Hashes catch lexical differences that Decimal equality does not.
+        assert restored.checkpoint().state_hash == checkpoint.state_hash
+
+
 def test_global_underfilled_bootstrap_knows_the_initial_complete_book():
     adapter = BinanceGlobalAdapter()
     instrument, key = setup(adapter)

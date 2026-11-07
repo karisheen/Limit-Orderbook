@@ -1,0 +1,9 @@
+{
+  "scenario": "30 isolated funded synthetic spot IOC submits; durable SQLite; 2 ask levels; quantity 4 fills 3, cancels 1; repeat consumes zero",
+  "count": 30,
+  "p50_ms": 4.353089,
+  "p95_ms": 6.088271,
+  "p99_ms": 6.587706,
+  "min_ms": 3.431563,
+  "max_ms": 6.587706
+}

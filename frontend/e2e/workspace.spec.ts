@@ -4,7 +4,8 @@ import type { Catalog, Costs, Frame, GroupedLadder, ProposalRisk, VisualGrid } f
 import { plotArea } from '../src/market-charts-model';
 
 // These scenarios use the actual server's explicitly synthetic demo and replay
-// controls. No intercepted routes, substituted frames, or browser-side economics.
+// controls. Transport fault tests delay/block requests, never substitute frames
+// or implement browser-side economics.
 const preferenceKey = 'limit-orderbook.workspace.v1';
 const primary = (page: Page) => page.getByTestId('chart-pane-heatmap');
 const secondary = (page: Page) => page.getByTestId('chart-pane-flow');
@@ -78,7 +79,8 @@ async function openDemo(page: Page) {
   expect(frame.replay).not.toBeNull();
   await expect(page.locator('.status')).toContainText(/\bConnected$/i);
   await expect(page.locator('.source-banner')).toContainText('SYNTHETIC DEMO');
-  await expect(page.getByTestId('grouped-ladder').locator('tbody tr').first()).toBeVisible();
+  if ((page.viewportSize()?.width ?? 1280) <= 965) await expect(primary(page)).toBeVisible();
+  else await expect(page.getByTestId('grouped-ladder').locator('tbody tr').first()).toBeVisible();
   return { frame, catalog, latestFrame: () => latest ?? frame };
 }
 
@@ -412,7 +414,9 @@ test('independent chart settings and saved resized workspace survive reload with
   }
   await modes.selectOption('footprint');
   await secondary(page).getByLabel('Chart mode', { exact: true }).selectOption('candles');
+  await openDisclosure(page.locator('.workspace-configuration'));
   await page.getByLabel('Workspace preset').selectOption('analysis');
+  await page.locator('.workspace-configuration > summary').click();
   await openPane(page, 'Watchlist');
   await openPane(page, 'Costs / analytics');
   const separators = [
@@ -442,13 +446,17 @@ test('independent chart settings and saved resized workspace survive reload with
     secondary: { mode: 'candles', bucket: '10000000000', rangeSeconds: 300 },
   };
   await expect.poll(() => page.evaluate(key => JSON.parse(localStorage.getItem(key) ?? '{}') as Record<string, unknown>, preferenceKey)).toMatchObject(expected);
-  await openDisclosure(page.locator('details').filter({ has: page.getByText('Workspaces', { exact: true }) }));
+  await openDisclosure(page.locator('.workspace-configuration'));
+  await openDisclosure(page.locator('.workspace-slots'));
   await page.getByLabel('Workspace slot').selectOption('0');
   await page.getByRole('button', { name: 'Save workspace', exact: true }).click();
   await page.getByLabel('Workspace preset').selectOption('ladder');
+  await page.locator('.workspace-configuration > summary').click();
   await primary(page).getByLabel('Chart range').selectOption('30');
+  await openDisclosure(page.locator('.workspace-configuration'));
   await page.getByRole('button', { name: 'Load workspace', exact: true }).click();
   await expect(page.getByLabel('Workspace preset')).toHaveValue('analysis');
+  await page.locator('.workspace-configuration > summary').click();
   await expect(primary(page).getByLabel('Chart range')).toHaveValue('60');
   const saved = await page.evaluate(() => Object.values(localStorage).join('\n'));
   expect(saved).not.toContain(first.session_id);
@@ -460,10 +468,12 @@ test('independent chart settings and saved resized workspace survive reload with
   expect(replacement.selection).toEqual(selected.selection);
   expect(replacement.source.id).toBe(first.source.id);
   await expect(page.locator('.status')).toContainText(/\bConnected$/i);
+  await openDisclosure(page.locator('.workspace-configuration'));
   await openDisclosure(page.locator('.workspace-slots'));
   await page.getByLabel('Workspace preset').selectOption('balanced');
   await page.getByRole('button', { name: 'Load workspace', exact: true }).click();
   await expect(page.getByLabel('Workspace preset')).toHaveValue('analysis');
+  await page.locator('.workspace-configuration > summary').click();
   await expect(modes).toHaveValue('footprint');
   await expect(secondary(page).getByLabel('Chart mode', { exact: true })).toHaveValue('candles');
   for (const [name, value] of dimensions) {
@@ -757,36 +767,216 @@ test('compact charts pin quality while overlays preserve plot geometry and footp
   await expect(exactRow.locator('td')).toHaveText([footprint!.sell_base, footprint!.buy_base, footprint!.unknown_base]);
 });
 
-test('narrow workspace exposes real chart, DOM, research and watchlist without document overflow', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await openDemo(page);
-  await body<VisualGrid>(nextResponse(page, 'visualization'));
-  await expect(primary(page).getByTestId('market-charts')).toHaveAttribute('data-painted-view-id', /.+/);
-  await openPane(page, 'Watchlist');
-  await openPane(page, 'Costs / analytics');
-  for (const selector of ['[data-testid="chart-pane-heatmap"]', '[data-testid="chart-pane-flow"]', '[data-pane="dom"]', '[data-pane="tape"]', '.research-pane', '.sidebar']) {
-    const pane = page.locator(selector);
-    await pane.scrollIntoViewIfNeeded();
-    await expect(pane).toBeInViewport();
-    const box = await pane.boundingBox();
-    expect(box, selector).not.toBeNull();
-    expect(box!.width, selector).toBeGreaterThan(100);
-    expect(box!.height, selector).toBeGreaterThan(100);
-    expect(box!.x, selector).toBeGreaterThanOrEqual(0);
-    expect(box!.x + box!.width, selector).toBeLessThanOrEqual(390);
+for (const width of [320, 390]) {
+  test(`narrow pane selection preserves native views and settings without overflow at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    const { catalog, latestFrame } = await openDemo(page);
+    const initial = latestFrame();
+    // Both coarse buckets need native source history before pinning or freezing.
+    const seek = await page.request.post('/api/v1/replay', {
+      data: { session_id: initial.session_id, generation: initial.generation, action: 'seek', delivery_index: '2000' },
+    });
+    expect(seek.ok()).toBe(true);
+    const advanced = await seek.json() as Frame;
+    expect(advanced.replay!.cursor.delivery_index).toBe('2000');
+    const populatedResponse = page.waitForResponse(async response => {
+      if (!response.url().endsWith('/api/v1/visualization') || response.request().method() !== 'POST' || !response.ok()) return false;
+      const request = response.request().postDataJSON() as Record<string, unknown>;
+      if (request.rows !== 128 || request.generation !== advanced.generation) return false;
+      const view = await response.json() as VisualGrid;
+      return view.columns.some(column => column.eligible);
+    });
+    await expect.poll(() => ({
+      generation: latestFrame().generation,
+      cursor: latestFrame().replay?.cursor.delivery_index,
+    })).toEqual({ generation: advanced.generation, cursor: '2000' });
+    await expect(page.locator('.replay-controls .cursor')).toContainText('2000 /');
+    const populated = await body<VisualGrid>(populatedResponse);
+    const tabs = page.getByRole('tablist', { name: 'Market panes', exact: true });
+    const chart = primary(page).getByTestId('market-charts');
+    await expect(chart).toHaveAttribute('data-painted-view-id', populated.view_id);
+    await primary(page).getByLabel('Time bucket', { exact: true }).selectOption('5000000000');
+    await openChartSettings(page);
+    await primary(page).getByLabel('Chart range', { exact: true }).selectOption('30');
+    const pinnedResponse = nextResponse(page, 'visualization', request => request.bucket_ns === '5000000000' && typeof request.start_ns === 'string' && typeof request.end_ns === 'string');
+    await primary(page).getByLabel('Follow time', { exact: true }).uncheck();
+    const pinned = await body<VisualGrid>(pinnedResponse);
+    expect(pinned.generation).toBe(advanced.generation);
+    expect(pinned.columns.some(column => column.eligible)).toBe(true);
+    await expect(chart).toHaveAttribute('data-painted-view-id', pinned.view_id);
+    await primary(page).getByRole('button', { name: 'Close Liquidity settings', exact: true }).click();
+    await primary(page).getByTestId('view-freeze').click();
+    await expect(primary(page).getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'true');
+    const held = await chart.getAttribute('data-view-id');
+    const range = [await chart.getAttribute('data-start-ns'), await chart.getAttribute('data-end-ns')];
+    const cursor = await page.locator('.replay-controls .cursor').textContent();
+    await primary(page).getByRole('button', { name: 'Link Liquidity cursor', exact: true }).click();
+
+    await tabs.getByRole('tab', { name: 'Flow', exact: true }).click();
+    await expect(primary(page)).toBeHidden();
+    await expect(secondary(page)).toBeVisible();
+    await secondary(page).getByLabel('Chart mode', { exact: true }).selectOption('candles');
+    await openChartSettings(page, secondary(page));
+    await secondary(page).getByLabel('Chart range', { exact: true }).selectOption('30');
+    await secondary(page).getByRole('button', { name: 'Close Order flow settings', exact: true }).click();
+    const flowResponse = nextResponse(page, 'visualization', request => request.generation === advanced.generation && request.bucket_ns === '10000000000');
+    await secondary(page).getByLabel('Time bucket', { exact: true }).selectOption('10000000000');
+    const flow = await body<VisualGrid>(flowResponse);
+    expect(flow.columns.some(column => column.eligible)).toBe(true);
+    await expect(secondary(page).getByTestId('market-charts')).toHaveAttribute('data-painted-view-id', flow.view_id);
+    await tabs.getByRole('tab', { name: 'Book', exact: true }).click();
+    await expect(secondary(page)).toBeHidden();
+    await expect(page.getByTestId('grouped-ladder').locator('tbody tr').first()).toBeVisible();
+    await page.getByTestId('dom-freeze').click();
+    await openDisclosure(page.locator('.dom-settings'));
+    await page.getByLabel('DOM quantity units', { exact: true }).selectOption('quote');
+    await page.getByLabel('Follow midpoint', { exact: true }).uncheck();
+    await page.locator('.dom-settings > summary').click();
+    await tabs.getByRole('tab', { name: 'Tape', exact: true }).click();
+    await expect(page.locator('[data-pane="dom"]')).toBeHidden();
+    await expect(page.locator('.tape-panel .tape-scroll')).toBeVisible();
+    await page.getByRole('button', { name: 'Freeze tape', exact: true }).click();
+    await openDisclosure(page.locator('.tape-settings'));
+    await page.getByLabel('Tape side', { exact: true }).selectOption('buy');
+    await page.locator('.tape-settings > summary').click();
+    await expect(page.locator('.tape-panel .freshness')).toBeVisible();
+
+    await tabs.getByRole('tab', { name: 'Liquidity', exact: true }).click();
+    await expect(chart).toHaveAttribute('data-painted-view-id', held!);
+    expect([await chart.getAttribute('data-start-ns'), await chart.getAttribute('data-end-ns')]).toEqual(range);
+    await expect(primary(page).getByLabel('Time bucket', { exact: true })).toHaveValue('5000000000');
+    await expect(primary(page).getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.replay-controls .cursor')).toHaveText(cursor!);
+    await expect(primary(page).getByRole('button', { name: 'Link Liquidity cursor', exact: true })).toHaveAttribute('aria-pressed', 'false');
+    for (const [id, name] of [['heatmap', 'Liquidity'], ['flow', 'Flow'], ['dom', 'Book'], ['tape', 'Tape']] as const) {
+      await tabs.getByRole('tab', { name, exact: true }).click();
+      const pane = page.locator(`#market-panel-${id}`);
+      await expect(pane).toBeVisible();
+      await expect(page.locator('[id^="market-panel-"]:visible')).toHaveCount(1);
+      const box = await pane.boundingBox();
+      expect(box!.x).toBeGreaterThanOrEqual(0);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(width);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    }
+    await expect(page.getByRole('button', { name: 'Resume tape', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await openDisclosure(page.locator('.tape-settings'));
+    await expect(page.getByLabel('Tape side', { exact: true })).toHaveValue('buy');
+    await page.locator('.tape-settings > summary').click();
+    await tabs.getByRole('tab', { name: 'Book', exact: true }).click();
+    await expect(page.getByTestId('dom-freeze')).toHaveAttribute('aria-pressed', 'true');
+    await openDisclosure(page.locator('.dom-settings'));
+    await expect(page.getByLabel('DOM quantity units', { exact: true })).toHaveValue('quote');
+    await expect(page.getByLabel('Follow midpoint', { exact: true })).not.toBeChecked();
+    await page.locator('.dom-settings > summary').click();
+
+    await openDisclosure(page.locator('.workspace-configuration'));
+    await expect(page.getByLabel('Data source', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Workspace preset', { exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  }
-  await page.getByTestId('dom-freeze').click();
-  await expect(page.getByTestId('dom-freeze')).toHaveAttribute('aria-pressed', 'true');
+    await page.locator('.workspace-configuration > summary').click();
+    await openPane(page, 'Costs / analytics');
+    await page.getByRole('tablist', { name: 'Research pane' }).getByRole('tab', { name: 'Core analytics', exact: true }).click();
+    await expect(page.locator('.analytics-panel .metrics-table tbody tr').first()).toBeVisible();
+    const height = page.getByRole('separator', { name: 'Research pane height', exact: true });
+    await height.press('Home');
+    await expect(height).toHaveAttribute('aria-valuenow', '170');
+    await selectEther(page, catalog);
+    await expect(page.locator('.selected-identity strong')).toContainText('ETH');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await expect(tabs).toBeHidden();
+    for (const id of ['heatmap', 'flow', 'dom', 'tape']) await expect(page.locator(`#market-panel-${id}`)).toBeVisible();
+    await expect(secondary(page).getByLabel('Chart mode', { exact: true })).toHaveValue('candles');
+    await expect(secondary(page).getByLabel('Time bucket', { exact: true })).toHaveValue('10000000000');
+    await expect(page.getByRole('separator', { name: 'Chart split', exact: true })).toBeVisible();
+  });
+}
+
+test('narrow inactive chart and book queries stop while replay continues', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const { latestFrame } = await openDemo(page);
+  await expect(primary(page).getByTestId('market-charts')).toHaveAttribute('data-painted-view-id', /.+/);
+  const tabs = page.getByRole('tablist', { name: 'Market panes', exact: true });
+  await tabs.getByRole('tab', { name: 'Book', exact: true }).click();
   await expect(page.getByTestId('grouped-ladder').locator('tbody tr').first()).toBeVisible();
-  await page.getByRole('tablist', { name: 'Research pane' }).getByRole('tab', { name: 'Core analytics', exact: true }).click();
-  await expect(page.locator('.analytics-panel .metrics-table tbody tr').first()).toBeVisible();
-  await page.getByRole('tablist', { name: 'Research pane' }).getByRole('tab', { name: 'Costs & proposed risk', exact: true }).click();
-  await page.getByLabel('Proposal entry price').fill('1');
-  await expect(page.getByLabel('Proposal entry price')).toHaveValue('1');
-  await page.getByLabel('Search instruments').fill('ETH');
-  await expect(page.locator('[data-instrument-id]').first()).toBeVisible();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await tabs.getByRole('tab', { name: 'Tape', exact: true }).click();
+  const queries: string[] = [];
+  const observe = (request: Request) => {
+    const path = new URL(request.url()).pathname;
+    if (path === '/api/v1/visualization' || path === '/api/v1/ladder') queries.push(path);
+  };
+  page.on('request', observe);
+  try {
+    await replay(page, 'play');
+    const before = BigInt(latestFrame().replay!.cursor.delivery_index);
+    await page.waitForTimeout(2300);
+    expect(queries).toEqual([]);
+    expect(BigInt(latestFrame().replay!.cursor.delivery_index)).toBeGreaterThan(before);
+    await replay(page, 'pause');
+    const resumed = nextResponse(page, 'visualization');
+    await tabs.getByRole('tab', { name: 'Liquidity', exact: true }).click();
+    const view = await body<VisualGrid>(resumed);
+    await expect(primary(page).getByTestId('market-charts')).toHaveAttribute('data-painted-view-id', view.view_id);
+  } finally {
+    page.off('request', observe);
+  }
+});
+
+test('narrow active panes keep loading, empty, stale and disconnected evidence visible', async ({ page, context }) => {
+  await page.setViewportSize({ width: 320, height: 844 });
+  await openDemo(page);
+  await expect(primary(page).getByTestId('market-charts')).toHaveAttribute('data-painted-view-id', /.+/);
+  const tabs = page.getByRole('tablist', { name: 'Market panes', exact: true });
+  const network = await context.newCDPSession(page);
+  await network.send('Network.enable');
+  try {
+    await network.send('Network.emulateNetworkConditions', { offline: false, latency: 1500, downloadThroughput: -1, uploadThroughput: -1 });
+    await tabs.getByRole('tab', { name: 'Flow', exact: true }).click();
+    await expect(secondary(page).locator('.m4-chart-empty')).toContainText('Loading');
+    await expect(secondary(page).getByTestId('market-charts')).toHaveAttribute('data-painted-view-id', /.+/);
+    await network.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+    await tabs.getByRole('tab', { name: 'Book', exact: true }).click();
+    await expect(page.getByTestId('grouped-ladder').locator('tbody tr').first()).toBeVisible();
+    await network.send('Network.setBlockedURLs', { urls: ['*/api/v1/ladder', '*/api/v1/visualization'] });
+    await expect(page.locator('.dom-status [role="alert"]')).toContainText('Stale');
+    await expect(page.locator('.status')).toContainText(/\bConnected$/i);
+    await tabs.getByRole('tab', { name: 'Liquidity', exact: true }).click();
+    await primary(page).getByLabel('Time bucket', { exact: true }).selectOption('5000000000');
+    await expect(primary(page).getByRole('alert')).toContainText('stale');
+    await expect(primary(page).getByRole('alert')).toBeVisible();
+    await expect(page.locator('.status')).toContainText(/\bConnected$/i);
+    await network.send('Network.setBlockedURLs', { urls: [] });
+    const resetting = nextResponse(page, 'replay', request => request.action === 'reset');
+    await page.getByTestId('replay-reset').click();
+    const empty = await body<Frame>(resetting);
+    expect(empty.book).toBeNull();
+    for (const [id, name] of [['heatmap', 'Liquidity'], ['flow', 'Flow'], ['dom', 'Book'], ['tape', 'Tape']] as const) {
+      await tabs.getByRole('tab', { name, exact: true }).click();
+      const pane = page.locator(`#market-panel-${id}`);
+      await expect(pane.locator(id === 'heatmap' || id === 'flow' ? '.m4-chart-empty' : '.empty')).toBeVisible();
+      await expect(pane.locator('.freshness')).toBeVisible();
+    }
+
+    await context.setOffline(true);
+    await page.getByRole('button', { name: 'Reconnect terminal', exact: true }).click();
+    await expect(page.locator('.status')).not.toContainText(/\bConnected$/i);
+    await expect(page.locator('.source-readiness')).toContainText('Unavailable');
+    for (const [id, name] of [['heatmap', 'Liquidity'], ['flow', 'Flow'], ['dom', 'Book'], ['tape', 'Tape']] as const) {
+      await tabs.getByRole('tab', { name, exact: true }).click();
+      const pane = page.locator(`#market-panel-${id}`);
+      await expect(pane.locator('.freshness--unavailable')).toBeVisible();
+      if (id === 'heatmap' || id === 'flow') await expect(pane.getByRole('alert')).toContainText('No current stream evidence');
+      else if (id === 'tape') await expect(pane.locator('.empty')).toBeVisible();
+      else await expect(pane.locator('.dom-status [role="alert"]')).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    }
+    await expect(page.getByRole('button', { name: 'Reconnect terminal', exact: true })).toBeEnabled();
+  } finally {
+    await context.setOffline(false);
+    await network.send('Network.setBlockedURLs', { urls: [] });
+    await network.detach();
+  }
 });
 
 test('hidden documents and collapsed DOM panes stop queries without pausing replay', async ({ page }) => {
@@ -801,7 +991,7 @@ test('hidden documents and collapsed DOM panes stop queries without pausing repl
   page.on('request', observe);
   try {
     await page.getByRole('button', { name: 'DOM / tape', exact: true }).click();
-    await expect(page.locator('.book-tape')).toHaveCount(0);
+    await expect(page.locator('.book-tape')).toBeHidden();
     queries.length = 0;
     // A bounded negative observation spans three nominal ladder polling periods.
     await page.waitForTimeout(2300);

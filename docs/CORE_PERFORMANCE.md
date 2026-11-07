@@ -1,6 +1,6 @@
 # Core reducer performance
 
-## Measured starting point
+## Historical starting point (M1)
 
 The recorded baseline is [m1-core-initial-benchmark.json](evidence/m1-core-initial-benchmark.json): Python 3.13.5 on macOS 13.7.8 x86_64, a synthetic 40,000-level book (20,000 per side), and 30 single-price delta transactions.
 
@@ -25,9 +25,15 @@ Source inspection, rather than a sampled profile, identified redundant work in `
 - Public `Book` construction rescanned every level's type and ordering. Quality-only replacement repeated that scan despite unchanged immutable economics.
 - New `Level` construction repeated bounded Decimal validation already established by `LevelChange`, instrument/protocol validation, and incremental-result validation. This was per changed level, **not** a full-book Decimal reparse on every delta.
 
-The reducer now copies only a side receiving a write, once per source message. Untouched dictionary ownership remains with the reducer; no dictionary is exposed through a `Book`. Sorted immutable tuples are cached with the committed maps, reused for untouched sides, checkpoint creation, change comparison, and quality-only publication. A touched side is sorted once, and the exact candidate supplied to checksum and candidate hooks is published. The candidate dictionary itself becomes committed state after validation; it is rebuilt only if venue-opt-in truncation actually discards levels.
+The reducer copies only a side receiving a write, once per source message. Untouched dictionary ownership remains with the reducer; no dictionary is exposed through a `Book`. Sorted immutable tuples are cached with the committed maps, reused for untouched sides, checkpoint creation, change comparison, and quality-only publication. A changed side now uses a bounded sparse candidate or one full sort, and the exact candidate supplied to checksum and candidate hooks is published. The candidate dictionary itself becomes committed state after validation; it is rebuilt only if venue-opt-in truncation actually discards levels.
 
-Unmodified `Level` objects are shared safely because both the dataclass and its Decimal fields are immutable. Changed-side copying, sorting, and tuple comparison still scale with depth; this is not a claim of constant-time updates. No incremental sorting structure, mutable public view, native rewrite, or second precision convention was introduced. Instrument validators still run for every incoming change, even when its price/quantity is numerically unchanged.
+Unmodified `Level` objects are shared safely because both the dataclass and its Decimal fields are immutable. Changed-side copying and tuple construction/comparison still scale with depth; this is not a claim of constant-time updates. Sparse deltas use binary search into the committed tuple and copy unchanged runs only when distinct changed prices per side are **≤min(64, n // 64)** for that side's prior level count `n`. Snapshots and dense changes use full sorting. A payload larger than the sum of the two side budgets conservatively disables sparse construction (including duplicate-heavy payloads); touched sets are collected outside the per-level validation loop. No mutable public view, native rewrite, or second precision convention was introduced. Instrument validators still run for every incoming change, even when its price/quantity is numerically unchanged.
+
+### Current workspace cycle
+
+The [workspace report](WORKSPACE_IMPROVEMENT.md#final-native-measurements) separates final native measurements from the historical M1/M3 results below. Three alternating runs of the identical 20,000-level-per-side, 300-delta workload show median run p50/p95/p99 **5.106/8.557/10.296 → 2.107/3.487/4.272ms** at 100/s and **4.242/7.428/10.785 → 1.912/3.223/4.556ms** at 200/s. Full run ranges, snapshots, CPU/RSS, source/dataset hashes and commands are in that report and the `verified-*` raw evidence, not the intermediate `core-*-final-*` files.
+
+The initial `n // 8` sparse threshold regressed dense updates; a cap of 64 still regressed 128-level sides with 16 changes. The final depth-relative threshold and removal of dense per-level bookkeeping bound that cost. Three repeated 24-sample crossover runs retain exact lexical final-level parity, but tiny-book microsecond overhead and dense variance/regressions remain: this is not a universal speedup. Final raw and normalized replay each complete 4,276 deliveries with the original book/state/clock hashes. The original recording benchmark completed only 1× writer/parity before a 600s process deadline; 2×/saturation and sustainable capacity are not established by this cycle. Browser presentation and public-feed network latency are separate from reducer timing.
 
 ## Trusted construction invariants
 
@@ -35,7 +41,7 @@ Public `Level(...)` and `Book(...)` constructors retain their validation. Wire d
 
 1. A `LevelChange` has already established a bounded, finite, positive Decimal price and the absolute/incremental quantity policy. Instrument or protocol price checks and instrument quantity/lot checks still run for each change.
 2. Incremental arithmetic uses the dedicated Decimal context and revalidates the **result**, including magnitude, precision, and nonnegativity. Zero deletes and never becomes a `Level`; every retained quantity is strictly positive.
-3. Candidate maps provide unique Decimal price keys; sorting creates strictly ordered tuples. Latest lexical price and quantity values remain in the stored `Level`, even when an equal dictionary key has an older lexical form.
+3. Candidate maps provide unique Decimal price keys; full sorting or bounded merging with previously validated tuples creates strictly ordered tuples. Latest lexical price and quantity values remain in the stored `Level`, even when an equal dictionary key has an older lexical form.
 4. Every event in a message is processed before nonempty/noncrossing, checksum, and candidate checks. Copies are not committed on corruption, sequence failure, or hook rejection. Rejection can publish invalid quality on the old economics, but cannot alter a previously published book.
 5. Book identity and epoch come from validated reducer configuration; revision is a nonnegative counter; provenance comes from the accepted envelope. All published levels, tuples, and quality values are immutable.
 6. A quality-only replacement retains previously checked sides and provenance. Reset clears both maps and tuple caches. Restore populates caches from validated checkpoint state tuples, preserving exact lexical values; it performs all compatibility/precision checks before changing reducer state.
@@ -115,7 +121,7 @@ print(json.dumps({
 
 Integration should run the core consumer suite and core type checks once after concurrent changes land, then run this benchmark in the same environment before deciding whether further data-structure work is justified. Preserve new measurements separately from the original evidence. A convincing latency acceptance result additionally requires representative live workloads and a larger sample population.
 
-## Finite managed-recording benchmark
+## Historical finite managed-recording benchmark (M3)
 
 `tools/benchmark_recording.py` complements the synthetic reducer benchmark. It reads an explicitly selected finalized managed capture and exercises the production `RecordingReader`, `Recorder` worker, `RecordingProjection`, and both raw and normalized `ReplaySession` paths. It does not import a toy reducer, open exchange connections, replace the source capture, or claim original network/publication latency.
 
@@ -226,7 +232,7 @@ Exit zero means the baseline and 2x loads completed with the required evidence/s
 
 For an explicit checkpoint storage/seek tradeoff experiment, append `--checkpoint-interval-batches 100` or `--checkpoint-interval-batches 1000` and use distinct fresh output roots. Omitting the flag uses the production default of **1000 batches**; this tool never changes that default. The report records the optional override, actual output limits, source interval, effective writer interval, and whether those intervals match. The comparison uses the **effective output cadence**, whether selected by the production default or an explicit override. If it differs from the source (including older 100-batch captures), checkpoint byte/position identity is still reported truthfully but is not an acceptance requirement. Matching cadence still requires exact regenerated checkpoint evidence. Raw/normalized evidence, final book/state parity, and strict output checkpoint-to-linear state parity remain mandatory in both cases. Compare file bytes/checkpoint counts and seek time as well as worker throughput when evaluating the tradeoff. Recovery-boundary checkpoints remain governed by production code.
 
-No tests, builds, linters, formatters, live collection, or benchmark acceptance runs were executed as part of implementing this tool. Integration owns those gates and the corrected live soak.
+The implementation-stage note that no acceptance runs had yet been executed is superseded by the explicitly identified integration results above. Those historical results do not certify the current workspace cycle or repair an unrelated live soak.
 
 ## Terminal rendering benchmark
 

@@ -177,8 +177,8 @@ class _BinanceDepthReducer(BookReducer):
                 self.instrument.validate_price(value)
         return values
 
-    def _levels(self, bids, asks):
-        bid_levels, ask_levels = super()._levels(bids, asks)
+    def _levels(self, bids, asks, bid_touched=None, ask_touched=None):
+        bid_levels, ask_levels = super()._levels(bids, asks, bid_touched, ask_touched)
         floor, ceiling = self._bounds()
         if floor is not None and bid_levels and bid_levels[-1].price < floor:
             bid_levels = tuple(level for level in bid_levels if level.price >= floor)

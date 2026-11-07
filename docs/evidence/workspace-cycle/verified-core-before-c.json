@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "kind": "synthetic_core_processing_benchmark",
+  "started_wall_ns": 1794085579728267000,
+  "runtime": "3.13.5 (main, Jul 23 2025, 00:30:58) [Clang 20.1.4 ]",
+  "platform": "macOS-13.7.8-x86_64-i386-64bit-Mach-O",
+  "machine": "x86_64",
+  "processor": "i386",
+  "core_source_sha256": "467c852a33e480733083ed7554d557a0a8ad64c6f3d9ccc945103f566434dc63",
+  "dataset": {
+    "generator": "deterministic-generator-v1",
+    "sha256": "a4a7292d6c1c71550c9a50f087150fc5cad3841eb6259ce2dbb66e2b713261a3",
+    "hash_encoding": "length-prefixed canonical workstation wire instrument then envelopes; uint64 big-endian byte lengths",
+    "third_party_data": false,
+    "venue_symbol_count": 1,
+    "venue": "synthetic",
+    "symbol": "BTC-USD",
+    "initial_levels_per_side": 20000,
+    "initial_total_levels": 40000,
+    "event_mix": {
+      "snapshot": 1,
+      "replace": 75,
+      "delete": 75,
+      "reinsert": 75,
+      "repeated_price": 75
+    },
+    "delta_message_count": 300,
+    "delta_level_change_count": 375,
+    "trade_events": 0
+  },
+  "limitations": [
+    "Reducer.apply only; input construction, decoding and dataset hashing excluded from timing.",
+    "No network, receive-to-valid, UI/render, actual queue, or exchange timestamp-age measurement.",
+    "Synthetic schedule lateness is serial open-loop deadline lag, not measured queue residence.",
+    "RSS is process lifetime high-water including dataset preparation and both loads; not isolated allocation cost.",
+    "Generic core invariants only; no venue checksum or protocol bootstrap workload.",
+    "Finite runs do not establish peak sustainable production throughput."
+  ],
+  "loads": [
+    {
+      "name": "normal",
+      "offered_delta_messages_per_second": 100,
+      "completed_delta_messages": 300,
+      "elapsed_seconds_including_snapshot": 4.549787424039096,
+      "delta_elapsed_seconds": 3.0277141709811985,
+      "snapshot_processing_ms": 1522.05461,
+      "delta_processing": {
+        "count": 300,
+        "p50_ms": 5.222042,
+        "p95_ms": 8.55738,
+        "p99_ms": 10.295878,
+        "max_ms": 52.990505
+      },
+      "synthetic_schedule_lateness": {
+        "count": 300,
+        "p50_ms": 0.6416150135919452,
+        "p95_ms": 2.781447023153305,
+        "p99_ms": 38.50430005695671,
+        "max_ms": 44.042201014235616
+      },
+      "achieved_delta_messages_per_second": 99.0846503528364,
+      "processing_only_delta_messages_per_second": 178.69496241990439,
+      "cpu_seconds": 2.376903,
+      "cpu_percent_one_core_including_pacing": 52.24206712255345,
+      "process_peak_rss_bytes": 75313152,
+      "final_bid_levels": 20000,
+      "final_ask_levels": 20000,
+      "reducer_recoveries": 0,
+      "dropped_messages": 0,
+      "processing_only_targets": {
+        "p95_le_25ms": true,
+        "p99_le_100ms": true
+      }
+    },
+    {
+      "name": "burst",
+      "offered_delta_messages_per_second": 200,
+      "completed_delta_messages": 300,
+      "elapsed_seconds_including_snapshot": 2.263733338098973,
+      "delta_elapsed_seconds": 1.543467064970173,
+      "snapshot_processing_ms": 720.259451,
+      "delta_processing": {
+        "count": 300,
+        "p50_ms": 4.241861,
+        "p95_ms": 8.214172,
+        "p99_ms": 17.472461,
+        "max_ms": 71.025542
+      },
+      "synthetic_schedule_lateness": {
+        "count": 300,
+        "p50_ms": 92.78612991329283,
+        "p95_ms": 161.30325000267476,
+        "p99_ms": 166.9569880468771,
+        "max_ms": 170.5010449513793
+      },
+      "achieved_delta_messages_per_second": 194.36760706377459,
+      "processing_only_delta_messages_per_second": 203.36542707085067,
+      "cpu_seconds": 1.8583019999999997,
+      "cpu_percent_one_core_including_pacing": 82.09014589856928,
+      "process_peak_rss_bytes": 75313152,
+      "final_bid_levels": 20000,
+      "final_ask_levels": 20000,
+      "reducer_recoveries": 0,
+      "dropped_messages": 0,
+      "processing_only_targets": {
+        "p95_le_25ms": true,
+        "p99_le_100ms": true
+      }
+    }
+  ],
+  "status": "completed",
+  "finished_wall_ns": 1794085586566318000
+}

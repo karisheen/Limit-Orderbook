@@ -401,20 +401,58 @@ class BookReducer:
         self.buffered_events: tuple[EventEnvelope, ...] = ()
         self.protocol_state: bytes = b""
 
-    def _levels(self, bids, asks):
+    @staticmethod
+    def _ordered_side(
+        side: dict[Decimal, Level],
+        committed: tuple[Level, ...],
+        touched: set[Decimal] | None,
+        *,
+        reverse: bool,
+    ) -> tuple[Level, ...]:
+        if touched is None:
+            return tuple(
+                sorted(side.values(), key=lambda level: level.price, reverse=reverse)
+            )
+        # Search only touched prices; copy unchanged runs in C rather than visiting
+        # every level in Python. Always take replacements from the candidate map:
+        # an equal Decimal in the touched set can have an older lexical spelling.
+        levels: list[Level] = []
+        start = 0
+        for price in sorted(touched, reverse=reverse):
+            low, high = start, len(committed)
+            while low < high:
+                middle = (low + high) // 2
+                before = (
+                    committed[middle].price > price
+                    if reverse
+                    else committed[middle].price < price
+                )
+                if before:
+                    low = middle + 1
+                else:
+                    high = middle
+            levels.extend(committed[start:low])
+            replacement = side.get(price)
+            if replacement is not None:
+                levels.append(replacement)
+            start = low
+            if low < len(committed) and committed[low].price == price:
+                start += 1
+        levels.extend(committed[start:])
+        return tuple(levels)
+
+    def _levels(self, bids, asks, bid_touched=None, ask_touched=None):
         # Cached tuples correspond exactly to the committed maps. Restore uses
         # the validated state tuples, preserving their lexical Decimal values.
         bid_levels = (
             self._bid_levels
             if bids is self._bids
-            else tuple(
-                sorted(bids.values(), key=lambda level: level.price, reverse=True)
-            )
+            else self._ordered_side(bids, self._bid_levels, bid_touched, reverse=True)
         )
         ask_levels = (
             self._ask_levels
             if asks is self._asks
-            else tuple(sorted(asks.values(), key=lambda level: level.price))
+            else self._ordered_side(asks, self._ask_levels, ask_touched, reverse=False)
         )
         if self.truncate_depth and self.effective_depth is not None:
             bid_levels, ask_levels = (
@@ -511,6 +549,12 @@ class BookReducer:
         # Copy a side only on its first write. All candidate mutations remain
         # private until every event and protocol hook has accepted the message.
         bids, asks = self._bids, self._asks
+        # Bound sparse merging by both book size and an absolute crossover.
+        # Snapshots and denser deltas retain the full-sort path.
+        bid_touched: set[Decimal] | None = set()
+        ask_touched: set[Decimal] | None = set()
+        bid_touch_limit = min(64, len(self._bid_levels) // 64)
+        ask_touch_limit = min(64, len(self._ask_levels) // 64)
         initialized, sequence = self.initialized, self.sequence
         has_book, accepted_book = False, False
         checksum = None
@@ -583,10 +627,32 @@ class BookReducer:
                     raise ValueError("subscription_depth_mismatch")
                 if snapshot:
                     bids, asks = {}, {}
+                    bid_touched = ask_touched = None
                     initialized = True
                     snapshot_seen = True
                 elif not initialized:
                     raise ValueError("snapshot_required")
+                if len(payload.changes) > bid_touch_limit + ask_touch_limit:
+                    # Avoid per-level bookkeeping for clearly dense payloads.
+                    # Duplicate-heavy payloads may conservatively use full sorting.
+                    bid_touched = ask_touched = None
+                else:
+                    if bid_touched is not None:
+                        bid_touched.update(
+                            change.price
+                            for change in payload.changes
+                            if change.side == "bid"
+                        )
+                        if len(bid_touched) > bid_touch_limit:
+                            bid_touched = None
+                    if ask_touched is not None:
+                        ask_touched.update(
+                            change.price
+                            for change in payload.changes
+                            if change.side == "ask"
+                        )
+                        if len(ask_touched) > ask_touch_limit:
+                            ask_touched = None
                 seen = set()
                 for change in payload.changes:
                     if self.price_validator is None:
@@ -640,7 +706,9 @@ class BookReducer:
                 if event.checksum is not None:
                     checksum = event.checksum
             if has_book:
-                bid_levels, ask_levels = self._levels(bids, asks)
+                bid_levels, ask_levels = self._levels(
+                    bids, asks, bid_touched, ask_touched
+                )
                 if not bid_levels or not ask_levels:
                     raise ValueError("empty_side")
                 if bid_levels[0].price >= ask_levels[0].price:

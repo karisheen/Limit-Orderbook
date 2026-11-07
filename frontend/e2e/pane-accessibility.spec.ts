@@ -48,6 +48,7 @@ for (const width of [320, 390, 1280, 1920]) {
     test(`${title} pane actions, Escape focus and Inspector navigation remain usable at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
       await openDemo(page);
+      if (width <= 965) await page.getByRole('tablist', { name: 'Market panes', exact: true }).getByRole('tab', { name: id === 'heatmap' ? 'Liquidity' : 'Flow', exact: true }).click();
       const pane = page.getByTestId(`chart-pane-${id}`);
       const chart = pane.getByTestId('market-charts');
       await expect(chart).toHaveAttribute('data-painted-view-id', /.+/);
@@ -198,3 +199,65 @@ test('Escape closes focused DOM disclosures before restoring a maximized pane', 
   await expect(settings).not.toHaveAttribute('open', '');
   await expect(settingsSummary).toBeFocused();
 });
+
+for (const width of [320, 390]) {
+  test(`market tabs support keyboard selection, pane toggles and desktop resize at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await openDemo(page);
+    const tabs = page.getByRole('tablist', { name: 'Market panes', exact: true });
+    const liquidity = tabs.getByRole('tab', { name: 'Liquidity', exact: true });
+    await liquidity.focus();
+    for (const [key, name, id] of [
+      ['ArrowRight', 'Flow', 'flow'], ['End', 'Tape', 'tape'],
+      ['ArrowRight', 'Liquidity', 'heatmap'], ['ArrowLeft', 'Tape', 'tape'],
+      ['Home', 'Liquidity', 'heatmap'], ['ArrowRight', 'Flow', 'flow'],
+      ['ArrowRight', 'Book', 'dom'],
+    ] as const) {
+      await page.keyboard.press(key);
+      const tab = tabs.getByRole('tab', { name, exact: true });
+      await expect(tab).toBeFocused();
+      await expect(tab).toHaveAttribute('aria-selected', 'true');
+      await expect(tabs.locator('[tabindex="0"]')).toHaveCount(1);
+      await expect(page.locator(`#market-panel-${id}`)).toBeVisible();
+      await expect(page.locator('[id^="market-panel-"]:visible')).toHaveCount(1);
+      expect(await tab.evaluate(element => element.matches(':focus-visible')
+        && getComputedStyle(element).outlineStyle !== 'none')).toBe(true);
+    }
+    await page.getByRole('button', { name: 'Maximize DOM', exact: true }).click();
+    await expect(page.getByTestId('workspace')).toHaveAttribute('data-maximized', 'dom');
+    await tabs.getByRole('tab', { name: 'Flow', exact: true }).click();
+    await expect(page.getByTestId('workspace')).toHaveAttribute('data-maximized', '');
+    await expect(page.getByTestId('chart-pane-flow')).toBeVisible();
+    await tabs.getByRole('tab', { name: 'Book', exact: true }).click();
+    await page.getByRole('button', { name: 'DOM / tape', exact: true }).click();
+    await expect(liquidity).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId('chart-pane-heatmap')).toBeVisible();
+    await tabs.getByRole('tab', { name: 'Tape', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'DOM / tape', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('[data-pane="tape"]')).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+    await tabs.getByRole('tab', { name: 'Flow', exact: true }).focus();
+    await page.setViewportSize({ width: 966, height: 900 });
+    await expect(tabs).toBeHidden();
+    for (const id of ['heatmap', 'flow', 'dom', 'tape']) await expect(page.locator(`#market-panel-${id}`)).toBeVisible();
+    expect(await page.evaluate(() => {
+      const active = document.activeElement;
+      return active instanceof HTMLElement && active !== document.body && active.getClientRects().length > 0;
+    })).toBe(true);
+    const split = page.getByRole('separator', { name: 'Chart split', exact: true });
+    await split.press('Home');
+    await expect(split).toHaveAttribute('aria-valuenow', '30');
+    await page.setViewportSize({ width, height: 900 });
+    await expect(tabs.getByRole('tab', { name: 'Tape', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('[data-pane="tape"]')).toBeVisible();
+
+    const configuration = page.locator('.workspace-configuration > summary');
+    await configuration.press('Enter');
+    await tabTo(page, page.getByLabel('Data source', { exact: true }));
+    await page.keyboard.press('Escape');
+    await expect(page.getByLabel('Data source', { exact: true })).toBeHidden();
+    await expect(configuration).toBeFocused();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+}

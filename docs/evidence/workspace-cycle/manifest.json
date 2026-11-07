@@ -1,0 +1,1203 @@
+{
+  "schema": "lob-workspace-cycle-evidence-2",
+  "scope": "Final completed descriptive local performance/UI-cycle evidence, verified integration outcomes and permanent documented reproducers. Not latency certification, historical-backend UI comparison or live-capacity evidence.",
+  "recorded_source": {
+    "session_id": "4498db3b-f4a2-4fff-a32e-a97221fa21ee",
+    "repo_relative_capture_path": "data/m6-reference/4498db3b-f4a2-4fff-a32e-a97221fa21ee",
+    "manifest_sha256": "d12553c14ee31de1e66db3d2e9247000b81a976826f4f3da8ae072d4622ee5f5",
+    "source_metadata_archive": "recording-before-partial.json",
+    "capture_payloads_archived": false
+  },
+  "recording_before": {
+    "status": "partial",
+    "completed_scope": "Full 1x writer baseline and parity completed: 4276 batches, 4252 raw records; raw, normalized, regenerated checkpoints, final book/state, and checkpoint seek parity reported exact.",
+    "incomplete_scope": "Job reached its 600-second deadline before completing 2x/saturation; no overall pass is claimed.",
+    "deadline_provenance": "Original investigation handoff; report is archived in full without adding a fabricated terminal outcome."
+  },
+  "screenshots": {
+    "provenance": "Original investigation handoff; PNG dimensions are extracted from the archived file headers.",
+    "comparison_backend": "Before and after use the same current native backend, with saved old/new frontend builds; not a historical backend comparison.",
+    "source_session_id": "4498db3b-f4a2-4fff-a32e-a97221fa21ee",
+    "reported_delivery_index": "2057",
+    "delivery_exceptions": [
+      "after-held-book.png",
+      "after-disconnected.png"
+    ],
+    "exception_caveat": "Held and disconnected UI state screenshots do not establish a matched current delivery fence.",
+    "reported_css_viewports": {
+      "desktop": {
+        "width": 1440,
+        "height": 900
+      },
+      "narrow": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    "reported_device_pixel_ratio": 1.25,
+    "full_page": true,
+    "reported_before_narrow_document_height_css": 1839,
+    "reported_before_narrow_stacked_book_top_css": 1058.94,
+    "dimension_caveat": "Full-page captures, not identical viewport crops. Desktop PNGs are 1800x1125, disconnected is 488x1055, narrow Book/held are 469x1056, narrow before is 469x2299, and empty search is 469x1533. The original operator reports fullPage=true and explains width 469 as a 375 CSS-pixel content area after a 15 CSS-pixel scrollbar at DPR 1.25; disconnected captures the full 390 CSS-pixel width. Before narrow document height was 1839 CSS pixels with the old stacked Book starting at 1058.94 CSS pixels. Preserve reported viewport separately from actual PNG dimensions; do not claim pixel-matched narrow views.",
+    "narrow_comparison_caveat": "after-recorded-narrow-390-book.png intentionally selects the Book pane; it is not the same view as before-recorded-narrow-390.png.",
+    "state_examples": {
+      "after-held-book.png": "Held Book state",
+      "after-disconnected.png": "Disconnected state",
+      "after-empty-search.png": "Empty search results"
+    },
+    "not_performance_samples": true,
+    "primary_files": [
+      "before-recorded-desktop-1440.png",
+      "after-recorded-desktop-1440.png",
+      "before-recorded-narrow-390.png",
+      "after-recorded-narrow-390-book.png",
+      "after-held-book.png",
+      "after-disconnected.png",
+      "after-empty-search.png"
+    ],
+    "supplementary_synthetic_files": [
+      "before-synthetic-1440.png",
+      "before-synthetic-390.png",
+      "after-synthetic-1440.png",
+      "after-synthetic-390.png"
+    ],
+    "paper_receipt_caveat": "Do not include /tmp/lob-after-paper.png as visual receipt proof: it shows only the narrow form. Parent-reported actual native IOC text result is scenario metadata in summary.json, explicitly fake 1000 USDT funds, 10bps, date 2026-11-01; not a receipt screenshot."
+  },
+  "reproduction": {
+    "working_directory": "Repository root; retained scripts resolve repository paths from their own locations. These scripts/configurations are permanent documented reproducers.",
+    "prerequisites": [
+      "Existing repository .venv with native runtime dependencies.",
+      "Existing frontend/node_modules containing the repository-pinned @playwright/test and its already-installed Chromium shell.",
+      "Current frontend/dist build; before comparison additionally requires the separately saved build matching before-assets.json. Build bytes are not included in this archive.",
+      "Use unused loopback ports; existing browser output JSON paths are deliberately refused.",
+      "Baseline git object 49f2d0a4bb07a4d0816c0644890756d740b3cc7d for core-before/crossover; tests/test_workstation_paper.py fixture for paper-workload; native reference capture at the recorded relative path for replay-workload."
+    ],
+    "server_before_command": ".venv/bin/python docs/evidence/workspace-cycle/serve-comparison.py --port 8871 --dist /tmp/lob-frontend-before-dist",
+    "server_after_command": ".venv/bin/python docs/evidence/workspace-cycle/serve-comparison.py --port 8872 --dist frontend/dist",
+    "browser_before_command": "node docs/evidence/workspace-cycle/browser-workload.mjs --url http://127.0.0.1:8871/ --output /tmp/lob-portable-before-1440.json --width 1440 --seconds 20 --speed 2",
+    "browser_after_command": "node docs/evidence/workspace-cycle/browser-workload.mjs --url http://127.0.0.1:8872/ --output /tmp/lob-portable-after-1440.json --width 1440 --seconds 20 --speed 2",
+    "execution_notes": "Run servers in separate terminals, browser workloads sequentially, and interrupt servers afterward. Replace the before --dist path with the location of the hash-matching saved build when moving machines. For narrow measurements use --width 390 on both runs and distinct output paths; accepted durations remain 20 or 30 seconds.",
+    "recorded_server_optional_argument": "--capture data/m6-reference/4498db3b-f4a2-4fff-a32e-a97221fa21ee",
+    "workload_scope": "The browser reproducer is synthetic-demo-only and refuses a non-demo API-preferred source. Its optional screenshot is paused delivery 2000 at DPR 1 and height 900, not a reproduction of the separately captured recorded screenshots at delivery 2057/DPR 1.25. Optional --capture exposes a local read-only recorded source in the native server but does not change the browser workload.",
+    "safety": "Loopback only; native backend has enable_live=False and registry=None. No wallet, collector, live orders, custom browser, downloads, routing, fixtures, or injected data.",
+    "core_before_command": ".venv/bin/python docs/evidence/workspace-cycle/core-before.py --output /tmp/lob-reproduce-core-before.json",
+    "core_after_command": ".venv/bin/python tools/benchmark_core.py --output /tmp/lob-reproduce-core-after.json",
+    "crossover_command": ".venv/bin/python docs/evidence/workspace-cycle/crossover.py",
+    "paper_command": ".venv/bin/python docs/evidence/workspace-cycle/paper-workload.py",
+    "recorded_replay_command": ".venv/bin/python docs/evidence/workspace-cycle/replay-workload.py",
+    "playwright_command": "node frontend/node_modules/@playwright/test/cli.js test --config docs/evidence/workspace-cycle/playwright.config.mjs",
+    "playwright_notes": "Use an already-running native server with final frontend at default http://127.0.0.1:8015/; optional LOB_E2E_BASE_URL accepts only a loopback HTTP origin. Configuration uses existing frontend node_modules/Chromium; no auto-start, download, build or bypass. Unique temporary output directory avoids root test-results. Parent owns execution and result reporting.",
+    "native_notes": "core-before.py requires baseline revision in local git and checks its original-book SHA256 before in-memory execution; no checkout mutation. Pass the desired benchmark arguments unchanged. Final reports used 20000 initial levels/side and 300 deltas (100/s normal, 200/s burst). crossover.py alternates 24 before/after applications per 17 depth/touch cases. Crossover, paper and replay emit JSON to stdout; choose fresh destinations rather than replacing archived evidence. Repeat independent runs a,b,c for three-run aggregation. Historical paper results are archived observations, not reproduced by loading only the historical book module."
+  },
+  "files": [
+    {
+      "path": "after-disconnected.png",
+      "original_artifact": "/tmp/lob-after-disconnected.png",
+      "sha256": "a9e84d85a5893e72ab342e80d4706c6a093ed521faa87127e479e557984b1769",
+      "size_bytes": 71134,
+      "pixel_dimensions": {
+        "width": 488,
+        "height": 1055
+      },
+      "copy_mode": "Unmodified artifact copy.",
+      "role": "Primary recorded comparison/state screenshot, not a performance sample.",
+      "capture": {
+        "full_page": true,
+        "post_capture_crop": "none; original PNG copy",
+        "reported_css_viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "reported_device_pixel_ratio": 1.25,
+        "source_session_id": "4498db3b-f4a2-4fff-a32e-a97221fa21ee",
+        "reported_delivery_index": null,
+        "fence_caveat": "Held/disconnected state does not establish matched current delivery.",
+        "backend_hash": "Not separately established for these earlier recorded captures; before/after used the same then-current backend."
+      }
+    },
+    {
+      "path": "after-empty-search.png",
+      "original_artifact": "/tmp/lob-after-empty-search.png",
+      "sha256": "1a54f98ffacf09e6bfe7e049ffaa6aa397e57f53741c308876f54712b2b3813f",
+      "size_bytes": 124223,
+      "pixel_dimensions": {
+        "width": 469,
+        "height": 1533
+      },
+      "copy_mode": "Unmodified artifact copy.",
+      "role": "Primary recorded comparison/state screenshot, not a performance sample.",
+      "capture": {
+        "full_page": true,
+        "post_capture_crop": "none; original PNG copy",
+        "reported_css_viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "reported_device_pixel_ratio": 1.25,
+        "source_session_id": "4498db3b-f4a2-4fff-a32e-a97221fa21ee",
+        "reported_delivery_index": "2057",
+        "fence_caveat": "Reported capture fence from original investigation handoff; actual PNG dimensions are authoritative.",
+        "backend_hash": "Not separately established for these earlier recorded captures; before/after used the same then-current backend."
+      }
+    },
+    {
+      "path": "after-held-book.png",
+      "original_artifact": "/tmp/lob-after-held-book.png",
+      "sha256": "eda8577f5ac2bd61ce0af7b182b080c8b631b6f5ca5dcac89016ce0b8b44ba52",
+      "size_bytes": 114675,
+      "pixel_dimensions": {
+        "width": 469,
+        "height": 1056
+      },
+      "copy_mode": "Unmodified artifact copy.",
+      "role": "Primary recorded comparison/state screenshot, not a performance sample.",
+      "capture": {
+        "full_page": true,
+        "post_capture_crop": "none; original PNG copy",
+        "reported_css_viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "reported_device_pixel_ratio": 1.25,
+        "source_session_id": "4498db3b-f4a2-4fff-a32e-a97221fa21ee",
+        "reported_delivery_index": null,
+        "fence_caveat": "Held/disconnected state does not establish matched current delivery.",
+        "backend_hash": "Not separately established for these earlier recorded captures; before/after used the same then-current backend."
+      }
+    },
+    {
+      "path": "after-recorded-desktop-1440.png",
+      "original_artifact": "/tmp/lob-after-recorded-1440.png",
+      "sha256": "808727ede0d9ae421bdb84404e8594e12e166d1792f64ed509d68fcf141990d6",
+      "size_bytes": 314507,
+      "pixel_dimensions": {
+        "width": 1800,
+        "height": 1125
+      },
+      "copy_mode": "Unmodified artifact copy.",
+      "role": "Primary recorded comparison/state screenshot, not a performance sample.",
+      "capture": {
+        "full_page": true,
+        "post_capture_crop": "none; original PNG copy",
+        "reported_css_viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "reported_device_pixel_ratio": 1.25,
+        "source_session_id": "4498db3b-f4a2-4fff-a32e-a97221fa21ee",
+        "reported_delivery_index": "2057",
+        "fence_caveat": "Reported capture fence from original investigation handoff; actual PNG dimensions are authoritative.",
+        "backend_hash": "Not separately established for these earlier recorded captures; before/after used the same then-current backend."
+      }
+    },
+    {
+      "path": "after-recorded-narrow-390-book.png",
+      "original_artifact": "/tmp/lob-after-recorded-390-book.png",
+      "sha256": "5cf10196f1ce76624fac0eb92cbee43ca4c21e422576c5f780bb68a7898565ff",
+      "size_bytes": 114249,
+      "pixel_dimensions": {
+        "width": 469,
+        "height": 1056
+      },
+      "copy_mode": "Unmodified artifact copy.",
+      "role": "Primary recorded comparison/state screenshot, not a performance sample.",
+      "capture": {
+        "full_page": true,
+        "post_capture_crop": "none; original PNG copy",
+        "reported_css_viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "reported_device_pixel_ratio": 1.25,
+        "source_session_id": "4498db3b-f4a2-4fff-a32e-a97221fa21ee",
+        "reported_delivery_index": "2057",
+        "fence_caveat": "Reported capture fence from original investigation handoff; actual PNG dimensions are authoritative.",
+        "backend_hash": "Not separately established for these earlier recorded captures; before/after used the same then-current backend."
+      }
+    },
+    {
+      "path": "after-synthetic-1440.png",
+      "sha256": "3a392313ed60cf7729bb331a79bd8bb89f76f0ae261e311bfc21a1c676f23c24",
+      "size_bytes": 158762,
+      "pixel_dimensions": {
+        "width": 1440,
+        "height": 900
+      },
+      "role": "Supplementary synthetic workload screenshot, not recorded-source evidence or performance sample.",
+      "provenance": "Captured by browser-after-1440-a.json before measurement, unchanged PNG.",
+      "capture": {
+        "full_page": false,
+        "post_capture_crop": "none; viewport screenshot",
+        "css_viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "device_pixel_ratio": 1,
+        "source_id": "synthetic-demo-v3-180s",
+        "delivery_index": "2000",
+        "paused": true,
+        "source_report": "browser-after-1440-a.json",
+        "pane_caveat": "After narrow shows Liquidity with other mounted panes hidden; before is stacked. Viewport crop does not show all before content."
+      }
+    },
+    {
+      "path": "after-synthetic-390.png",
+      "sha256": "edb62f6eeb6fcf5b8f2087761f02831765a0f0c28f3368edd92882ba138d670d",
+      "size_bytes": 66848,
+      "pixel_dimensions": {
+        "width": 390,
+        "height": 900
+      },
+      "role": "Supplementary synthetic workload screenshot, not recorded-source evidence or performance sample.",
+      "provenance": "Captured by browser-after-390-a.json before measurement, unchanged PNG.",
+      "capture": {
+        "full_page": false,
+        "post_capture_crop": "none; viewport screenshot",
+        "css_viewport": {
+          "width": 390,
+          "height": 900
+        },
+        "device_pixel_ratio": 1,
+        "source_id": "synthetic-demo-v3-180s",
+        "delivery_index": "2000",
+        "paused": true,
+        "source_report": "browser-after-390-a.json",
+        "pane_caveat": "After narrow shows Liquidity with other mounted panes hidden; before is stacked. Viewport crop does not show all before content."
+      }
+    },
+    {
+      "path": "before-assets.json",
+      "role": "Original saved frontend asset hashes and original book source hash.",
+      "sha256": "2e4f8b9aaa2ed6f7108dcb45a2fc6410e45d04f01f03e49855e5ed3d01e8a95f",
+      "size_bytes": 1945
+    },
+    {
+      "path": "before-recorded-desktop-1440.png",
+      "original_artifact": "/tmp/lob-before-recorded-1440.png",
+      "sha256": "b9694b7f6514dcda417d3203a7646f92b971af51178a179c3735d4d43f0dc62a",
+      "size_bytes": 326208,
+      "pixel_dimensions": {
+        "width": 1800,
+        "height": 1125
+      },
+      "copy_mode": "Unmodified artifact copy.",
+      "role": "Primary recorded comparison/state screenshot, not a performance sample.",
+      "capture": {
+        "full_page": true,
+        "post_capture_crop": "none; original PNG copy",
+        "reported_css_viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "reported_device_pixel_ratio": 1.25,
+        "source_session_id": "4498db3b-f4a2-4fff-a32e-a97221fa21ee",
+        "reported_delivery_index": "2057",
+        "fence_caveat": "Reported capture fence from original investigation handoff; actual PNG dimensions are authoritative.",
+        "backend_hash": "Not separately established for these earlier recorded captures; before/after used the same then-current backend."
+      }
+    },
+    {
+      "path": "before-recorded-narrow-390.png",
+      "original_artifact": "/tmp/lob-before-recorded-390.png",
+      "sha256": "24b2d31994e9e301af99ce912d7a4501bf16c55ff79b3efe68ed27306ec9853c",
+      "size_bytes": 242472,
+      "pixel_dimensions": {
+        "width": 469,
+        "height": 2299
+      },
+      "copy_mode": "Unmodified artifact copy.",
+      "role": "Primary recorded comparison/state screenshot, not a performance sample.",
+      "capture": {
+        "full_page": true,
+        "post_capture_crop": "none; original PNG copy",
+        "reported_css_viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "reported_device_pixel_ratio": 1.25,
+        "source_session_id": "4498db3b-f4a2-4fff-a32e-a97221fa21ee",
+        "reported_delivery_index": "2057",
+        "fence_caveat": "Reported capture fence from original investigation handoff; actual PNG dimensions are authoritative.",
+        "backend_hash": "Not separately established for these earlier recorded captures; before/after used the same then-current backend."
+      }
+    },
+    {
+      "path": "before-synthetic-1440.png",
+      "sha256": "ada0b1c09d28423c8bdfba0a4cb15ac23a5ce5b80ea7a156d2e3c94887841c44",
+      "size_bytes": 164345,
+      "pixel_dimensions": {
+        "width": 1440,
+        "height": 900
+      },
+      "role": "Supplementary synthetic workload screenshot, not recorded-source evidence or performance sample.",
+      "provenance": "Captured by browser-before-1440-a.json before measurement, unchanged PNG.",
+      "capture": {
+        "full_page": false,
+        "post_capture_crop": "none; viewport screenshot",
+        "css_viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "device_pixel_ratio": 1,
+        "source_id": "synthetic-demo-v3-180s",
+        "delivery_index": "2000",
+        "paused": true,
+        "source_report": "browser-before-1440-a.json",
+        "pane_caveat": "After narrow shows Liquidity with other mounted panes hidden; before is stacked. Viewport crop does not show all before content."
+      }
+    },
+    {
+      "path": "before-synthetic-390.png",
+      "sha256": "17d89657fa857763a3fee620042cced45a13228c3244ece1bd51755e581d1f7a",
+      "size_bytes": 76242,
+      "pixel_dimensions": {
+        "width": 390,
+        "height": 900
+      },
+      "role": "Supplementary synthetic workload screenshot, not recorded-source evidence or performance sample.",
+      "provenance": "Captured by browser-before-390-a.json before measurement, unchanged PNG.",
+      "capture": {
+        "full_page": false,
+        "post_capture_crop": "none; viewport screenshot",
+        "css_viewport": {
+          "width": 390,
+          "height": 900
+        },
+        "device_pixel_ratio": 1,
+        "source_id": "synthetic-demo-v3-180s",
+        "delivery_index": "2000",
+        "paused": true,
+        "source_report": "browser-before-390-a.json",
+        "pane_caveat": "After narrow shows Liquidity with other mounted panes hidden; before is stacked. Viewport crop does not show all before content."
+      }
+    },
+    {
+      "path": "browser-after-1440-a.json",
+      "sha256": "8e4f2dd78416a1278d5c6bde0e38479d629079dbd4180689a1a8e044bfb1a352",
+      "size_bytes": 227210,
+      "role": "Final completed descriptive browser sample.",
+      "provenance": "Parent-executed browser-workload.mjs; native HTTP/WebSocket synthetic demo, sequential saved-before/final-after frontend runs on shared backend.",
+      "status": "completed_descriptive_sample",
+      "shared_backend_loaded_core_source_sha256": "d435981fb1d1c71a9506b37a58d2eaf522aaf93ddd9fff0585d549bd943a2dcd",
+      "command": [
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/.tools/node/bin/node",
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/docs/evidence/workspace-cycle/browser-workload.mjs",
+        "--url",
+        "http://127.0.0.1:8015/",
+        "--output",
+        "docs/evidence/workspace-cycle/browser-after-1440-a.json",
+        "--screenshot",
+        "docs/evidence/workspace-cycle/after-synthetic-1440.png",
+        "--width",
+        "1440",
+        "--seconds",
+        "20",
+        "--speed",
+        "2"
+      ],
+      "source_fence": {
+        "source_id": "synthetic-demo-v3-180s",
+        "fixed_delivery": "2000",
+        "measurement_progress": {
+          "from": "2000",
+          "to": "3512",
+          "delivery_delta": "1512",
+          "actual_window_node_ms": 20001.712249000004
+        }
+      }
+    },
+    {
+      "path": "browser-after-1440-b.json",
+      "sha256": "0e9af65a85623adc417e7ff53deb2eee2a020b2eef358b27a8481443dc0e7486",
+      "size_bytes": 217702,
+      "role": "Final completed descriptive browser sample.",
+      "provenance": "Parent-executed browser-workload.mjs; native HTTP/WebSocket synthetic demo, sequential saved-before/final-after frontend runs on shared backend.",
+      "status": "completed_descriptive_sample",
+      "shared_backend_loaded_core_source_sha256": "d435981fb1d1c71a9506b37a58d2eaf522aaf93ddd9fff0585d549bd943a2dcd",
+      "command": [
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/.tools/node/bin/node",
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/docs/evidence/workspace-cycle/browser-workload.mjs",
+        "--url",
+        "http://127.0.0.1:8015/",
+        "--output",
+        "docs/evidence/workspace-cycle/browser-after-1440-b.json",
+        "--width",
+        "1440",
+        "--seconds",
+        "20",
+        "--speed",
+        "2"
+      ],
+      "source_fence": {
+        "source_id": "synthetic-demo-v3-180s",
+        "fixed_delivery": "2000",
+        "measurement_progress": {
+          "from": "2000",
+          "to": "3512",
+          "delivery_delta": "1512",
+          "actual_window_node_ms": 20000.586461
+        }
+      }
+    },
+    {
+      "path": "browser-after-1440-c.json",
+      "sha256": "5726058c33d40fbd577def4be4fb6f94a81f2dceb5a4c269b77d886b878d6d76",
+      "size_bytes": 229800,
+      "role": "Final completed descriptive browser sample.",
+      "provenance": "Parent-executed browser-workload.mjs; native HTTP/WebSocket synthetic demo, sequential saved-before/final-after frontend runs on shared backend.",
+      "status": "completed_descriptive_sample",
+      "shared_backend_loaded_core_source_sha256": "d435981fb1d1c71a9506b37a58d2eaf522aaf93ddd9fff0585d549bd943a2dcd",
+      "command": [
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/.tools/node/bin/node",
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/docs/evidence/workspace-cycle/browser-workload.mjs",
+        "--url",
+        "http://127.0.0.1:8015/",
+        "--output",
+        "docs/evidence/workspace-cycle/browser-after-1440-c.json",
+        "--width",
+        "1440",
+        "--seconds",
+        "20",
+        "--speed",
+        "2"
+      ],
+      "source_fence": {
+        "source_id": "synthetic-demo-v3-180s",
+        "fixed_delivery": "2000",
+        "measurement_progress": {
+          "from": "2000",
+          "to": "3512",
+          "delivery_delta": "1512",
+          "actual_window_node_ms": 19999.295404
+        }
+      }
+    },
+    {
+      "path": "browser-after-390-a.json",
+      "sha256": "4c156a7a9aa929809db17150145a436abe835bec3ae333502b85b75b1ab07003",
+      "size_bytes": 209113,
+      "role": "Final completed descriptive browser sample.",
+      "provenance": "Parent-executed browser-workload.mjs; native HTTP/WebSocket synthetic demo, sequential saved-before/final-after frontend runs on shared backend.",
+      "status": "completed_descriptive_sample",
+      "shared_backend_loaded_core_source_sha256": "d435981fb1d1c71a9506b37a58d2eaf522aaf93ddd9fff0585d549bd943a2dcd",
+      "command": [
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/.tools/node/bin/node",
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/docs/evidence/workspace-cycle/browser-workload.mjs",
+        "--url",
+        "http://127.0.0.1:8015/",
+        "--output",
+        "docs/evidence/workspace-cycle/browser-after-390-a.json",
+        "--screenshot",
+        "docs/evidence/workspace-cycle/after-synthetic-390.png",
+        "--width",
+        "390",
+        "--seconds",
+        "20",
+        "--speed",
+        "2"
+      ],
+      "source_fence": {
+        "source_id": "synthetic-demo-v3-180s",
+        "fixed_delivery": "2000",
+        "measurement_progress": {
+          "from": "2000",
+          "to": "3512",
+          "delivery_delta": "1512",
+          "actual_window_node_ms": 20000.545952
+        }
+      }
+    },
+    {
+      "path": "browser-after-390-b.json",
+      "sha256": "0972f9ef2ae20bbcb5eaa7040126ca50879ddf0e076d0ba60e0ae25b344c9549",
+      "size_bytes": 209326,
+      "role": "Final completed descriptive browser sample.",
+      "provenance": "Parent-executed browser-workload.mjs; native HTTP/WebSocket synthetic demo, sequential saved-before/final-after frontend runs on shared backend.",
+      "status": "completed_descriptive_sample",
+      "shared_backend_loaded_core_source_sha256": "d435981fb1d1c71a9506b37a58d2eaf522aaf93ddd9fff0585d549bd943a2dcd",
+      "command": [
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/.tools/node/bin/node",
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/docs/evidence/workspace-cycle/browser-workload.mjs",
+        "--url",
+        "http://127.0.0.1:8015/",
+        "--output",
+        "docs/evidence/workspace-cycle/browser-after-390-b.json",
+        "--width",
+        "390",
+        "--seconds",
+        "20",
+        "--speed",
+        "2"
+      ],
+      "source_fence": {
+        "source_id": "synthetic-demo-v3-180s",
+        "fixed_delivery": "2000",
+        "measurement_progress": {
+          "from": "2000",
+          "to": "3512",
+          "delivery_delta": "1512",
+          "actual_window_node_ms": 20000.225389
+        }
+      }
+    },
+    {
+      "path": "browser-after-390-c.json",
+      "sha256": "cd58be1eb23de50837560f8837b1d2e1016a38278d45cc517bb16d5afcbd1e61",
+      "size_bytes": 207225,
+      "role": "Final completed descriptive browser sample.",
+      "provenance": "Parent-executed browser-workload.mjs; native HTTP/WebSocket synthetic demo, sequential saved-before/final-after frontend runs on shared backend.",
+      "status": "completed_descriptive_sample",
+      "shared_backend_loaded_core_source_sha256": "d435981fb1d1c71a9506b37a58d2eaf522aaf93ddd9fff0585d549bd943a2dcd",
+      "command": [
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/.tools/node/bin/node",
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/docs/evidence/workspace-cycle/browser-workload.mjs",
+        "--url",
+        "http://127.0.0.1:8015/",
+        "--output",
+        "docs/evidence/workspace-cycle/browser-after-390-c.json",
+        "--width",
+        "390",
+        "--seconds",
+        "20",
+        "--speed",
+        "2"
+      ],
+      "source_fence": {
+        "source_id": "synthetic-demo-v3-180s",
+        "fixed_delivery": "2000",
+        "measurement_progress": {
+          "from": "2000",
+          "to": "3512",
+          "delivery_delta": "1512",
+          "actual_window_node_ms": 20000.46918
+        }
+      }
+    },
+    {
+      "path": "browser-before-1440-a.json",
+      "sha256": "9b2d5f903160901c862fb74dff67ded4d79a12c951dc8d1eed15d14fba7cbcfa",
+      "size_bytes": 225875,
+      "role": "Final completed descriptive browser sample.",
+      "provenance": "Parent-executed browser-workload.mjs; native HTTP/WebSocket synthetic demo, sequential saved-before/final-after frontend runs on shared backend.",
+      "status": "completed_descriptive_sample",
+      "shared_backend_loaded_core_source_sha256": "d435981fb1d1c71a9506b37a58d2eaf522aaf93ddd9fff0585d549bd943a2dcd",
+      "command": [
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/.tools/node/bin/node",
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/docs/evidence/workspace-cycle/browser-workload.mjs",
+        "--url",
+        "http://127.0.0.1:8014/",
+        "--output",
+        "docs/evidence/workspace-cycle/browser-before-1440-a.json",
+        "--screenshot",
+        "docs/evidence/workspace-cycle/before-synthetic-1440.png",
+        "--width",
+        "1440",
+        "--seconds",
+        "20",
+        "--speed",
+        "2"
+      ],
+      "source_fence": {
+        "source_id": "synthetic-demo-v3-180s",
+        "fixed_delivery": "2000",
+        "measurement_progress": {
+          "from": "2000",
+          "to": "3512",
+          "delivery_delta": "1512",
+          "actual_window_node_ms": 20001.79203
+        }
+      }
+    },
+    {
+      "path": "browser-before-1440-b.json",
+      "sha256": "266f39eb136d344d7d2a25a5b71a2553e6e581bce7b1694f431deee02db4057f",
+      "size_bytes": 229951,
+      "role": "Final completed descriptive browser sample.",
+      "provenance": "Parent-executed browser-workload.mjs; native HTTP/WebSocket synthetic demo, sequential saved-before/final-after frontend runs on shared backend.",
+      "status": "completed_descriptive_sample",
+      "shared_backend_loaded_core_source_sha256": "d435981fb1d1c71a9506b37a58d2eaf522aaf93ddd9fff0585d549bd943a2dcd",
+      "command": [
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/.tools/node/bin/node",
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/docs/evidence/workspace-cycle/browser-workload.mjs",
+        "--url",
+        "http://127.0.0.1:8014/",
+        "--output",
+        "docs/evidence/workspace-cycle/browser-before-1440-b.json",
+        "--width",
+        "1440",
+        "--seconds",
+        "20",
+        "--speed",
+        "2"
+      ],
+      "source_fence": {
+        "source_id": "synthetic-demo-v3-180s",
+        "fixed_delivery": "2000",
+        "measurement_progress": {
+          "from": "2000",
+          "to": "3512",
+          "delivery_delta": "1512",
+          "actual_window_node_ms": 20001.104728
+        }
+      }
+    },
+    {
+      "path": "browser-before-1440-c.json",
+      "sha256": "a0cd94cad53e79f958bd69beae3af720c6f8b73a21c3af44cea060e6eb4aaef8",
+      "size_bytes": 227698,
+      "role": "Final completed descriptive browser sample.",
+      "provenance": "Parent-executed browser-workload.mjs; native HTTP/WebSocket synthetic demo, sequential saved-before/final-after frontend runs on shared backend.",
+      "status": "completed_descriptive_sample",
+      "shared_backend_loaded_core_source_sha256": "d435981fb1d1c71a9506b37a58d2eaf522aaf93ddd9fff0585d549bd943a2dcd",
+      "command": [
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/.tools/node/bin/node",
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/docs/evidence/workspace-cycle/browser-workload.mjs",
+        "--url",
+        "http://127.0.0.1:8014/",
+        "--output",
+        "docs/evidence/workspace-cycle/browser-before-1440-c.json",
+        "--width",
+        "1440",
+        "--seconds",
+        "20",
+        "--speed",
+        "2"
+      ],
+      "source_fence": {
+        "source_id": "synthetic-demo-v3-180s",
+        "fixed_delivery": "2000",
+        "measurement_progress": {
+          "from": "2000",
+          "to": "3478",
+          "delivery_delta": "1478",
+          "actual_window_node_ms": 20001.627279
+        }
+      }
+    },
+    {
+      "path": "browser-before-390-a.json",
+      "sha256": "2f26e518e940c55a1fea0832813cff4a418ce6a009341a3bf3559d07f681d03d",
+      "size_bytes": 230812,
+      "role": "Final completed descriptive browser sample.",
+      "provenance": "Parent-executed browser-workload.mjs; native HTTP/WebSocket synthetic demo, sequential saved-before/final-after frontend runs on shared backend.",
+      "status": "completed_descriptive_sample",
+      "shared_backend_loaded_core_source_sha256": "d435981fb1d1c71a9506b37a58d2eaf522aaf93ddd9fff0585d549bd943a2dcd",
+      "command": [
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/.tools/node/bin/node",
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/docs/evidence/workspace-cycle/browser-workload.mjs",
+        "--url",
+        "http://127.0.0.1:8014/",
+        "--output",
+        "docs/evidence/workspace-cycle/browser-before-390-a.json",
+        "--screenshot",
+        "docs/evidence/workspace-cycle/before-synthetic-390.png",
+        "--width",
+        "390",
+        "--seconds",
+        "20",
+        "--speed",
+        "2"
+      ],
+      "source_fence": {
+        "source_id": "synthetic-demo-v3-180s",
+        "fixed_delivery": "2000",
+        "measurement_progress": {
+          "from": "2000",
+          "to": "3512",
+          "delivery_delta": "1512",
+          "actual_window_node_ms": 19999.073076
+        }
+      }
+    },
+    {
+      "path": "browser-before-390-b.json",
+      "sha256": "639a0b4e7668e16d862ee202e5fb15a4aea74a31e0fe32cdd30e9b9e303201c5",
+      "size_bytes": 224644,
+      "role": "Final completed descriptive browser sample.",
+      "provenance": "Parent-executed browser-workload.mjs; native HTTP/WebSocket synthetic demo, sequential saved-before/final-after frontend runs on shared backend.",
+      "status": "completed_descriptive_sample",
+      "shared_backend_loaded_core_source_sha256": "d435981fb1d1c71a9506b37a58d2eaf522aaf93ddd9fff0585d549bd943a2dcd",
+      "command": [
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/.tools/node/bin/node",
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/docs/evidence/workspace-cycle/browser-workload.mjs",
+        "--url",
+        "http://127.0.0.1:8014/",
+        "--output",
+        "docs/evidence/workspace-cycle/browser-before-390-b.json",
+        "--width",
+        "390",
+        "--seconds",
+        "20",
+        "--speed",
+        "2"
+      ],
+      "source_fence": {
+        "source_id": "synthetic-demo-v3-180s",
+        "fixed_delivery": "2000",
+        "measurement_progress": {
+          "from": "2000",
+          "to": "3512",
+          "delivery_delta": "1512",
+          "actual_window_node_ms": 20000.218627000002
+        }
+      }
+    },
+    {
+      "path": "browser-before-390-c.json",
+      "sha256": "201b90db82790592192a1d2aa763d9a7b39e994a9333c8ed935b762cd10923dc",
+      "size_bytes": 228490,
+      "role": "Final completed descriptive browser sample.",
+      "provenance": "Parent-executed browser-workload.mjs; native HTTP/WebSocket synthetic demo, sequential saved-before/final-after frontend runs on shared backend.",
+      "status": "completed_descriptive_sample",
+      "shared_backend_loaded_core_source_sha256": "d435981fb1d1c71a9506b37a58d2eaf522aaf93ddd9fff0585d549bd943a2dcd",
+      "command": [
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/.tools/node/bin/node",
+        "/Users/dakariantoine/Developer/personal/limit-orderbook/docs/evidence/workspace-cycle/browser-workload.mjs",
+        "--url",
+        "http://127.0.0.1:8014/",
+        "--output",
+        "docs/evidence/workspace-cycle/browser-before-390-c.json",
+        "--width",
+        "390",
+        "--seconds",
+        "20",
+        "--speed",
+        "2"
+      ],
+      "source_fence": {
+        "source_id": "synthetic-demo-v3-180s",
+        "fixed_delivery": "2000",
+        "measurement_progress": {
+          "from": "2000",
+          "to": "3485",
+          "delivery_delta": "1485",
+          "actual_window_node_ms": 20002.480516
+        }
+      }
+    },
+    {
+      "path": "browser-workload.mjs",
+      "original_artifact": "/tmp/lob-browser-compare.mjs",
+      "sha256": "3ae823a0694b52fe4a1ba0a1c8691c212dbd9b0ed113378a22f89780ec438898",
+      "size_bytes": 32388,
+      "copy_mode": "Original browser workload adapted for repository-relative module resolution/header comments; parent additionally records fixed_layout DOM geometry at paused delivery 2000 before measurement. Timing window, acceptance criteria and actual transport workload are unchanged. sha256 describes this retained final copy; original_artifact_sha256 records the initial source, not the modified copy.",
+      "original_artifact_sha256": "829677bcbca4689f55c5737820c8c082e8c4e4c3ce06de1098b5ba22717764c2",
+      "role": "Permanent documented reproducer/configuration, not temporary application scaffolding."
+    },
+    {
+      "path": "core-before.py",
+      "sha256": "c13f84c2631224199e559cfbbfd21044a584922d80ba38350a07f923560b301e",
+      "size_bytes": 1616,
+      "role": "Permanent documented reproducer/configuration, not temporary application scaffolding.",
+      "provenance": "Created during this cycle as a repository-relative reproducer; commands and dependencies documented in reproduction.",
+      "post_measurement_changes": "Ruff formatting and equivalent standalone sys.path import placement only; no workload/assertion/timing changes."
+    },
+    {
+      "path": "crossover-final-tight-b.json",
+      "sha256": "510c0e3eec12859d22d91d58b72d22010adf463b699fb8d097902576e66b7130",
+      "size_bytes": 9018,
+      "role": "Explicitly superseded trial evidence; not final-design performance.",
+      "status": "superseded_trial",
+      "reason": "n//64 per-side budget with touched bookkeeping still inside per-level validation: superseded before final dense-bookkeeping move.",
+      "superseded_by": [
+        "verified-crossover-a.json",
+        "verified-crossover-b.json",
+        "verified-crossover-c.json"
+      ]
+    },
+    {
+      "path": "crossover-final-tight-c.json",
+      "sha256": "a62e10c36596e6f7272a4535b29b7876f02b9ce615ec556008d48c0739b3f9f0",
+      "size_bytes": 9052,
+      "role": "Explicitly superseded trial evidence; not final-design performance.",
+      "status": "superseded_trial",
+      "reason": "n//64 per-side budget with touched bookkeeping still inside per-level validation: superseded before final dense-bookkeeping move.",
+      "superseded_by": [
+        "verified-crossover-a.json",
+        "verified-crossover-b.json",
+        "verified-crossover-c.json"
+      ]
+    },
+    {
+      "path": "crossover-final-tight.json",
+      "sha256": "7daca7aeee05c57747db56c45360dac7a0cd73ec805d7b9bcf480e46886d39bd",
+      "size_bytes": 9009,
+      "role": "Explicitly superseded trial evidence; not final-design performance.",
+      "status": "superseded_trial",
+      "reason": "n//64 per-side budget with touched bookkeeping still inside per-level validation: superseded before final dense-bookkeeping move.",
+      "superseded_by": [
+        "verified-crossover-a.json",
+        "verified-crossover-b.json",
+        "verified-crossover-c.json"
+      ]
+    },
+    {
+      "path": "crossover-final.json",
+      "sha256": "b07564fd729651b49d2d5a3a6785615a7fe8141fba24a28b905cbdb05e060c29",
+      "size_bytes": 8987,
+      "role": "Explicitly superseded trial evidence; not final-design performance.",
+      "status": "superseded_trial",
+      "reason": "64 cap with n//8 per-side budget: superseded small-book regression trial.",
+      "superseded_by": [
+        "verified-crossover-a.json",
+        "verified-crossover-b.json",
+        "verified-crossover-c.json"
+      ]
+    },
+    {
+      "path": "crossover.py",
+      "sha256": "5b3bb6c9c0f5039575aa93a07dde1b4022e0b4059bd44156d050944c21fa87d8",
+      "size_bytes": 3594,
+      "role": "Permanent documented reproducer/configuration, not temporary application scaffolding.",
+      "provenance": "Created during this cycle as a repository-relative reproducer; commands and dependencies documented in reproduction.",
+      "post_measurement_changes": "Ruff formatting and equivalent standalone sys.path import placement only; no workload/assertion/timing changes."
+    },
+    {
+      "path": "discarded-crossover.json",
+      "original_artifact": "/tmp/lob-crossover.json",
+      "sha256": "01ebeaf189a292ec313a0efd39ae8abd324b2e842eb9e5a90cf08f32d3d1dd88",
+      "size_bytes": 4326,
+      "copy_mode": "Unmodified artifact copy.",
+      "role": "Explicitly superseded trial evidence; not final-design performance.",
+      "status": "superseded_trial",
+      "reason": "Initial one-eighth sparse threshold design, discarded before final cap/threshold revisions.",
+      "superseded_by": [
+        "verified-crossover-a.json",
+        "verified-crossover-b.json",
+        "verified-crossover-c.json"
+      ]
+    },
+    {
+      "path": "paper-after.json",
+      "sha256": "1f92560505d3b8306ecc7c72cd90daed2f07ec07b2c15217fa7ba13fd7c90b83",
+      "size_bytes": 274,
+      "role": "Single 30-submit durable SQLite synthetic IOC sample.",
+      "provenance": "Parent-executed paper-workload.py; no browser receipt screenshot or live-order evidence."
+    },
+    {
+      "path": "paper-before.json",
+      "sha256": "f2b9e5052ea120a39deff207677566b4b46a2d0e5b54168b8ce5795b172e995e",
+      "size_bytes": 263,
+      "role": "Single 30-submit durable SQLite synthetic IOC sample.",
+      "provenance": "Parent-executed paper-workload.py; no browser receipt screenshot or live-order evidence."
+    },
+    {
+      "path": "paper-workload.py",
+      "sha256": "eb03f874b24b80b4fd037a3754a5587d57f5e6b2cdaba639937663266e7896e1",
+      "size_bytes": 1604,
+      "role": "Permanent documented reproducer/configuration, not temporary application scaffolding.",
+      "provenance": "Created during this cycle as a repository-relative reproducer; commands and dependencies documented in reproduction.",
+      "post_measurement_changes": "Ruff formatting and equivalent standalone sys.path import placement only; no workload/assertion/timing changes."
+    },
+    {
+      "path": "playwright.config.mjs",
+      "sha256": "9387577e489452f8a5661fb64ffccaa58b2c75e6f4eb4d24130200472b6a4040",
+      "size_bytes": 1213,
+      "role": "Permanent documented reproducer/configuration, not temporary application scaffolding.",
+      "original_artifact": "/tmp/lob-playwright.config.mjs",
+      "original_artifact_sha256": "5b30c69d271342fb72ed43f9b17a7ea1cb17edc6860157a1f01371e56f7dd828",
+      "copy_mode": "Repository-relative testDir and existing frontend node_modules resolution; default 8015 loopback origin, optional loopback-only LOB_E2E_BASE_URL; unique mkdtemp output directory. Preserves one worker, no retries, 45s test/15s expect timeouts, Chromium 1440x900, retained failure trace/screenshot."
+    },
+    {
+      "path": "profile-before-summary.json",
+      "sha256": "a43d6e213a39c0f6031e1c3e0b644e4fedf818d66090c8588902b410366bd7be",
+      "size_bytes": 7313,
+      "role": "Single diagnostic baseline profile, not a three-run timing sample.",
+      "provenance": "Parent-provided summary of initial profiling; retain separately from final benchmark."
+    },
+    {
+      "path": "recording-before-partial.json",
+      "original_artifact": "/tmp/lob-recording-before/report.json",
+      "sha256": "6c7d934324a0f2c08285d781b109f1c747b7c029ebf46a474891d22ca63b8865",
+      "size_bytes": 92898,
+      "copy_mode": "Unmodified artifact copy."
+    },
+    {
+      "path": "replay-workload.py",
+      "sha256": "63cd706eccc6c6e33b5f7c39e133ba10812f7bc7a251e69e743ce7d14cd7b317",
+      "size_bytes": 546,
+      "role": "Permanent documented reproducer/configuration, not temporary application scaffolding.",
+      "provenance": "Created during this cycle as a repository-relative reproducer; commands and dependencies documented in reproduction.",
+      "post_measurement_changes": "Ruff formatting and equivalent standalone sys.path import placement only; no workload/assertion/timing changes."
+    },
+    {
+      "path": "serve-comparison.py",
+      "original_artifact": "/tmp/lob-serve-comparison.py",
+      "sha256": "f43f736b0fead3ef98b6ae24b3e214940dd732c6a554c3b3ef35fd63a7afd917",
+      "size_bytes": 1890,
+      "copy_mode": "Portability-only root resolution and header/comment edits; workload, acceptance, timing boundaries unchanged.",
+      "original_artifact_sha256": "9b9aed1c6049c32f00745c38bad30cd42d2c6c9eed669c622bc4703f412f0f73",
+      "role": "Permanent documented reproducer/configuration, not temporary application scaffolding.",
+      "post_measurement_changes": "Ruff formatting and equivalent standalone sys.path import placement only; no workload/assertion/timing changes."
+    },
+    {
+      "path": "summary.json",
+      "sha256": "4c14355b3132850533368528f37dbf3942753374df0a22dafe46d50038646ba1",
+      "size_bytes": 503586,
+      "role": "Derived final run-level aggregation.",
+      "provenance": "Arithmetic aggregation of the listed raw reports; medians/min/max over a,b,c run metrics, never pooled quantiles. Includes single-run replay/paper results distinctly and exact raw browser error entries."
+    },
+    {
+      "path": "verified-core-after-a.json",
+      "sha256": "17e9e7e932aef4af94e8d6df04e92da7f24f751cf9244ad01c41d748ccbf70d6",
+      "size_bytes": 4111,
+      "role": "Final three-run synthetic reducer-only comparison.",
+      "provenance": "Parent-executed tools/benchmark_core.py, with core-before.py selecting hash-verified historical module for before; authoritative final raw report.",
+      "executed_book_source_sha256": "467c852a33e480733083ed7554d557a0a8ad64c6f3d9ccc945103f566434dc63"
+    },
+    {
+      "path": "verified-core-after-b.json",
+      "sha256": "bd94fc0d3cec1130e2d070e77182d2fb8d4d9c43f441008f9d30e51d669c2cef",
+      "size_bytes": 4110,
+      "role": "Final three-run synthetic reducer-only comparison.",
+      "provenance": "Parent-executed tools/benchmark_core.py, with core-before.py selecting hash-verified historical module for before; authoritative final raw report.",
+      "executed_book_source_sha256": "467c852a33e480733083ed7554d557a0a8ad64c6f3d9ccc945103f566434dc63"
+    },
+    {
+      "path": "verified-core-after-c.json",
+      "sha256": "e0db812afab1b58dc4277bdad4e90defcf14464e707a292a4e7950d9a573fb32",
+      "size_bytes": 4115,
+      "role": "Final three-run synthetic reducer-only comparison.",
+      "provenance": "Parent-executed tools/benchmark_core.py, with core-before.py selecting hash-verified historical module for before; authoritative final raw report.",
+      "executed_book_source_sha256": "467c852a33e480733083ed7554d557a0a8ad64c6f3d9ccc945103f566434dc63"
+    },
+    {
+      "path": "verified-core-before-a.json",
+      "sha256": "e68cf196c4c57a4eda9a933b94cf37f3034a89b3d71d5314d6a71b3759420f5f",
+      "size_bytes": 4090,
+      "role": "Final three-run synthetic reducer-only comparison.",
+      "provenance": "Parent-executed tools/benchmark_core.py, with core-before.py selecting hash-verified historical module for before; authoritative final raw report.",
+      "executed_book_source_sha256": "f908201f41719b1d7726af4a38df0a3a166660c7312d21c4e9428e63053e4a74",
+      "hash_caveat": "Historical wrapper executes verified git-show bytes, but raw before core_source_sha256 hashes the current checkout via __file__; executed_book_source_sha256 is authoritative."
+    },
+    {
+      "path": "verified-core-before-b.json",
+      "sha256": "7ab450bc754a9800b3d8d748ca283d37021dbb9e617686f544f736e74641d212",
+      "size_bytes": 4116,
+      "role": "Final three-run synthetic reducer-only comparison.",
+      "provenance": "Parent-executed tools/benchmark_core.py, with core-before.py selecting hash-verified historical module for before; authoritative final raw report.",
+      "executed_book_source_sha256": "f908201f41719b1d7726af4a38df0a3a166660c7312d21c4e9428e63053e4a74",
+      "hash_caveat": "Historical wrapper executes verified git-show bytes, but raw before core_source_sha256 hashes the current checkout via __file__; executed_book_source_sha256 is authoritative."
+    },
+    {
+      "path": "verified-core-before-c.json",
+      "sha256": "e3a68976c39a73ecb3b784d110f1fa059a29f5722c462ede6386575a7c0323d3",
+      "size_bytes": 4104,
+      "role": "Final three-run synthetic reducer-only comparison.",
+      "provenance": "Parent-executed tools/benchmark_core.py, with core-before.py selecting hash-verified historical module for before; authoritative final raw report.",
+      "executed_book_source_sha256": "f908201f41719b1d7726af4a38df0a3a166660c7312d21c4e9428e63053e4a74",
+      "hash_caveat": "Historical wrapper executes verified git-show bytes, but raw before core_source_sha256 hashes the current checkout via __file__; executed_book_source_sha256 is authoritative."
+    },
+    {
+      "path": "verified-crossover-a.json",
+      "sha256": "1de9e9b0f56941ad75ae01684fad2233f43feef1164ca060043110852fdab7dd",
+      "size_bytes": 9031,
+      "role": "Final paired crossover run; retained authoritative result.",
+      "provenance": "Parent-executed crossover.py; 17 cases, alternating baseline/current delta order.",
+      "before_book_source_sha256": "f908201f41719b1d7726af4a38df0a3a166660c7312d21c4e9428e63053e4a74",
+      "after_book_source_sha256": "467c852a33e480733083ed7554d557a0a8ad64c6f3d9ccc945103f566434dc63"
+    },
+    {
+      "path": "verified-crossover-b.json",
+      "sha256": "6c7bd239bf12b096f7793245d8c8afc9b996afaeec0c6c92fffdc45c37bc2823",
+      "size_bytes": 9104,
+      "role": "Final paired crossover run; retained authoritative result.",
+      "provenance": "Parent-executed crossover.py; 17 cases, alternating baseline/current delta order.",
+      "before_book_source_sha256": "f908201f41719b1d7726af4a38df0a3a166660c7312d21c4e9428e63053e4a74",
+      "after_book_source_sha256": "467c852a33e480733083ed7554d557a0a8ad64c6f3d9ccc945103f566434dc63"
+    },
+    {
+      "path": "verified-crossover-c.json",
+      "sha256": "a3a259660ab3f7cf820ef8cd1c9c86368a96502b1c6f43dbbc51b5be7aaed56a",
+      "size_bytes": 9005,
+      "role": "Final paired crossover run; retained authoritative result.",
+      "provenance": "Parent-executed crossover.py; 17 cases, alternating baseline/current delta order.",
+      "before_book_source_sha256": "f908201f41719b1d7726af4a38df0a3a166660c7312d21c4e9428e63053e4a74",
+      "after_book_source_sha256": "467c852a33e480733083ed7554d557a0a8ad64c6f3d9ccc945103f566434dc63"
+    },
+    {
+      "path": "verified-recorded-replay-after.json",
+      "sha256": "4fee7be9fc76efa0eae65cf4b16d83916b7b4332458bc7d8d351517ede999ff5",
+      "size_bytes": 5488,
+      "role": "Final normalized/raw native recorded replay, one run each.",
+      "provenance": "Parent-executed replay-workload.py using final native book and local reference capture; not a three-run timing comparison.",
+      "executed_book_source_sha256": "467c852a33e480733083ed7554d557a0a8ad64c6f3d9ccc945103f566434dc63"
+    },
+    {
+      "path": "verification.json",
+      "sha256": "277d5cd8badc21e58a018e5c4036165a3cb035eec0fc94d39605e8b43c4773ea",
+      "size_bytes": 2515,
+      "role": "Observed final integration verification output; not performance measurements."
+    },
+    {
+      "path": "verification.log",
+      "sha256": "df4a46de85d771f5e505422c2993a01df8b94e84d32c44af163c93900f4630c7",
+      "size_bytes": 36196,
+      "role": "Observed final integration verification output; not performance measurements."
+    }
+  ],
+  "manifest_hash_scope": "Every retained file in this directory except manifest.json itself; SHA256 covers exact file bytes. Deleted superseded artifacts are listed only in removed_superseded_intermediates, not as available evidence.",
+  "removed_superseded_intermediates": [
+    {
+      "path": "core-before-a.json",
+      "sha256": "c3148877af6e16edb5ec5204f64f4cf2abe019d0d61b96011d9516784cd32c0c",
+      "size_bytes": 4109,
+      "reason": "Superseded by verified-core before/after reports and summary.json"
+    },
+    {
+      "path": "core-before-b.json",
+      "sha256": "0c8548c803caf96f632a34707314dd302ff7e5e6905a476b0c7dbe995e170dac",
+      "size_bytes": 4107,
+      "reason": "Superseded by verified-core before/after reports and summary.json"
+    },
+    {
+      "path": "core-before-c.json",
+      "sha256": "95eba7123967b5ab72f27205fe7aac475f34eec247dcbf40f156dbce9902f3c6",
+      "size_bytes": 4107,
+      "reason": "Superseded by verified-core before/after reports and summary.json"
+    },
+    {
+      "path": "core-before-final-a.json",
+      "sha256": "80ddc513bf131a98b409408c3b1a2e87d17d25b6e8a074745cd53cfa18b089d7",
+      "size_bytes": 4107,
+      "reason": "Superseded by verified-core before/after reports and summary.json"
+    },
+    {
+      "path": "core-before-final-b.json",
+      "sha256": "8ae239d7465f04a279893e2a00003319100e279ea30b0ab9b9ae5a53896cc19e",
+      "size_bytes": 4102,
+      "reason": "Superseded by verified-core before/after reports and summary.json"
+    },
+    {
+      "path": "core-before-final-c.json",
+      "sha256": "1869765222d8efcf8bda199bb85ed333ce8e7e82fa62ec87fffa1c5f5da6b911",
+      "size_bytes": 4110,
+      "reason": "Superseded by verified-core before/after reports and summary.json"
+    },
+    {
+      "path": "core-after-a.json",
+      "sha256": "924aa0d7de223c7be39cbfdd40ba9b746c3adefe9447b6344d8ef47b441e86ce",
+      "size_bytes": 4094,
+      "reason": "Superseded by verified-core before/after reports and summary.json"
+    },
+    {
+      "path": "core-after-b.json",
+      "sha256": "b09d92b5d7f1bb6ee718d6a8d3cbe058f11fdaa6ece449362b2ccb0edbe1280d",
+      "size_bytes": 4112,
+      "reason": "Superseded by verified-core before/after reports and summary.json"
+    },
+    {
+      "path": "core-after-c.json",
+      "sha256": "f461f4cc78d44f0a806e02179c5e090073e1cb0735a629573c3032dcef59c30a",
+      "size_bytes": 4101,
+      "reason": "Superseded by verified-core before/after reports and summary.json"
+    },
+    {
+      "path": "core-after-final-a.json",
+      "sha256": "985505c44799ad72b65751c5f144f2c96449e789dc44336617c5796f2a3f6a14",
+      "size_bytes": 4120,
+      "reason": "Superseded by verified-core before/after reports and summary.json"
+    },
+    {
+      "path": "core-after-final-b.json",
+      "sha256": "f9ad16dbd425be7fce004d0a58d7c66e56019f63fe35c21e54a4240ed17c6ee4",
+      "size_bytes": 4097,
+      "reason": "Superseded by verified-core before/after reports and summary.json"
+    },
+    {
+      "path": "core-after-final-c.json",
+      "sha256": "f2b7ee9180762722ab05bf282e6fe87882735cfe5b05b72efbc5d2b5fe39fed6",
+      "size_bytes": 4093,
+      "reason": "Superseded by verified-core before/after reports and summary.json"
+    },
+    {
+      "path": "core-summary.json",
+      "sha256": "0dd39a80e6007917cfbef26aadce609845d0d72cf3a4546113bcc63bc67b0866",
+      "size_bytes": 8913,
+      "reason": "Superseded by verified-core before/after reports and summary.json"
+    },
+    {
+      "path": "recorded-replay-after.json",
+      "sha256": "ca0050d80d0b2d724a86bcb63a17c51c80cf0df984ed9de4def47a1c473e8210",
+      "size_bytes": 5489,
+      "reason": "Superseded by verified-recorded-replay-after.json"
+    }
+  ],
+  "hardware": {
+    "provenance": "Hardware/runtime supplied by parent; Python/platform and Node/Chromium also recorded in final raw artifacts.",
+    "cpu": "Intel Core i5-7360U",
+    "physical_cores": 2,
+    "logical_cores": 4,
+    "nominal_ghz": 2.3,
+    "memory_gib": 8,
+    "os": "macOS 13.7.8",
+    "python": "3.13.5",
+    "node": "22.22.0",
+    "chromium": "145.0.7632.6"
+  },
+  "code_provenance": {
+    "baseline_git_revision": "49f2d0a4bb07a4d0816c0644890756d740b3cc7d",
+    "original_book_source_sha256": "f908201f41719b1d7726af4a38df0a3a166660c7312d21c4e9428e63053e4a74",
+    "final_native_book_source_sha256": "467c852a33e480733083ed7554d557a0a8ad64c6f3d9ccc945103f566434dc63",
+    "browser_shared_backend_loaded_core_source_sha256": "d435981fb1d1c71a9506b37a58d2eaf522aaf93ddd9fff0585d549bd943a2dcd",
+    "browser_hash_evidence": "Captured from superseded core-after-final-a.json before its explicitly requested removal; parent confirms this was the backend loaded for all 12 UI runs.",
+    "final_integrated_ui_check": "Restarted with final native book; 50 browser cases passed and 1 intentional network scenario skipped, followed by full quality gate. Portable focused manual-follow rerun also passed.",
+    "frontend_comparison": "Saved baseline built assets versus final built assets, unchanged across all 12 UI samples; no historical-backend UI comparison."
+  },
+  "browser_comparison": {
+    "source_files": [
+      "browser-after-1440-a.json",
+      "browser-after-1440-b.json",
+      "browser-after-1440-c.json",
+      "browser-after-390-a.json",
+      "browser-after-390-b.json",
+      "browser-after-390-c.json",
+      "browser-before-1440-a.json",
+      "browser-before-1440-b.json",
+      "browser-before-1440-c.json",
+      "browser-before-390-a.json",
+      "browser-before-390-b.json",
+      "browser-before-390-c.json"
+    ],
+    "statuses": "All 12 completed_descriptive_sample; descriptive completion is not zero-error certification.",
+    "shared_backend_loaded_core_source_sha256": "d435981fb1d1c71a9506b37a58d2eaf522aaf93ddd9fff0585d549bd943a2dcd",
+    "hash_preserved_from_deleted_artifact": "core-after-final-a.json:core_source_sha256",
+    "ui_scope": "Before old built frontend assets versus after final built assets, unchanged across samples. All UI runs shared n//64 backend before final dense touched-set bookkeeping move. Final native benchmarks/replays use final book hash. Parent restarted integrated UI check server with final book; no result inferred.",
+    "error_entry_totals": {
+      "measurement": {
+        "http_409": 0,
+        "console_409": 0,
+        "aborted_request": 0,
+        "other": 0
+      },
+      "outside_measurement": {
+        "http_409": 51,
+        "console_409": 51,
+        "aborted_request": 5,
+        "other": 0
+      }
+    },
+    "error_caveat": "51 out-of-window HTTP 409 entries have 51 corresponding console entries; 5 additional out-of-window aborted request entries. No measurement-window error entries in these 12 files. Logs do not label every outside-window event as warmup versus teardown. Query status/state counts remain separate.",
+    "queries": "Only all_panes rows are aggregated; payload_pane_id=null duplicates are excluded. No per-pane attribution without API payload IDs. Narrow per-run issued visualization/ladder: before 30/24, after 17/0. Report query demand per wall second alongside source cursor progress; not production throughput.",
+    "causality": "No causal backend-to-UI latency claim. Three-run comparisons are descriptive, not significance or universal improvement."
+  },
+  "superseded_trials": {
+    "crossover-final-tight-b.json": "n//64 per-side budget with touched bookkeeping still inside per-level validation: superseded before final dense-bookkeeping move.",
+    "crossover-final-tight-c.json": "n//64 per-side budget with touched bookkeeping still inside per-level validation: superseded before final dense-bookkeeping move.",
+    "crossover-final-tight.json": "n//64 per-side budget with touched bookkeeping still inside per-level validation: superseded before final dense-bookkeeping move.",
+    "crossover-final.json": "64 cap with n//8 per-side budget: superseded small-book regression trial.",
+    "discarded-crossover.json": "Initial one-eighth sparse threshold design, discarded before final cap/threshold revisions."
+  },
+  "exclusions": [
+    "No external proprietary assets, wallet/collector/live orders, saved build JavaScript/CSS, or capture payload copies.",
+    "No paper form screenshot presented as receipt proof.",
+    "No superseded trial presented as final-design result.",
+    "No fabricated test/build/lint result or overall certification."
+  ],
+  "verification": {
+    "status": "Final integrated and focused gates passed",
+    "summary": "verification.json",
+    "full_gate_log": "verification.log",
+    "test_counts": "50 browser cases passed, 1 intentional offline network skip; 1270 Python tests and 98 frontend unit tests passed. Focused 2-case rerun is not additional distinct coverage."
+  }
+}

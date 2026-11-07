@@ -11,7 +11,7 @@ second market-data engine.
 
 [![Recorded-source M8 workstation with readable liquidity and footprint charts, depth ladder and time & sales](docs/evidence/m8-after-recorded-1440.png)](docs/evidence/m8-after-recorded-1440.png)
 
-*Recorded-source M8 workstation at delivery 2057 / 4276, 1440 × 900 CSS pixels; not a live-feed or latency certification. Click to view full size. The [M8 evidence handoff](docs/OMP_UPGRADE_HANDOFF.md#m8--market-first-workstation) records matched viewport/source provenance and executed verification; the earlier M7 audit remains historical.*
+*Historical M8 recorded-source workstation at delivery 2057 / 4276, 1440 × 900 CSS pixels; not a screenshot or acceptance result for the current workspace refinement, nor a live-feed or latency certification. Click to view full size. The [M8 evidence handoff](docs/OMP_UPGRADE_HANDOFF.md#m8--market-first-workstation) records that delivery's viewport/source provenance and executed verification.*
 
 ## Upgrade progress
 
@@ -50,6 +50,16 @@ second market-data engine.
   evidence without turning transport health into market-data quality. See the
   [M8 handoff](docs/OMP_UPGRADE_HANDOFF.md#m8--market-first-workstation)
   for implementation scope and source-specific evidence.
+- **Current workspace refinement:** identity/search hierarchy, multi-term catalog
+  search and a **Source / workspace** configuration disclosure; at widths
+  ≤965 CSS px, state-preserving **Liquidity / Flow / Book / Tape** tabs replace
+  the four-pane vertical stack. Desktop dual charts and DOM/tape remain.
+  Sparse book deltas use bounded incremental sorted-side candidates; snapshots
+  and dense changes retain full sorting, with Binance observed-depth boundaries
+  unchanged. See [research, measured results and limits](docs/WORKSPACE_IMPROVEMENT.md).
+  Repeated finite native measurements and matched UI comparisons are recorded
+  separately from final integration-gate status; these changes add no economics,
+  execution modes, live-feed integrations or sustainable-capacity guarantee.
 
 For current acceptance status and executed evidence, see the
 [operational readiness and recovery](docs/READINESS.md),
@@ -87,12 +97,18 @@ exclusions. No order is sent to an exchange. See
 [analytics](docs/ANALYTICS.md) and [costs](docs/COSTS.md).
 
 The [operator guide](docs/TERMINAL.md) covers independent chart settings, cursor
-and time-range links, keyboard navigation/resizing, layout presets, four local
-workspace slots and source/diagnostics inspectors. Workspace preferences never
-save a mutable backend session. Chart dates project native paired receive clocks;
-replay age is measured against its source clock, not today's wall clock. **Fit
-time** for flow fits returned native aggregates, not an invented all-history
-extent. Compact footprints crop native rows for legibility without regrouping
+and time-range links, keyboard navigation/resizing and source/diagnostics
+inspectors. Open **Source / workspace** for the data source, layout preset and
+**Workspaces**' four browser-local slots. The existing topbar search supports
+multiple space-separated terms; **/** focuses it and opens catalog results.
+At ≤965 CSS px, the **Market panes** tablist selects **Liquidity**, **Flow**,
+**Book** or **Tape** using Left/Right or Home/End. Switching preserves mounted
+pane state and gates hidden chart/DOM queries; it does not pause collection or
+replay. Desktop retains simultaneous dual charts and the DOM/tape column.
+Workspace preferences never save a mutable backend session. Chart dates project
+native paired receive clocks; replay age uses its source clock, not today's wall
+clock. **Fit time** for flow fits returned native aggregates, not invented
+all-history extent. Compact footprints crop native rows without regrouping
 prices or quantities; exact values remain inspectable.
 
 The visual direction references [Flowsurface](https://flowsurface.com/),

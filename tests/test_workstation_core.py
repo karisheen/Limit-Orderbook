@@ -549,6 +549,241 @@ def test_full_snapshot_delta_and_checkpoint_reconstruction_agree(truncate):
     assert old.asks[1].quantity == 1
 
 
+@pytest.mark.parametrize("width", [3, 64], ids=["sparse", "dense"])
+@pytest.mark.parametrize("truncate", [False, True])
+def test_ordered_deltas_match_independent_full_sort_across_transactions(
+    width, truncate
+):
+    instrument, key, reducer = fixture_core(depth=128, truncate_depth=truncate)
+    expected = {"bid": {}, "ask": {}}
+
+    def expected_levels(events):
+        for event in events:
+            if event.payload.kind == "snapshot":
+                expected["bid"].clear()
+                expected["ask"].clear()
+            for change in event.payload.changes:
+                side = expected[change.side]
+                quantity = change.quantity
+                if change.quantity_semantics == "incremental":
+                    quantity += side.get(change.price, (None, D(0)))[1]
+                if quantity:
+                    side[change.price] = (change.price, quantity)
+                else:
+                    side.pop(change.price, None)
+        result = []
+        for name in ("bid", "ask"):
+            ordered = sorted(
+                expected[name].values(),
+                key=lambda pair: pair[0],
+                reverse=name == "bid",
+            )
+            if truncate:
+                ordered = ordered[:128]
+            expected[name] = {price: (price, quantity) for price, quantity in ordered}
+            result.append(
+                tuple((str(price), str(quantity)) for price, quantity in ordered)
+            )
+        return tuple(result)
+
+    def lexical(book):
+        return tuple(
+            tuple((str(level.price), str(level.quantity)) for level in levels)
+            for levels in (book.bids, book.asks)
+        )
+
+    initial = tuple(
+        LevelChange(side, D(f"{base + direction * index}.00"), D("1.000"))
+        for side, base, direction in (("bid", 500, -2), ("ask", 600, 2))
+        for index in reversed(range(160))
+    )
+    snapshot = envelope(instrument, key, changes=initial)
+    old = reducer.apply((snapshot,)).book
+    assert lexical(old) == expected_levels((snapshot,))
+    old_wire = dumps(old)
+    first, second = [], []
+    indices = (0, 64, 127) if width == 3 else range(width)
+    for side, base, direction in (("bid", 500, -2), ("ask", 600, 2)):
+        for index in indices:
+            price = base + direction * index
+            inserted = D(price) - D(direction) / 4
+            first.extend(
+                (
+                    LevelChange(side, D(f"{price}.00"), D("3.000")),
+                    LevelChange(side, inserted, D("2.000")),
+                )
+            )
+            second.extend(
+                (
+                    LevelChange(side, D(f"{price}.000"), D("1.0000"), "incremental"),
+                    LevelChange(
+                        side,
+                        inserted.quantize(D("0.000")),
+                        D("-2.000") if index != 0 and index % 2 == 0 else D("1.0000"),
+                        "incremental",
+                    ),
+                )
+            )
+        first.extend(
+            (
+                LevelChange(side, D(f"{base}.0000"), D("5.0000")),
+                LevelChange(side, D(base + direction), D("0")),
+                LevelChange(side, D(100 if side == "bid" else 1100), D("0")),
+            )
+        )
+    transaction = (
+        envelope(instrument, key, "delta", tuple(first), ordinal=2),
+        envelope(instrument, key, "delta", tuple(second), ordinal=2, event_index=1),
+    )
+    result = reducer.apply(transaction)
+    assert result.recovery is None
+    assert lexical(result.book) == expected_levels(transaction)
+    assert dumps(old) == old_wire
+
+    _, _, restored = fixture_core(depth=128, truncate_depth=truncate)
+    restored.restore(loads(dumps(reducer.checkpoint())))
+    # A previously discarded level starts at zero, not its pre-truncation quantity.
+    boundary = envelope(
+        instrument,
+        key,
+        "delta",
+        (
+            LevelChange("bid", result.book.bids[0].price, D("0")),
+            LevelChange("ask", result.book.asks[0].price, D("0")),
+            LevelChange("bid", D("182.0000"), D("0.5000"), "incremental"),
+            LevelChange("ask", D("918.0000"), D("0.5000"), "incremental"),
+        ),
+        ordinal=3,
+    )
+    result = reducer.apply((boundary,))
+    replayed = restored.apply((boundary,))
+    assert result.recovery is None
+    assert (
+        lexical(result.book) == lexical(replayed.book) == expected_levels((boundary,))
+    )
+    assert result.book.bids[-1].quantity == D("0.5000" if truncate else "1.5000")
+    assert result.book.asks[-1].quantity == D("0.5000" if truncate else "1.5000")
+
+    # The snapshot discards both old state and earlier writes in this message.
+    # Its delta must also see levels that will be truncated only at commit.
+    replacement = (
+        envelope(instrument, key, "delta", tuple(first[:2]), ordinal=4),
+        envelope(instrument, key, changes=initial, ordinal=4, event_index=1),
+        envelope(
+            instrument,
+            key,
+            "delta",
+            (
+                LevelChange("bid", D("500.0000"), D("0")),
+                LevelChange("bid", D("244.000"), D("0.5000"), "incremental"),
+                LevelChange("ask", D("600.0000"), D("0")),
+                LevelChange("ask", D("856.000"), D("0.5000"), "incremental"),
+            ),
+            ordinal=4,
+            event_index=2,
+        ),
+    )
+    result = reducer.apply(replacement)
+    replayed = restored.apply(replacement)
+    assert result.recovery is None
+    assert (
+        lexical(result.book) == lexical(replayed.book) == expected_levels(replacement)
+    )
+
+
+@pytest.mark.parametrize("failure", ["checksum", "candidate"])
+@pytest.mark.parametrize("side", ["bid", "ask"])
+def test_sparse_ordered_candidates_preserve_lexical_boundaries_on_rollback(
+    side, failure
+):
+    seen, calls = [], []
+    rejecting = False
+
+    def checksum(bids, asks, info):
+        calls.append("checksum")
+        seen.append((bids, asks))
+        return "match"
+
+    def candidate(bids, asks, events):
+        calls.append("candidate")
+        if rejecting:
+            raise ValueError("candidate_rejected")
+
+    instrument, key, reducer = fixture_core(
+        checksum_calculator=checksum, candidate_validator=candidate
+    )
+    initial = tuple(
+        LevelChange(name, D(f"{base + direction * index}.00"), D("1.000"))
+        for name, base, direction in (("bid", 500, -1), ("ask", 600, 1))
+        for index in range(128)
+    )
+    reducer.apply(
+        (
+            envelope(
+                instrument,
+                key,
+                changes=initial,
+                checksum=ChecksumInfo("synthetic", "match"),
+            ),
+        )
+    )
+    boundary = D("373.0000" if side == "bid" else "727.0000")
+    lexical_update = envelope(
+        instrument,
+        key,
+        "delta",
+        (LevelChange(side, boundary, D("1.0000")),),
+        ordinal=2,
+        checksum=ChecksumInfo("synthetic", "match"),
+    )
+    result = reducer.apply((lexical_update,))
+    assert not result.changed
+    old = result.book
+    old_wire = dumps(old)
+    levels = old.bids if side == "bid" else old.asks
+    assert str(levels[-1].price) == str(boundary)
+    assert str(levels[-1].quantity) == "1.0000"
+    calls.clear()
+    rejecting = True
+    failed = reducer.apply(
+        (
+            envelope(
+                instrument,
+                key,
+                "delta",
+                (
+                    LevelChange(side, boundary.quantize(D("0.00")), D("9.000")),
+                    LevelChange(side, D("500" if side == "bid" else "600"), D("0")),
+                    LevelChange(
+                        side, D("372.50" if side == "bid" else "727.50"), D("2")
+                    ),
+                    LevelChange(side, D("300" if side == "bid" else "800"), D("0")),
+                ),
+                ordinal=3,
+                checksum=ChecksumInfo(
+                    "synthetic", "wrong" if failure == "checksum" else "match"
+                ),
+            ),
+        )
+    )
+    assert failed.recovery.reason == (
+        "checksum_mismatch" if failure == "checksum" else "candidate_rejected"
+    )
+    assert calls == (
+        ["checksum"] if failure == "checksum" else ["checksum", "candidate"]
+    )
+    checked = seen[-1][0 if side == "bid" else 1]
+    assert str(checked[-2].price) == str(boundary.quantize(D("0.00")))
+    assert str(checked[-2].quantity) == "9.000"
+    assert dumps(old) == old_wire
+    checkpoint = reducer.checkpoint()
+    _, _, restored = fixture_core()
+    restored.restore(loads(dumps(checkpoint)))
+    restored_levels = restored.book.bids if side == "bid" else restored.book.asks
+    assert str(restored_levels[-1].price) == str(boundary)
+    assert str(restored_levels[-1].quantity) == "1.0000"
+
+
 @pytest.mark.parametrize(
     "changes,reason",
     [

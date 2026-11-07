@@ -1,0 +1,62 @@
+{
+  "schema": "lob-workspace-cycle-verification-1",
+  "final_native_book_sha256": "467c852a33e480733083ed7554d557a0a8ad64c6f3d9ccc945103f566434dc63",
+  "integrated_gate": {
+    "cwd": "frontend",
+    "command": "../.tools/node/bin/node node_modules/@playwright/test/cli.js test --config /tmp/lob-playwright.config.mjs workspace.spec.ts pane-accessibility.spec.ts source-experience.spec.ts terminal.spec.ts workflow.spec.ts && ../tools/check.sh",
+    "node_path_note": "Executed with absolute repository .tools/node/bin/node; equivalent relative path shown. Temporary config is superseded by retained portable config.",
+    "exit_code": 0,
+    "elapsed_seconds": 811.5,
+    "browser": {
+      "passed": 50,
+      "skipped": 1,
+      "duration_reported": "6.3m",
+      "skip": "Network-only live-source migration; offline verification intentionally excludes live collection."
+    },
+    "python": {
+      "passed": 1270,
+      "seconds": 408.44,
+      "warnings": 1,
+      "warning": "Existing Starlette TestClient httpx deprecation"
+    },
+    "ruff": "passed; 71 files format-checked",
+    "mypy": "passed; 35 source files",
+    "frontend_lint": "passed",
+    "frontend_unit_tests": 98,
+    "typecheck": "passed",
+    "production_build": "passed",
+    "log": "verification.log"
+  },
+  "focused_manual_follow": {
+    "command": ".tools/node/bin/node frontend/node_modules/@playwright/test/cli.js test --config docs/evidence/workspace-cycle/playwright.config.mjs workspace.spec.ts --grep \"narrow pane selection\"",
+    "passed": 2,
+    "seconds": 22.6,
+    "viewports": [
+      320,
+      390
+    ],
+    "subsequent_frontend_lint": "passed",
+    "counts_note": "Reruns of two cases, not additional distinct passing tests."
+  },
+  "reproducer_checks": {
+    "ruff_check": "passed",
+    "ruff_format_check": "5 files passed",
+    "node_syntax_check": [
+      "browser-workload.mjs",
+      "playwright.config.mjs"
+    ],
+    "note": "Post-measurement formatting and standalone sys.path import placement only; workloads and timing boundaries unchanged."
+  },
+  "actual_paper_ui": {
+    "source": "synthetic demo; no real funds or exchange orders",
+    "starting_quote": "1000 USDT",
+    "fee_assumption_bps": "10",
+    "latency_ns": "0",
+    "instrument": "binance-global:spot-v3:spot:ETHUSDT",
+    "filled_base": "0.01",
+    "notional_quote": "30.01",
+    "fee_quote": "0.03001",
+    "remaining_quote": "969.95999",
+    "evidence": "Observed native rendered order/fill/balance text; no receipt screenshot claim."
+  }
+}

@@ -1,0 +1,747 @@
+
+Running 51 tests using 1 worker
+
+(node:30568) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:30568) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 e2e/pane-accessibility.spec.ts:48:5 › Liquidity pane actions, Escape focus and Inspector navigation remain usable at 320px (11.7s)
+  ✓   2 e2e/pane-accessibility.spec.ts:48:5 › Order flow pane actions, Escape focus and Inspector navigation remain usable at 320px (9.6s)
+  ✓   3 e2e/pane-accessibility.spec.ts:48:5 › Liquidity pane actions, Escape focus and Inspector navigation remain usable at 390px (11.4s)
+  ✓   4 e2e/pane-accessibility.spec.ts:48:5 › Order flow pane actions, Escape focus and Inspector navigation remain usable at 390px (13.6s)
+  ✓   5 e2e/pane-accessibility.spec.ts:48:5 › Liquidity pane actions, Escape focus and Inspector navigation remain usable at 1280px (27.3s)
+  ✓   6 e2e/pane-accessibility.spec.ts:48:5 › Order flow pane actions, Escape focus and Inspector navigation remain usable at 1280px (28.7s)
+  ✓   7 e2e/pane-accessibility.spec.ts:48:5 › Liquidity pane actions, Escape focus and Inspector navigation remain usable at 1920px (26.5s)
+  ✓   8 e2e/pane-accessibility.spec.ts:48:5 › Order flow pane actions, Escape focus and Inspector navigation remain usable at 1920px (24.7s)
+  ✓   9 e2e/pane-accessibility.spec.ts:170:1 › Escape closes focused DOM disclosures before restoring a maximized pane (5.4s)
+  ✓  10 e2e/pane-accessibility.spec.ts:204:3 › market tabs support keyboard selection, pane toggles and desktop resize at 320px (6.9s)
+  ✓  11 e2e/pane-accessibility.spec.ts:204:3 › market tabs support keyboard selection, pane toggles and desktop resize at 390px (6.9s)
+  ✓  12 e2e/source-experience.spec.ts:17:1 › paused fixture supports scale recovery and independent replay controls (3.2s)
+  ✓  13 e2e/source-experience.spec.ts:87:1 › missing URL source never opens demo and explicit recovery persists the source choice (1.6s)
+  ✓  14 e2e/source-experience.spec.ts:113:1 › explicit saved paused demo survives a server live preference and URL override wins saved source (2.3s)
+  ✓  15 e2e/source-experience.spec.ts:155:3 › URL override clears another source's saved ranges, scales and freezes on first attachment (980ms)
+  ✓  16 e2e/source-experience.spec.ts:155:3 › server preference clears another source's saved ranges, scales and freezes on first attachment (1.0s)
+  ✓  17 e2e/source-experience.spec.ts:179:1 › persisted tape freeze captures first eligible trades and holds them until resumed (1.4s)
+  ✓  18 e2e/source-experience.spec.ts:217:1 › research tabs support roving keyboard focus without chart shortcuts (2.9s)
+  ✓  19 e2e/source-experience.spec.ts:249:1 › trade inspection retains exact native print identity and restores focus through Escape and generation changes (2.5s)
+  -  20 e2e/source-experience.spec.ts:325:1 › network launch migrates automatic legacy demo to actual public live with an inspectable notice
+  ✓  21 e2e/terminal.spec.ts:6:1 › exact selection, costs, replay and visible API errors (4.2s)
+  ✓  22 e2e/terminal.spec.ts:42:1 › documents own independent sessions and closing releases one owner (1.9s)
+  ✓  23 e2e/terminal.spec.ts:66:1 › laptop workspace retains controls and reconnect replaces a session (2.1s)
+  ✓  24 e2e/workflow.spec.ts:143:1 › native alert support, explicit spot IOC and linked journal survive rewind and persisted-run resume (12.6s)
+  ✓  25 e2e/workflow.spec.ts:305:1 › failed and pane-aborted resume never claim success or retry; explicit retry confirms native generation (10.5s)
+  ✓  26 e2e/workspace.spec.ts:139:1 › latest visibility in a batched notification resumes actual canvas painting (3.5s)
+  ✓  27 e2e/workspace.spec.ts:175:1 › one-sided native liquidity occupies the whole time bucket without false temporal gaps (2.8s)
+  ✓  28 e2e/workspace.spec.ts:211:1 › exact instrument selection, grouped cumulative depth and pinned time range use server evidence (16.7s)
+  ✓  29 e2e/workspace.spec.ts:322:1 › linked DOM price outside the chart viewport never selects a different price row (4.2s)
+  ✓  30 e2e/workspace.spec.ts:341:1 › independent chart and DOM freezes hold evidence while replay continues (7.4s)
+  ✓  31 e2e/workspace.spec.ts:378:1 › DOM-only freeze keeps exact cumulative snapshot while chart receives advancing replay evidence (4.5s)
+  ✓  32 e2e/workspace.spec.ts:406:1 › independent chart settings and saved resized workspace survive reload without session ownership (10.2s)
+  ✓  33 e2e/workspace.spec.ts:494:3 › streaming updates do not move workspace panes at 1440px (6.8s)
+  ✓  34 e2e/workspace.spec.ts:494:3 › streaming updates do not move workspace panes at 1280px (6.0s)
+  ✓  35 e2e/workspace.spec.ts:535:1 › proposal risk preserves exact inputs and actual results, unknown fees and HTTP errors; cost comparison remains usable (7.8s)
+  ✓  36 e2e/workspace.spec.ts:617:1 › corrupt and out-of-bound saved preferences recover without resurrecting session ownership (2.4s)
+  ✓  37 e2e/workspace.spec.ts:645:1 › malformed JSON preferences are replaced by a usable default workspace (2.1s)
+  ✓  38 e2e/workspace.spec.ts:658:1 › workspace keyboard shortcuts ignore editable fields and act outside them (5.7s)
+  ✓  39 e2e/workspace.spec.ts:697:1 › compact charts pin quality while overlays preserve plot geometry and footprint detail (7.4s)
+  ✓  40 e2e/workspace.spec.ts:771:3 › narrow pane selection preserves native views and settings without overflow at 320px (9.4s)
+  ✓  41 e2e/workspace.spec.ts:771:3 › narrow pane selection preserves native views and settings without overflow at 390px (9.4s)
+  ✓  42 e2e/workspace.spec.ts:894:1 › narrow inactive chart and book queries stop while replay continues (4.7s)
+  ✓  43 e2e/workspace.spec.ts:924:1 › narrow active panes keep loading, empty, stale and disconnected evidence visible (5.8s)
+  ✓  44 e2e/workspace.spec.ts:980:1 › hidden documents and collapsed DOM panes stop queries without pausing replay (9.2s)
+  ✓  45 e2e/workspace.spec.ts:1028:1 › chart aggregation and freeze are independent native queries (5.3s)
+  ✓  46 e2e/workspace.spec.ts:1063:1 › cursor links propagate exact DOM prices only to opted-in chart panes (2.1s)
+  ✓  47 e2e/workspace.spec.ts:1089:1 › keyboard maximize and Escape restore panes without replacing native views (2.2s)
+  ✓  48 e2e/workspace.spec.ts:1121:1 › overlapping native chart queries and paint acknowledgments complete for both panes (3.1s)
+  ✓  49 e2e/workspace.spec.ts:1165:1 › both frozen chart panes replace native evidence after replay reset and reconnect (5.0s)
+  ✓  50 e2e/workspace.spec.ts:1227:3 › pane-owned native price origins › displayable flow without sampled depth stays pinned when its sibling recenters (5.2s)
+  ✓  51 e2e/workspace.spec.ts:1277:3 › pane-owned native price origins › unobserved reset geometry is retried until native depth can fit the viewport (4.7s)
+
+  1 skipped
+  50 passed (6.3m)
+============================= test session starts ==============================
+platform darwin -- Python 3.13.5, pytest-9.2.0, pluggy-1.7.0
+rootdir: /Users/dakariantoine/Developer/personal/limit-orderbook
+configfile: pyproject.toml
+testpaths: tests
+plugins: asyncio-1.4.1, hypothesis-6.170.14, anyio-4.15.1
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 1270 items
+
+tests/test_legacy_api_client.py .............................            [  2%]
+tests/test_recording.py ................................................ [  6%]
+...............................................                          [  9%]
+tests/test_replay.py ................................................... [ 13%]
+..................................                                       [ 16%]
+tests/test_replay_binding.py .........................                   [ 18%]
+tests/test_replay_shutdown.py ..                                         [ 18%]
+tests/test_workstation_alerts.py ...................................     [ 21%]
+tests/test_workstation_analytics.py .................................... [ 24%]
+.......                                                                  [ 24%]
+tests/test_workstation_api.py ...................                        [ 26%]
+tests/test_workstation_api_runtime.py ...........................        [ 28%]
+tests/test_workstation_asian.py ........................................ [ 31%]
+..........................................                               [ 34%]
+tests/test_workstation_cli.py ...............                            [ 35%]
+tests/test_workstation_context.py ..............................         [ 38%]
+tests/test_workstation_core.py ......................................... [ 41%]
+....................................................................     [ 46%]
+tests/test_workstation_costs.py ........................................ [ 50%]
+........                                                                 [ 50%]
+tests/test_workstation_hyperliquid.py .................................. [ 53%]
+.......................................                                  [ 56%]
+tests/test_workstation_ingestion.py .................................... [ 59%]
+.......................................................                  [ 63%]
+tests/test_workstation_journal.py ......................                 [ 65%]
+tests/test_workstation_pacing.py ...............                         [ 66%]
+tests/test_workstation_paper.py ..................................       [ 69%]
+tests/test_workstation_public_boundary.py .............................. [ 71%]
+..................                                                       [ 72%]
+tests/test_workstation_recovery_regressions.py .....................     [ 74%]
+tests/test_workstation_research.py ...............                       [ 75%]
+tests/test_workstation_source_startup.py ..                              [ 75%]
+tests/test_workstation_usd.py .......................................... [ 79%]
+..............................................................           [ 84%]
+tests/test_workstation_visual_api.py ................................... [ 86%]
+.........................................                                [ 90%]
+tests/test_workstation_visuals.py ...................................... [ 93%]
+..................................................................       [ 98%]
+tests/test_workstation_wire.py ................                          [ 99%]
+tests/test_workstation_wire_memo.py .....                                [100%]
+
+=============================== warnings summary ===============================
+.venv-upgrade/lib/python3.13/site-packages/fastapi/testclient.py:1
+  /Users/dakariantoine/Developer/personal/limit-orderbook/.venv-upgrade/lib/python3.13/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 1270 passed, 1 warning in 408.44s (0:06:48) ==================
+All checks passed!
+71 files already formatted
+Success: no issues found in 35 source files
+
+> limit-orderbook-terminal@0.3.0 lint
+> eslint . --max-warnings 0
+
+
+> limit-orderbook-terminal@0.3.0 test
+> node --experimental-strip-types --test src/*.test.ts
+
+TAP version 13
+# Subtest: projection preserves nanoseconds above Number precision and does not depend on viewport
+ok 1 - projection preserves nanoseconds above Number precision and does not depend on viewport
+  ---
+  duration_ms: 2.456301
+  type: 'test'
+  ...
+# Subtest: late admission selects the segment without replacing its original receive anchor
+ok 2 - late admission selects the segment without replacing its original receive anchor
+  ---
+  duration_ms: 0.345564
+  type: 'test'
+  ...
+# Subtest: coverage, scope and matching clocks are required; publication time cannot supply a map
+ok 3 - coverage, scope and matching clocks are required; publication time cannot supply a map
+  ---
+  duration_ms: 2.736755
+  type: 'test'
+  ...
+# Subtest: clipped coverage keeps a predecessor pair and never extrapolates through the future
+ok 4 - clipped coverage keeps a predecessor pair and never extrapolates through the future
+  ---
+  duration_ms: 0.721112
+  type: 'test'
+  ...
+# Subtest: Date overflow is explicit while exact wall projection remains available
+ok 5 - Date overflow is explicit while exact wall projection remains available
+  ---
+  duration_ms: 2.612945
+  type: 'test'
+  ...
+# Subtest: UTC labels use seconds for short windows, minutes for wide windows and exact dates at midnight
+ok 6 - UTC labels use seconds for short windows, minutes for wide windows and exact dates at midnight
+  ---
+  duration_ms: 25.493185
+  type: 'test'
+  ...
+# Subtest: permanent clock context retains only the mapped calendar date and explicit zone
+ok 7 - permanent clock context retains only the mapped calendar date and explicit zone
+  ---
+  duration_ms: 0.240438
+  type: 'test'
+  ...
+# Subtest: clock-aligned ticks remain stable under a small pan and labels never overlap
+ok 8 - clock-aligned ticks remain stable under a small pan and labels never overlap
+  ---
+  duration_ms: 0.738093
+  type: 'test'
+  ...
+# Subtest: forward and backward wall steps keep monotonic positions and explicit discontinuities
+ok 9 - forward and backward wall steps keep monotonic positions and explicit discontinuities
+  ---
+  duration_ms: 0.675445
+  type: 'test'
+  ...
+# Subtest: truncated clock coverage retains readable time at its only step marker
+ok 10 - truncated clock coverage retains readable time at its only step marker
+  ---
+  duration_ms: 0.613377
+  type: 'test'
+  ...
+# Subtest: local repeated DST hours have distinct detailed offsets and calendar days respect DST
+ok 11 - local repeated DST hours have distinct detailed offsets and calendar days respect DST
+  ---
+  duration_ms: 5.736429
+  type: 'test'
+  ...
+# Subtest: depth coordinates retain exact tiny decimals and large integer distinctions
+ok 12 - depth coordinates retain exact tiny decimals and large integer distinctions
+  ---
+  duration_ms: 1.599694
+  type: 'test'
+  ...
+# Subtest: shared cap uses both sides without changing or rounding the native denominator
+ok 13 - shared cap uses both sides without changing or rounding the native denominator
+  ---
+  duration_ms: 0.206988
+  type: 'test'
+  ...
+# Subtest: size changes compare only the same side and exact price, never scope entry or exit
+ok 14 - size changes compare only the same side and exact price, never scope entry or exit
+  ---
+  duration_ms: 2.579547
+  type: 'test'
+  ...
+# Subtest: quote comparison uses native notional rather than browser price multiplication
+ok 15 - quote comparison uses native notional rather than browser price multiplication
+  ---
+  duration_ms: 0.227179
+  type: 'test'
+  ...
+# Subtest: decimal alignment pads glyphs without changing or rounding native text
+ok 16 - decimal alignment pads glyphs without changing or rounding native text
+  ---
+  duration_ms: 0.492457
+  type: 'test'
+  ...
+# Subtest: economic values never pass through binary floating point
+ok 17 - economic values never pass through binary floating point
+  ---
+  duration_ms: 1.306569
+  type: 'test'
+  ...
+# Subtest: missing observations are not fabricated zero values
+ok 18 - missing observations are not fabricated zero values
+  ---
+  duration_ms: 0.224665
+  type: 'test'
+  ...
+# Subtest: nanosecond identities remain exact until bounded display-only date conversion
+ok 19 - nanosecond identities remain exact until bounded display-only date conversion
+  ---
+  duration_ms: 5.235446
+  type: 'test'
+  ...
+# Subtest: native source lag preserves large exact clock boundaries and submillisecond precision
+ok 20 - native source lag preserves large exact clock boundaries and submillisecond precision
+  ---
+  duration_ms: 59.875985
+  type: 'test'
+  ...
+# Subtest: mismatched, missing, invalid and regressing clocks are unavailable, not fresh zero
+ok 21 - mismatched, missing, invalid and regressing clocks are unavailable, not fresh zero
+  ---
+  duration_ms: 0.342051
+  type: 'test'
+  ...
+# Subtest: replay age uses original source clock, not old recording wall date or current publication time
+ok 22 - replay age uses original source clock, not old recording wall date or current publication time
+  ---
+  duration_ms: 0.453572
+  type: 'test'
+  ...
+# Subtest: frozen chart evidence falls behind advancing frames despite unchanged displayed response
+ok 23 - frozen chart evidence falls behind advancing frames despite unchanged displayed response
+  ---
+  duration_ms: 1.010158
+  type: 'test'
+  ...
+# Subtest: new frames and new query IDs do not rejuvenate retained evidence identity
+ok 24 - new frames and new query IDs do not rejuvenate retained evidence identity
+  ---
+  duration_ms: 0.305249
+  type: 'test'
+  ...
+# Subtest: browser residence is independently unavailable for missing or skewed local observations
+ok 25 - browser residence is independently unavailable for missing or skewed local observations
+  ---
+  duration_ms: 0.122557
+  type: 'test'
+  ...
+# Subtest: latest eligible visible column, not newest response or an outside-window column, supplies chart evidence
+ok 26 - latest eligible visible column, not newest response or an outside-window column, supplies chart evidence
+  ---
+  duration_ms: 1.242952
+  type: 'test'
+  ...
+# Subtest: chart clocks, source bounds and active identity must match exactly
+ok 27 - chart clocks, source bounds and active identity must match exactly
+  ---
+  duration_ms: 0.475903
+  type: 'test'
+  ...
+# Subtest: disconnection and unavailable sources never advertise a zero lag
+ok 28 - disconnection and unavailable sources never advertise a zero lag
+  ---
+  duration_ms: 0.46627
+  type: 'test'
+  ...
+# Subtest: same-clock analytics evaluation advances stale live evidence; unnamed frame publication does not
+ok 29 - same-clock analytics evaluation advances stale live evidence; unnamed frame publication does not
+  ---
+  duration_ms: 0.469345
+  type: 'test'
+  ...
+# Subtest: paused replay source lag stays in recording time while local frozen residence advances
+ok 30 - paused replay source lag stays in recording time while local frozen residence advances
+  ---
+  duration_ms: 0.308504
+  type: 'test'
+  ...
+# Subtest: live processing highwater is clock-qualified and never borrowed by replay
+ok 31 - live processing highwater is clock-qualified and never borrowed by replay
+  ---
+  duration_ms: 0.199743
+  type: 'test'
+  ...
+# Subtest: follow frontier includes quiet same-clock evaluation intervals and rejects other clocks and instruments
+ok 32 - follow frontier includes quiet same-clock evaluation intervals and rejects other clocks and instruments
+  ---
+  duration_ms: 0.320177
+  type: 'test'
+  ...
+# Subtest: trade-derived modes retain actual painted evidence and residence identity without eligible depth
+ok 33 - trade-derived modes retain actual painted evidence and residence identity without eligible depth
+  ---
+  duration_ms: 0.76717
+  type: 'test'
+  ...
+# Subtest: footprint source lag follows painted rows rather than newer offscreen native flow
+ok 34 - footprint source lag follows painted rows rather than newer offscreen native flow
+  ---
+  duration_ms: 0.232852
+  type: 'test'
+  ...
+# Subtest: footprint price crop includes its lower edge and excludes its upper edge using exact native cells
+ok 35 - footprint price crop includes its lower edge and excludes its upper edge using exact native cells
+  ---
+  duration_ms: 0.349701
+  type: 'test'
+  ...
+# Subtest: painted crop changes select new evidence on the same response while a frozen crop ages with source time
+ok 36 - painted crop changes select new evidence on the same response while a frozen crop ages with source time
+  ---
+  duration_ms: 0.23004
+  type: 'test'
+  ...
+# Subtest: cropped footprint evidence obeys the displayed time window and captured frontier
+ok 37 - cropped footprint evidence obeys the displayed time window and captured frontier
+  ---
+  duration_ms: 0.980011
+  type: 'test'
+  ...
+# Subtest: no eligible flow inside a painted crop remains unavailable without overlay or candle fallback
+ok 38 - no eligible flow inside a painted crop remains unavailable without overlay or candle fallback
+  ---
+  duration_ms: 0.600482
+  type: 'test'
+  ...
+# Subtest: empty and invalid footprint row geometry never advertises source freshness
+ok 39 - empty and invalid footprint row geometry never advertises source freshness
+  ---
+  duration_ms: 7.533229
+  type: 'test'
+  ...
+# Subtest: flow evidence excludes unpainted aggregates, history, unknown size, wrong clocks and outside bounds
+ok 40 - flow evidence excludes unpainted aggregates, history, unknown size, wrong clocks and outside bounds
+  ---
+  duration_ms: 1.578639
+  type: 'test'
+  ...
+# Subtest: footprint and candle evidence must belong to the rendered bucket and segment
+ok 41 - footprint and candle evidence must belong to the rendered bucket and segment
+  ---
+  duration_ms: 0.202522
+  type: 'test'
+  ...
+# Subtest: newer quote and trade overlays never rejuvenate primary-mode evidence
+ok 42 - newer quote and trade overlays never rejuvenate primary-mode evidence
+  ---
+  duration_ms: 0.309699
+  type: 'test'
+  ...
+# Subtest: metric charts use their eligible metric references instead of an unrelated book sample
+ok 43 - metric charts use their eligible metric references instead of an unrelated book sample
+  ---
+  duration_ms: 0.146449
+  type: 'test'
+  ...
+# Subtest: API receipt occurs after the complete body and before JSON decoding
+ok 44 - API receipt occurs after the complete body and before JSON decoding
+  ---
+  duration_ms: 2.217922
+  type: 'test'
+  ...
+# Subtest: a failed body transfer never reports a complete response receipt
+ok 45 - a failed body transfer never reports a complete response receipt
+  ---
+  duration_ms: 0.59596
+  type: 'test'
+  ...
+# Subtest: render caps and exact native price rows exclude references that were not painted
+ok 46 - render caps and exact native price rows exclude references that were not painted
+  ---
+  duration_ms: 43.514728
+  type: 'test'
+  ...
+# Subtest: an existing chart clock can follow evaluation windows even when current references are unavailable
+ok 47 - an existing chart clock can follow evaluation windows even when current references are unavailable
+  ---
+  duration_ms: 0.248304
+  type: 'test'
+  ...
+# Subtest: large source clocks preserve visible nanosecond offsets without wall-clock conversion
+ok 48 - large source clocks preserve visible nanosecond offsets without wall-clock conversion
+  ---
+  duration_ms: 2.069198
+  type: 'test'
+  ...
+# Subtest: panning preserves exact window width and never requests a negative source clock
+ok 49 - panning preserves exact window width and never requests a negative source clock
+  ---
+  duration_ms: 0.892064
+  type: 'test'
+  ...
+# Subtest: time zoom remains anchored and bounded to one through 600 actual sampling buckets
+ok 50 - time zoom remains anchored and bounded to one through 600 actual sampling buckets
+  ---
+  duration_ms: 0.29469
+  type: 'test'
+  ...
+# Subtest: unknown coverage stays distinct from exact observed zero and fixed saturation never follows incoming extrema
+ok 51 - unknown coverage stays distinct from exact observed zero and fixed saturation never follows incoming extrema
+  ---
+  duration_ms: 0.250131
+  type: 'test'
+  ...
+# Subtest: cursor selects existing exact price rows at both viewport boundaries
+ok 52 - cursor selects existing exact price rows at both viewport boundaries
+  ---
+  duration_ms: 0.251306
+  type: 'test'
+  ...
+# Subtest: linked native prices select their containing chart bucket without rounding across viewport boundaries
+ok 53 - linked native prices select their containing chart bucket without rounding across viewport boundaries
+  ---
+  duration_ms: 0.401436
+  type: 'test'
+  ...
+# Subtest: canvas backing allocation stays bounded at high DPR and oversized panes
+ok 54 - canvas backing allocation stays bounded at high DPR and oversized panes
+  ---
+  duration_ms: 0.352232
+  type: 'test'
+  ...
+# Subtest: immutable liquidity tiles survive unrelated market updates but not grid, quality or contrast changes
+ok 55 - immutable liquidity tiles survive unrelated market updates but not grid, quality or contrast changes
+  ---
+  duration_ms: 0.243125
+  type: 'test'
+  ...
+# Subtest: stable price projection does not collapse adjacent tiny decimals at a large world origin
+ok 56 - stable price projection does not collapse adjacent tiny decimals at a large world origin
+  ---
+  duration_ms: 0.634024
+  type: 'test'
+  ...
+# Subtest: initial footprint crop centers the actual occupied span without weighting, aggregation or invented cells
+ok 57 - initial footprint crop centers the actual occupied span without weighting, aggregation or invented cells
+  ---
+  duration_ms: 1.103365
+  type: 'test'
+  ...
+# Subtest: an omitted older outlier cannot center the initial footprint crop away from paintable cells
+ok 58 - an omitted older outlier cannot center the initial footprint crop away from paintable cells
+  ---
+  duration_ms: 80.311307
+  type: 'test'
+  ...
+# Subtest: footprint occupancy ignores malformed, empty and off-grid cells using exact native price membership
+ok 59 - footprint occupancy ignores malformed, empty and off-grid cells using exact native price membership
+  ---
+  duration_ms: 0.448883
+  type: 'test'
+  ...
+# Subtest: footprint resize changes row count around a held native center rather than refitting incoming flow
+ok 60 - footprint resize changes row count around a held native center rather than refitting incoming flow
+  ---
+  duration_ms: 0.226286
+  type: 'test'
+  ...
+# Subtest: footprint crop clamps at both edges while navigation and hit geometry can reach every native row
+ok 61 - footprint crop clamps at both edges while navigation and hit geometry can reach every native row
+  ---
+  duration_ms: 0.314103
+  type: 'test'
+  ...
+# Subtest: explicit footprint overview and other modes retain the complete native grid at any pane height
+ok 62 - explicit footprint overview and other modes retain the complete native grid at any pane height
+  ---
+  duration_ms: 0.255719
+  type: 'test'
+  ...
+# Subtest: network server preference replaces legacy automatic demo without carrying a foreign instrument
+ok 63 - network server preference replaces legacy automatic demo without carrying a foreign instrument
+  ---
+  duration_ms: 2.475646
+  type: 'test'
+  ...
+# Subtest: explicit saved demo and legacy non-demo choices outrank server defaults
+ok 64 - explicit saved demo and legacy non-demo choices outrank server defaults
+  ---
+  duration_ms: 0.417491
+  type: 'test'
+  ...
+# Subtest: URL source wins over saved explicit demo without carrying foreign instrument or session
+ok 65 - URL source wins over saved explicit demo without carrying foreign instrument or session
+  ---
+  duration_ms: 0.22713
+  type: 'test'
+  ...
+# Subtest: offline default remains demo and explicit live or missing sources cannot fall back
+ok 66 - offline default remains demo and explicit live or missing sources cannot fall back
+  ---
+  duration_ms: 0.864349
+  type: 'test'
+  ...
+# Subtest: unavailable live is retained for readiness error, never changed to ready demo
+ok 67 - unavailable live is retained for readiness error, never changed to ready demo
+  ---
+  duration_ms: 0.189623
+  type: 'test'
+  ...
+# Subtest: one primary incident has deterministic precedence without discarding concurrent causes
+ok 68 - one primary incident has deterministic precedence without discarding concurrent causes
+  ---
+  duration_ms: 1.855751
+  type: 'test'
+  ...
+# Subtest: recovery reveals remaining incident rather than retaining a stale error
+ok 69 - recovery reveals remaining incident rather than retaining a stale error
+  ---
+  duration_ms: 0.169031
+  type: 'test'
+  ...
+# Subtest: connected transport does not make invalid source evidence ready
+ok 70 - connected transport does not make invalid source evidence ready
+  ---
+  duration_ms: 0.247238
+  type: 'test'
+  ...
+# Subtest: normal bounded depth stays compact quality rather than an incident
+ok 71 - normal bounded depth stays compact quality rather than an incident
+  ---
+  duration_ms: 0.152013
+  type: 'test'
+  ...
+# Subtest: collector overflow reported only as an error never offers reconnect as its recovery
+ok 72 - collector overflow reported only as an error never offers reconnect as its recovery
+  ---
+  duration_ms: 0.328012
+  type: 'test'
+  ...
+# Subtest: seeking takes precedence over ancillary notices and clears on reconstruction
+ok 73 - seeking takes precedence over ancillary notices and clears on reconstruction
+  ---
+  duration_ms: 0.15815
+  type: 'test'
+  ...
+# Subtest: persisted workspace bounds reject unsafe identity, time, quantum and dimensions without retaining sessions
+ok 74 - persisted workspace bounds reject unsafe identity, time, quantum and dimensions without retaining sessions
+  ---
+  duration_ms: 2.480865
+  type: 'test'
+  ...
+# Subtest: persisted valid exact quantum and source-monotonic range survive without floating point conversion
+ok 75 - persisted valid exact quantum and source-monotonic range survive without floating point conversion
+  ---
+  duration_ms: 0.245518
+  type: 'test'
+  ...
+# Subtest: fixed liquidity saturation survives reload for large and small base quantities
+ok 76 - fixed liquidity saturation survives reload for large and small base quantities
+  ---
+  duration_ms: 3.066545
+  type: 'test'
+  ...
+# Subtest: DOM grouping and quantity units persist independently of the chart quantum
+ok 77 - DOM grouping and quantity units persist independently of the chart quantum
+  ---
+  duration_ms: 0.558358
+  type: 'test'
+  ...
+# Subtest: v1 workspaces migrate to independent chart, tape and cursor settings
+ok 78 - v1 workspaces migrate to independent chart, tape and cursor settings
+  ---
+  duration_ms: 0.540168
+  type: 'test'
+  ...
+# Subtest: independent chart time zones survive serialization and workspace slots without changing source-time ranges
+ok 79 - independent chart time zones survive serialization and workspace slots without changing source-time ranges
+  ---
+  duration_ms: 1.973786
+  type: 'test'
+  ...
+# Subtest: legacy and invalid saved chart time zones migrate safely without discarding unrelated preferences
+ok 80 - legacy and invalid saved chart time zones migrate safely without discarding unrelated preferences
+  ---
+  duration_ms: 0.338216
+  type: 'test'
+  ...
+# Subtest: saved footprint intervals and explicit overlays survive migration to detailed row preferences
+ok 81 - saved footprint intervals and explicit overlays survive migration to detailed row preferences
+  ---
+  duration_ms: 0.268932
+  type: 'test'
+  ...
+# Subtest: explicit overview and six-second follow preferences survive presets, reload and workspace slots independently
+ok 82 - explicit overview and six-second follow preferences survive presets, reload and workspace slots independently
+  ---
+  duration_ms: 1.307878
+  type: 'test'
+  ...
+# Subtest: pane boundaries reject unsafe splits and secondary settings without retaining foreign fields
+ok 83 - pane boundaries reject unsafe splits and secondary settings without retaining foreign fields
+  ---
+  duration_ms: 0.683212
+  type: 'test'
+  ...
+# Subtest: four bounded workspace slots restore layout and pane settings without source or session contamination
+ok 84 - four bounded workspace slots restore layout and pane settings without source or session contamination
+  ---
+  duration_ms: 0.811662
+  type: 'test'
+  ...
+# Subtest: balanced auto geometry gives charts the remainder at desktop evidence sizes
+ok 85 - balanced auto geometry gives charts the remainder at desktop evidence sizes
+  ---
+  duration_ms: 0.519853
+  type: 'test'
+  ...
+# Subtest: legacy numeric widths conservatively migrate to manual, including old default widths
+ok 86 - legacy numeric widths conservatively migrate to manual, including old default widths
+  ---
+  duration_ms: 0.748119
+  type: 'test'
+  ...
+# Subtest: analysis retains its manual 300px pane through reload and workspace slots
+ok 87 - analysis retains its manual 300px pane through reload and workspace slots
+  ---
+  duration_ms: 0.259046
+  type: 'test'
+  ...
+# Subtest: manual resize bounds allow narrowing below the automatic minimum down to 250px
+ok 88 - manual resize bounds allow narrowing below the automatic minimum down to 250px
+  ---
+  duration_ms: 0.162458
+  type: 'test'
+  ...
+# Subtest: a viewport clamp below 320px preserves the hidden manual request for later restoration
+ok 89 - a viewport clamp below 320px preserves the hidden manual request for later restoration
+  ---
+  duration_ms: 0.231524
+  type: 'test'
+  ...
+# Subtest: viewport and watchlist constraints never rewrite requested manual geometry
+ok 90 - viewport and watchlist constraints never rewrite requested manual geometry
+  ---
+  duration_ms: 0.183342
+  type: 'test'
+  ...
+# Subtest: unlinked pin and follow gestures isolate the other chart even with all cursor links enabled
+ok 91 - unlinked pin and follow gestures isolate the other chart even with all cursor links enabled
+  ---
+  duration_ms: 0.308542
+  type: 'test'
+  ...
+# Subtest: enabling time link aligns to the actor then mirrors only time intent, not scales, overlays or independent freezes
+ok 92 - enabling time link aligns to the actor then mirrors only time intent, not scales, overlays or independent freezes
+  ---
+  duration_ms: 0.343805
+  type: 'test'
+  ...
+# Subtest: time intents reject malformed coordinates and durations rather than treating an absolute clock as a width
+ok 93 - time intents reject malformed coordinates and durations rather than treating an absolute clock as a width
+  ---
+  duration_ms: 0.346119
+  type: 'test'
+  ...
+# Subtest: custom exact follow spans and time-link choice survive presets, serialization and source-independent slots
+ok 94 - custom exact follow spans and time-link choice survive presets, serialization and source-independent slots
+  ---
+  duration_ms: 0.345798
+  type: 'test'
+  ...
+# Subtest: incremental grid preserves immutable history and unknown cells while bounding the visible retained range
+ok 95 - incremental grid preserves immutable history and unknown cells while bounding the visible retained range
+  ---
+  duration_ms: 1.944027
+  type: 'test'
+  ...
+# Subtest: seek, quantum replacement and explicit replace cannot retain future or foreign grid columns
+ok 96 - seek, quantum replacement and explicit replace cannot retain future or foreign grid columns
+  ---
+  duration_ms: 0.221847
+  type: 'test'
+  ...
+# Subtest: Fit time uses actual retained depth, not a requested window or receive-clock projection coverage
+ok 97 - Fit time uses actual retained depth, not a requested window or receive-clock projection coverage
+  ---
+  duration_ms: 0.623132
+  type: 'test'
+  ...
+# Subtest: flow Fit time bounds actual native aggregates without filling absent history or extending beyond source now
+ok 98 - flow Fit time bounds actual native aggregates without filling absent history or extending beyond source now
+  ---
+  duration_ms: 0.961395
+  type: 'test'
+  ...
+1..98
+# tests 98
+# suites 0
+# pass 98
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1087.586779
+
+> limit-orderbook-terminal@0.3.0 build
+> npm run typecheck && vite build
+
+
+> limit-orderbook-terminal@0.3.0 typecheck
+> tsc --noEmit
+
+vite v7.3.1 building client environment for production...
+transforming...
+✓ 53 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.59 kB │ gzip:   0.36 kB
+dist/assets/index-DkQDy6vo.css   44.62 kB │ gzip:   8.83 kB
+dist/assets/index-BWSO8d_d.js   417.47 kB │ gzip: 126.47 kB
+✓ built in 1.70s
+
+
+Wall time: 811.50 seconds

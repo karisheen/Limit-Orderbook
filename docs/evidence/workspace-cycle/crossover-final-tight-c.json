@@ -1,0 +1,495 @@
+[
+  {
+    "depth": 20,
+    "touched_per_message": 1,
+    "snapshot_ms": [
+      0.821483,
+      0.832795
+    ],
+    "before": {
+      "count": 24,
+      "p50_ms": 0.0999235,
+      "p95_ms": 0.144404
+    },
+    "after": {
+      "count": 24,
+      "p50_ms": 0.11341899999999999,
+      "p95_ms": 0.150244
+    },
+    "before_cpu": {
+      "count": 24,
+      "p50_ms": 0.097,
+      "p95_ms": 0.141
+    },
+    "after_cpu": {
+      "count": 24,
+      "p50_ms": 0.1105,
+      "p95_ms": 0.146
+    },
+    "exact_final_levels": true
+  },
+  {
+    "depth": 20,
+    "touched_per_message": 20,
+    "snapshot_ms": [
+      0.630544,
+      0.554851
+    ],
+    "before": {
+      "count": 24,
+      "p50_ms": 0.31250849999999997,
+      "p95_ms": 0.471468
+    },
+    "after": {
+      "count": 24,
+      "p50_ms": 0.31484900000000005,
+      "p95_ms": 0.445432
+    },
+    "before_cpu": {
+      "count": 24,
+      "p50_ms": 0.3105,
+      "p95_ms": 0.449
+    },
+    "after_cpu": {
+      "count": 24,
+      "p50_ms": 0.3135,
+      "p95_ms": 0.427
+    },
+    "exact_final_levels": true
+  },
+  {
+    "depth": 128,
+    "touched_per_message": 1,
+    "snapshot_ms": [
+      3.407863,
+      3.840072
+    ],
+    "before": {
+      "count": 24,
+      "p50_ms": 0.13177149999999999,
+      "p95_ms": 0.197547
+    },
+    "after": {
+      "count": 24,
+      "p50_ms": 0.150419,
+      "p95_ms": 0.314867
+    },
+    "before_cpu": {
+      "count": 24,
+      "p50_ms": 0.1285,
+      "p95_ms": 0.184
+    },
+    "after_cpu": {
+      "count": 24,
+      "p50_ms": 0.1465,
+      "p95_ms": 0.266
+    },
+    "exact_final_levels": true
+  },
+  {
+    "depth": 128,
+    "touched_per_message": 16,
+    "snapshot_ms": [
+      4.44859,
+      3.772221
+    ],
+    "before": {
+      "count": 24,
+      "p50_ms": 0.274667,
+      "p95_ms": 0.349661
+    },
+    "after": {
+      "count": 24,
+      "p50_ms": 0.275692,
+      "p95_ms": 0.390458
+    },
+    "before_cpu": {
+      "count": 24,
+      "p50_ms": 0.2725,
+      "p95_ms": 0.343
+    },
+    "after_cpu": {
+      "count": 24,
+      "p50_ms": 0.2735,
+      "p95_ms": 0.346
+    },
+    "exact_final_levels": true
+  },
+  {
+    "depth": 128,
+    "touched_per_message": 128,
+    "snapshot_ms": [
+      3.789896,
+      3.689633
+    ],
+    "before": {
+      "count": 24,
+      "p50_ms": 1.844992,
+      "p95_ms": 4.643907
+    },
+    "after": {
+      "count": 24,
+      "p50_ms": 1.8399615,
+      "p95_ms": 3.336249
+    },
+    "before_cpu": {
+      "count": 24,
+      "p50_ms": 1.808,
+      "p95_ms": 3.588
+    },
+    "after_cpu": {
+      "count": 24,
+      "p50_ms": 1.772,
+      "p95_ms": 3.016
+    },
+    "exact_final_levels": true
+  },
+  {
+    "depth": 4096,
+    "touched_per_message": 1,
+    "snapshot_ms": [
+      137.580637,
+      136.431452
+    ],
+    "before": {
+      "count": 24,
+      "p50_ms": 0.512533,
+      "p95_ms": 0.760805
+    },
+    "after": {
+      "count": 24,
+      "p50_ms": 0.22198400000000001,
+      "p95_ms": 0.261977
+    },
+    "before_cpu": {
+      "count": 24,
+      "p50_ms": 0.51,
+      "p95_ms": 0.733
+    },
+    "after_cpu": {
+      "count": 24,
+      "p50_ms": 0.2205,
+      "p95_ms": 0.258
+    },
+    "exact_final_levels": true
+  },
+  {
+    "depth": 4096,
+    "touched_per_message": 16,
+    "snapshot_ms": [
+      132.403068,
+      138.901326
+    ],
+    "before": {
+      "count": 24,
+      "p50_ms": 0.941594,
+      "p95_ms": 2.61485
+    },
+    "after": {
+      "count": 24,
+      "p50_ms": 0.5104785000000001,
+      "p95_ms": 1.050554
+    },
+    "before_cpu": {
+      "count": 24,
+      "p50_ms": 0.9185,
+      "p95_ms": 1.617
+    },
+    "after_cpu": {
+      "count": 24,
+      "p50_ms": 0.4985,
+      "p95_ms": 0.817
+    },
+    "exact_final_levels": true
+  },
+  {
+    "depth": 4096,
+    "touched_per_message": 64,
+    "snapshot_ms": [
+      132.603902,
+      132.738925
+    ],
+    "before": {
+      "count": 24,
+      "p50_ms": 1.4797795,
+      "p95_ms": 2.44549
+    },
+    "after": {
+      "count": 24,
+      "p50_ms": 1.2962345000000002,
+      "p95_ms": 2.213924
+    },
+    "before_cpu": {
+      "count": 24,
+      "p50_ms": 1.4729999999999999,
+      "p95_ms": 2.436
+    },
+    "after_cpu": {
+      "count": 24,
+      "p50_ms": 1.2765,
+      "p95_ms": 2.147
+    },
+    "exact_final_levels": true
+  },
+  {
+    "depth": 4096,
+    "touched_per_message": 65,
+    "snapshot_ms": [
+      127.951188,
+      133.432789
+    ],
+    "before": {
+      "count": 24,
+      "p50_ms": 1.4916195,
+      "p95_ms": 3.98082
+    },
+    "after": {
+      "count": 24,
+      "p50_ms": 1.5333755,
+      "p95_ms": 3.087619
+    },
+    "before_cpu": {
+      "count": 24,
+      "p50_ms": 1.465,
+      "p95_ms": 2.587
+    },
+    "after_cpu": {
+      "count": 24,
+      "p50_ms": 1.517,
+      "p95_ms": 2.944
+    },
+    "exact_final_levels": true
+  },
+  {
+    "depth": 4096,
+    "touched_per_message": 128,
+    "snapshot_ms": [
+      244.113559,
+      131.843609
+    ],
+    "before": {
+      "count": 24,
+      "p50_ms": 3.5022840000000004,
+      "p95_ms": 4.390215
+    },
+    "after": {
+      "count": 24,
+      "p50_ms": 3.7739219999999998,
+      "p95_ms": 6.397454
+    },
+    "before_cpu": {
+      "count": 24,
+      "p50_ms": 3.324,
+      "p95_ms": 4.18
+    },
+    "after_cpu": {
+      "count": 24,
+      "p50_ms": 3.4785,
+      "p95_ms": 4.363
+    },
+    "exact_final_levels": true
+  },
+  {
+    "depth": 4096,
+    "touched_per_message": 512,
+    "snapshot_ms": [
+      160.328148,
+      224.226795
+    ],
+    "before": {
+      "count": 24,
+      "p50_ms": 8.198387499999999,
+      "p95_ms": 13.102967
+    },
+    "after": {
+      "count": 24,
+      "p50_ms": 8.400878,
+      "p95_ms": 16.331051
+    },
+    "before_cpu": {
+      "count": 24,
+      "p50_ms": 8.0295,
+      "p95_ms": 13.055
+    },
+    "after_cpu": {
+      "count": 24,
+      "p50_ms": 8.163499999999999,
+      "p95_ms": 11.678
+    },
+    "exact_final_levels": true
+  },
+  {
+    "depth": 4096,
+    "touched_per_message": 1024,
+    "snapshot_ms": [
+      124.264779,
+      136.556421
+    ],
+    "before": {
+      "count": 24,
+      "p50_ms": 17.864247,
+      "p95_ms": 21.668138
+    },
+    "after": {
+      "count": 24,
+      "p50_ms": 16.6305325,
+      "p95_ms": 23.063548
+    },
+    "before_cpu": {
+      "count": 24,
+      "p50_ms": 16.162,
+      "p95_ms": 20.142
+    },
+    "after_cpu": {
+      "count": 24,
+      "p50_ms": 15.383,
+      "p95_ms": 21.118
+    },
+    "exact_final_levels": true
+  },
+  {
+    "depth": 4096,
+    "touched_per_message": 4096,
+    "snapshot_ms": [
+      163.182796,
+      120.867667
+    ],
+    "before": {
+      "count": 24,
+      "p50_ms": 65.610185,
+      "p95_ms": 78.442382
+    },
+    "after": {
+      "count": 24,
+      "p50_ms": 65.75444,
+      "p95_ms": 75.32643
+    },
+    "before_cpu": {
+      "count": 24,
+      "p50_ms": 63.602000000000004,
+      "p95_ms": 70.088
+    },
+    "after_cpu": {
+      "count": 24,
+      "p50_ms": 63.663,
+      "p95_ms": 72.265
+    },
+    "exact_final_levels": true
+  },
+  {
+    "depth": 20000,
+    "touched_per_message": 1,
+    "snapshot_ms": [
+      722.556298,
+      772.853336
+    ],
+    "before": {
+      "count": 24,
+      "p50_ms": 3.528604,
+      "p95_ms": 5.422119
+    },
+    "after": {
+      "count": 24,
+      "p50_ms": 1.10642,
+      "p95_ms": 1.79254
+    },
+    "before_cpu": {
+      "count": 24,
+      "p50_ms": 3.473,
+      "p95_ms": 4.639
+    },
+    "after_cpu": {
+      "count": 24,
+      "p50_ms": 1.0935000000000001,
+      "p95_ms": 1.722
+    },
+    "exact_final_levels": true
+  },
+  {
+    "depth": 20000,
+    "touched_per_message": 64,
+    "snapshot_ms": [
+      651.866667,
+      746.310082
+    ],
+    "before": {
+      "count": 24,
+      "p50_ms": 5.491267,
+      "p95_ms": 7.664383
+    },
+    "after": {
+      "count": 24,
+      "p50_ms": 2.6638640000000002,
+      "p95_ms": 3.778131
+    },
+    "before_cpu": {
+      "count": 24,
+      "p50_ms": 4.82,
+      "p95_ms": 6.536
+    },
+    "after_cpu": {
+      "count": 24,
+      "p50_ms": 2.4465,
+      "p95_ms": 3.681
+    },
+    "exact_final_levels": true
+  },
+  {
+    "depth": 20000,
+    "touched_per_message": 2048,
+    "snapshot_ms": [
+      651.266736,
+      653.825624
+    ],
+    "before": {
+      "count": 24,
+      "p50_ms": 39.8526895,
+      "p95_ms": 52.230306
+    },
+    "after": {
+      "count": 24,
+      "p50_ms": 38.194829999999996,
+      "p95_ms": 48.140617
+    },
+    "before_cpu": {
+      "count": 24,
+      "p50_ms": 38.5065,
+      "p95_ms": 46.24
+    },
+    "after_cpu": {
+      "count": 24,
+      "p50_ms": 36.5115,
+      "p95_ms": 41.806
+    },
+    "exact_final_levels": true
+  },
+  {
+    "depth": 20000,
+    "touched_per_message": 2500,
+    "snapshot_ms": [
+      648.305849,
+      756.804605
+    ],
+    "before": {
+      "count": 24,
+      "p50_ms": 45.0383145,
+      "p95_ms": 48.549097
+    },
+    "after": {
+      "count": 24,
+      "p50_ms": 45.694263500000005,
+      "p95_ms": 53.60899
+    },
+    "before_cpu": {
+      "count": 24,
+      "p50_ms": 42.9955,
+      "p95_ms": 46.866
+    },
+    "after_cpu": {
+      "count": 24,
+      "p50_ms": 44.147999999999996,
+      "p95_ms": 50.181
+    },
+    "exact_final_levels": true
+  }
+]

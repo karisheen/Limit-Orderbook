@@ -99,7 +99,9 @@ test('missing URL source never opens demo and explicit recovery persists the sou
   await expect(page.getByTestId('grouped-ladder')).toHaveCount(0);
   expect(sessions).toBe(0);
   const created = creation(page);
+  await page.locator('.workspace-configuration > summary').click();
   await page.getByLabel('Data source').selectOption(demo.id);
+  await page.locator('.workspace-configuration > summary').click();
   expect((await (await created).json() as Frame).source.id).toBe(demo.id);
   await expect.poll(() => page.evaluate(key => JSON.parse(localStorage.getItem(key) ?? '{}'), preferenceKey)).toMatchObject({ source: { id: demo.id, mode: 'demo' }, sourceExplicit: true });
   expect(new URL(page.url()).searchParams.get('source')).toBe(demo.id);
@@ -337,7 +339,9 @@ test('network launch migrates automatic legacy demo to actual public live with a
   await expect(page.getByRole('button', { name: 'Play synthetic demo', exact: true })).toHaveCount(0);
   await expect(page.getByTestId('grouped-ladder').locator('tr.bid').first()).toBeInViewport();
   await expect(page.getByTestId('grouped-ladder').locator('tr.ask').last()).toBeInViewport();
+  await page.locator('.workspace-configuration > summary').click();
   await page.getByLabel('Workspace preset').selectOption('ladder');
+  await page.locator('.workspace-configuration > summary').click();
   await expect(page.getByTestId('grouped-ladder').locator('tr.bid').first()).toBeInViewport();
   await expect(page.getByTestId('grouped-ladder').locator('tr.ask').last()).toBeInViewport();
   await page.locator('.dom-settings > summary').click();
