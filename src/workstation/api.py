@@ -122,6 +122,11 @@ class CostRequest(SessionAction):
         return self
 
 
+class CandleRequest(SessionAction):
+    interval: str = Field(min_length=1, max_length=8, pattern=r"^[1-9][0-9]*[mhdwM]$")
+    limit: int = Field(default=300, ge=1, le=500)
+
+
 class VisualizationRequest(SessionAction):
     """Optional price_min pins a pane's exact, nonnegative lower grid origin.
 
@@ -578,6 +583,10 @@ def create_app(
                 return await session.work(
                     session._publish_visualization, snapshot, result
                 )
+
+    @app.post("/api/v1/candles")
+    async def candles(request: CandleRequest):
+        return await runtime.candles(request)
 
     @app.post("/api/v1/ladder")
     async def ladder(request: LadderRequest):

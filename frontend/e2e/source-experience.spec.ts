@@ -24,6 +24,7 @@ test('paused fixture supports scale recovery and independent replay controls', a
   await page.goto(`/?source=${encodeURIComponent(demo.id)}`);
   const frame = await (await created).json() as Frame;
   await expect(page.locator('.status')).toContainText('Connected');
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Order flow', exact: true }).click();
   const primary = page.getByTestId('chart-pane-heatmap');
   await expect(primary).toBeVisible();
   const secondary = page.getByTestId('chart-pane-flow');
@@ -123,6 +124,7 @@ test('explicit saved paused demo survives a server live preference and URL overr
   expect(frame.source.id).toBe(demo.id);
   expect(frame.status).toBe('paused');
   await expect(page.locator('.status')).toContainText('Connected');
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Order flow', exact: true }).click();
   await expect(page.getByTestId('chart-pane-heatmap').getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByTestId('chart-pane-flow').getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'true');
   await expect.poll(() => page.evaluate(key => JSON.parse(localStorage.getItem(key) ?? '{}'), preferenceKey))
@@ -164,6 +166,7 @@ for (const resolution of ['URL override', 'server preference'] as const) {
     await page.goto(resolution === 'URL override' ? `/?source=${encodeURIComponent(demo.id)}` : '/');
     expect((await (await created).json() as Frame).source.id).toBe(expectedSource);
     await expect(page.locator('.status')).toContainText('Connected');
+    await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Order flow', exact: true }).click();
     await expect(page.getByTestId('chart-pane-heatmap').getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'false');
     await expect(page.getByTestId('chart-pane-flow').getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'false');
     await expect(page.getByRole('button', { name: 'Freeze tape', exact: true })).toHaveAttribute('aria-pressed', 'false');
@@ -218,6 +221,7 @@ test('research tabs support roving keyboard focus without chart shortcuts', asyn
   const { demo } = await demoCatalog(page);
   await page.goto(`/?source=${encodeURIComponent(demo.id)}`);
   await expect(page.locator('.ladder tbody tr').first()).toBeVisible();
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Order flow', exact: true }).click();
   const toggle = page.getByRole('button', { name: 'Costs / analytics', exact: true });
   if (await toggle.getAttribute('aria-pressed') !== 'true') await toggle.click();
   const tabs = page.getByRole('tablist', { name: 'Research pane', exact: true });

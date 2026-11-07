@@ -457,3 +457,60 @@ Neither source lag nor residency claims exchange latency, network latency,
 one-way delivery time, GPU completion or market-data completeness. The separate
 chart ACK remains only the conservative publication-to-ACK round trip and
 browser receive-to-paint measurement described above.
+
+## Historical price candles
+
+The independent `/api/v1/candles` price chart uses UTC wall-time candles, not
+the analytical visualization's receive-monotonic columns or cursor. Existing
+liquidity/footprint/candle overlays above retain their original evidence contract.
+The default price timeframe is `1h`. Native OHLC is retained exactly, with
+positive prices, nonnegative base volume, valid OHLC envelopes, unique sorted
+nonoverlapping starts, and verified interval ends. Missing buckets remain gaps.
+An active candle updates within its existing bucket rather than creating one
+bar per trade.
+
+| Existing native venue/family | Supported candle intervals | Endpoint and bounds |
+| --- | --- | --- |
+| Binance Global / spot-v3 | 1m, 3m, 5m, 15m, 30m; 1h, 2h, 4h, 6h, 8h, 12h; 1d, 3d, 1w, 1M | `data-api.binance.vision/api/v3/klines`, the existing adapter's official data-only host; limit ≤500 here |
+| Binance.US / spot-v3 | Same minute–month intervals | `api.binance.us/api/v3/klines`; distinct venue, opt-in remains unchanged |
+| Coinbase / advanced-trade | 1m, 5m, 15m, 30m; 1h, 2h, 4h, 6h; 1d | Public `/api/v3/brokerage/market/products/{id}/candles`; native maximum 350, disclosed when requested limit exceeds it; no Exchange-API substitution |
+| Kraken / spot-v2 | 1m, 5m, 15m, 30m; 1h, 4h; 1d, 1w | `/0/public/OHLC`, exact native pair identity; endpoint retains up to 720 recent entries, current uncommitted bucket included |
+| Bybit / v5-spot | 1m, 3m, 5m, 15m, 30m; 1h, 2h, 4h, 6h, 12h; 1d, 1w, 1M | `/v5/market/kline?category=spot`; validates returned category and symbol; inverse derivatives are not substituted |
+| KuCoin / classic-spot | 1m, 3m, 5m, 15m, 30m; 1h, 2h, 4h, 6h, 8h, 12h; 1d, 1w, 1M | `/api/v1/market/candles`; seconds-based bounded range, native maximum 1500 rows, output ≤500; volume, not turnover |
+| Hyperliquid / info | 1m, 3m, 5m, 15m, 30m; 1h, 2h, 4h, 8h, 12h; 1d, 3d, 1w, 1M | Public `candleSnapshot`; exact native coin including spot `@index` and HIP-3 dex prefix; most recent 5000 candles available upstream |
+
+`1M` is a UTC calendar month, including leap-year February, never a fixed
+30-day duration. Weeks and multi-day bars preserve the native returned UTC
+midnight start: no universal Monday/Unix-epoch rebucketing is assumed.
+Binance and Hyperliquid's inclusive millisecond ends are converted to exclusive
+ends and checked. Other endpoints' ends derive from their documented interval.
+Kraken's 21600-minute interval is fifteen days, not `1M`, and is not advertised
+as a month. The endpoint requests one recent bounded page, not arbitrary
+historical pagination. Actual exchange accessibility and historical depth vary;
+unavailable, empty, unsupported, blocked, rate-limited, and invalid responses
+are distinguished without alternate hosts, credentials, or venue fallback.
+
+Demo/replay bars are deliberately different evidence: receive-UTC aggregation
+of already-observed retained session trades, marked `session_history_partial`.
+A three-minute demo may form one hourly bar but reports less than three minutes
+of actual contributing coverage, not an hour of history. Even time-ended local
+bars remain partial-history observations. Clock discontinuities, truncation,
+and unknown quantities are disclosed; no backfill, gap filling, or exchange
+history is fetched. Rewind cannot retain future candles. Coverage does not
+claim continuous trading or independently complete market data.
+The current receive-UTC time is projected from the latest admitted
+`ReceiveClockSegment.reference` at the retained monotonic frontier. Replay
+evaluation clocks legitimately have no wall timestamp; this does not make
+retained candle history unavailable. Rejected/nonadvancing receive pairs do not
+move that projection, and clock-offset changes remain explicit evidence.
+
+Checked official endpoint/schema sources:
+
+- [Binance Spot klines](https://developers.binance.com/docs/binance-spot-api-docs/rest-api/market-data-endpoints)
+- [Binance.US candlesticks](https://docs.binance.us/#get-candlestick-data)
+- [Coinbase Advanced Trade public candles](https://docs.cdp.coinbase.com/api-reference/advanced-trade-api/rest-api/public/get-public-product-candles)
+- [Kraken OHLC](https://docs.kraken.com/api/docs/rest-api/get-ohlc-data/)
+- [Bybit v5 klines](https://bybit-exchange.github.io/docs/v5/market/kline)
+- [KuCoin Classic klines](https://www.kucoin.com/docs-new/rest/spot-trading/market-data/get-klines)
+  and [official interval/volume schema](https://www.kucoin.com.tr/docs/rest/spot-trading/market-data/get-klines)
+- [Hyperliquid candle snapshot and native coin identities](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/info-endpoint#candle-snapshot)

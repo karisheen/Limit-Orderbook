@@ -5,6 +5,7 @@ import { errorMessage } from './api';
 import { exact, label, milliseconds, timestamp } from './format';
 import { useTerminal } from './useTerminal';
 import { ChartPane } from './ChartPane';
+import { PriceChart } from './PriceChart';
 import type { ChartCursor } from './MarketCharts';
 import { Freshness } from './Freshness';
 import { DepthLadder } from './DepthLadder';
@@ -24,7 +25,9 @@ const workflowTabs = [
   ['journal', 'Journal'], ['research', 'Research'],
 ] as const;
 type WorkflowTab = typeof workflowTabs[number][0];
-const marketPanes = [['heatmap', 'Liquidity'], ['flow', 'Flow'], ['dom', 'Book'], ['tape', 'Tape']] as const;
+const marketPanes = [['price', 'Price'], ['heatmap', 'Liquidity'], ['flow', 'Flow'], ['dom', 'Book'], ['tape', 'Tape']] as const;
+type MarketPane = PaneId | 'price';
+const desktopViews = [['price', 'Price action'], ['orderflow', 'Order flow']] as const;
 const emptyInstruments: Instrument[] = [];
 const instrumentPageSize = 100;
 const abbreviateCaptureLabel = (value: string) => value.replace(/\b[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\b/gi, id => `${id.slice(0, 8)}…`);
@@ -313,9 +316,9 @@ export default function App() {
   const [market, setMarket] = useState('');
   const [instrumentPage, setInstrumentPage] = useState(0);
   const [bottomTab, setBottomTab] = useState<WorkflowTab>('costs');
-  const [maximized, setMaximized] = useState<PaneId | null>(null);
-  const [narrowPane, setNarrowPane] = useState<PaneId>('heatmap');
-  const [interactionPane, setInteractionPane] = useState<PaneId>('heatmap');
+  const [maximized, setMaximized] = useState<MarketPane | null>(null);
+  const [narrowPane, setNarrowPane] = useState<MarketPane>('price');
+  const [interactionPane, setInteractionPane] = useState<MarketPane>('price');
   const [clockScopeRevision, setClockScopeRevision] = useState(0);
   const shell = useRef<HTMLDivElement | null>(null);
   const lastFocus = useRef<HTMLElement | null>(null);
@@ -333,9 +336,14 @@ export default function App() {
   }, []);
   const geometry = workspaceGeometry(p, viewportWidth);
   const narrow = viewportWidth <= 965;
-  const selectedPane = maximized ?? (!p.rightOpen && (narrowPane === 'dom' || narrowPane === 'tape') ? 'heatmap' : narrowPane);
-  const paneVisible = (pane: PaneId) => (!maximized || maximized === pane)
-    && (!narrow || selectedPane === pane) && (pane !== 'dom' && pane !== 'tape' || p.rightOpen);
+  const primaryPane = p.desktopView === 'price' ? 'price' : 'heatmap';
+  const selectedPane = maximized ?? (!p.rightOpen && (narrowPane === 'dom' || narrowPane === 'tape') ? 'price' : narrowPane);
+  const paneVisible = useCallback((pane: MarketPane) => {
+    if (maximized) return maximized === pane;
+    if (narrow) return selectedPane === pane;
+    if (pane === 'dom' || pane === 'tape') return p.rightOpen;
+    return p.desktopView === 'price' ? pane === 'price' : pane !== 'price';
+  }, [maximized, narrow, selectedPane, p.rightOpen, p.desktopView]);
   const fence = frame ? `${frame.session_id}:${frame.generation}:${frame.source.id}:${frame.selection.instrument_id}` : '';
   const attachedFence = useRef<string | null>(null);
   const initialSource = useRef(p.source);
@@ -421,7 +429,7 @@ export default function App() {
   }, [fence, sourceId, sourceMode, resetViews, setPreferences]);
   useLayoutEffect(() => {
     const visible = (element: HTMLElement | null): element is HTMLElement => !!element?.isConnected && element.getClientRects().length > 0;
-    const pane = maximized ?? (narrow ? selectedPane : !p.rightOpen && (interactionPane === 'dom' || interactionPane === 'tape') ? 'heatmap' : interactionPane);
+    const pane = maximized ?? (narrow ? selectedPane : paneVisible(interactionPane) ? interactionPane : primaryPane);
     if (pane !== interactionPane) setInteractionPane(pane);
     const requested = pendingFocus.current;
     pendingFocus.current = null;
@@ -431,7 +439,7 @@ export default function App() {
     if (!lastFocus.current && !requested) return;
     const container = shell.current?.querySelector<HTMLElement>(`[data-interaction-pane="${pane}"]`);
     container?.querySelector<HTMLElement>('button, [tabindex="0"], summary')?.focus();
-  }, [fence, maximized, p.leftOpen, p.rightOpen, p.bottomOpen, p.preset, interactionPane, narrow, selectedPane]);
+  }, [fence, maximized, p.leftOpen, p.rightOpen, p.bottomOpen, p.preset, p.desktopView, interactionPane, narrow, selectedPane, primaryPane, paneVisible]);
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
@@ -463,17 +471,27 @@ export default function App() {
     window.addEventListener('keydown', keydown);
     return () => window.removeEventListener('keydown', keydown);
   }, [setPreferences, update, maximized]);
-  const toggleMaximize = (pane: PaneId) => {
+  const toggleMaximize = (pane: MarketPane) => {
     if (narrow) setNarrowPane(pane);
     if (maximized === pane) pendingFocus.current = maximizeReturn.current;
     else maximizeReturn.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setMaximized(previous => previous === pane ? null : pane);
   };
-  const selectPane = (pane: PaneId) => {
+  const selectPane = (pane: MarketPane) => {
     setNarrowPane(pane);
     setInteractionPane(pane);
     setMaximized(null);
     if (pane === 'dom' || pane === 'tape') update({ rightOpen: true });
+  };
+  const selectDesktopView = (desktopView: WorkspacePreferences['desktopView']) => {
+    setMaximized(null);
+    setInteractionPane(desktopView === 'price' ? 'price' : 'heatmap');
+    update({ desktopView });
+  };
+  const openWorkflow = (tab: WorkflowTab) => {
+    setBottomTab(tab);
+    setMaximized(null);
+    update({ bottomOpen: true });
   };
   const toggleLink = (pane: PaneId) => { setCrosshair(null); update({ links: { ...p.links, [pane]: !p.links[pane] } }); };
   const linkPrice = (price: string | null) => {
@@ -496,19 +514,22 @@ export default function App() {
     details.open = true;
     details.querySelector<HTMLElement>(':scope > summary')?.focus();
   };
+  const nativeBook = usable && frame?.book?.instrument_id === selected?.instrument_id ? frame?.book : null;
+  const nativeTape = usable && frame?.analytics?.instrument_id === selected?.instrument_id ? frame?.analytics?.tape : null;
+  const lastPrint = nativeTape?.[nativeTape.length - 1];
   const style = { '--left-width': `${p.leftOpen ? p.leftWidth : 0}px`, '--right-width': `${p.rightOpen ? geometry.rightWidth : 0}px`, '--bottom-height': `${p.bottomOpen ? p.bottomHeight : 0}px`, '--chart-split': `${p.chartSplit}%`, '--tape-split': `${p.tapeSplit}%` } as CSSProperties;
   return <div ref={shell} className="terminal workstation" style={style}
     onFocusCapture={event => {
       lastFocus.current = event.target as HTMLElement;
       const pane = (event.target as HTMLElement).closest<HTMLElement>('[data-interaction-pane]')?.dataset.interactionPane;
-      if (pane) setInteractionPane(pane as PaneId);
+      if (pane) setInteractionPane(pane as MarketPane);
     }}
     onPointerDownCapture={event => {
       const pane = (event.target as HTMLElement).closest<HTMLElement>('[data-interaction-pane]')?.dataset.interactionPane;
-      if (pane) setInteractionPane(pane as PaneId);
+      if (pane) setInteractionPane(pane as MarketPane);
     }}>
     <header className="topbar">
-      <div className="selected-identity"><strong>{selected?.native_symbol ?? 'Select instrument'}</strong><span>{selected ? <><span className="market-venue">{selected.venue}</span><span>{selected.market_type}</span><span>Quote {selected.quote.ticker}</span></> : 'Exact public-market identities'}</span></div>
+      <div className="terminal-brand"><strong>LIMIT ORDERBOOK</strong><span>Public-market workstation</span></div>
       <label className="market-search"><span className="visually-hidden">Search instruments</span><input ref={search} className="top-search" aria-label="Search instruments" aria-controls="instrument-results" placeholder="Symbol, venue, quote…" type="search" value={query} onFocus={() => { setMaximized(null); update({ leftOpen: true }); }} onChange={event => { setQuery(event.target.value); update({ leftOpen: true }); }} /><kbd aria-hidden="true">/</kbd></label>
       <details className="workspace-configuration"><summary>Source / workspace</summary><div className="workspace-configuration-body">
       <label className="source-control">Source<select aria-label="Data source" title={frame?.source.label} value={frame?.source.id ?? p.source?.id ?? ''} disabled={!catalog} onChange={event => { const source = catalog?.sources.find(item => item.id === event.target.value); if (source?.status === 'ready') changeSource(source); }}>{!frame && <option value="">Choose source…</option>}{catalog?.sources.map(source => <option key={source.id} value={source.id} disabled={source.status !== 'ready'} title={[source.label, ...source.reasons].join('; ')}>{abbreviateCaptureLabel(source.label)} · {source.mode} · {source.status}{source.synthetic ? ' · SYNTHETIC' : ''}{source.reasons.length ? ` · ${source.reasons.join('; ')}` : ''}</option>)}</select></label>
@@ -546,6 +567,27 @@ export default function App() {
       </div></details>
     </div>
     {frame?.replay && <ReplayControls frame={frame} busy={terminal.busy || !connected} replay={terminal.replay} />}
+    <section className="market-header" aria-label="Native market overview">
+      <div className="selected-identity"><strong>{selected?.native_symbol ?? 'Select instrument'}</strong><span>{selected ? <><span className="market-venue">{selected.venue}</span><span>{selected.market_type}</span><span title={selected.quote.asset_id}>Quote {selected.quote.ticker}</span></> : 'Exact public-market identities'}</span></div>
+      <dl className="market-quotes">
+        <div className="market-last"><dt>Last observed trade</dt><dd><Value value={lastPrint?.trade.price} /></dd></div>
+        <div><dt>Native bid</dt><dd className="bid"><Value value={nativeBook?.bids[0]?.price} /></dd></div>
+        <div><dt>Native ask</dt><dd className="ask"><Value value={nativeBook?.asks[0]?.price} /></dd></div>
+      </dl>
+      <span className="market-quote-unit" title={selected ? `${selected.quote.asset_id} per ${selected.base.asset_id}` : undefined}>{selected ? `${selected.quote.ticker} / ${selected.base.ticker}` : 'Native price units'}<small>{usable ? frame?.source.recording ? 'Recorded market evidence' : 'Observed market evidence' : 'Evidence unavailable'}</small></span>
+    </section>
+    <nav className="desktop-view-tabs" role="tablist" aria-label="Chart workspace" hidden={narrow}>
+      {desktopViews.map(([id, name], index) => <button key={id} id={`desktop-tab-${id}`} role="tab" tabIndex={p.desktopView === id ? 0 : -1} aria-selected={p.desktopView === id} aria-controls={id === 'price' ? 'market-panel-price' : 'orderflow-workspace'} onClick={() => selectDesktopView(id)}
+        onKeyDown={event => {
+          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+          event.preventDefault();
+          const next = event.key === 'Home' ? 0 : event.key === 'End' ? desktopViews.length - 1 : (index + 1) % desktopViews.length;
+          const view = desktopViews[next]![0];
+          selectDesktopView(view);
+          document.getElementById(`desktop-tab-${view}`)?.focus();
+        }}>{name}</button>)}
+      <span>Independent native book &amp; tape</span>
+    </nav>
     <nav className="market-pane-tabs" role="tablist" aria-label="Market panes" hidden={!narrow}>
       {marketPanes.map(([id, name], index) => <button key={id} id={`market-tab-${id}`} role="tab" tabIndex={selectedPane === id ? 0 : -1} aria-selected={selectedPane === id} aria-controls={`market-panel-${id}`} onClick={() => selectPane(id)}
         onKeyDown={event => {
@@ -569,7 +611,10 @@ export default function App() {
         {pageCount > 1 && <nav className="panel-toolbar" aria-label="Instrument pages"><button aria-label="Previous instrument page" disabled={page === 0} onClick={() => setInstrumentPage(page - 1)}>Prev</button><span>{page + 1} / {pageCount} · {instrumentPageSize}/page</span><button aria-label="Next instrument page" disabled={page + 1 >= pageCount} onClick={() => setInstrumentPage(page + 1)}>Next</button></nav>}
       </Panel></aside>}
       {p.leftOpen && <div className="left-resizer"><ResizeHandle axis="horizontal" name="Watchlist width" value={p.leftWidth} min={180} max={360} onChange={leftWidth => update({ leftWidth })} /></div>}
-      <section className="chart-stack" aria-label="Market visualizations" hidden={!paneVisible('heatmap') && !paneVisible('flow')}>
+      <section id="market-panel-price" className="price-workspace" role="tabpanel" aria-labelledby={narrow ? 'market-tab-price' : 'desktop-tab-price'} data-interaction-pane="price" data-interaction-active={interactionPane === 'price'} hidden={!paneVisible('price')}>
+        <PriceChart frame={frame} instrument={selected} connected={usable} active={paneVisible('price')} interval={p.candleInterval} onIntervalChange={candleInterval => update({ candleInterval })} maximized={maximized === 'price'} onMaximize={() => toggleMaximize('price')} />
+      </section>
+      <section id="orderflow-workspace" className="chart-stack" role={narrow ? undefined : 'tabpanel'} aria-labelledby={narrow ? undefined : 'desktop-tab-orderflow'} aria-label="Market visualizations" hidden={!paneVisible('heatmap') && !paneVisible('flow')}>
         <div id="market-panel-heatmap" role={narrow ? 'tabpanel' : undefined} aria-labelledby={narrow ? 'market-tab-heatmap' : undefined} className="chart-slot primary-chart" data-interaction-pane="heatmap" data-interaction-active={interactionPane === 'heatmap'} hidden={!paneVisible('heatmap')}><ChartPane {...chartProps} key={`heatmap:${fence}`} id="heatmap" title="Liquidity" preferences={p} update={update} linked={p.links.heatmap} onLinked={() => toggleLink('heatmap')} timeLinked={p.rangeLinked} onTimeChange={intent => changeChartTime('heatmap', intent)} onTimeLinked={intent => toggleTimeLink('heatmap', intent)} interactionActive={interactionPane === 'heatmap'} maximized={maximized === 'heatmap'} onMaximize={() => toggleMaximize('heatmap')} active={paneVisible('heatmap')} /></div>
         <div className="chart-splitter"><ResizeHandle axis="vertical" proportional name="Chart split" value={p.chartSplit} min={30} max={70} onChange={chartSplit => update({ chartSplit })} /></div>
         <div id="market-panel-flow" role={narrow ? 'tabpanel' : undefined} aria-labelledby={narrow ? 'market-tab-flow' : undefined} className="chart-slot secondary-chart" data-interaction-pane="flow" data-interaction-active={interactionPane === 'flow'} hidden={!paneVisible('flow')}><ChartPane {...chartProps} key={`flow:${fence}`} id="flow" title="Order flow" preferences={{ ...p, ...p.secondary }} update={updateSecondary} linked={p.links.flow} onLinked={() => toggleLink('flow')} timeLinked={p.rangeLinked} onTimeChange={intent => changeChartTime('flow', intent)} onTimeLinked={intent => toggleTimeLink('flow', intent)} interactionActive={interactionPane === 'flow'} maximized={maximized === 'flow'} onMaximize={() => toggleMaximize('flow')} active={paneVisible('flow')} /></div>
@@ -582,16 +627,19 @@ export default function App() {
         <div className="tape-splitter"><ResizeHandle axis="vertical" proportional name="DOM and tape split" value={p.tapeSplit} min={30} max={75} onChange={tapeSplit => update({ tapeSplit })} /></div>
         <section id="market-panel-tape" role={narrow ? 'tabpanel' : undefined} aria-labelledby={narrow ? 'market-tab-tape' : undefined} className="tape-pane" data-pane="tape" data-interaction-pane="tape" data-interaction-active={interactionPane === 'tape'} hidden={!paneVisible('tape')}><Tape key={`${fence}:${clockScopeRevision}`} frame={frame} connected={connected} instrument={selected} preferences={p} update={update} crosshair={crosshair} onCrosshair={setCrosshair} maximized={maximized === 'tape'} onMaximize={() => toggleMaximize('tape')} /></section>
       </aside>
-      {p.bottomOpen && <><div className="bottom-resizer"><ResizeHandle axis="vertical" reverse name="Research pane height" value={p.bottomHeight} min={170} max={460} onChange={bottomHeight => update({ bottomHeight })} /></div><section className="research-pane">
-        <div className="tabs research-tabs" role="tablist" aria-label="Research pane">{workflowTabs.map(([id, name], index) => <button key={id} id={`workflow-tab-${id}`} role="tab" tabIndex={bottomTab === id ? 0 : -1} aria-selected={bottomTab === id} aria-controls={`workflow-panel-${id}`} onClick={() => setBottomTab(id)}
+      <div className="workflow-dock">
+        <div className="tabs research-tabs" role="tablist" aria-label="Research pane">{workflowTabs.map(([id, name], index) => <button key={id} id={`workflow-tab-${id}`} role="tab" tabIndex={bottomTab === id ? 0 : -1} aria-selected={p.bottomOpen && !maximized && bottomTab === id} aria-controls={`workflow-panel-${id}`} onClick={() => openWorkflow(id)}
           onKeyDown={event => {
             if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
             event.preventDefault();
             const next = event.key === 'Home' ? 0 : event.key === 'End' ? workflowTabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + workflowTabs.length) % workflowTabs.length;
             const nextTab = workflowTabs[next]!;
-            setBottomTab(nextTab[0]);
+            openWorkflow(nextTab[0]);
             document.getElementById(`workflow-tab-${nextTab[0]}`)?.focus();
-          }}>{name}</button>)}<span className="muted">Shared-core evidence · no execution</span></div>
+          }}>{name}</button>)}</div>
+        {p.bottomOpen && !maximized ? <button className="drawer-toggle" aria-label="Collapse workflow drawer" onClick={() => update({ bottomOpen: false })}>Collapse</button> : <span className="workflow-hint">Analysis &amp; paper tools · no execution</span>}
+      </div>
+      {p.bottomOpen && !maximized && <><div className="bottom-resizer"><ResizeHandle axis="vertical" reverse name="Research pane height" value={p.bottomHeight} min={170} max={460} onChange={bottomHeight => update({ bottomHeight })} /></div><section className="research-pane">
         <div className="research-scroll">
           <div id="workflow-panel-costs" role="tabpanel" aria-labelledby="workflow-tab-costs" hidden={bottomTab !== 'costs'}><CostsPanel frame={frame} instruments={instruments} connected={usable} calculate={terminal.costs} /><ProposalRiskPanel frame={frame} connected={usable} calculate={terminal.proposalRisk} /></div>
           <div id="workflow-panel-analytics" role="tabpanel" aria-labelledby="workflow-tab-analytics" hidden={bottomTab !== 'analytics'}><AnalyticsPanel analytics={usable ? frame?.analytics ?? null : null} /></div>

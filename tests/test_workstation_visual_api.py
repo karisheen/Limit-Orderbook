@@ -619,3 +619,59 @@ def test_invalid_visual_inputs_are_rejected_without_cursor_movement(
     response = post(client, frame, endpoint, **payload)
     assert response.status_code == 422, response.text
     assert current(client, frame)["replay"]["cursor"] == before
+
+
+def test_candle_history_is_local_exact_and_rewind_fenced(market, monkeypatch):
+    import src.workstation.candles as candles
+
+    async def forbidden(*args, **kwargs):
+        raise AssertionError("demo/replay must never fetch native candle HTTP")
+
+    monkeypatch.setattr(candles, "fetch_public", forbidden)
+    client, _, frame = market
+    frame = replay(client, frame, "step", count=1000)
+    before = current(client, frame)["replay"]["cursor"]
+    hour = successful(post(client, frame, "candles", interval="1h"))
+    minute = successful(post(client, frame, "candles", interval="1m"))
+    assert current(client, frame)["replay"]["cursor"] == before
+    assert hour["source"] == "session_trades"
+    assert hour["time_basis"] == "receive_utc"
+    assert "session_history_partial" in hour["reasons"]
+    assert hour["candles"]
+    assert all(
+        int(bar["start_ns"]) % 3_600_000_000_000 == 0
+        and int(bar["end_ns"]) - int(bar["start_ns"]) == 3_600_000_000_000
+        for bar in hour["candles"]
+    )
+    assert (
+        int(hour["coverage_end_ns"]) - int(hour["coverage_start_ns"])
+        < 3_600_000_000_000
+    )
+    assert sum(Decimal(bar["volume"]) for bar in minute["candles"]) == sum(
+        Decimal(bar["volume"]) for bar in hour["candles"]
+    )
+    assert (
+        successful(post(client, frame, "candles", interval="1M"))["status"]
+        == "unavailable"
+    )
+    assert post(client, frame, "candles", interval="1h", limit=501).status_code == 422
+    assert (
+        client.post(
+            "/api/v1/candles",
+            json={**identity(frame), "interval": "1h", "endpoint": "https://example.com"},
+        ).status_code
+        == 422
+    )
+    assert (
+        client.post(
+            "/api/v1/candles",
+            json={**identity(frame), "interval": "1h"},
+            headers={"origin": "https://attacker.invalid"},
+        ).status_code
+        == 403
+    )
+    reset = replay(client, frame, "seek", delivery_index="0")
+    assert post(client, frame, "candles", interval="1h").status_code == 409
+    rewound = successful(post(client, reset, "candles", interval="1h"))
+    assert rewound["candles"] == []
+    assert rewound["coverage_start_ns"] is None and rewound["coverage_end_ns"] is None

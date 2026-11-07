@@ -62,6 +62,7 @@ async function openAdvancedDemo(page: Page) {
   if (!demo) throw new Error('The native catalog must expose the explicitly synthetic demo');
   await page.goto(`/?source=${encodeURIComponent(demo.id)}`);
   await expect(page.locator('.status')).toContainText(/\bConnected$/i);
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Order flow', exact: true }).click();
   await expect(primary(page).getByTestId('market-charts')).toHaveAttribute('data-painted-view-id', /.+/);
   const speed = page.waitForResponse(response => response.url().endsWith('/api/v1/replay')
     && response.request().postDataJSON().action === 'speed');

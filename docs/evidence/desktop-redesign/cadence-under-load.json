@@ -1,0 +1,32 @@
+{
+  "elapsed_ms": 20001.800000071526,
+  "raf_p50_ms": 16.69999999999709,
+  "raf_p95_ms": 16.80000000000291,
+  "raf_samples": 844,
+  "long_tasks": 13,
+  "max_long_task_ms": 347,
+  "candle_requests": [
+    {
+      "start_ms": 2965.5,
+      "duration_ms": 2303.100000023842
+    },
+    {
+      "start_ms": 10675.899999976158,
+      "duration_ms": 1400.3000000715256
+    },
+    {
+      "start_ms": 17666.5,
+      "duration_ms": 380.2000000476837
+    }
+  ],
+  "ladder_requests": 14,
+  "visualization_requests": 0,
+  "interval": "1h",
+  "status": "Stale snapshot",
+  "readiness": "Unavailable",
+  "frames": 43,
+  "distinct_book_revisions": 28,
+  "first_revision": "751",
+  "last_revision": "901",
+  "limitations": "One 20-second read-only Binance BTCUSDT observation after collector restart; browser tests and a build shared this host. Not a before/after speedup or exchange-latency benchmark."
+}

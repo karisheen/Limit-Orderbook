@@ -49,6 +49,14 @@ _PUBLIC_QUERY_FIELDS = frozenset(
         "product_id",
         "streams",
         "stream",
+        "interval",
+        "granularity",
+        "start",
+        "end",
+        "since",
+        "type",
+        "startAt",
+        "endAt",
     )
 )
 _PUBLIC_BODY_FIELDS = frozenset(
@@ -72,6 +80,10 @@ _PUBLIC_BODY_FIELDS = frozenset(
         "req_id",
         "id",
         "subscribe",
+        "req",
+        "interval",
+        "startTime",
+        "endTime",
     )
 )
 _PUBLIC_OPERATIONS = frozenset(("subscribe", "unsubscribe", "ping", "pong"))
@@ -90,6 +102,7 @@ _PUBLIC_TYPES = frozenset(
         "spotMetaAndAssetCtxs",
         "trades",
         "activeAssetCtx",
+        "candleSnapshot",
     )
 )
 

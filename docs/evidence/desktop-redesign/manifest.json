@@ -1,0 +1,63 @@
+{
+  "date": "2026-11-07",
+  "scope": "Chart-first desktop redesign and independent native candle timeframes; 1h default",
+  "environment": {
+    "os": "macOS Darwin 22.6.0 x64",
+    "python": "3.13.5",
+    "node": "22.22.0",
+    "browser": "Chromium",
+    "build_js": "index-ByPcwAxd.js",
+    "build_css": "index-Bo2hD6_X.css"
+  },
+  "screenshots": {
+    "before-live-1568.png": "Before: real Binance-global BTCUSDT, 1568x1000 CSS px, original dual-chart workspace",
+    "before-demo-390.png": "Before: synthetic demo, 390x844 CSS px; different source from after-live-390, not a controlled data comparison",
+    "after-live-1568.png": "After: real Binance-global BTCUSDT, 1568x1000 CSS px, 1h native candles, ready partial-depth book and tape",
+    "after-live-1440.png": "After: same live market, 1440x900 CSS px",
+    "after-live-390.png": "After: same live market, 390x844 CSS viewport, full-page capture",
+    "after-menu-1568.png": "Grouped native timeframes at desktop size",
+    "after-menu-320.png": "Grouped menu at 320x740 CSS viewport, full-page capture; no horizontal overflow, selected 1h focused",
+    "loading-demo-1440.png": "Actual candle request held in browser transport; no replacement financial values",
+    "empty-demo-1440.png": "Actual demo seek to delivery 1, no candles from the admitted trade prefix",
+    "stale-http-1440.png": "Injected HTTP 503 around actual live candle history; all five exact OHLCV values retained with stale warning",
+    "disconnected-demo-1440.png": "Final build: actual demo stream messages suppressed, watchdog disconnect, stale retained candles before session replacement",
+    "unavailable-live-1440.png": "Actual analytical_queue_overflow during concurrent checks; source unavailable and candles stale"
+  },
+  "native_history": {
+    "result_file": "native-candle-smoke.json",
+    "live_verified_venues": ["binance-global", "coinbase", "hyperliquid", "kraken", "kucoin"],
+    "request": {"interval": "1h", "limit": 300},
+    "returned_per_venue": 300,
+    "binance_browser_intervals": {"1m": 300, "4h": 300, "1d": 300, "1M": 112, "1h": 300},
+    "binance_keyboard_interval": "2h, response ownership and exact OHLC display verified; bar count not recorded",
+    "limitations": "Binance.US and Bybit were not present in the active catalog. Their native parsers/requests have deterministic coverage, not live-access verification. Monthly bars included actual 28/29/30/31-day boundaries."
+  },
+  "measurements": {
+    "files": ["cadence-under-load.json", "cadence-final.json"],
+    "plot_css_px_at_1440x900": [1072, 469.109375],
+    "plot_css_px_at_1568x1000": [1184, 569.109375],
+    "limitations": "Two single 20-second observations under different host load, not a controlled before/after speedup benchmark. Public prices and activity changed between screenshots. Browser receipt times and RAF gaps are not exchange or execution latency."
+  },
+  "verification": {
+    "frontend_unit_tests_passed": 113,
+    "eslint": "passed",
+    "typescript": "passed",
+    "vite_build": "passed",
+    "ruff": "passed",
+    "mypy": "passed, 36 source files",
+    "python_candle_unit_tests_passed": 28,
+    "python_full_run": {"passed": 1300, "failed": 2, "cause": "New strict-input test passed endpoint both positionally and as a body keyword to its helper; runtime candle assertions passed. Test changed to direct client.post, preserving the 422 rejection assertion."},
+    "python_candle_api_followup": {"passed": 4, "includes_corrected_full_run_failures": true},
+    "browser_full_offline": {"passed": 63, "timed_out": 1, "skipped_live_only": 1},
+    "browser_timeout_followup": {"passed": 1, "test": "Liquidity pane actions, Escape focus and Inspector navigation remain usable at 1920px", "duration_seconds": 25.9, "unchanged_timeout_seconds": 45, "note": "Full-run trace completed all user assertions before teardown timeout; isolated run passed without changing workload or deadline."},
+    "browser_final_price_action": {"passed": 4, "duration_seconds": 33.7, "covers": ["hour and minute boundaries", "independent advancing book", "grouped keyboard timeframe choice", "immediate-reload persistence", "obsolete response fencing", "unavailable refresh and explicit retry", "disconnected retention and replacement"]},
+    "browser_actual_live_workflow": {"passed": 1, "duration_seconds": 25.3, "covers": ["automatic legacy demo migration", "live depth", "manual DOM scroll and regrouping", "market pagination and search", "Hyperliquid instrument switching"]},
+    "warning": "Existing Starlette TestClient/httpx deprecation warning remains. No clean single full-suite pass is claimed: corrected Python cases and the browser timeout were verified separately."
+  },
+  "remaining_limits": [
+    "Existing analytical_queue_overflow collector-capacity boundary reproduced under concurrent checks; not repaired by this frontend redesign or reconnect.",
+    "One bounded native history page, not infinite historical pagination.",
+    "Demo/replay candles are partial retained receive-time observations, not native historical OHLCV.",
+    "No live trading, credentials, wallet, real funds, external deployment or new exchange integration."
+  ]
+}

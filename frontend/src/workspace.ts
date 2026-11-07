@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Catalog, Mode, VisualGrid } from './api';
 import type { ChartTimeZone } from './chart-time';
 
@@ -8,6 +8,7 @@ export type ChartTimeIntent = { kind: 'pin'; range: { start_ns: string; end_ns: 
 export type PaneId = 'heatmap' | 'flow' | 'dom' | 'tape';
 export interface WorkspacePreferences {
   version: 1; source: { mode: Mode; id: string } | null; sourceExplicit: boolean; instrument: string;
+  desktopView: 'price' | 'orderflow'; candleInterval: string;
   preset: 'balanced' | 'analysis' | 'ladder'; leftWidth: number; rightWidth: number; bottomHeight: number;
   rightWidthMode?: 'auto' | 'manual';
   leftOpen: boolean; rightOpen: boolean; bottomOpen: boolean;
@@ -22,6 +23,7 @@ export interface WorkspacePreferences {
   tapeRows: number; tapeSide: 'all' | 'buy' | 'sell' | 'unknown'; tapeFrozen: boolean;
 }
 export const preferenceKey = 'limit-orderbook.workspace.v1';
+const candleIntervals = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1M'];
 const secondaryDefaults: ChartSettings = {
   mode: 'footprint', contrast: 1, showTrades: false, showQuotes: false, footprintOverview: false, timeZone: 'UTC',
   priceStep: '', bucket: '1000000000', rangeSeconds: 6, range: null,
@@ -29,6 +31,7 @@ const secondaryDefaults: ChartSettings = {
 };
 const defaults: WorkspacePreferences = {
   version: 1, source: null, sourceExplicit: false, instrument: '', preset: 'balanced', leftWidth: 222, rightWidth: 360, rightWidthMode: 'auto', bottomHeight: 248,
+  desktopView: 'price', candleInterval: '1h',
   leftOpen: false, rightOpen: true, bottomOpen: false, mode: 'heatmap', contrast: 1,
   showTrades: true, showQuotes: true, footprintOverview: false, timeZone: 'UTC', priceStep: '', bucket: '1000000000', rangeSeconds: 180,
   range: null, follow: true, followSpanNs: null, paused: false, domFrozen: false, domRows: 15, priceOffset: 0,
@@ -112,6 +115,8 @@ export function validatePreferences(value: unknown, nested = false): WorkspacePr
   if (!value || typeof value !== 'object' || !('version' in value) || value.version !== 1) return { ...defaults };
   const p = value as Record<string, unknown>;
   const next = { ...defaults };
+  if (p.desktopView === 'price' || p.desktopView === 'orderflow') next.desktopView = p.desktopView;
+  if (typeof p.candleInterval === 'string' && candleIntervals.includes(p.candleInterval)) next.candleInterval = p.candleInterval;
   for (const key of ['leftOpen', 'rightOpen', 'bottomOpen', 'showTrades', 'showQuotes', 'footprintOverview', 'follow', 'paused', 'domFrozen', 'domCumulative', 'tapeFrozen', 'rangeLinked'] as const) if (typeof p[key] === 'boolean') next[key] = p[key];
   next.leftWidth = Math.round(bounded(p.leftWidth, 180, 360, defaults.leftWidth));
   next.rightWidth = Math.round(bounded(p.rightWidth, 250, 500, defaults.rightWidth));
@@ -198,14 +203,19 @@ function loadWorkspaceSlots() {
 }
 export function useWorkspacePreferences() {
   const [preferences, setPreferences] = useState(loadPreferences);
+  const latestPreferences = useRef(preferences);
+  useLayoutEffect(() => { latestPreferences.current = preferences; }, [preferences]);
   const [storageError, setStorageError] = useState<string | null>(null);
   const [slots, setSlots] = useState(loadWorkspaceSlots);
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      try { localStorage.setItem(preferenceKey, JSON.stringify(validatePreferences(preferences))); setStorageError(null); }
+    const save = () => {
+      try { localStorage.setItem(preferenceKey, JSON.stringify(validatePreferences(latestPreferences.current))); setStorageError(null); }
       catch { setStorageError('Workspace preferences cannot be saved in this browser. This session remains usable.'); }
-    }, 200);
-    return () => clearTimeout(timer);
+    };
+    const timer = window.setTimeout(save, 200);
+    // Keep drag writes debounced, but never lose the last selection on reload.
+    window.addEventListener('pagehide', save);
+    return () => { clearTimeout(timer); window.removeEventListener('pagehide', save); };
   }, [preferences]);
   const saveSlot = (index: number) => {
     if (!Number.isInteger(index) || index < 0 || index >= 4) return;

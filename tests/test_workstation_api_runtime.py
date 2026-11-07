@@ -1560,3 +1560,97 @@ def test_catalog_serialization_cannot_stall_live_ingestion(tmp_path, monkeypatch
             await runtime.close()
 
     asyncio.run(scenario())
+
+
+def test_native_candle_query_releases_owner_and_rejects_obsolete_generation(
+    tmp_path, monkeypatch
+):
+    from types import SimpleNamespace
+    import src.workstation.candles as candles
+
+    async def scenario():
+        runtime, registry, instrument = live_runtime(tmp_path)
+        entered, release = asyncio.Event(), asyncio.Event()
+
+        async def fetch(request, **kwargs):
+            entered.set()
+            await release.wait()
+            return b"[]"
+
+        monkeypatch.setattr(candles, "fetch_public", fetch)
+        query = None
+        try:
+            session = await runtime.create("live", "live", instrument.instrument_id)
+            request = SimpleNamespace(
+                session_id=session.id,
+                generation=str(session.generation),
+                interval="1h",
+                limit=300,
+            )
+            query = asyncio.create_task(runtime.candles(request))
+            await asyncio.wait_for(entered.wait(), 5)
+            assert not session.lock.locked() and not session.actions.locked()
+            # Completed observer work remains available while HTTP is stalled.
+            async with session.lock:
+                assert await session.work(lambda: session.visuals is not None)
+            async with session.actions, session.lock:
+                session.generation += 1
+            release.set()
+            with pytest.raises(RuntimeFailure, match="obsolete"):
+                await query
+            assert runtime.candle_service.active == 0
+            assert session.active_requests == 0
+        finally:
+            release.set()
+            if query is not None:
+                await asyncio.gather(query, return_exceptions=True)
+            await runtime.close()
+            await registry.close()
+
+    asyncio.run(scenario())
+
+
+def test_cancelled_native_candle_query_releases_capacity_without_cache(
+    tmp_path, monkeypatch
+):
+    from types import SimpleNamespace
+    import src.workstation.candles as candles
+
+    async def scenario():
+        runtime, registry, instrument = live_runtime(tmp_path)
+        entered = asyncio.Event()
+
+        async def fetch(request, **kwargs):
+            entered.set()
+            await asyncio.Event().wait()
+
+        monkeypatch.setattr(candles, "fetch_public", fetch)
+        query = None
+        try:
+            session = await runtime.create("live", "live", instrument.instrument_id)
+            query = asyncio.create_task(
+                runtime.candles(
+                    SimpleNamespace(
+                        session_id=session.id,
+                        generation=str(session.generation),
+                        interval="1h",
+                        limit=300,
+                    )
+                )
+            )
+            await asyncio.wait_for(entered.wait(), 5)
+            query.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await query
+            assert runtime.candle_service.active == 0
+            assert not runtime.candle_service.cache
+            assert session.active_requests == 0
+            assert not session.lock.locked() and not session.actions.locked()
+        finally:
+            if query is not None:
+                query.cancel()
+                await asyncio.gather(query, return_exceptions=True)
+            await runtime.close()
+            await registry.close()
+
+    asyncio.run(scenario())

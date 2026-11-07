@@ -1,0 +1,106 @@
+.price-chart {
+  --pc-muted: #8e9db2;
+  --pc-line: #253247;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: auto;
+  border: 1px solid var(--pc-line);
+  border-radius: 0;
+  background: #0b111b;
+  color: #e7edf6;
+  font-variant-numeric: tabular-nums;
+}
+.price-chart[hidden] { display: none; }
+.price-chart button {
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: #a6b4c8;
+  font-size: 13px;
+  font-weight: 550;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.price-chart button:hover { background: #1a293c; color: #f2f7ff; border-color: #344862; }
+.price-chart button:focus-visible, .price-chart__plot:focus-visible { outline: 2px solid #77cce9; outline-offset: -3px; }
+.price-chart button:disabled { opacity: .4; cursor: default; }
+.price-chart__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 16px; flex-shrink: 0; }
+.price-chart__heading { min-width: 0; }
+.price-chart__heading h2 { margin: 0; overflow-wrap: anywhere; font-size: 15px; font-weight: 600; line-height: 1.3; }
+.price-chart__heading h2 > span { display: inline-block; margin-left: 8px; padding: 1px 7px; border: 1px solid #34546c; border-radius: 5px; background: #142a39; color: #9cdaf1; font-size: 14px; font-weight: 600; vertical-align: 2px; }
+.price-chart__header-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.price-chart__status { display: flex; align-items: center; gap: 6px; color: #8caaab; font-size: 11px; }
+.price-chart__status::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: #64baab; }
+.price-chart__status.is-stale { color: #edbd7c; }
+.price-chart__status.is-stale::before { background: #edbd7c; }
+.price-chart__toolbar { z-index: 3; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 5px 12px; border-top: 1px solid #1a2636; border-bottom: 1px solid #243145; background: #0e1723; flex-shrink: 0; }
+.price-chart__intervals, .price-chart__view-actions { display: flex; align-items: center; gap: 3px; }
+.price-chart__intervals button { min-width: 34px; }
+.price-chart__intervals button.is-selected { border-color: #3b6077; background: #1d384a; color: #b8ecff; box-shadow: inset 0 1px #ffffff08; }
+.price-chart__view-actions { margin-left: auto; padding-left: 10px; border-left: 1px solid #2a374b; }
+.price-chart__view-actions button.is-following { color: #7cd9bf; }
+.price-chart__menu-anchor { position: relative; }
+.price-chart__menu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 10; width: 248px; max-height: min(340px, 50dvh); overflow: auto; padding: 12px; border: 1px solid #3a4c62; border-radius: 4px; background: #142031; box-shadow: 0 6px 18px #0006; }
+.price-chart__menu-heading { display: block; margin: 3px 0 6px; color: #96a9c1; font-size: 10px; letter-spacing: .09em; text-transform: uppercase; }
+.price-chart__menu [role=group] + [role=group] { margin-top: 12px; }
+.price-chart__menu [role=group] > div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.price-chart__menu button { display: flex; justify-content: space-between; text-align: left; background: #192a3f; }
+.price-chart__menu button[aria-checked=true] { color: #b7e9ff; border-color: #5687a6; background: #23485f; }
+.price-chart__menu button > span { color: #7890a8; }
+.price-chart__legend { z-index: 1; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 15px; min-height: 42px; padding: 7px 16px; color: var(--pc-muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.5; flex-shrink: 0; }
+.price-chart__bar-time { flex-shrink: 0; color: #aebdd0; font-size: 11px; }
+.price-chart__legend dl { display: flex; flex-wrap: wrap; gap: 5px 14px; margin: 0; min-width: 0; }
+.price-chart__legend dl > div { display: flex; gap: 5px; min-width: 0; }
+.price-chart__legend dt { color: #6d839e; }
+.price-chart__legend dd { min-width: 0; margin: 0; color: #dce6f4; overflow-wrap: anywhere; }
+.price-chart__legend small { color: #7d93ad; font-size: 10px; }
+.price-chart__bar-state { margin-left: auto; padding: 2px 6px; border-radius: 3px; background: #172232; color: #8f9eb1; font: 10px ui-sans-serif, system-ui, sans-serif; white-space: nowrap; }
+.price-chart__bar-state.is-active { border: 1px solid #2b594f; background: #132923; color: #77d5b9; }
+.price-chart__plot { position: relative; flex: 1 1 auto; min-width: 0; min-height: 140px; overflow: hidden; touch-action: pan-y; cursor: crosshair; }
+.price-chart__plot:active { cursor: grabbing; }
+.price-chart__plot canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+.price-chart__empty { position: absolute; top: 50%; left: 50%; z-index: 2; width: min(440px, calc(100% - 36px)); transform: translate(-50%, -50%); padding: 20px; border: 1px solid #2b3a50; border-radius: 10px; background: #101b2aee; text-align: center; cursor: default; box-shadow: 0 16px 50px #0003; }
+.price-chart__empty-mark { display: block; margin-bottom: 9px; color: #76c5df; font-size: 25px; letter-spacing: .2em; }
+.price-chart__empty h3 { margin: 0 0 8px; color: #dce9f6; font-size: 15px; line-height: 1.4; }
+.price-chart__empty p { margin: 0 0 12px; color: #8fa6c1; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.price-chart__empty button, .price-chart__warning button { border-color: #3b5974; background: #20364b; color: #bae5fb; }
+.price-chart__warning { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 9px 16px; border-top: 1px solid #59422b; background: #302516; color: #e6bf88; font-size: 11px; line-height: 1.5; }
+.price-chart__warning > span { min-width: 0; overflow-wrap: anywhere; }
+.price-chart__footer { padding: 6px 16px; border-top: 1px solid #1c293a; color: #9aaec5; font-size: 11px; line-height: 1.5; flex-shrink: 0; }
+.price-chart__footer > div { display: flex; flex-wrap: wrap; gap: 4px 15px; }
+.price-chart__provenance { color: #a4b9ce; font-weight: 550; }
+.price-chart__coverage { margin: 4px 0 0; color: #b4a284; overflow-wrap: anywhere; }
+.price-chart__help { margin: 5px 0 0; color: #6f829b; }
+.price-chart__details { margin-top: 3px; }
+.price-chart__details > summary { min-height: 20px; color: #a5bad0; }
+.price-chart__receipt { margin-top: 3px; color: #768ca6; }
+.price-chart__sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+@media (max-width: 700px) {
+  .price-chart { min-height: 0; border-radius: 0; }
+  .price-chart__header { padding: 7px 10px; gap: 8px; }
+  .price-chart__heading h2 { font-size: 17px; }
+  .price-chart__header-actions { gap: 4px; flex-wrap: wrap; justify-content: flex-end; max-width: 125px; }
+  .price-chart__status { font-size: 10px; }
+  .price-chart__toolbar { gap: 6px; padding: 7px; }
+  .price-chart__intervals { gap: 1px; }
+  .price-chart__intervals button { min-width: 29px; padding: 6px; font-size: 11px; }
+  .price-chart__menu { right: -38px; width: 244px; }
+  .price-chart__view-actions { margin-left: auto; border: 0; padding-left: 0; }
+  .price-chart__view-actions button { padding: 4px 8px; }
+  .price-chart__legend { min-height: 60px; padding: 7px 10px; gap: 5px 10px; font-size: 11px; }
+  .price-chart__legend dl { gap: 3px 10px; }
+  .price-chart__bar-state { margin-left: 0; }
+  .price-chart__plot { min-height: 140px; }
+  .price-chart__footer { padding: 8px 12px; }
+  .price-chart__footer > div { gap: 3px 8px; }
+  .price-chart__help { font-size: 11px; }
+  .price-chart__warning { padding: 8px; gap: 6px; }
+  .price-chart__warning button { flex-shrink: 0; padding: 5px; font-size: 10px; }
+}
+@media (prefers-reduced-motion: reduce) { .price-chart *, .price-chart *::before { transition: none !important; animation: none !important; } }

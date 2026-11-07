@@ -12,6 +12,11 @@ async function openDemo(page: Page) {
   const created = page.waitForResponse(response => response.url().endsWith('/api/v1/sessions') && response.status() === 201);
   await page.goto(`/?source=${encodeURIComponent(demo.id)}`);
   await expect(page.locator('.status')).toContainText(/\bConnected$/i);
+  if ((page.viewportSize()?.width ?? 1440) <= 965) {
+    await page.getByRole('tablist', { name: 'Market panes', exact: true }).getByRole('tab', { name: 'Liquidity', exact: true }).click();
+  } else {
+    await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Order flow', exact: true }).click();
+  }
   const frame = await (await created).json() as Frame;
   if (!frame.replay) throw new Error('The native demo must provide a replay cursor');
   const middle = (BigInt(frame.replay.total_deliveries) / 2n).toString();
@@ -209,9 +214,9 @@ for (const width of [320, 390]) {
     await liquidity.focus();
     for (const [key, name, id] of [
       ['ArrowRight', 'Flow', 'flow'], ['End', 'Tape', 'tape'],
-      ['ArrowRight', 'Liquidity', 'heatmap'], ['ArrowLeft', 'Tape', 'tape'],
-      ['Home', 'Liquidity', 'heatmap'], ['ArrowRight', 'Flow', 'flow'],
-      ['ArrowRight', 'Book', 'dom'],
+      ['ArrowRight', 'Price', 'price'], ['ArrowLeft', 'Tape', 'tape'],
+      ['Home', 'Price', 'price'], ['ArrowRight', 'Liquidity', 'heatmap'],
+      ['ArrowRight', 'Flow', 'flow'], ['ArrowRight', 'Book', 'dom'],
     ] as const) {
       await page.keyboard.press(key);
       const tab = tabs.getByRole('tab', { name, exact: true });
@@ -230,8 +235,8 @@ for (const width of [320, 390]) {
     await expect(page.getByTestId('chart-pane-flow')).toBeVisible();
     await tabs.getByRole('tab', { name: 'Book', exact: true }).click();
     await page.getByRole('button', { name: 'DOM / tape', exact: true }).click();
-    await expect(liquidity).toHaveAttribute('aria-selected', 'true');
-    await expect(page.getByTestId('chart-pane-heatmap')).toBeVisible();
+    await expect(tabs.getByRole('tab', { name: 'Price', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId('price-chart')).toBeVisible();
     await tabs.getByRole('tab', { name: 'Tape', exact: true }).click();
     await expect(page.getByRole('button', { name: 'DOM / tape', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('[data-pane="tape"]')).toBeVisible();
@@ -240,11 +245,12 @@ for (const width of [320, 390]) {
     await tabs.getByRole('tab', { name: 'Flow', exact: true }).focus();
     await page.setViewportSize({ width: 966, height: 900 });
     await expect(tabs).toBeHidden();
-    for (const id of ['heatmap', 'flow', 'dom', 'tape']) await expect(page.locator(`#market-panel-${id}`)).toBeVisible();
     expect(await page.evaluate(() => {
       const active = document.activeElement;
       return active instanceof HTMLElement && active !== document.body && active.getClientRects().length > 0;
     })).toBe(true);
+    await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Order flow', exact: true }).click();
+    for (const id of ['heatmap', 'flow', 'dom', 'tape']) await expect(page.locator(`#market-panel-${id}`)).toBeVisible();
     const split = page.getByRole('separator', { name: 'Chart split', exact: true });
     await split.press('Home');
     await expect(split).toHaveAttribute('aria-valuenow', '30');

@@ -1,5 +1,8 @@
 # Market-workspace improvement cycle
 
+The initial cycle below is historical. The current chart-first desktop and
+hourly-history follow-up is recorded under [Desktop price-action redesign](#desktop-price-action-redesign).
+
 ## Evidence and scope
 
 **O — observed:** actual public interfaces inspected in Chromium at **1440×1000**
@@ -534,3 +537,181 @@ reruns are not additional distinct cases.
 commands, counts, warning and elapsed time. Temporary investigation scripts,
 comparison builds/state and owned application servers were removed or stopped;
 the documented reproducers and measured evidence remain.
+
+## Desktop price-action redesign
+
+### Problem and bounded implementation
+
+The earlier refinement still presented two short-horizon order-flow charts.
+Their 1/5/10-second buckets and six-second secondary follow window were useful
+for microstructure, not for reading hours or days of price action. Merely slowing
+rendering would not create historical candles and would conceal incoming data.
+
+The new default is a large **Price action** chart with **1h** candles, exact OHLC,
+base volume, native UTC history, pan/zoom, Fit/Latest, keyboard inspection and
+grouped timeframe selection. A forming bar updates in place. The existing
+liquidity/footprint workspace remains under **Order flow**, and the right book/tape
+keeps its own update and freeze controls. A stronger native-market header and
+persistent bottom workflow dock make the composition materially different.
+The React frontend, Python core and supported Streamlit client remain; no language
+rewrite, chart dependency, wallet, execution surface or new venue was added.
+
+| Reference and observed pattern | Local problem and adaptation | Tradeoff and acceptance |
+| --- | --- | --- |
+| [TradeXYZ](https://app.trade.xyz/): supplied screenshot's grouped minute/hour menu, selected 1h, candles/volume beside book | Replace event-scale price reading with native time buckets; quick 1m/5m/15m/1h/4h/1d plus grouped longer choices | Only actual native intervals are enabled. A non-quick choice remains visible. Keyboard selection must request that exact interval without changing replay speed or book ownership. |
+| [Hyperdash](https://hyperdash.com/): supplied screenshot's dominant price chart, compact timeframe strip and narrow book | Give historical price action the full left workspace; put the original dual charts behind Order flow rather than shrinking all three | One primary desktop view at a time; hidden queries stop. Hour bars, volume and readable axes must remain usable at 1440×900, with native book/tape alongside. No widget framework, account tools or copied branding. |
+| [JTX](https://app.jtx.com/): previously inspected thin separators and explicit market identity | Native symbol, venue, market type, quote unit, observed trade and native bid/ask replace ambiguous context; existing tools occupy a bottom dock | Show only existing native evidence, not invented funding/OI/leverage. Narrow Price/Liquidity/Flow/Book/Tape navigation and visible focus must remain usable. |
+
+These are frontend references, not interchangeable protocols. TradeXYZ's markets
+can appear in other Hyperliquid frontends; its supplied screenshot is not evidence
+about Hyperliquid execution speed. Hyperdash is a terminal reference; JTX is a
+Solana-facing interface reference. This follow-up uses the supplied images and
+the public-interface observations above, not a new authenticated product review.
+
+### Candle and ownership contracts
+
+- `/candles` is separate from `/visualization`, book reconstruction and replay
+  playback. The browser asks five seconds after each completed request; it does
+  not request one new candle per book frame. Source/session/generation/instrument/
+  interval fences reject superseded responses.
+- Existing live venues use their own credential-free public OHLCV endpoints,
+  one recent page (UI target 300, API maximum 500), a bounded five-second cache
+  and four-query native concurrency cap. No historical pagination or venue fallback.
+- Demo/replay uses only retained admitted trades. Hourly bars can be partial and
+  sparse; observation coverage is not expanded to the bucket boundaries. Native
+  receive-clock projection handles replay clocks with no wall timestamp, rejected
+  clock pairs, offset changes and rewind.
+- Native strings remain exact; display projection is relative BigInt arithmetic.
+  Calendar months retain 28/29/30/31-day boundaries. Missing buckets are not filled.
+- Failed refreshes retain valid same-owner history with a stale label. Receipt
+  timestamps are not market-freshness or latency claims. Replaced sessions clear
+  obsolete history. Preference writes retain their drag debounce and flush on
+  page hide, fixing an observed immediate-reload loss of the selected timeframe.
+
+### Exercised native history
+
+Read-only `/api/v1/candles` requests with `interval: "1h", limit: 300` returned
+300 bars each for these actual live catalog identities:
+
+| Venue | Native instrument |
+| --- | --- |
+| Binance Global | `binance-global:spot-v3:spot:BTCUSDT` |
+| Coinbase Advanced Trade | `coinbase:advanced-trade:spot:BTC-USD` |
+| Hyperliquid | `hyperliquid:info:perpetual:BTC` |
+| Kraken | `kraken:spot-v2:spot:BTC/USD` |
+| KuCoin | `kucoin:classic-spot:spot:BTC-USDT` |
+
+Every returned hourly start/end was checked for UTC alignment and a
+3,600,000,000,000 ns duration. Binance browser controls also returned 300 native
+1m, 4h, 1d and 1h bars, and 112 calendar-month bars with all four genuine month
+lengths. The 2h grouped menu was exercised by keyboard. Binance.US and Bybit were
+not present in this active catalog; their parsers/requests have deterministic
+coverage, not a claim of live access from this connection.
+
+### Evidence and measurement limits
+
+The earlier benchmark results in this document remain the previous cycle's
+results. This follow-up does **not** claim a backend or rendering speedup from
+switching to a different chart workload. Its measurable change is semantic:
+1h native historical buckets instead of a seconds-scale retained order-flow view,
+with independently advancing book evidence.
+
+Real desktop inspection exposed a clipped chart footer during integration.
+Compact chart controls and flexible plot sizing fixed it: at 1440×900 the plot
+measured 1072×469 CSS px, with the complete footer inside the chart and no
+horizontal overflow. The 390 px and 320 px layouts were inspected; the grouped
+menu fit inside 320 px, and keyboard Book → Home returned to Price.
+
+Actual loading was captured by delaying a real candle request, empty history by
+seeking the real demo to delivery 1, and recovery by seeking to delivery 5000.
+An injected HTTP 503 preserved all five exact OHLC/volume values, showed
+**Stale snapshot**, and recovered after the fault was removed. These are explicit
+transport faults around real data, not replacement financial fixtures.
+
+Concurrent backend/browser checks reproduced the existing
+`analytical_queue_overflow` capacity boundary. The interface marked the source
+unavailable and retained candles stale instead of claiming fresh evidence.
+Restarting the local collector preserved its durable state directory; reconnect
+alone is not a capacity repair. Sustained collector performance is not solved
+by this desktop redesign.
+
+Reproduction: build with `npm --prefix frontend run build`, launch the documented
+read-only server, open `/?source=live`, select BTCUSDT and compare 1m/1h/4h/1d and
+More → 1M. Use the existing browser suite against an isolated offline server for
+deterministic seek, delayed-response, refresh-failure, ownership and keyboard
+scenarios. Do not run a second live collector beside the workstation.
+
+### Final screenshots and verification
+
+[Before desktop](evidence/desktop-redesign/before-live-1568.png) ·
+[After desktop](evidence/desktop-redesign/after-live-1568.png) ·
+[1440 px desktop](evidence/desktop-redesign/after-live-1440.png) ·
+[Timeframe menu](evidence/desktop-redesign/after-menu-1568.png) ·
+[390 px layout](evidence/desktop-redesign/after-live-390.png) ·
+[320 px menu](evidence/desktop-redesign/after-menu-320.png).
+Desktop before/after use the same native market but different live moments, not
+a controlled price/performance comparison. At 1568×1000 the final plot measured
+1184×569 CSS px. Flat-price axes retain distinct labels rather than repeating
+rounded integers. See the [manifest](evidence/desktop-redesign/manifest.json) for
+source/viewport provenance, explicit fault-injection captures and verification
+qualifications.
+
+Two 20-second observations of this feature illustrate independent cadence and
+host-load sensitivity, **not a software before/after speedup**:
+
+| Observation | Concurrent checks/build | Final, no parallel checks |
+| --- | ---: | ---: |
+| Received market frames | 43 | 76 |
+| Distinct received book revisions | 28 | 74 |
+| Completed candle requests | 3 | 3 |
+| Completed ladder requests | 14 | 23 |
+| Hidden order-flow visualization requests | 0 | 0 |
+| Candle HTTP duration range, ms (3 samples) | 380.2–2303.1 | 817.8–904.7 |
+| Browser long tasks (>50 ms) | 13 | 3 |
+| Longest task, ms | 347 | 61 |
+
+The contended observation ended unavailable/stale; the final observation began
+and ended **Ready · partial depth**, with **1h / ~5s refresh** still selected.
+Three requests are insufficient for a latency distribution. These HTTP durations
+include local server/provider work and are not feed or execution latency.
+Raw results: [contended](evidence/desktop-redesign/cadence-under-load.json),
+[final](evidence/desktop-redesign/cadence-final.json). Reproduce by waiting for
+native history and ready book evidence, then observing 20 seconds without
+interaction: count CDP `Network.webSocketFrameReceived` frames/distinct
+`frame.book.revision`, clear/size the Resource Timing buffer before counting
+`/candles`, `/ladder` and `/visualization` completions, and collect browser
+`longtask` entries. Activity and host load naturally vary.
+
+Executed checks (Node 22.22.0, Python 3.13.5):
+
+- `npm --prefix frontend run lint`, `npm --prefix frontend test`:
+  **113 unit tests passed**; `npm --prefix frontend run build`: TypeScript and
+  production Vite build passed.
+- `.venv-upgrade/bin/python -m ruff check src/workstation` and the affected tests;
+  `.venv-upgrade/bin/python -m mypy src/workstation`: passed, 36 source files.
+- `.venv-upgrade/bin/python -m pytest -q`: **1300 passed, two new test-helper
+  failures**. Their runtime candle assertions passed; the rejected-field test
+  accidentally supplied `endpoint` twice to its Python helper. It now uses a
+  direct HTTP request, preserving the 422 check.
+  `pytest -q tests/test_workstation_visual_api.py -k candle`: **4 passed**,
+  including both corrected cases. The dedicated candle tests also passed
+  (**28 cases**). Existing Starlette/httpx deprecation warning remains.
+- The full offline Playwright suite: **63 passed, one 1920 px timeout, one
+  live-only skip**. The trace completed its user assertions before teardown.
+  The same 1920 px scenario passed alone in **25.9 s**, without changing its
+  workload or 45 s deadline. No clean single full-suite pass is claimed.
+- Final `price-action.spec.ts`: **4 passed** after the last chart-axis change.
+  The actual `--network` startup/search/DOM/Hyperliquid-switch scenario also
+  passed (**25.3 s**), covering the offline suite's live-only skip.
+
+Browser commands used the repository's Playwright CLI/config conventions:
+one worker, no retries, 45 s test/15 s expectation deadlines. The isolated
+offline run used loopback port 8015 and temporary output/config paths; the
+live-only run used `frontend/playwright.config.ts` on port 8000.
+For reproduction, run the full suite against an offline server, then the
+`network launch migrates` case against the explicitly network-enabled server.
+The four new price-action cases explicitly select demo and can use either server.
+
+Temporary probe code/config was removed; retained images, raw measurements and
+the manifest are evidence, not application fixtures. The updated read-only
+workstation is served locally with its existing durable state directory.

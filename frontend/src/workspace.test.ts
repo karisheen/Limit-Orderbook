@@ -3,6 +3,60 @@ import assert from 'node:assert/strict';
 import { applyWorkspaceSlot, chartFollowSpan, chartSettings, mergeVisualGrid, navigateChartTime, presetLayout, retainedChartRange, validatePreferences, validateWorkspaceSlots, workspaceGeometry } from './workspace.ts';
 import type { VisualColumn, VisualGrid } from './api.ts';
 
+test('legacy workspaces open hourly price action without losing their existing controls', () => {
+  const range = { start_ns: '9007199254740993123', end_ns: '9007199255740993123' };
+  const legacy = { version: 1, source: { mode: 'replay', id: 'recording' }, sourceExplicit: true,
+    instrument: 'exact/native', rightWidth: 314, leftOpen: true, bottomOpen: true,
+    mode: 'heatmap', priceStep: '0.00000000000001', range, follow: false, paused: true,
+    domFrozen: true, domUnit: 'quote', tapeSide: 'sell', links: { dom: false },
+    secondary: { mode: 'candles', bucket: '5000000000', range, follow: false } };
+  const migrated = validatePreferences(JSON.parse(JSON.stringify(legacy)));
+  assert.equal(migrated.desktopView, 'price');
+  assert.equal(migrated.candleInterval, '1h');
+  assert.deepEqual(migrated.source, legacy.source);
+  assert.equal(migrated.sourceExplicit, true);
+  assert.equal(migrated.instrument, legacy.instrument);
+  assert.equal(migrated.rightWidth, 314);
+  assert.equal(migrated.rightWidthMode, 'manual');
+  assert.equal(migrated.leftOpen, true);
+  assert.equal(migrated.bottomOpen, true);
+  assert.equal(migrated.priceStep, legacy.priceStep);
+  assert.deepEqual(migrated.range, range);
+  assert.equal(migrated.follow, false);
+  assert.equal(migrated.paused, true);
+  assert.equal(migrated.domFrozen, true);
+  assert.equal(migrated.domUnit, 'quote');
+  assert.equal(migrated.tapeSide, 'sell');
+  assert.equal(migrated.links.dom, false);
+  assert.equal(migrated.secondary.mode, 'candles');
+  assert.equal(migrated.secondary.bucket, '5000000000');
+  assert.deepEqual(migrated.secondary.range, range);
+});
+
+test('desktop workspace and candle intervals survive reload and saved workspace slots', () => {
+  for (const desktopView of ['price', 'orderflow'] as const) {
+    for (const candleInterval of ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1M']) {
+      const saved = validatePreferences({ version: 1, desktopView, candleInterval, bucket: '5000000000' });
+      const reloaded = validatePreferences(JSON.parse(JSON.stringify(saved)));
+      const slots = validateWorkspaceSlots([reloaded]);
+      const restored = applyWorkspaceSlot(validatePreferences(null), slots[0]!);
+      assert.equal(restored.desktopView, desktopView);
+      assert.equal(restored.candleInterval, candleInterval);
+      assert.equal(restored.bucket, '5000000000');
+      assert.equal(validatePreferences({ ...saved, ...presetLayout('balanced') }).candleInterval, candleInterval);
+    }
+  }
+});
+
+test('invalid candle durations and workspace names fall back independently to hourly price action', () => {
+  for (const invalid of [undefined, null, '', '1H', '1s', '60m', '30d', 3600, {}, ['1h']]) {
+    const restored = validatePreferences({ version: 1, desktopView: invalid, candleInterval: invalid, domRows: 40 });
+    assert.equal(restored.desktopView, 'price');
+    assert.equal(restored.candleInterval, '1h');
+    assert.equal(restored.domRows, 40);
+  }
+});
+
 test('persisted workspace bounds reject unsafe identity, time, quantum and dimensions without retaining sessions', () => {
   const settings = validatePreferences({ version: 1, session_id: 'must-not-persist', source: { mode: 'live', id: 'native-live' },
     instrument: 'x'.repeat(513), leftWidth: -5000, rightWidth: Infinity, bottomHeight: 1e8,

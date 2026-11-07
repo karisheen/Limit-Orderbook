@@ -34,6 +34,7 @@ from uuid import uuid4
 from .alerts import AlertEngine
 from .analytics import AnalyticsEngine, AnalyticsSnapshot
 from .book import Book
+from .candles import CandleService, session_candles
 from .context import ContextEngine
 from .demo import demo_source
 from .demo_memory import MemoryReplaySource
@@ -1090,6 +1091,20 @@ class ClientSession:
             "truncated": truncated or range_truncated,
         }
 
+    def _candle_input(self, interval, limit):
+        instrument = next(
+            (spec.instrument for spec in self.streams if spec.key == self.key), None
+        )
+        if instrument is None or self.visuals is None:
+            raise RuntimeFailure(409, "candle source unavailable")
+        identity = (self.mode, self.source_identity, self.key, instrument)
+        local = (
+            session_candles(self.visuals, instrument, interval, limit)
+            if self.mode != "live"
+            else None
+        )
+        return identity, instrument, local
+
     def _visual_snapshot(self):
         if self.visuals is None:
             raise RuntimeFailure(409, "visualization observer unavailable")
@@ -1734,6 +1749,7 @@ class TerminalRuntime:
         self.visual_executor = ThreadPoolExecutor(
             max_workers=1, thread_name_prefix="terminal-visual"
         )
+        self.candle_service = CandleService()
         self.demo: ReplaySource | None = None
         self.demo_task: asyncio.Task[None] | None = None
         self.demo_ready = asyncio.Event()
@@ -2175,6 +2191,47 @@ class TerminalRuntime:
                 session.unsubscribe = None
             await self.registry.release_client(ClientId(session.id))
             raise
+
+    async def candles(self, request):
+        session = self.get(request.session_id)
+        session.check(request.generation)
+        async with session.activity():
+            async with session.actions, session.lock:
+                session.check(request.generation)
+                identity, instrument, local = await session.work(
+                    session._candle_input, request.interval, request.limit
+                )
+            # No observer or lifecycle lock is held over public HTTP. Source
+            # replacement and live book delivery remain independent of candles.
+            result = (
+                local
+                if local is not None
+                else await self.candle_service.query(
+                    instrument, request.interval, request.limit
+                )
+            )
+            async with session.actions, session.lock:
+                session.check(request.generation)
+                current = next(
+                    (
+                        spec.instrument
+                        for spec in session.streams
+                        if spec.key == session.key
+                    ),
+                    None,
+                )
+                if identity != (
+                    session.mode,
+                    session.source_identity,
+                    session.key,
+                    current,
+                ):
+                    raise RuntimeFailure(409, "candle source changed during query")
+                return {
+                    **result,
+                    "session_id": session.id,
+                    "generation": str(session.generation),
+                }
 
     async def select(self, session, generation, instrument_id):
         if str(session.generation) != generation:

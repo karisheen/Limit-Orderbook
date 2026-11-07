@@ -16,6 +16,7 @@ test('a silent open socket loses current status and recovers with a new session'
   await page.goto('/');
   const initial = await (await initialCreated).json() as Frame;
   await expect(page.locator('.status')).toContainText('Connected');
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Order flow', exact: true }).click();
   await expect(page.locator('.ladder tbody tr').first()).toBeVisible();
   const chart = page.getByTestId('chart-pane-heatmap').getByTestId('market-charts');
   await expect(chart).toHaveAttribute('data-painted-view-id', /.+/);
@@ -182,6 +183,7 @@ test('a real canvas render failure clears displayed freshness and cannot acknowl
   if (!demo) throw new Error('Actual native catalog must expose a ready synthetic demo source');
   await page.goto(`/?source=${encodeURIComponent(demo.id)}`);
   await expect(page.locator('.status')).toContainText('Connected');
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Order flow', exact: true }).click();
   const pane = page.getByTestId('chart-pane-heatmap');
   const chart = pane.getByTestId('market-charts');
   const freshness = pane.getByTestId('chart-freshness');

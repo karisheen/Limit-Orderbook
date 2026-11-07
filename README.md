@@ -1,17 +1,17 @@
 # Crypto Limit Order Book
 
-A local public-market order-flow workstation with an exact Python core and a
-React/TypeScript terminal: simultaneous liquidity and footprint/candlestick charts,
-an aggregate-L2 depth ladder and independently controlled tape, quality-gated
-analytics, size-aware costs, deterministic replay, local alerts, reference context,
-spot IOC paper accounting, a durable journal and offline research. Charts share
-one exact instrument while keeping independent view settings and native queries.
+A local public-market workstation with an exact Python core and a React/TypeScript
+terminal. The default **Price action** workspace puts historical **1h candles**
+and volume beside the live aggregate-L2 book and tape. **Order flow** retains the
+independent liquidity and footprint charts. Quality-gated analytics, size-aware
+costs, deterministic replay, alerts, reference context, spot IOC paper accounting,
+journal and offline research remain available.
 The supported Streamlit dashboard is a thin native-API observation client, not a
 second market-data engine.
 
-[![Recorded-source M8 workstation with readable liquidity and footprint charts, depth ladder and time & sales](docs/evidence/m8-after-recorded-1440.png)](docs/evidence/m8-after-recorded-1440.png)
+[![Price-action workspace with native hourly BTCUSDT history, order book and time & sales](docs/evidence/desktop-redesign/after-live-1568.png)](docs/evidence/desktop-redesign/after-live-1568.png)
 
-*Historical M8 recorded-source workstation at delivery 2057 / 4276, 1440 × 900 CSS pixels; not a screenshot or acceptance result for the current workspace refinement, nor a live-feed or latency certification. Click to view full size. The [M8 evidence handoff](docs/OMP_UPGRADE_HANDOFF.md#m8--market-first-workstation) records that delivery's viewport/source provenance and executed verification.*
+*Public read-only Binance-global BTCUSDT, 1568 × 1000 CSS pixels. This is a UI capture, not exchange-latency certification. See [desktop redesign evidence and limits](docs/WORKSPACE_IMPROVEMENT.md#desktop-price-action-redesign).*
 
 ## Upgrade progress
 
@@ -96,32 +96,32 @@ exclusions. No order is sent to an exchange. See
 [terminal controls](docs/TERMINAL.md), [API](docs/API.md),
 [analytics](docs/ANALYTICS.md) and [costs](docs/COSTS.md).
 
-The [operator guide](docs/TERMINAL.md) covers independent chart settings, cursor
-and time-range links, keyboard navigation/resizing and source/diagnostics
-inspectors. Open **Source / workspace** for the data source, layout preset and
-**Workspaces**' four browser-local slots. The existing topbar search supports
-multiple space-separated terms; **/** focuses it and opens catalog results.
-At ≤965 CSS px, the **Market panes** tablist selects **Liquidity**, **Flow**,
-**Book** or **Tape** using Left/Right or Home/End. Switching preserves mounted
-pane state and gates hidden chart/DOM queries; it does not pause collection or
-replay. Desktop retains simultaneous dual charts and the DOM/tape column.
-Workspace preferences never save a mutable backend session. Chart dates project
-native paired receive clocks; replay age uses its source clock, not today's wall
-clock. **Fit time** for flow fits returned native aggregates, not invented
-all-history extent. Compact footprints crop native rows without regrouping
-prices or quantities; exact values remain inspectable.
+The [operator guide](docs/TERMINAL.md) covers timeframe selection, chart navigation,
+independent order-flow settings and source/diagnostic inspectors. **1m / 5m / 15m /
+1h / 4h / 1d** are one-click candle choices; **More** groups additional minute,
+hour and longer intervals supported by the selected venue. Candle history refreshes
+about every five seconds, independently of book/tape updates. Drag/scroll to pan
+and zoom; **Fit** shows returned history and **Latest** follows recent bars.
+One bar means the selected duration, not one incoming event. Live history is a
+bounded native OHLCV page; demo/replay uses only delivered retained trades and
+explicitly labels partial coverage. It does not invent historical candles.
 
-The visual direction references [Flowsurface](https://flowsurface.com/),
-[OpenMarket's footprint guide](https://openmarket.xyz/learn/order-flow/footprint)
-and [TradingView's footprint documentation](https://www.tradingview.com/support/solutions/43000726164/):
-dense market panes, readable bid/ask numbers and contextual chart controls.
-[aggr.trade](https://aggr.trade/) informs tape minimalism, while
-[Hyperliquid](https://app.hyperliquid.xyz/) and [Lighter](https://app.lighter.xyz/)
-inform the chart/DOM/tape column hierarchy; these are influences, not parity claims.
-The terminal and native Canvas renderer are independently implemented; no
-reference implementation's code or assets are copied, and no chart package is
-adopted. Public-live `analytical_queue_overflow` remains a known collector-capacity
-boundary, not something the frontend redesign or reconnect repairs.
+Open **Source / workspace** for source selection, presets and four browser-local
+workspace slots. **/** focuses market search. At ≤965 CSS px, **Price / Liquidity /
+Flow / Book / Tape** tabs retain mounted pane state and gate hidden queries.
+The bottom workflow dock opens the existing analysis, alert, context, paper,
+journal and research tools. Preferences never save a mutable backend session.
+
+The desktop composition and timeframe hierarchy are informed by
+[TradeXYZ](https://app.trade.xyz/) and [Hyperdash](https://hyperdash.com/), including
+the supplied screenshots. [JTX](https://app.jtx.com/) informs restrained separators
+and explicit market identity. These are interface references, not integrations
+or backend-speed claims. Earlier footprint/tape influences remain documented in
+the [research record](docs/WORKSPACE_IMPROVEMENT.md).
+The native Canvas renderer is independently implemented; no proprietary assets,
+chart package or new dependency was adopted. Public-live
+`analytical_queue_overflow` remains a collector-capacity boundary, not something
+a frontend redesign or reconnect repairs.
 
 ## Local alerts, paper, journal and research
 

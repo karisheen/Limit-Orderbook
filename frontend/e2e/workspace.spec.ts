@@ -79,8 +79,15 @@ async function openDemo(page: Page) {
   expect(frame.replay).not.toBeNull();
   await expect(page.locator('.status')).toContainText(/\bConnected$/i);
   await expect(page.locator('.source-banner')).toContainText('SYNTHETIC DEMO');
-  if ((page.viewportSize()?.width ?? 1280) <= 965) await expect(primary(page)).toBeVisible();
-  else await expect(page.getByTestId('grouped-ladder').locator('tbody tr').first()).toBeVisible();
+  // These regression scenarios exercise the retained order-flow tools, not
+  // the independent price-action workspace that now opens by default.
+  if ((page.viewportSize()?.width ?? 1280) <= 965) {
+    await page.getByRole('tablist', { name: 'Market panes', exact: true }).getByRole('tab', { name: 'Liquidity', exact: true }).click();
+    await expect(primary(page)).toBeVisible();
+  } else {
+    await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Order flow', exact: true }).click();
+    await expect(page.getByTestId('grouped-ladder').locator('tbody tr').first()).toBeVisible();
+  }
   return { frame, catalog, latestFrame: () => latest ?? frame };
 }
 
@@ -886,6 +893,7 @@ for (const width of [320, 390]) {
 
     await page.setViewportSize({ width: 1280, height: 900 });
     await expect(tabs).toBeHidden();
+    await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Order flow', exact: true }).click();
     for (const id of ['heatmap', 'flow', 'dom', 'tape']) await expect(page.locator(`#market-panel-${id}`)).toBeVisible();
     await expect(secondary(page).getByLabel('Chart mode', { exact: true })).toHaveValue('candles');
     await expect(secondary(page).getByLabel('Time bucket', { exact: true })).toHaveValue('10000000000');

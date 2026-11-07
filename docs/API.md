@@ -423,3 +423,53 @@ for the measurement boundaries.
 ## Verification entrypoints
 
 This slice adds `tests/test_workstation_api.py` and `tests/test_workstation_api_runtime.py` covering full-source provenance/precision/readiness, independent clients, cursor-bounded history/reset, actual costs/fees/prefunding, all-or-none fee input groups, controls and invalid/stale selection, host/origin/payload/capacity bounds, WebSocket ACK/disconnect, raw/normalized memory parity, generic ReplaySource consumers, durable-reader thread ownership and capture identity changes, analytical overload invalidation, immediate source deliveries/quiet joins, private capacity reservations, initializer shutdown and active-owner reaping. Run with the project's locked Python and full existing replay/CLI suite; frontend principal browser workflows and real live singleton-safe smoke are integration-owner gates. No benchmark or test pass is claimed merely by this document.
+
+## Independent historical candles
+
+`POST /api/v1/candles` accepts
+`{session_id, generation, interval, limit?}`. `interval` is case-sensitive
+(`1m`, `1h`, `1d`, `1w`, `1M`); limit defaults to 300 and is bounded to 1–500.
+The strict session input and local-origin policy apply. Unknown fields, URLs,
+noninteger limits, and malformed intervals are rejected. Valid but unsupported
+intervals return `status: "unavailable"` with the actual `supported_intervals`;
+the server never substitutes another timeframe, instrument, venue, or API family.
+
+The response contains `version`, `session_id`, `generation`, `instrument_id`,
+`interval`, `status` (`ready`, `empty`, `unavailable`), `source` (`venue_ohlcv`,
+`session_trades`), `venue`, `time_basis` (`exchange_utc`, `receive_utc`),
+`fetched_at_ns`, `supported_intervals`, `candles`, `reasons`, `volume_unit`,
+and nullable `coverage_start_ns`/`coverage_end_ns`. Each candle has
+`start_ns`, exclusive `end_ns`, exact decimal `open`, `high`, `low`, `close`,
+`volume`, and boolean `closed`. All timestamps are decimal strings. Native
+volume is base-asset volume for these supported products; quote turnover is
+never substituted. `closed` only means the bucket's end has passed according
+to the response's source time, not independently verified completeness.
+
+Live sessions use fixed public native endpoints via the existing credential-free
+transport (access blocks and Retry-After/circuit policy remain authoritative).
+One attempt per query, four concurrent native queries, no admission wait queue,
+at most 32 successful exact-instrument/metadata/interval/limit cache entries,
+five-second cache TTL, at most 500 output candles, and a 2 MiB JSON parsing
+limit bound this feature. Transport retains its existing 32 MiB response cap.
+Overload returns `candle_capacity`; network/access/rate errors return explicit
+unavailable reasons. Cancellation propagates and releases capacity without a
+background fetch. Neither live observer nor lifecycle action locks are held
+during HTTP; source identity and generation are rechecked before publication.
+Book health is not a prerequisite for native candle history.
+
+Demo and replay never use HTTP or a native-history cache. They aggregate only
+the selected instrument's already-admitted retained trade prefix (the existing
+4096-trade retention bound), in receive-UTC minute/hour/day buckets. They return
+`session_history_partial` and `retained_session_trades_only`; subscription-history
+prints and unknown-size prints do not fabricate volume. Coverage is the actual
+first/last contributing retained trade timestamp, not enclosing bucket edges.
+Replay's evaluation clock can omit wall time. Candle closure uses the admitted
+receive-clock segment projected at the retained source-monotonic frontier, not
+the evaluation clock's optional wall field or today's time. Nonadvancing clock
+pairs are disclosed but never adopted; mismatched clock/source trades are excluded.
+Seeking rebuilds the retained prefix and changes generation; future deliveries
+cannot appear after rewind. This endpoint does not alter `/visualization`,
+capture bytes, replay ordering, book reconstruction, or execution semantics.
+
+Native provider details and checked documentation are in
+[Historical price candles](VISUALIZATION.md#historical-price-candles).
