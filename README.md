@@ -7,12 +7,13 @@ instrument as the integrated chart and workflow tools. No exchange order is sent
 
 [![Order-flow terminal demo](docs/media/orderbook-demo.gif)](docs/media/orderbook-demo.mp4)
 
-[Watch the video walkthrough (MP4)](docs/media/orderbook-demo.mp4): recorded
-public-market replay showing footprint modes, CVD and volume bars, depth,
-historical candles, native liquidity, book/tape and exact cost estimates.
-The animated preview links to the full video. This is actual application
-interaction, not an all-provider correctness, latency, sustained-capacity or
-trading-readiness claim.
+[Watch the 94-second walkthrough (MP4)](docs/media/orderbook-demo.mp4): actual
+Binance BTC/USDT public-market replay showing footprint modes, CVD and volume
+bars, depth, replay candles, native liquidity, book/tape and exact cost estimates.
+A larger highlighted pointer, subtle halo and short click pulses make the
+interactions easy to follow; these overlays exist only in the recording.
+The animated preview links to the full video. This is not an all-provider
+correctness, latency, sustained-capacity or trading-readiness claim.
 
 ## Terminal features
 
@@ -35,7 +36,7 @@ trading-readiness claim.
 
 | Provider | Native markets |
 | --- | --- |
-| Binance global | Spot and USDT USDⓈ-M perpetuals |
+| Binance | Spot and USDT USDⓈ-M perpetuals |
 | Bybit | Spot and USDT linear crypto perpetuals |
 | OKX | Spot and linear perpetual swaps |
 | Bitget | Spot and USDT perpetuals |
@@ -54,10 +55,16 @@ for historical observations, not blanket qualification of this release.
 Discovery excludes Bybit linear TradFi classifications and Bitget RWA futures;
 native crypto contract metadata remains explicit.
 
-Binance and Bybit discover spot and perpetual families independently: a complete
-reachable family remains listed when another is restricted or fails. Mixed
-metadata availability is explicitly partial, not evidence that every feed works.
-No missing metadata is fabricated and no other exchange is silently substituted.
+The live terminal starts Binance and Bybit subscriptions from a bundled crypto
+candidate catalog without waiting for REST metadata. Official spot/perpetual
+metadata loads independently; REST restrictions do not imply WebSocket failure.
+Candidates are explicitly **streaming-only**, not confirmed listings: tick, lot
+and order limits remain unknown, and actual valid messages establish feed health.
+Display studies and recording/replay remain available; exact costs, comparison,
+proposed risk and paper orders require verified session-pinned metadata.
+Successful discovery enriches future streams without rewriting existing captures.
+No precision is fabricated and no other exchange is silently substituted.
+The UI calls the venue **Binance**; native IDs retain `binance-global`.
 Bybit uses the [official equivalent mainnet host](https://bybit-exchange.github.io/docs/v5/guide)
 `api.bytick.com`; regional restrictions still apply. See
 [native adapter access semantics](docs/ADAPTERS_ASIAN.md#metadata-and-identity).

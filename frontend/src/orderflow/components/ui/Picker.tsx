@@ -15,6 +15,7 @@ export interface PickerOption<T extends string> {
 /** Pill button that opens a searchable list; replaces native selects where options need icons. */
 export function Picker<T extends string>({
   value,
+  fallbackLabel = value,
   options,
   onChange,
   ariaLabel,
@@ -24,6 +25,7 @@ export function Picker<T extends string>({
   width = 280,
 }: {
   value: T;
+  fallbackLabel?: string;
   options: PickerOption<T>[];
   onChange: (value: T) => void;
   ariaLabel: string;
@@ -117,13 +119,13 @@ export function Picker<T extends string>({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
-        aria-label={`${ariaLabel}: ${current?.label ?? value}`}
+        aria-label={`${ariaLabel}: ${current?.label ?? fallbackLabel}`}
         onClick={toggle}
       >
         {renderValue ? renderValue(current) : (
           <>
             {current?.icon}
-            <span className="picker-label">{current?.label ?? value}</span>
+            <span className="picker-label">{current?.label ?? fallbackLabel}</span>
           </>
         )}
         <span className="picker-chevron"><Icon.Chevron /></span>

@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import type { Catalog, Frame, NativeMarketData } from '../src/api';
 import type { RecordingMutationResponse } from '../src/workflow-api';
+import { selectableInstrument } from '../src/instrument-metadata';
 
 async function openSource(page: Page, sourceId: string, instrumentId?: string) {
   const created = page.waitForResponse(response => response.url().endsWith('/api/v1/sessions') && response.request().method() === 'POST');
@@ -77,7 +78,7 @@ test('live recording ownership survives a generation-fenced response and replays
   const catalog = await catalogResponse.json() as Catalog;
   expect(catalog.sources.find(source => source.id === sourceId)).toMatchObject({ mode: 'live', status: 'ready' });
   const instrumentId = process.env.PLAYWRIGHT_RECORDING_INSTRUMENT_ID;
-  if (instrumentId) expect(catalog.instruments.find(item => item.instrument_id === instrumentId)?.status).toBe('active');
+  if (instrumentId) expect(catalog.instruments.filter(selectableInstrument).map(item => item.instrument_id)).toContain(instrumentId);
   const second = await context.newPage();
   const { promise: held, resolve: release } = Promise.withResolvers<void>();
   const { promise: started, resolve: captured } = Promise.withResolvers<RecordingMutationResponse>();
@@ -97,11 +98,11 @@ test('live recording ownership survives a generation-fenced response and replays
     const other = await openSource(second, sourceId!, instrumentId);
     expect(first.session_id).not.toBe(other.session_id);
     const primary = catalog.instruments.find(instrument => instrument.instrument_id === first.selection.instrument_id);
-    const alternatives = catalog.instruments.filter(instrument => instrument.status === 'active'
+    const alternatives = catalog.instruments.filter(instrument => selectableInstrument(instrument)
       && instrument.instrument_id !== first.selection.instrument_id);
     const alternative = alternatives.find(instrument => instrument.base.asset_id === primary?.base.asset_id
       && instrument.quote.asset_id === primary?.quote.asset_id) ?? alternatives[0];
-    if (!alternative) throw new Error('Live recording generation coverage requires at least two active public native instruments');
+    if (!alternative) throw new Error('Live recording generation coverage requires at least two streamable public native instruments');
     await observedLiveBook(page, first);
     const firstCaptureBoundary = BigInt(Date.now()) * 1_000_000n;
     await page.getByRole('button', { name: 'Record selected instrument', exact: true }).click();

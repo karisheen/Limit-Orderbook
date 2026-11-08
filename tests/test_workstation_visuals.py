@@ -1777,6 +1777,66 @@ def risk(instrument=None, **overrides):
     )
 
 
+@pytest.mark.parametrize("base_quantity, risk_budget", [("2", None), (None, "25")])
+def test_streaming_only_metadata_preserves_display_and_flow_but_blocks_proposal_risk(
+    monkeypatch, base_quantity, risk_budget
+):
+    instrument = replace(
+        synthetic_instrument(),
+        metadata_status="streaming_only",
+        metadata_version="streaming-only-test-v1",
+        metadata_source="bundled protocol subscription candidate",
+        metadata_asof_wall_ns=0,
+        status="unknown",
+        tick_size=None,
+        lot_size=None,
+        constraints=OrderConstraints(
+            price_rule="unconstrained", size_rule="unconstrained"
+        ),
+    )
+    feed = VisualFeed(instrument)
+    feed.quote(0)
+    feed.trade(0, "streaming-trade", quantity="2")
+    feed.heartbeat(SECOND + 1)
+
+    display = ladder(feed)
+    assert display["eligible"] and display["rows"]
+    assert display["tick_size"] is None
+    assert display["summary"]["spread_ticks"] is None
+    assert display["reasons"] == ["display_quantum_not_native_tick"]
+    view = feed.query(end_ns=str(SECOND))
+    assert view["complete_window"]
+    column = column_at(view, 0)
+    assert column["eligible"]
+    assert sum(D(pair[0]) for pair in column["cells"]) == 4
+    assert sum(D(pair[1]) for pair in column["cells"]) == 6
+    assert column["candle"]["eligible"]
+    assert column["candle"]["volume"] == "2"
+    assert [trade["base_quantity"] for trade in view["trades"]] == ["2"]
+    assert sum(D(row["buy_base"]) for row in view["profile"]) == 2
+    assert view["footprints"]
+
+    def reject_financial_calculation(*args, **kwargs):
+        pytest.fail("unverified metadata reached proposal financial calculations")
+
+    for helper in (
+        "_validate_price",
+        "FeeSchedule",
+        "_amounts",
+        "_native_for_base",
+        "floor",
+    ):
+        monkeypatch.setattr(visuals, helper, reject_financial_calculation)
+    result = risk(instrument, base_quantity=base_quantity, risk_budget=risk_budget)
+    assert not result["eligible"]
+    assert result["reasons"] == ["instrument_metadata_unverified"]
+    assert result["base_quantity"] == base_quantity
+    assert result["suggested_base_quantity"] is None
+    assert (
+        result["gross_loss"] is result["fee_cost"] is result["estimated_loss"] is None
+    )
+
+
 @pytest.mark.parametrize(
     "side, stop, gross, fee, total",
     [("buy", "90", "20", "0.38", "20.38"), ("sell", "110", "20", "0.42", "20.42")],

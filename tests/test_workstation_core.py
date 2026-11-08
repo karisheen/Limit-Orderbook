@@ -49,9 +49,13 @@ from src.workstation.precision import (
 from src.workstation.quality import (
     Capabilities,
     ClockReading,
+    ContextEvidence,
     EligibilityPolicy,
+    TradeEvidence,
     evaluate,
     evaluate_cohort,
+    evaluate_context,
+    evaluate_trades,
 )
 from src.workstation.wire import dumps, loads, to_wire
 
@@ -82,6 +86,175 @@ def healthy(**options):
     result = reducer.apply((envelope(instrument, key),))
     assert result.book is not None
     return instrument, key, reducer, result.book
+
+
+def streaming_instrument():
+    return replace(
+        synthetic_instrument(),
+        metadata_status="streaming_only",
+        metadata_version="protocol-candidate-v1",
+        metadata_source="bundled protocol subscription candidates",
+        status="unknown",
+        tick_size=None,
+        lot_size=None,
+        constraints=OrderConstraints(
+            price_rule="unconstrained", size_rule="unconstrained"
+        ),
+    )
+
+
+def test_streaming_metadata_preserves_unknown_precision_and_financial_rejection():
+    instrument = streaming_instrument()
+    assert instrument.streamable
+    assert instrument.tick_size is instrument.lot_size is None
+    assert instrument.metadata_asof_wall_ns == 0
+    instrument.validate_price(D("99.000000000123"))
+    instrument.validate_quantity(D("0.000000000456"))
+    instrument.validate_quantity(D("0"))
+    with pytest.raises(ValueError, match="instrument_metadata_unverified"):
+        instrument.validate_order(
+            D("99.000000000123"), D("0.000000000456"), order_type="market"
+        )
+    for status in ("suspended", "delisted", "unavailable"):
+        assert not replace(instrument, status=status).streamable
+    assert not replace(synthetic_instrument(), status="unknown").streamable
+    for changes in (
+        {"metadata_status": "inferred"},
+        {"tick_size": D("0.01")},
+        {"lot_size": D("0.001")},
+        {"constraints": OrderConstraints()},
+    ):
+        with pytest.raises(ValueError):
+            replace(instrument, **changes)
+    with pytest.raises(ValueError, match="known lot"):
+        replace(synthetic_instrument(), lot_size=None)
+
+
+@pytest.mark.parametrize("value", [D("NaN"), D("Infinity"), D("-1"), 1.5, True])
+def test_streaming_metadata_still_rejects_invalid_native_numbers(value):
+    instrument = streaming_instrument()
+    with pytest.raises(ValueError):
+        instrument.validate_price(value)
+    with pytest.raises(ValueError):
+        instrument.validate_quantity(value)
+    with pytest.raises(ValueError):
+        instrument.validate_price(D("0"))
+
+
+def test_streaming_book_display_and_flow_do_not_imply_financial_eligibility():
+    instrument = streaming_instrument()
+    key = SubscriptionKey.for_instrument(instrument)
+    capabilities = Capabilities(deltas=True, trades=True, exact_event_flow=True)
+    reducer = BookReducer(
+        instrument, key, segment_id="synthetic-segment", capabilities=capabilities
+    )
+    event = envelope(
+        instrument,
+        key,
+        source_mode="ws_delta",
+        changes=(
+            LevelChange("bid", D("99.000123"), D("0.000000456")),
+            LevelChange("ask", D("101.000789"), D("0.000000123")),
+        ),
+    )
+    result = reducer.apply((event,))
+    assert result.recovery is None
+    assert result.book is not None
+    book = result.book
+    now = ClockReading(book.asof.clock_id, book.asof.receive_mono_ns)
+    assert evaluate(book, instrument, "display", now).eligible
+    assert evaluate(book, instrument, "event_ofi", now).eligible
+    for purpose in ("comparison", "depth_walk", "paper_fill"):
+        eligibility = evaluate(book, instrument, purpose, now)
+        assert not eligibility.eligible
+        assert eligibility.reasons == ("instrument_metadata_unverified",)
+    trades = TradeEvidence(
+        instrument.instrument_id,
+        instrument.metadata_version,
+        str(event.stream_id),
+        now.clock_id,
+        event.connection_epoch,
+        established_mono_ns=now.mono_ns,
+        last_validated_mono_ns=now.mono_ns,
+        healthy=True,
+    )
+    assert evaluate_trades(trades, instrument, now).eligible
+    context = ContextEvidence(
+        instrument.instrument_id,
+        instrument.metadata_version,
+        str(event.stream_id),
+        "reference",
+        now.clock_id,
+        last_validated_mono_ns=now.mono_ns,
+    )
+    assert evaluate_context(context, instrument, now).eligible
+    restored = BookReducer(
+        loads(dumps(instrument)),
+        key,
+        segment_id="synthetic-segment",
+        capabilities=capabilities,
+    )
+    restored.restore(loads(dumps(reducer.checkpoint())))
+    assert dumps(restored.checkpoint()) == dumps(reducer.checkpoint())
+    replayed = BookReducer(
+        loads(dumps(instrument)),
+        key,
+        segment_id="synthetic-segment",
+        capabilities=capabilities,
+    )
+    replayed.apply((loads(dumps(event)),))
+    assert dumps(replayed.checkpoint()) == dumps(reducer.checkpoint())
+
+
+def test_streaming_metadata_enrichment_keeps_pinned_identity_and_versions():
+    candidate = streaming_instrument()
+    verified = replace(
+        synthetic_instrument(),
+        metadata_version="verified-v2",
+        metadata_asof_wall_ns=20,
+        native_asset_id="venue-symbol-id",
+    )
+    catalog = InstrumentCatalog()
+    catalog.apply_metadata(MetadataSnapshot("bootstrap", 0, "candidate", (candidate,)))
+    catalog.apply_metadata(MetadataSnapshot("exchange", 20, "verified", (verified,)))
+    assert catalog.get(candidate.instrument_id) == verified
+    assert catalog.get(candidate.instrument_id, candidate.metadata_version) == candidate
+    assert candidate.native_asset_id is None
+    assert candidate.metadata_status == "streaming_only"
+    for changes in (
+        {"native_asset_id": "another-id"},
+        {"native_symbol": "another-symbol"},
+    ):
+        with pytest.raises(ValueError, match="stable instrument identity"):
+            catalog.apply_metadata(
+                MetadataSnapshot(
+                    "exchange",
+                    21,
+                    "invalid",
+                    (replace(verified, metadata_version="verified-v3", **changes),),
+                )
+            )
+    assert catalog.get(candidate.instrument_id) == verified
+
+
+def test_instrument_wire_preserves_legacy_verified_bytes_and_streaming_provenance():
+    verified = synthetic_instrument()
+    legacy = to_wire(verified)
+    assert "metadata_status" not in legacy
+    assert loads(dumps(verified)) == verified
+    explicit = {**legacy, "metadata_status": "verified"}
+    assert loads(json.dumps({"schema_version": 1, "value": explicit})) == verified
+    streaming = streaming_instrument()
+    encoded = dumps(streaming)
+    fields = json.loads(encoded)["value"]
+    assert fields["metadata_status"] == "streaming_only"
+    assert fields["lot_size"] is fields["tick_size"] is None
+    assert fields["status"] == "unknown"
+    assert loads(encoded) == streaming
+    assert dumps(loads(encoded)) == encoded
+    del fields["metadata_status"]
+    with pytest.raises(ValueError):
+        loads(json.dumps({"schema_version": 1, "value": fields}))
 
 
 @pytest.mark.parametrize(
@@ -172,6 +345,23 @@ def test_metadata_versions_are_retained_and_collision_is_transactional():
             )
         )
     assert catalog.get(old.instrument_id) == new
+
+
+@pytest.mark.parametrize("existing", [False, True])
+def test_native_symbol_collision_rolls_back_entire_metadata_batch(existing):
+    catalog = InstrumentCatalog()
+    original = synthetic_instrument()
+    fresh = replace(original, instrument_id="fresh", native_symbol="FRESH")
+    collision = replace(original, instrument_id="collision")
+    if existing:
+        catalog.apply_metadata(MetadataSnapshot("fixture", 1, "initial", (original,)))
+    batch = (fresh, collision) if existing else (original, fresh, collision)
+    with pytest.raises(ValueError, match="ambiguous native instrument"):
+        catalog.apply_metadata(MetadataSnapshot("fixture", 2, "rejected", batch))
+    assert catalog.list() == ((original,) if existing else ())
+    for rejected in (fresh, collision):
+        with pytest.raises(UnknownInstrument):
+            catalog.get(rejected.instrument_id, rejected.metadata_version)
 
 
 def test_instrument_constraints_are_exact_and_unknown_is_not_zero():

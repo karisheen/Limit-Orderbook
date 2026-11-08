@@ -65,7 +65,7 @@ accounting uses accumulated notional and fees, never reconstructed rounded VWAP.
 | `base`, `quote`, `settlement` | AssetIdentity, AssetIdentity, Optional[AssetIdentity] |
 | `market_type` | `spot`, `perpetual`, or `future` |
 | `expiry_wall_ns` | Optional[WallNs] |
-| `tick_size`, `lot_size` | Optional[Decimal], Decimal; positive when known; variable ticks require `price_rule` |
+| `tick_size`, `lot_size` | Optional[Decimal], Optional[Decimal]; positive when known; null lots are allowed only for streaming-only metadata with an unconstrained size rule |
 | `constraints` | OrderConstraints |
 | `contract_multiplier`, `quantity_unit` | Decimal; `base` or `contracts`; multiplier unit is explicit in `contract_value_currency` |
 | `contract_value_currency`, `inverse` | Optional[AssetId], bool; inverse contract conversion is explicit, never base-size multiplication by assumption |
@@ -75,20 +75,29 @@ accounting uses accumulated notional and fees, never reconstructed rounded VWAP.
 | `status` | `active`, `suspended`, `delisted`, `unavailable`, `unknown` |
 | `data_access`, `execution_access` | Each `available`, `blocked`, `unsupported`, `unknown`; public readability does not prove trading eligibility |
 | `metadata_asof_wall_ns`, `metadata_source` | WallNs, source endpoint/revision string |
+| `metadata_status` | `verified` (default) or `streaming_only`; independent of listing/access status |
 
 `InstrumentCatalog.resolve(venue: str, api_family: str, native_symbol: str, metadata_version: Optional[str] = None) -> Instrument` raises `UnknownInstrument`, never USD fallback. `get(instrument_id, metadata_version=None) -> Instrument`; `list(query=InstrumentQuery()) -> Tuple[Instrument, ...]`; `apply_metadata(snapshot: MetadataSnapshot) -> Tuple[Instrument, ...]` is transactional and retains old immutable versions for replay. `InstrumentQuery(base_id=None, venue=None, market_type=None, quote_id=None, status=None)` filters latest versions. `MetadataSnapshot(source, fetch_wall_ns, payload_hash, instruments)` is immutable. Content changes under an existing version, stable identity changes and native-symbol collisions fail. Latest selection uses metadata as-of time; discovery remains outside the pure catalog.
 
+`streamable` permits active listings and unknown listings explicitly marked
+`streaming_only`, never suspended/delisted/unavailable listings. Streaming candidates
+retain null increments and validate finite positive prices/nonnegative quantities
+without invented exchange precision. Financial comparison, depth walks, paper fills,
+order validation and proposed risk reject `instrument_metadata_unverified`.
+Enrichment may supply a previously absent native asset ID only when transitioning
+from streaming-only to verified; prior immutable versions remain addressable.
+
 Bybit xstock `reference_multiplier=m` describes reference stock quantity `token_quantity*m` and stock price `token_price/m`; it never changes native token quantities, `contract_multiplier`, or order notional. A `settlement_conversion="none"` classification does not require matching quote/settlement asset IDs: native collateral may have a distinct identity. Unknown conversion remains explicit, and no FX conversion is invented. Source provenance is optional at construction but supplied by adapters when sourced classifications are known.
 
-These metadata fields are part of the current strict all-fields wire schema. Python constructors retain their positional prefix and appended defaults; old serialized `Instrument`/`OrderConstraints` records missing the new fields are rejected rather than silently upgraded. This is a draft M1 content cutover, not a compatibility promise for released M2 captures.
+Tagged Instrument wire encoding omits default `metadata_status="verified"` to preserve existing capture bytes and identities; decoding its absence supplies that default. Streaming-only records retain the explicit status and null increments. Other required Instrument/OrderConstraints fields remain strict. HTTP DTOs expose metadata status explicitly.
 
 Default executable-comparison candidate cohort is Coinbase/Kraken BTC/ETH/SOL spot USD subject to discovery/access. USDT and USDC are separate cohorts. Hyperliquid BTC/ETH/SOL perpetuals, HYPE where listed, and metadata-discovered spot tokens stay separate throughout capture, UI and replay.
 
 Live terminal selection retains the exact selected instrument and fills the existing
-16-product bound with active same-base peers, round-robin across discovered venues.
-Other venues precede extra peers from the selected venue; within a venue, matching
-market type and exact quote identity precede other native instruments. Suspended,
-delisted or unknown implicit peers cannot prevent selecting an active product.
+16-product bound with streamable same-base peers, one per venue/market group.
+Selected market type takes priority; quote matching and the indicative USD/USDT/USDC
+display family determine eligible peers. Suspended, delisted and unknown implicit
+peers without explicit streaming-only provenance cannot block a streamable product.
 Explicit selection still passes subscription validation. Collection membership is
 not executable comparability; quote identities and native book depths stay intact.
 
@@ -112,6 +121,14 @@ Per-family `discovery_evidence` retains state plus endpoint or failure reason.
 state or aggregate differing states to `unavailable`, with `metadata_unavailable`
 detail. No replacement products, invented constraints or hidden exchange fallback
 are allowed. Metadata discovery alone leaves data/execution access unknown.
+
+The live terminal explicitly seeds 116 bundled subscription candidates (29 crypto
+assets across four Binance/Bybit families) before discovery. This is protocol
+subscription knowledge, not synthetic market data or confirmed listing metadata.
+REST failure retains candidates; an authoritative successful family marks missing
+products unavailable and prevents later bootstrap resurrection. Existing shared
+streams and captures pin their original versions; observers resolve metadata by
+stream/book identity rather than overwriting it with a same-instrument trade version.
 
 Exact-product probes retain `probed_instrument_id` and derive `metadata:product`
 from its family. `fully_usable` requires that product's metadata plus available

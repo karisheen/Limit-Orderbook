@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useSessionStore } from "@/lib/session/SessionContext";
-import { formatDuration, VENUE_LABEL } from "@/lib/format";
+import { formatDuration } from "@/lib/format";
+import { venueLabel } from "../../format";
 
 // ─── Status bar ──────────────────────────────────────────────────
 // Feed health per venue, data lag, session age and a UTC clock.
@@ -43,10 +44,10 @@ export default function StatusBar() {
             <span
               key={venue}
               className="feed"
-              title={`${VENUE_LABEL[venue] ?? venue}: ${status}${conn?.error ? ` — ${conn.error}` : ""}${conn?.reconnectAttempts ? ` · ${conn.reconnectAttempts} reconnects` : ""}`}
+              title={`${venueLabel(venue)}: ${status}${conn?.error ? ` — ${conn.error}` : ""}${conn?.reconnectAttempts ? ` · ${conn.reconnectAttempts} reconnects` : ""}`}
             >
               <span className={`status-dot ${status}`} />
-              {VENUE_LABEL[venue] ?? venue}
+              {venueLabel(venue)}
               <em>{conn?.stateFlag ?? status}</em>
               {conn?.error && <span className="feed-error" role="status">{conn.error}</span>}
             </span>

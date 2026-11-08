@@ -4,7 +4,8 @@ import React, { useCallback, useRef } from "react";
 import { useSessionStore } from "@/lib/session/SessionContext";
 import { useCanvas, withAlpha, monoFont, type Palette } from "@/hooks/useCanvas";
 import { STUDY_AXIS_W, STUDY_TIME_H, drawEmpty, drawValueAxis, niceStep } from "@/lib/chartUtils";
-import { formatCompact, formatPriceValue, priceDecimals, VENUE_LABEL } from "@/lib/format";
+import { formatCompact, formatPriceValue, priceDecimals } from "@/lib/format";
+import { venueLabel } from "../../format";
 import { Icon } from "@/components/ui/Icons";
 import { Panel, Stat } from "@/components/ui/Primitives";
 import { showTooltip, hideTooltip } from "./GlobalTooltip";
@@ -158,7 +159,7 @@ export default function DepthOfMarket() {
   const d25b = book && mid ? depthWithin(book.bids, mid, 25) : 0;
   const d25a = book && mid ? depthWithin(book.asks, mid, 25) : 0;
   const ratio = (b: number, a: number) => (a > 0 ? `${(b / a).toFixed(2)}×` : "—");
-  const source = book && "venue" in book ? VENUE_LABEL[book.venue] ?? book.venue : "Consolidated";
+  const source = book && "venue" in book ? venueLabel(book.venue) : "Consolidated";
 
   return (
     <Panel

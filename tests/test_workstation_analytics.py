@@ -18,7 +18,7 @@ from src.workstation.events import (
     Trade,
     synthetic_envelope,
 )
-from src.workstation.instruments import synthetic_instrument
+from src.workstation.instruments import OrderConstraints, synthetic_instrument
 from src.workstation.precision import DECIMAL_CONTEXT, DERIVED_DECIMAL_POLICY
 from src.workstation.quality import (
     Capabilities,
@@ -35,14 +35,33 @@ from src.workstation.wire import dumps, loads
 
 
 class Feed:
-    def __init__(self, *, exact=True, config=None, instrument=None):
+    def __init__(
+        self,
+        *,
+        exact=True,
+        config=None,
+        instrument=None,
+        trade_instrument=None,
+        depth=None,
+    ):
         self.instrument = instrument or synthetic_instrument()
+        self.trade_instrument = trade_instrument or self.instrument
         self.keys = {
-            channel: SubscriptionKey.for_instrument(self.instrument, channel=channel)
+            channel: SubscriptionKey.for_instrument(
+                self.instrument,
+                channel=channel,
+                depth=depth if channel == "book" else None,
+            )
             for channel in ("book", "trades")
         }
         self.streams = tuple(
-            StreamSpec(channel, self.instrument, key, "test-v1", "test-config")
+            StreamSpec(
+                channel,
+                self.instrument if channel == "book" else self.trade_instrument,
+                key,
+                "test-v1",
+                "test-config",
+            )
             for channel, key in self.keys.items()
         )
         self.config = config or AnalyticsConfig(
@@ -60,7 +79,7 @@ class Feed:
     def event(self, payload, time, channel="trades", **overrides):
         self.ordinal += 1
         return synthetic_envelope(
-            self.instrument,
+            self.instrument if channel == "book" else self.trade_instrument,
             payload,
             ordinal=self.ordinal,
             mono_ns=time,
@@ -493,6 +512,151 @@ def test_ambiguous_book_keys_require_explicit_selection():
     )
     assert selected.key == keys[1]
     assert "ambiguous_book_key" not in selected.reasons
+
+
+def streaming_instrument(instrument):
+    return replace(
+        instrument,
+        metadata_version="streaming-v1",
+        metadata_status="streaming_only",
+        status="unknown",
+        tick_size=None,
+        lot_size=None,
+        constraints=OrderConstraints(
+            price_rule="unconstrained", size_rule="unconstrained"
+        ),
+        metadata_source="bundled-protocol-candidates",
+        data_access="unknown",
+    )
+
+
+@pytest.mark.parametrize("reverse_streams", (False, True))
+def test_mixed_metadata_book_and_trades_keep_their_pinned_versions(reverse_streams):
+    verified = synthetic_instrument()
+    streaming = streaming_instrument(verified)
+    feed = Feed(instrument=verified, trade_instrument=streaming, depth=5000)
+    if reverse_streams:
+        feed.streams = tuple(reversed(feed.streams))
+        feed.engine = AnalyticsEngine(feed.streams, feed.config)
+    feed.quote(1)
+    feed.trade(1, "anchor")
+    trade_event = feed.trade(5, "execution", quantity="2")
+    book_event = feed.quote(11, bids=(("99", "3"),))
+    snapshot = feed.snapshot(11)
+    metrics = {metric.name: metric for metric in snapshot.metrics}
+    assert metrics["best_bid"].value == D(99)
+    assert metrics["event_ofi"].value == D(2)
+    assert metrics["cvd_base"].value == D(2)
+    assert metrics["observed_trade_buy_notional"].value == D(200)
+    assert metrics["best_bid"].asof == book_event.ref()
+    assert metrics["cvd_base"].quality.metadata_version == streaming.metadata_version
+    assert snapshot.tape[-1].asof == trade_event.ref()
+    assert feed.book.metadata_version == verified.metadata_version
+    evidence, gate = feed.engine.trade_evidence(
+        verified.instrument_id,
+        ClockReading("synthetic-clock", 11),
+        key=feed.keys["book"],
+    )
+    assert gate.eligible
+    assert evidence.metadata_version == streaming.metadata_version
+    restored = AnalyticsEngine(feed.streams, feed.config)
+    restored.restore(feed.engine.checkpoint())
+    assert (
+        restored.snapshot(verified.instrument_id, ClockReading("synthetic-clock", 11))
+        == snapshot
+    )
+    baseline = AnalyticsEngine(feed.streams, feed.config)
+    baseline.initialize_books((feed.book,))
+    assert baseline.snapshot(
+        verified.instrument_id, ClockReading("synthetic-clock", 11)
+    ).metrics[0].value == D(99)
+    with pytest.raises(ValueError, match="initial book metadata mismatch"):
+        AnalyticsEngine(feed.streams).initialize_books(
+            (replace(feed.book, metadata_version=streaming.metadata_version),)
+        )
+    wrong = replace(
+        feed.event(Trade("wrong", "wrong", D(100), D(1)), 12),
+        instrument_metadata_version=verified.metadata_version,
+    )
+    with pytest.raises(ValueError, match="analytics event identity mismatch"):
+        feed.deliver(wrong)
+
+
+def test_multiple_book_depths_use_each_pinned_metadata_version():
+    verified = synthetic_instrument()
+    feeds = (
+        Feed(instrument=streaming_instrument(verified), depth=20),
+        Feed(instrument=verified, depth=5000),
+    )
+    streams = tuple(
+        replace(feed.streams[0], stream_id=f"book-{i}") for i, feed in enumerate(feeds)
+    )
+    engine = AnalyticsEngine(streams, feeds[0].config)
+    clock = ReplayClock()
+    for delivery, time in enumerate((1, 11), 1):
+        events = tuple(
+            replace(
+                feed.quote(time, bids=(("99", str(delivery)),)),
+                stream_id=spec.stream_id,
+            )
+            for feed, spec in zip(feeds, streams)
+        )
+        books = tuple(
+            replace(feed.book, asof=event.ref()) for feed, event in zip(feeds, events)
+        )
+        clock.advance(events[-1])
+        engine.on_batch(RecordedBatch(delivery, events), books, clock)
+    now = ClockReading("synthetic-clock", 11)
+    assert "ambiguous_book_key" in engine.snapshot(verified.instrument_id, now).reasons
+    baseline = AnalyticsEngine(streams, feeds[0].config)
+    baseline.initialize_books(books)
+    for feed, book in zip(feeds, books):
+        snapshot = engine.snapshot(verified.instrument_id, now, key=book.key)
+        metrics = {metric.name: metric for metric in snapshot.metrics}
+        assert metrics["best_bid"].value == D(99)
+        assert metrics["event_ofi"].value == D(1)
+        assert snapshot.asof == book.asof
+        assert book.metadata_version == feed.instrument.metadata_version
+        assert baseline.snapshot(verified.instrument_id, now, key=book.key).metrics[
+            0
+        ].value == D(99)
+
+
+def test_mixed_metadata_does_not_disambiguate_actual_multiple_trade_streams():
+    verified = synthetic_instrument()
+    feed = Feed(instrument=verified, trade_instrument=streaming_instrument(verified))
+    second = replace(feed.streams[1], stream_id="other-trades", instrument=verified)
+    feed.engine = AnalyticsEngine((*feed.streams, second), feed.config)
+    feed.quote(1)
+    feed.trade(1, "print")
+    evidence, gate = feed.engine.trade_evidence(
+        verified.instrument_id,
+        ClockReading("synthetic-clock", 1),
+        key=feed.keys["book"],
+    )
+    assert evidence is None
+    assert not gate.eligible
+    assert "ambiguous_trade_stream" in gate.reasons
+    snapshot = feed.snapshot(1)
+    assert snapshot.tape == ()
+    assert "ambiguous_trade_stream" in snapshot.reasons
+    assert feed.metrics(1)["best_bid"].value == D(99)
+
+
+def test_conflicting_metadata_identity_or_book_key_remains_rejected():
+    feed = Feed()
+    conflicting = replace(
+        feed.streams[1], instrument=replace(feed.instrument, data_access="blocked")
+    )
+    with pytest.raises(ValueError, match="ambiguous instrument metadata"):
+        AnalyticsEngine((feed.streams[0], conflicting))
+    conflicting_book = replace(
+        feed.streams[0],
+        stream_id="other-book",
+        instrument=streaming_instrument(feed.instrument),
+    )
+    with pytest.raises(ValueError, match="ambiguous book metadata"):
+        AnalyticsEngine((feed.streams[0], conflicting_book))
 
 
 def test_real_m2_demo_raw_normalized_speed_seek_and_checkpoint(tmp_path):

@@ -36,6 +36,20 @@ FREE = FeeSchedule(
 FEE = replace(FREE, rate=D("0.01"))
 
 
+def streaming_instrument(instrument=None):
+    return replace(
+        instrument or synthetic_instrument(),
+        metadata_version="synthetic-streaming-v1",
+        metadata_status="streaming_only",
+        status="unknown",
+        tick_size=None,
+        lot_size=None,
+        constraints=OrderConstraints(
+            price_rule="unconstrained", size_rule="unconstrained"
+        ),
+    )
+
+
 def observation(
     instrument=None,
     *,
@@ -246,6 +260,79 @@ def test_perpetual_contract_economics_are_explicitly_rejected(tmp_path):
     with pytest.raises(PaperError, match="unsupported_perpetual"):
         engine.submit(request(stream), now=now, delivery_index=1)
     assert not engine.snapshot(now).orders
+    store.close()
+
+
+@pytest.mark.parametrize("market_type", ("spot", "perpetual"))
+@pytest.mark.parametrize("order_type", ("market", "limit"))
+@pytest.mark.parametrize("side", ("buy", "sell"))
+def test_streaming_only_orders_reject_before_recording_or_accounting(
+    tmp_path, market_type, order_type, side
+):
+    instrument = streaming_instrument(synthetic_instrument(market_type=market_type))
+    store, engine, stream, _, now = setup(
+        tmp_path, instrument=instrument, cfg=config(instrument, inventory="2")
+    )
+    before = engine.snapshot(now)
+    options = {"order_type": order_type}
+    if order_type == "limit":
+        options["limit_price"] = D("100.123456789")
+    with pytest.raises(PaperError, match="^instrument_metadata_unverified$"):
+        engine.submit(
+            request(stream, quantity="0.123456789", side=side, **options),
+            now=now,
+            delivery_index=1,
+        )
+    assert engine.snapshot(now) == before
+    assert not before.orders and not before.fills
+    store.close()
+
+
+def test_streaming_only_inventory_has_no_mark_or_pnl_after_checkpoint_restore(
+    tmp_path,
+):
+    instrument = streaming_instrument()
+    store, engine, _, _, now = setup(
+        tmp_path, instrument=instrument, cfg=config(instrument, inventory="2")
+    )
+    snapshot = engine.snapshot(now)
+    assert len(snapshot.positions) == 1
+    position = snapshot.positions[0]
+    assert position.quantity == 2
+    assert position.mark_price is None and position.unrealized_pnl_quote is None
+    assert "instrument_metadata_unverified" in position.reasons
+    checkpoint = engine.checkpoint()
+    engine.restore(checkpoint)
+    assert engine.snapshot(now) == snapshot
+    archived = store.archived_snapshot(snapshot.run.run_id)
+    assert archived is not None
+    assert archived.run.instruments[0].metadata_status == "streaming_only"
+    assert archived.run.instruments[0].lot_size is None
+    store.close()
+
+
+def test_pending_paper_order_cannot_fill_against_streaming_only_metadata(tmp_path):
+    instrument = synthetic_instrument()
+    store, engine, stream, book, now = setup(
+        tmp_path, cfg=config(instrument, order_latency_ns=20)
+    )
+    pending = engine.submit(request(stream), now=now, delivery_index=1)
+    assert pending.status == "pending"
+    before = balances(engine, now)
+    unverified = streaming_instrument(stream.instrument)
+    engine.replace_streams(
+        (replace(stream, instrument=unverified),),
+        books=(replace(book, metadata_version=unverified.metadata_version),),
+        now=now,
+    )
+    engine.advance_time(pending.arrival_at)
+    snapshot = engine.snapshot(pending.arrival_at)
+    order = snapshot.orders[0]
+    assert order.status == "cancelled"
+    assert order.filled_quantity == 0 and order.remaining_quantity == 1
+    assert "instrument_metadata_unverified" in order.reasons
+    assert not snapshot.fills
+    assert balances(engine, pending.arrival_at) == before
     store.close()
 
 

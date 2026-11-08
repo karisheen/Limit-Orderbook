@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Analytics, CostInput, Costs, Frame, Instrument, Metric, Pair, ReplayAction } from '../api';
 import { errorMessage } from '../api';
-import { exact, label, timestamp } from '../format';
+import { exact, label, timestamp, venueLabel } from '../format';
+import { metadataVerified } from '../instrument-metadata';
 import type { ChartCursor } from '../MarketCharts';
 import { Freshness } from '../Freshness';
 import type { WorkspacePreferences } from '../workspace';
@@ -239,7 +240,10 @@ export function ReplayControls({ frame, busy, replay }: { frame: Frame | null; b
 }
 
 function PairTable({ pairs, instruments }: { pairs: Pair[]; instruments: Instrument[] }) {
-  const venue = (id: string) => instruments.find(item => item.instrument_id === id)?.venue ?? id;
+  const venue = (id: string) => {
+    const instrument = instruments.find(item => item.instrument_id === id);
+    return instrument ? venueLabel(instrument.venue) : id;
+  };
   return <table className="pair-table"><thead><tr><th>Buy → sell</th><th>Feasible base</th><th>Gross ref.</th><th>Depth cost</th><th>Buy fee</th><th>Sell fee</th><th>Rebalance</th><th>Latency</th><th>Net</th><th>Net bps</th><th>Eligibility / assumptions</th></tr></thead><tbody>{pairs.map(pair => <tr key={`${pair.buy_instrument_id}:${pair.sell_instrument_id}`} className={pair.eligible ? '' : 'excluded'}><th scope="row" title={`${pair.buy_instrument_id} → ${pair.sell_instrument_id}`}>{venue(pair.buy_instrument_id)} → {venue(pair.sell_instrument_id)}<small>{pair.numeraire}</small></th><td><Value value={pair.feasible_base_quantity} /></td><td><Value value={pair.gross_reference} /></td><td><Value value={pair.depth_slippage} /></td><td><Value value={pair.buy_fee} /></td><td><Value value={pair.sell_fee} /></td><td><Value value={pair.rebalance_cost} /></td><td><Value value={pair.latency_stress} /></td><td><Value value={pair.net} /></td><td><Value value={pair.net_bps} /></td><td><details><summary className={pair.eligible ? 'positive' : 'warning'}>{pair.eligible ? 'Conditional' : 'Excluded'}</summary><Reasons reasons={pair.reasons} /><Reasons reasons={pair.assumptions} /><Details title="Exact pair inputs and decomposition" value={pair} /></details></td></tr>)}</tbody></table>;
 }
 
@@ -253,30 +257,33 @@ export function CostsPanel({ frame, instruments, connected, calculate }: { frame
   const [provenance, setProvenance] = useState('User-entered informational assumption');
   const [latency, setLatency] = useState('0');
   const [rebalance, setRebalance] = useState('0');
-  const [result, setResult] = useState<{ data: Costs; input: string; cursor: string; session: string } | null>(null);
+  const [result, setResult] = useState<{ data: Costs; input: string; cursor: string; identity: string } | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abort = useRef<AbortController | null>(null);
   const selected = instruments.find(item => item.instrument_id === frame?.selection.instrument_id);
+  const verified = metadataVerified(frame);
+  const identity = JSON.stringify([frame?.session_id, frame?.generation, frame?.selection.instrument_id, frame?.selection.metadata_status, frame?.selection.metadata_version]);
+  const unavailable = !frame || !connected || frame.status === 'seeking' || !verified;
   const input: CostInput = { side, ...(sizeMode === 'base' ? { base_quantity: size } : { quote_budget: size }), ...(feeMode === 'assumed' ? { fee_bps: fee, fee_provenance: provenance, fee_date: feeDate } : {}), latency_bps: latency, rebalance_quote: rebalance };
   const inputKey = JSON.stringify(input);
   useEffect(() => () => abort.current?.abort(), []);
-  useEffect(() => { abort.current?.abort(); setPending(false); setResult(null); setError(null); }, [frame?.session_id, frame?.generation]);
+  useLayoutEffect(() => { abort.current?.abort(); setPending(false); setResult(null); setError(null); }, [identity]);
   const submit = async () => {
-    if (!frame) return;
+    if (!frame || unavailable || pending) return;
     abort.current?.abort();
     const controller = new AbortController();
     abort.current = controller;
     setPending(true); setError(null);
     try {
       const data = await calculate(input, controller.signal);
-      if (!controller.signal.aborted) setResult({ data, input: inputKey, cursor: frame.replay?.cursor.delivery_index ?? 'live observation', session: frame.session_id });
+      if (!controller.signal.aborted) setResult({ data, input: inputKey, cursor: frame.replay?.cursor.delivery_index ?? 'live observation', identity });
     } catch (cause) { if (!controller.signal.aborted) setError(errorMessage(cause)); }
     finally { if (!controller.signal.aborted) setPending(false); }
   };
   const data = result?.data;
   const estimate = data?.estimate;
-  const valid = result && result.session === frame?.session_id && data?.generation === frame?.generation;
+  const valid = verified && result && result.identity === identity && data?.generation === frame?.generation;
   return <Panel title="Proposed order & comparable venue costs" className="costs-panel" extra={<span className="muted">Informational · not an order ticket</span>}>
     <form className="cost-form" onSubmit={event => { event.preventDefault(); void submit(); }}>
       <label>Side<select aria-label="Order side" value={side} onChange={event => setSide(event.target.value as 'buy' | 'sell')}><option value="buy">Buy</option><option value="sell">Sell</option></select></label>
@@ -286,8 +293,9 @@ export function CostsPanel({ frame, instruments, connected, calculate }: { frame
       {feeMode === 'assumed' && <><label>Fee bps / leg<input aria-label="Fee basis points" value={fee} onChange={event => setFee(event.target.value)} inputMode="decimal" maxLength={128} required /></label><label>Assumption date<input aria-label="Fee date" type="date" value={feeDate} onChange={event => setFeeDate(event.target.value)} required /></label><label className="provenance-input">Provenance<input aria-label="Fee provenance" value={provenance} onChange={event => setProvenance(event.target.value)} maxLength={200} required /></label></>}
       <label>Latency stress bps<input aria-label="Latency stress basis points" value={latency} onChange={event => setLatency(event.target.value)} inputMode="decimal" maxLength={128} /></label>
       <label>Rebalance ({selected?.quote.ticker ?? 'quote'})<input aria-label="Rebalance cost" value={rebalance} onChange={event => setRebalance(event.target.value)} inputMode="decimal" maxLength={128} /></label>
-      <button className="primary" data-testid="estimate" disabled={!frame || !connected || frame.status === 'seeking' || pending}>{pending ? 'Calculating…' : 'Estimate & compare'}</button>
+      <button className="primary" data-testid="estimate" disabled={unavailable || pending}>{pending ? 'Calculating…' : 'Estimate & compare'}</button>
     </form>
+    {frame?.selection.instrument_id && !verified && <p className="caption warning" role="status">Streaming-only or unverified session metadata: cost estimates require verified session-pinned instrument metadata. Market data and analytics remain available.</p>}
     <p className="caption">Same native quote / market cohorts only. USD ≠ USDT ≠ USDC. Same feasible base on both legs; prefunded inventory unknown unless supplied by the engine. No atomic execution or market-impact claim.</p>
     {error && <p role="alert" className="error">{error}</p>}
     {!valid ? <Empty>Choose an exact instrument and request an estimate. Unknown fees never become zero.</Empty> : <>

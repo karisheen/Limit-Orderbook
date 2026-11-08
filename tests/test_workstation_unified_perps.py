@@ -7,10 +7,21 @@ import json
 
 import pytest
 
+from src.workstation.adapter_catalog import AdapterCatalog
 from src.workstation.adapters.base import wrap_decoded
-from src.workstation.adapters.binance import BinanceGlobalAdapter, BinanceUSAdapter
+from src.workstation.adapters.binance import (
+    BinanceGlobalAdapter,
+    BinanceGlobalReducer,
+    BinanceUSAdapter,
+)
 from src.workstation.adapters.bybit import BybitAdapter
-from src.workstation.events import RawFrame, SegmentId, SubscriptionKey
+from src.workstation.events import (
+    BookUpdate,
+    RawFrame,
+    SegmentId,
+    SubscriptionKey,
+    Trade,
+)
 from src.workstation.transport import PublicTransportError
 
 
@@ -861,3 +872,217 @@ def test_deribit_quiet_trades_require_observed_reducer_owned_pongs(
             await asyncio.gather(task, return_exceptions=True)
 
     asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    "venue,family",
+    [
+        ("binance-global", "spot-v3"),
+        ("binance-global", "usdm-v1"),
+        ("bybit", "v5-spot"),
+        ("bybit", "v5-linear"),
+    ],
+)
+@pytest.mark.parametrize("channel", ["book", "trades"])
+def test_streaming_candidates_decode_protocol_frames_without_exchange_increments(
+    venue, family, channel
+):
+    catalog = AdapterCatalog()
+    catalog.seed_streaming()
+    instrument = catalog.instruments.resolve(venue, family, "BTCUSDT")
+    adapter = catalog.adapter(venue)
+    key = catalog.canonical_key(
+        SubscriptionKey.for_instrument(instrument, channel=channel), instrument
+    )
+    price, quantity = "99.123456789", "0.000000123456789"
+    if venue == "bybit":
+        payload = (
+            bybit_book(price=price, quantity=quantity)
+            if channel == "book"
+            else {
+                "topic": "publicTrade.BTCUSDT",
+                "type": "snapshot",
+                "data": [
+                    {
+                        "s": "BTCUSDT",
+                        "i": "native-trade",
+                        "S": "Buy",
+                        "p": price,
+                        "v": quantity,
+                        "T": 1700000000001,
+                    }
+                ],
+            }
+        )
+    elif family == "usdm-v1":
+        payload = (
+            binance_book(price=price, quantity=quantity)
+            if channel == "book"
+            else {
+                "stream": "btcusdt@aggTrade",
+                "data": {
+                    "e": "aggTrade",
+                    "s": "BTCUSDT",
+                    "a": 12,
+                    "f": 10,
+                    "l": 11,
+                    "p": price,
+                    "q": quantity,
+                    "m": False,
+                    "T": 1700000000001,
+                },
+            }
+        )
+    else:
+        payload = (
+            {
+                "stream": "btcusdt@depth20@100ms",
+                "data": {
+                    "lastUpdateId": 100,
+                    "bids": [[price, quantity]],
+                    "asks": [["101.123456789", quantity]],
+                },
+            }
+            if channel == "book"
+            else {
+                "stream": "btcusdt@trade",
+                "data": {
+                    "e": "trade",
+                    "s": "BTCUSDT",
+                    "t": 12,
+                    "p": price,
+                    "q": quantity,
+                    "m": False,
+                    "T": 1700000000001,
+                },
+            }
+        )
+    raw = frame(adapter, instrument, key, payload)
+    decoded = adapter.decode(raw, instrument, key)
+    assert decoded.error is None
+    assert len(decoded.events) == 1
+    event = decoded.events[0].payload
+    assert isinstance(event, BookUpdate if channel == "book" else Trade)
+    if channel == "book":
+        assert event.kind == "snapshot"
+        assert event.changes[0].price == Decimal(price)
+        assert event.changes[0].quantity == Decimal(quantity)
+        reducer = adapter.new_reducer(instrument, key)
+        reduction = reducer.apply(events(adapter, instrument, key, payload))
+        assert reduction.book is not None
+        assert reduction.book.quality.integrity == "valid"
+    else:
+        assert event.price == Decimal(price)
+        assert event.quantity == Decimal(quantity)
+
+
+def test_streaming_binance_spot_snapshots_replace_without_rest_bridge():
+    catalog = AdapterCatalog()
+    catalog.seed_streaming()
+    instrument = catalog.instruments.resolve("binance-global", "spot-v3", "BTCUSDT")
+    adapter = catalog.adapter("binance-global")
+    key = catalog.canonical_key(SubscriptionKey.for_instrument(instrument), instrument)
+    assert key.depth == 20
+    caps = adapter.capabilities(instrument, key)
+    assert caps.snapshot and not caps.deltas and not caps.exact_event_flow
+    assert caps.sequence_scope is None
+    (request,) = adapter.subscription_requests(instrument, key)
+    assert json.loads(request.body)["params"] == ["btcusdt@depth20@100ms"]
+    reducer = adapter.new_reducer(instrument, key)
+    assert not isinstance(reducer, BinanceGlobalReducer)
+    for ordinal, (bid, update) in enumerate((("99.12345", 100), ("98.12345", 900)), 1):
+        payload = {
+            "stream": "btcusdt@depth20@100ms",
+            "data": {
+                "lastUpdateId": update,
+                "bids": [[bid, "0.000000123"]],
+                "asks": [["101.12345", "0.000000456"]],
+            },
+        }
+        reduction = reducer.apply(events(adapter, instrument, key, payload, ordinal))
+        assert reduction.book is not None
+        assert reduction.book.quality.integrity == "valid"
+        assert len(reduction.book.bids) == 1
+        assert reduction.book.bids[0].price == Decimal(bid)
+
+
+@pytest.mark.parametrize(
+    "venue,family",
+    [
+        ("binance-global", "spot-v3"),
+        ("binance-global", "usdm-v1"),
+        ("bybit", "v5-spot"),
+        ("bybit", "v5-linear"),
+    ],
+)
+def test_verified_discovery_upgrades_without_mutating_pinned_candidate(venue, family):
+    catalog = AdapterCatalog()
+    catalog.seed_streaming()
+    original = catalog.instruments.resolve(venue, family, "BTCUSDT")
+    adapter = catalog.adapter(venue)
+    perpetual = original.market_type == "perpetual"
+    if venue == "binance-global":
+        snapshot = adapter.parse_metadata(
+            encoded(binance_metadata(perpetual=perpetual)),
+            fetch_wall_ns=123,
+            api_family=family,
+        )
+    else:
+        payload = bybit_metadata(perpetual=perpetual)
+        payload["result"]["list"][0]["symbolId"] = "12345"
+        snapshot = adapter.parse_metadata(encoded(payload), fetch_wall_ns=123)
+    catalog.instruments.apply_metadata(snapshot)
+    verified = catalog.instruments.get(original.instrument_id)
+    assert verified.metadata_status == "verified" and verified.status == "active"
+    assert verified.tick_size == Decimal("0.25")
+    assert verified.lot_size == Decimal("0.005")
+    assert verified.metadata_version != original.metadata_version
+    assert (
+        catalog.instruments.get(original.instrument_id, original.metadata_version)
+        is original
+    )
+    assert original.tick_size is None and original.lot_size is None
+    assert original.metadata_status == "streaming_only"
+    assert original.status == "unknown"
+    assert catalog.seed_streaming() == ()
+    if family == "spot-v3":
+        key = catalog.canonical_key(SubscriptionKey.for_instrument(verified), verified)
+        assert key.depth == 5000
+        assert adapter.capabilities(verified, key).deltas
+        assert isinstance(adapter.new_reducer(verified, key), BinanceGlobalReducer)
+        old_key = catalog.canonical_key(
+            SubscriptionKey.for_instrument(original), original
+        )
+        assert old_key.depth == 20
+        assert not adapter.capabilities(original, old_key).deltas
+
+
+@pytest.mark.parametrize("value", ["NaN", "Infinity", "-0.01"])
+def test_streaming_binance_spot_still_rejects_invalid_quantities(value):
+    catalog = AdapterCatalog()
+    catalog.seed_streaming()
+    instrument = catalog.instruments.resolve("binance-global", "spot-v3", "BTCUSDT")
+    adapter = catalog.adapter("binance-global")
+    key = catalog.canonical_key(SubscriptionKey.for_instrument(instrument), instrument)
+    payload = {
+        "stream": "btcusdt@depth20@100ms",
+        "data": {
+            "lastUpdateId": 100,
+            "bids": [["99.12345", value]],
+            "asks": [["101.12345", "1"]],
+        },
+    }
+    result = adapter.decode(frame(adapter, instrument, key, payload), instrument, key)
+    assert result.error is not None and not result.events
+
+
+@pytest.mark.parametrize("status", ["suspended", "delisted", "unavailable"])
+def test_streaming_candidates_do_not_override_known_product_rejection(status):
+    catalog = AdapterCatalog()
+    for original in catalog.seed_streaming():
+        instrument = replace(original, status=status)
+        key = catalog.canonical_key(
+            SubscriptionKey.for_instrument(instrument), instrument
+        )
+        with pytest.raises(ValueError, match=f"product_{status}"):
+            catalog.adapter(instrument.venue).capabilities(instrument, key)

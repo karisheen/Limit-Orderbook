@@ -1552,6 +1552,25 @@ def proposal_risk(instrument, now, request, generation):
             "not_a_guaranteed_loss_bound",
             "fees_assumed_quote_denomination_both_legs",
         ]
+        if instrument.metadata_status != "verified":
+            return {
+                "version": "1",
+                "generation": str(generation),
+                "instrument_id": str(instrument.instrument_id),
+                "quote_asset_id": str(instrument.quote.asset_id),
+                "base_quantity": exact(
+                    decimal(request.base_quantity, positive=True)
+                    if request.base_quantity
+                    else None
+                ),
+                "suggested_base_quantity": None,
+                "gross_loss": None,
+                "fee_cost": None,
+                "estimated_loss": None,
+                "eligible": False,
+                "reasons": ["instrument_metadata_unverified"],
+                "assumptions": assumptions,
+            }
         if (
             request.side == "buy"
             and stop >= entry
@@ -1573,7 +1592,7 @@ def proposal_risk(instrument, now, request, generation):
         ):
             reasons.append("unknown_contract_specification")
         constraints = instrument.constraints
-        if constraints.size_rule != "fixed_lot":
+        if constraints.size_rule != "fixed_lot" or instrument.lot_size is None:
             reasons.append("unsupported_size_rule")
         if (
             constraints.min_notional is not None or constraints.max_notional is not None

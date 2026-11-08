@@ -292,6 +292,20 @@ informational controls, not errors, subscription acknowledgments, heartbeats or
 market observations. See [adapter availability](ADAPTERS_ASIAN.md#metadata-and-identity)
 for publication and failure semantics.
 
+Runtime-owned live catalogs call `seed_streaming()` before a separately owned
+metadata task; injected registries are not silently seeded. Shutdown joins that
+task. Keep streaming-only precision unknown, preserve protocol numeric validation,
+and gate financial consumers with `instrument_metadata_unverified`. REST denial
+must not disable a working WS channel. Bootstrap Binance spot uses top20 snapshots
+without the verified 5,000-level REST bridge. Metadata enrichment must not relabel
+existing stream/capture evidence; book/trade metadata versions can differ.
+Metadata collision checks use a per-batch native-identity lookup, not repeated
+full-catalog scans. The venue/instrument pickers likewise memoize indexed options;
+large exchange catalogs must not add quadratic work to startup or frame updates.
+`test_workstation_source_startup.py` covers pending discovery, shutdown and shared
+lease enrichment; `streaming-metadata.spec.ts` exercises native live candidates and
+financial capability gates when a live source exposes them.
+
 Managed recording controls use `GET /api/v1/recordings` and session/generation-
 fenced `POST /api/v1/recordings/start` and `/stop` (stop also takes `id`).
 Mutations return the list plus `recording_id`; each row's nullable `session_id`
@@ -336,7 +350,7 @@ PLAYWRIGHT_RECORDING_SOURCE_ID=live npm --prefix frontend run test:e2e -- record
 ```
 
 Use the actual catalog ID if it differs from `live`. Optionally set
-`PLAYWRIGHT_RECORDING_INSTRUMENT_ID` to an exact active native instrument ID
+`PLAYWRIGHT_RECORDING_INSTRUMENT_ID` to an exact streamable native instrument ID
 to exercise a particular public market rather than automatic startup selection.
 The source must expose at least two instruments and a working real collector;
 the test does not mock market data or waive fresh-book/capture-integrity checks.

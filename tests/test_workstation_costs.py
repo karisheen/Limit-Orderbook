@@ -31,7 +31,12 @@ from src.workstation.instruments import (
     synthetic_instrument,
 )
 from src.workstation.precision import DECIMAL_CONTEXT, DERIVED_DECIMAL_POLICY
-from src.workstation.quality import Capabilities, ClockReading, EligibilityPolicy
+from src.workstation.quality import (
+    Capabilities,
+    ClockReading,
+    EligibilityPolicy,
+    evaluate,
+)
 from src.workstation.wire import dumps, loads
 
 D = Decimal
@@ -48,9 +53,10 @@ def fixture(
     bids=(("99", "2"), ("98", "3")),
     asks=(("100", "1"), ("102", "2")),
     mono=100,
+    instrument=None,
     **metadata,
 ):
-    instrument = synthetic_instrument(venue=venue, **metadata)
+    instrument = instrument or synthetic_instrument(venue=venue, **metadata)
     key = SubscriptionKey.for_instrument(
         instrument, depth=max(10, len(bids), len(asks))
     )
@@ -74,6 +80,21 @@ def fixture(
     book = result.book
     now = ClockReading(book.asof.clock_id, 100, book.asof.receive_wall_ns)
     return instrument, book, now
+
+
+def streaming_fixture(venue="a", **metadata):
+    instrument = replace(
+        synthetic_instrument(venue=venue, **metadata),
+        metadata_version="synthetic-streaming-v1",
+        metadata_status="streaming_only",
+        status="unknown",
+        tick_size=None,
+        lot_size=None,
+        constraints=OrderConstraints(
+            price_rule="unconstrained", size_rule="unconstrained"
+        ),
+    )
+    return fixture(instrument=instrument)
 
 
 def walk(instrument, book, now, side="buy", **options):
@@ -369,6 +390,74 @@ def test_quality_and_freshness_are_centralized_not_diagnostic_fills():
         "execution_access_unknown"
         in walk(instrument, book, now, base_quantity=D("1"), policy=policy).reasons
     )
+
+
+@pytest.mark.parametrize("side", ("buy", "sell"))
+@pytest.mark.parametrize("sizing", ("base_quantity", "quote_budget"))
+@pytest.mark.parametrize("order_type", ("market", "limit"))
+@pytest.mark.parametrize("market_type", ("spot", "perpetual"))
+def test_streaming_only_depth_walk_rejects_without_inventing_native_lots(
+    side, sizing, order_type, market_type
+):
+    instrument, book, now = streaming_fixture(market_type=market_type)
+    assert evaluate(book, instrument, "display", now, POLICY).eligible
+    options = {sizing: D("1.23456789"), "order_type": order_type}
+    if order_type == "limit":
+        options["limit_price"] = D("100.123456789")
+    estimate = walk(instrument, book, now, side=side, **options)
+    assert "instrument_metadata_unverified" in estimate.reasons
+    assert "instrument_metadata_unverified" in estimate.eligibility.reasons
+    assert not estimate.eligibility.eligible
+    assert estimate.filled_base_quantity == estimate.filled_native_quantity == 0
+    assert estimate.notional_quote == 0
+    assert estimate.requested_native_quantity is None
+    assert estimate.vwap is None and estimate.effective_price is None
+    assert not estimate.consumed_levels
+
+
+@pytest.mark.parametrize("unverified_leg", ("buy", "sell", "both"))
+def test_streaming_only_pair_has_no_feasible_quantity_or_profit(unverified_leg):
+    left = streaming_fixture() if unverified_leg != "sell" else fixture()
+    right = streaming_fixture("b") if unverified_leg != "buy" else fixture("b")
+    result = pair(left, right)
+    assert not result.eligible and not result.execution_eligible
+    assert result.feasible_base_quantity == 0
+    assert result.gross_reference is None and result.net is None
+    assert result.net_bps is None
+    for name in ("buy", "sell"):
+        if unverified_leg in (name, "both"):
+            assert "instrument_metadata_unverified" in getattr(result, name).reasons
+            assert name + ":instrument_metadata_unverified" in result.reasons
+
+
+def test_streaming_only_quotes_are_excluded_from_best_observed_and_matrix():
+    verified, verified_book, now = fixture()
+    streaming, streaming_book, _ = streaming_fixture("b")
+    entries = (
+        ComparisonEntry(verified_book, verified, FREE),
+        ComparisonEntry(streaming_book, streaming, FREE),
+    )
+    observed = best_observed(entries, now=now, policy=POLICY)
+    assert len(observed) == 1
+    assert observed[0].bid_instrument_id == verified.instrument_id
+    assert observed[0].ask_instrument_id == verified.instrument_id
+    assert len(observed[0].exclusions) == 1
+    assert observed[0].exclusions[0].instrument_id == streaming.instrument_id
+    assert "instrument_metadata_unverified" in observed[0].exclusions[0].reasons
+    matrix = compare_matrix(entries, base_quantity=D("1"), policy=POLICY, now=now)
+    assert matrix.best_observed == observed
+    assert matrix.exclusions == observed[0].exclusions
+    for result in matrix.pairs:
+        if streaming.instrument_id in (
+            result.buy_instrument_id,
+            result.sell_instrument_id,
+        ):
+            assert not result.eligible and not result.execution_eligible
+            assert result.feasible_base_quantity == 0 and result.net is None
+            assert any(
+                reason.endswith("instrument_metadata_unverified")
+                for reason in result.reasons
+            )
 
 
 def test_pair_rewalks_same_feasible_size_and_cash_accounting_without_double_count():

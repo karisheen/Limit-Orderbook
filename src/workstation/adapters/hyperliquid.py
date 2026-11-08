@@ -81,6 +81,8 @@ def _size_decimals(value, maximum: int) -> int:
 
 def validate_price(instrument: Instrument, price: Decimal) -> None:
     """Validate without normalize()/rounding under the caller's Decimal context."""
+    if instrument.lot_size is None:
+        raise ValueError("instrument_metadata_unverified")
     value = decimal(price, positive=True)
     parts = value.as_tuple()
     digits, exponent = list(parts.digits), int(parts.exponent)

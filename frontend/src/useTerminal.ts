@@ -3,6 +3,7 @@ import { ApiError, errorMessage, request, streamUrl } from './api';
 import type { Catalog, Costs, CostInput, Frame, Mode, ReplayAction, VisualGrid, VisualizationInput, VisualizationAck, GroupedLadder, LadderInput, ProposalRisk, ProposalRiskInput } from './api';
 import { startupSource } from './workspace';
 import type { WorkspacePreferences } from './workspace';
+import { initialLiveInstrument, selectableInstrument } from './instrument-metadata';
 
 export interface ConnectionOptions { mode: Mode; source_id?: string; instrument_id?: string }
 interface Presentation { frame: Frame; receivedAt: number; acknowledge: boolean }
@@ -155,18 +156,13 @@ export function useTerminal(initialPreferences: Pick<WorkspacePreferences, 'sour
         if (options.current.source_id && ((restoringSelection.current && options.current.instrument_id) || (options.current.mode === 'live' && !options.current.instrument_id))) {
           const sourceCatalog = await request<Catalog>(`/instruments?source_id=${encodeURIComponent(options.current.source_id)}`, undefined, AbortSignal.any([abort.signal, AbortSignal.timeout(5000)]));
           if (!scope.active) return;
-          if (options.current.instrument_id && !sourceCatalog.instruments.some(item => item.instrument_id === options.current.instrument_id)) {
+          if (options.current.instrument_id && !sourceCatalog.instruments.some(item => item.instrument_id === options.current.instrument_id && (options.current.mode !== 'live' || selectableInstrument(item)))) {
             setPreferenceNotice(`Saved exact instrument is unavailable in this source; using a source-native initial selection.`);
             delete options.current.instrument_id;
           }
           if (options.current.mode === 'live' && !options.current.instrument_id) {
-            const active = sourceCatalog.instruments.filter(item => item.status === 'active' && item.data_access !== 'blocked');
-            const accessible = active.filter(item => item.data_access === 'accessible');
-            const candidates = accessible.length ? accessible : active;
-            const initial = candidates.find(item => item.venue === 'binance-global' && item.market_type === 'spot' && item.native_symbol === 'BTCUSDT')
-              ?? candidates.find(item => item.venue === 'hyperliquid' && item.market_type === 'perpetual' && item.native_symbol === 'BTC')
-              ?? candidates[0];
-            if (!initial) throw new ApiError('This live source has no active native instrument available for initial selection.', 409);
+            const initial = initialLiveInstrument(sourceCatalog.instruments);
+            if (!initial) throw new ApiError('This live source has no streamable native instrument available for initial selection.', 409);
             options.current.instrument_id = initial.instrument_id;
           }
         }

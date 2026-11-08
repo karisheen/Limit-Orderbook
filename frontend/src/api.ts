@@ -1,11 +1,13 @@
 export type DecimalText = string;
 export type Mode = 'demo' | 'replay' | 'live';
+export type MetadataStatus = 'verified' | 'streaming_only';
 export interface Asset { asset_id: string; ticker: string; native_token_id: string | null }
 export interface Instrument {
   instrument_id: string; venue: string; api_family: string; native_symbol: string;
   base: Asset; quote: Asset; settlement: Asset | null; market_type: string;
-  tick_size: DecimalText | null; lot_size: DecimalText; quantity_unit: string;
+  tick_size: DecimalText | null; lot_size: DecimalText | null; quantity_unit: string;
   status: string; data_access: string; execution_access: string; metadata_version: string;
+  metadata_status: MetadataStatus;
   contract_multiplier?: DecimalText | null;
   contract_value_currency?: string | null;
   inverse?: boolean;
@@ -88,7 +90,7 @@ export interface SubscriptionStatus {
 export interface Frame {
   version: '1'; type: 'frame'; frame_id: string; session_id: string; generation: string;
   status: 'loading' | 'paused' | 'playing' | 'seeking' | 'ended' | 'live' | 'unavailable' | 'error';
-  selection: { instrument_id: string | null }; source: Source; book: Book | null; analytics: Analytics | null;
+  selection: { instrument_id: string | null; metadata_status: MetadataStatus | null; metadata_version: string | null }; source: Source; book: Book | null; analytics: Analytics | null;
   replay: { cursor: { delivery_index: string; ordinal: string; event_index: string }; speed: string; status: string; total_deliveries: string } | null;
   health: { ready: boolean; reasons: string[] };
   telemetry: {

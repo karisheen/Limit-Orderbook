@@ -12,7 +12,17 @@ from src.workstation import adapter_catalog
 from src.workstation.adapter_catalog import AdapterCatalog, VenueStatus
 from src.workstation.adapters.base import TransportRequest
 from src.workstation.events import BookUpdate, SubscriptionKey, Trade
-from src.workstation.instruments import MetadataSnapshot, synthetic_instrument
+from src.workstation.instruments import (
+    MetadataSnapshot,
+    OrderConstraints,
+    synthetic_instrument,
+)
+from src.workstation.streaming_bootstrap import (
+    STREAMING_CRYPTO_BASES,
+    STREAMING_FAMILIES,
+    STREAMING_SOURCE,
+    streaming_snapshot,
+)
 from src.workstation.transport import PublicTransportError
 
 
@@ -387,3 +397,161 @@ def test_new_venue_requests_preserve_native_market_and_channel_identity(
                 assert argument["instType"] == (
                     "SPOT" if market == "spot" else "USDT-FUTURES"
                 )
+
+
+def test_streaming_bootstrap_is_explicit_complete_and_not_exchange_metadata():
+    catalog = AdapterCatalog()
+    assert catalog.instruments.list() == ()
+    candidates = catalog.seed_streaming()
+    assert len(candidates) == 116
+    assert len(STREAMING_CRYPTO_BASES) == 29
+    assert candidates == streaming_snapshot().instruments
+    assert catalog.seed_streaming() == ()
+    for venue, family, market in STREAMING_FAMILIES:
+        products = [
+            item
+            for item in candidates
+            if (item.venue, item.api_family) == (venue, family)
+        ]
+        assert {item.base.ticker for item in products} == set(STREAMING_CRYPTO_BASES)
+        for item in products:
+            assert (
+                item.instrument_id == f"{venue}:{family}:{market}:{item.native_symbol}"
+            )
+            assert item.native_symbol == f"{item.base.ticker}USDT"
+            assert item.market_type == market
+            assert item.tick_size is None and item.lot_size is None
+            assert item.constraints == OrderConstraints(
+                price_rule="unconstrained", size_rule="unconstrained"
+            )
+            assert item.metadata_status == "streaming_only"
+            assert item.metadata_source == STREAMING_SOURCE
+            assert item.metadata_asof_wall_ns == 0
+            assert item.status == "unknown" and item.streamable
+            assert item.data_access == "unknown"
+            assert item.execution_access == "unknown"
+            assert item.quantity_unit == "base"
+            assert item.contract_multiplier == Decimal("1")
+            if market == "perpetual":
+                assert item.settlement == item.quote
+                assert item.contract_value_currency == item.base.asset_id
+                assert item.settlement_conversion == "none"
+            key = catalog.canonical_key(SubscriptionKey.for_instrument(item), item)
+            assert catalog.adapter(venue).subscription_requests(item, key)
+    assert all(status.state == "unknown" for status in catalog.snapshot())
+    assert catalog.preferred_binance is None
+
+
+@pytest.mark.parametrize("venue", ["binance-global", "bybit"])
+def test_metadata_denial_retains_stream_candidates_and_separate_evidence(
+    monkeypatch, venue
+):
+    catalog = AdapterCatalog()
+    original = catalog.seed_streaming()
+    adapter = catalog.adapter(venue)
+    catalog.statuses = {venue: catalog.statuses[venue]}
+
+    async def blocked(family):
+        raise PublicTransportError("blocked", status=403 if venue == "bybit" else 451)
+
+    monkeypatch.setattr(adapter, "discover_family", blocked)
+    (status,) = asyncio.run(catalog.discover())
+    assert catalog.instruments.list() == tuple(
+        sorted(original, key=lambda item: item.instrument_id)
+    )
+    assert status.state == "blocked"
+    assert (
+        "HTTP 403" in status.detail if venue == "bybit" else "HTTP 451" in status.detail
+    )
+    assert "ws" not in dict(status.dependencies)
+    assert not status.fully_usable
+    for item in original:
+        assert (
+            catalog.instruments.get(item.instrument_id, item.metadata_version) is item
+        )
+        assert item.streamable
+    assert catalog.seed_streaming() == ()
+
+
+@pytest.mark.parametrize("venue", ["binance-global", "bybit"])
+@pytest.mark.parametrize("seed_first", [False, True])
+def test_authoritative_family_never_resurrects_missing_or_suspended_candidates(
+    monkeypatch, venue, seed_first
+):
+    catalog = AdapterCatalog()
+    candidates = streaming_snapshot().instruments
+    if seed_first:
+        catalog.seed_streaming()
+    adapter = catalog.adapter(venue)
+    spot, perpetual = adapter.metadata_families
+    original = next(
+        item
+        for item in candidates
+        if (item.venue, item.api_family, item.native_symbol) == (venue, spot, "BTCUSDT")
+    )
+    verified = replace(
+        original,
+        metadata_version="verified-suspended",
+        metadata_status="verified",
+        metadata_source="authoritative-fixture",
+        metadata_asof_wall_ns=10,
+        tick_size=Decimal("0.01"),
+        lot_size=Decimal("0.001"),
+        constraints=OrderConstraints(),
+        status="suspended",
+    )
+
+    async def partial(family):
+        if family == spot:
+            return MetadataSnapshot(
+                "authoritative-fixture", 10, "complete", (verified,)
+            )
+        raise PublicTransportError("blocked", status=451)
+
+    monkeypatch.setattr(adapter, "discover_family", partial)
+    catalog.statuses = {venue: catalog.statuses[venue]}
+    (status,) = asyncio.run(catalog.discover())
+    catalog.seed_streaming()
+    assert catalog.instruments.get(original.instrument_id) is verified
+    assert not verified.streamable
+    spot_products = [
+        item
+        for item in catalog.instruments.list()
+        if (item.venue, item.api_family) == (venue, spot)
+    ]
+    assert not any(item.streamable for item in spot_products)
+    assert len(spot_products) == (29 if seed_first else 1)
+    assert (
+        sum(
+            item.streamable
+            for item in catalog.instruments.list()
+            if (item.venue, item.api_family) == (venue, perpetual)
+        )
+        == 29
+    )
+    if seed_first:
+        assert (
+            catalog.instruments.get(original.instrument_id, original.metadata_version)
+            == original
+        )
+    assert dict(status.dependencies)[f"metadata:{perpetual}"] == "blocked"
+    assert "ws" not in dict(status.dependencies)
+
+
+@pytest.mark.parametrize("seed_first", [False, True])
+def test_empty_authoritative_families_are_not_repopulated(monkeypatch, seed_first):
+    catalog = AdapterCatalog()
+    if seed_first:
+        catalog.seed_streaming()
+    adapter = catalog.adapter("bybit")
+
+    async def empty(family):
+        return MetadataSnapshot(f"authoritative:{family}", 10, family, ())
+
+    monkeypatch.setattr(adapter, "discover_family", empty)
+    catalog.statuses = {"bybit": catalog.statuses["bybit"]}
+    asyncio.run(catalog.discover())
+    catalog.seed_streaming()
+    assert not any(
+        item.streamable for item in catalog.instruments.list() if item.venue == "bybit"
+    )

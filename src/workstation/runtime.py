@@ -312,7 +312,7 @@ def _live_cohort(
             group == primary_group
             or item.instrument_id == instrument.instrument_id
             or item.base.asset_id != instrument.base.asset_id
-            or item.status != "active"
+            or not item.streamable
             or not (
                 quote == primary_quote
                 or (primary_quote in quote_rank and quote in quote_rank)
@@ -785,6 +785,15 @@ class ClientSession:
                     0, revision - self.last_presentation[1] - 1
                 )
             self.last_presentation = (identity, revision)
+        selected = next(
+            (
+                spec.instrument
+                for spec in self.streams
+                if str(spec.instrument.instrument_id) == self.instrument_id
+                and spec.key.channel == "book"
+            ),
+            None,
+        )
         return {
             "version": "1",
             "type": "frame",
@@ -792,7 +801,11 @@ class ClientSession:
             "session_id": self.id,
             "generation": str(self.generation),
             "status": presentation_status or self.status,
-            "selection": {"instrument_id": self.instrument_id},
+            "selection": {
+                "instrument_id": self.instrument_id,
+                "metadata_status": selected.metadata_status if selected else None,
+                "metadata_version": selected.metadata_version if selected else None,
+            },
             "source": self.runtime.source(self.source_id),
             "book": book,
             "analytics": analytics,
@@ -1773,6 +1786,7 @@ class TerminalRuntime:
         self.candle_service = CandleService()
         self.demo: ReplaySource | None = None
         self.demo_task: asyncio.Task[None] | None = None
+        self.metadata_task: asyncio.Task[None] | None = None
         self.demo_ready = asyncio.Event()
         self.reaper: asyncio.Task[None] | None = None
         self.capture_paths = tuple(
@@ -1906,6 +1920,8 @@ class TerminalRuntime:
                 for spec in metadata.streams
             }.values()
         )
+        if self.enable_live:
+            self._start_live_source()
         self.demo_task = asyncio.create_task(self._load_sources())
         self.reaper = asyncio.create_task(self._reap())
 
@@ -1914,6 +1930,65 @@ class TerminalRuntime:
     ) -> tuple[SessionManifest, CaptureIdentity]:
         with RecordingReader(path) as reader:
             return reader.manifest, capture_identity(path)
+
+    def _publish_live_catalog(self) -> None:
+        if self.registry is None:
+            return
+        instruments = self.registry.catalog.instruments.list()
+        self.source_instruments["live"] = instruments
+        for instrument in instruments:
+            self.instruments[str(instrument.instrument_id)] = instrument
+        self.sources["live"].update(
+            {
+                "status": "ready"
+                if any(item.streamable for item in instruments)
+                else "unavailable",
+                "reasons": [
+                    f"{status.venue}: {status.state}: {status.detail}"
+                    for status in self.registry.catalog.statuses.values()
+                    if status.state != "available"
+                ],
+            }
+        )
+
+    def _start_live_source(self) -> None:
+        self.sources["live"] = {
+            "id": "live",
+            "mode": "live",
+            "label": "Public live shared collector",
+            "status": "loading",
+            "synthetic": False,
+            "recording": False,
+            "duration_ns": None,
+            "streams": 0,
+            "reasons": [],
+        }
+        try:
+            if self.registry is None:
+                self.registry = SubscriptionRegistry()
+                self.registry.catalog.seed_streaming()
+            self._publish_live_catalog()
+            if self.owns_registry:
+                self.metadata_task = asyncio.create_task(self._enrich_live_metadata())
+        except Exception as exc:
+            self.sources["live"].update(
+                {"status": "unavailable", "reasons": [str(exc)]}
+            )
+
+    async def _enrich_live_metadata(self) -> None:
+        assert self.registry is not None
+        error = None
+        try:
+            await self.registry.catalog.discover()
+        except Exception as exc:
+            error = f"Metadata enrichment failed: {exc}"
+        finally:
+            if not self.closed:
+                # Discovery enriches catalogue versions, never the descriptors
+                # pinned by an existing stream, session or durable recording.
+                self._publish_live_catalog()
+                if error is not None:
+                    self.sources["live"]["reasons"].append(error)
 
     async def _load_sources(self) -> None:
         try:
@@ -1955,53 +2030,15 @@ class TerminalRuntime:
                         ),
                     }
                 )
+                instruments = {}
                 for spec in manifest.streams:
-                    self.instruments[str(spec.instrument.instrument_id)] = (
-                        spec.instrument
-                    )
-                self.source_instruments[source_id] = tuple(
-                    {
-                        str(spec.instrument.instrument_id): spec.instrument
-                        for spec in manifest.streams
-                    }.values()
-                )
+                    instrument_id = str(spec.instrument.instrument_id)
+                    if instrument_id not in instruments or spec.key.channel == "book":
+                        instruments[instrument_id] = spec.instrument
+                self.source_instruments[source_id] = tuple(instruments.values())
+                self.instruments.update(instruments)
             except Exception as exc:
                 source.update({"status": "unavailable", "reasons": [str(exc)]})
-        if self.enable_live:
-            self.sources["live"] = {
-                "id": "live",
-                "mode": "live",
-                "label": "Public live shared collector",
-                "status": "loading",
-                "synthetic": False,
-                "recording": False,
-                "duration_ns": None,
-                "streams": 0,
-                "reasons": [],
-            }
-            try:
-                if self.registry is None:
-                    self.registry = SubscriptionRegistry()
-                    await self.registry.catalog.discover()
-                self.sources["live"]["reasons"] = [
-                    f"{status.venue}: {status.state}: {status.detail}"
-                    for status in self.registry.catalog.statuses.values()
-                    if status.state != "available"
-                ]
-                instruments = self.registry.catalog.instruments.list()
-                self.source_instruments["live"] = instruments
-                for instrument in instruments:
-                    self.instruments[str(instrument.instrument_id)] = instrument
-                if not instruments:
-                    raise ValueError("no discovered live instruments")
-                self.sources["live"]["status"] = "ready"
-            except Exception as exc:
-                self.sources["live"].update(
-                    {
-                        "status": "unavailable",
-                        "reasons": [*self.sources["live"]["reasons"], str(exc)],
-                    }
-                )
 
     async def create(
         self,
@@ -2113,13 +2150,13 @@ class TerminalRuntime:
         ][:8]
         keys = frozenset(
             self.registry.catalog.canonical_key(
-                SubscriptionKey.for_instrument(item, channel=channel)
+                SubscriptionKey.for_instrument(item, channel=channel), item
             )
             for item in cohort
             for channel in ("book", "trades")
         ) | frozenset(
             self.registry.catalog.canonical_key(
-                SubscriptionKey.for_instrument(item, channel=channel)
+                SubscriptionKey.for_instrument(item, channel=channel), item
             )
             for item in references
             for channel in ("reference", "context")
@@ -2392,6 +2429,9 @@ class TerminalRuntime:
         for task in initializers:
             task.cancel()
         await asyncio.gather(*initializers, return_exceptions=True)
+        if self.metadata_task:
+            self.metadata_task.cancel()
+            await asyncio.gather(self.metadata_task, return_exceptions=True)
         if self.reaper:
             self.reaper.cancel()
             await asyncio.gather(self.reaper, return_exceptions=True)

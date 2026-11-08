@@ -204,8 +204,14 @@ def evaluate(
         instrument.metadata_version,
     ):
         reasons.append("instrument_mismatch")
-    if instrument.status != "active":
+    if not instrument.streamable:
         reasons.append("instrument_" + instrument.status)
+    if instrument.metadata_status != "verified" and purpose in (
+        "comparison",
+        "depth_walk",
+        "paper_fill",
+    ):
+        reasons.append("instrument_metadata_unverified")
     readable_observation = (
         quality.integrity == "valid"
         and quality.last_book_observation_mono_ns is not None
@@ -377,7 +383,7 @@ def evaluate_trades(
 ) -> Eligibility:
     """Gate actual validated trades, independently of book availability."""
     reasons: list[str] = []
-    if instrument.status != "active":
+    if not instrument.streamable:
         reasons.append("instrument_" + instrument.status)
     established = evidence is not None and evidence.established_mono_ns is not None
     if instrument.data_access in ("blocked", "unsupported") or (
@@ -446,7 +452,7 @@ def evaluate_context(
 ) -> Eligibility:
     """Reference freshness does not imply executable depth or trade continuity."""
     reasons: list[str] = []
-    if instrument.status != "active":
+    if not instrument.streamable:
         reasons.append("instrument_" + instrument.status)
     established = evidence is not None and evidence.last_validated_mono_ns is not None
     if instrument.data_access in ("blocked", "unsupported") or (

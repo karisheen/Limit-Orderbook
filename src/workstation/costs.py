@@ -350,6 +350,8 @@ def _floor(value: Decimal, step: Decimal) -> Decimal:
 
 
 def _valuation_reason(instrument: Instrument) -> str | None:
+    if instrument.metadata_status != "verified":
+        return "instrument_metadata_unverified"
     if instrument.quantity_unit == "base":
         if instrument.inverse or instrument.contract_multiplier != ONE:
             return "ambiguous_base_quantity_contract"
@@ -476,7 +478,8 @@ def _walk(
     if valuation:
         reasons.append(valuation)
     constraints = instrument.constraints
-    if constraints.size_rule != "fixed_lot":
+    lot = instrument.lot_size
+    if constraints.size_rule != "fixed_lot" or lot is None:
         reasons.append("unsupported_size_rule")
     if (
         constraints.min_notional is not None or constraints.max_notional is not None
@@ -502,6 +505,7 @@ def _walk(
     consumed: list[ConsumedLevel] = []
     filled = native_total = notional = ZERO
     if not reasons:
+        assert lot is not None  # Fixed-lot metadata is required above.
         for level in levels:
             if limit_price is not None and (
                 side == "buy"
@@ -532,14 +536,14 @@ def _walk(
             if notional_cap is not None:
                 _, unit_notional = _amounts(instrument, level.price, ONE)
                 take = min(take, max(ZERO, notional_cap - notional) / unit_notional)
-            take = _floor(take, instrument.lot_size)
+            take = _floor(take, lot)
             # A recurring inverse conversion may round just below an exact lot
             # when inverted again. Reconcile one neighboring lot against the
             # forward-valued caps; never use an epsilon or round quantity up.
             for candidate in (
-                take + instrument.lot_size,
+                take + lot,
                 take,
-                max(ZERO, take - instrument.lot_size),
+                max(ZERO, take - lot),
             ):
                 candidate_base, candidate_cash = _amounts(
                     instrument, level.price, candidate
@@ -586,9 +590,8 @@ def _walk(
     )
     partial = bool(unfilled if base_quantity is not None else quote_remaining)
     if partial and gate.eligible and not valuation:
-        if native_cap is not None and native_total >= _floor(
-            native_cap, instrument.lot_size
-        ):
+        assert lot is not None  # Eligible instruments have verified lot metadata.
+        if native_cap is not None and native_total >= _floor(native_cap, lot):
             reasons.append("native_order_maximum")
         if (
             constraints.max_notional is not None
@@ -914,6 +917,7 @@ def _scaled_integer(value, exponent):
 
 def _constant_grid_quantity(buy, bi, sell, si):
     """Spot/linear fast path: two finite native lot increments, no rational book."""
+    assert bi.lot_size is not None and si.lot_size is not None
     limit = min(buy.filled_base_quantity, sell.filled_base_quantity)
     step_a, _ = _amounts(bi, ONE, bi.lot_size)
     step_b, _ = _amounts(si, ONE, si.lot_size)
@@ -934,6 +938,7 @@ def _segments(estimate, instrument):
     if len(estimate.consumed_levels) > MAX_PAIR_GRID_LEVELS:
         raise _GridComplexity("lot_grid_complexity_limit")
     prefix = Fraction(0)
+    assert instrument.lot_size is not None
     lot = Fraction(instrument.lot_size)
     for level in estimate.consumed_levels:
         step = lot

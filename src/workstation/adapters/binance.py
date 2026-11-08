@@ -156,7 +156,7 @@ def validate_key(instrument, key, venue, api_family, *, market_type="spot"):
         or key.aggregation
     ):
         raise ValueError("unsupported_subscription")
-    if instrument.status != "active":
+    if not instrument.streamable:
         raise ValueError(f"product_{instrument.status}")
 
 
@@ -492,11 +492,18 @@ class _BinanceAdapter:
             )
         return metadata_snapshot(source, raw, fetch_wall_ns, instruments)
 
+    def _partial(self, instrument):
+        return self.partial or (
+            self.venue == "binance-global"
+            and instrument.api_family == "spot-v3"
+            and instrument.metadata_status == "streaming_only"
+        )
+
     def _validate(self, instrument, key):
         validate_key(instrument, key, self.venue, self.api_family)
         if key.channel == "book" and (
             key.depth not in (5, 10, 20)
-            if self.partial
+            if self._partial(instrument)
             else key.depth not in (None, 5000)
         ):
             raise ValueError("unsupported reconstruction depth")
@@ -508,12 +515,12 @@ class _BinanceAdapter:
         book = key.channel == "book"
         return Capabilities(
             snapshot=book,
-            deltas=book and not self.partial,
+            deltas=book and not self._partial(instrument),
             trades=not book,
             sequence_scope=f"{instrument.instrument_id}:depth"
-            if book and not self.partial
+            if book and not self._partial(instrument)
             else None,
-            exact_event_flow=book and not self.partial,
+            exact_event_flow=book and not self._partial(instrument),
         )
 
     def _stream(self, instrument, key):
@@ -521,7 +528,7 @@ class _BinanceAdapter:
             "trade"
             if key.channel == "trades"
             else f"depth{key.depth}@100ms"
-            if self.partial
+            if self._partial(instrument)
             else "depth@100ms"
         )
         return f"{instrument.native_symbol.lower()}@{suffix}"
@@ -549,7 +556,7 @@ class _BinanceAdapter:
         path = (
             f"trades?symbol={symbol}&limit=1000"
             if key.channel == "trades"
-            else f"depth?symbol={symbol}&limit={key.depth if self.partial else 5000}"
+            else f"depth?symbol={symbol}&limit={key.depth if self._partial(instrument) else 5000}"
         )
         return TransportRequest("GET", f"{self.rest_host}/api/v3/{path}")
 
@@ -596,14 +603,14 @@ class _BinanceAdapter:
                 ):
                     raise ValueError("wrong_trade_schema")
                 return DecodeResult((self._trade(data, instrument),))
-            snapshot = rest or self.partial
+            snapshot = rest or self._partial(instrument)
             if snapshot:
                 update_id = integer_field(data["lastUpdateId"])
                 sequence = SequenceInfo(
                     f"{instrument.instrument_id}:depth", last=str(update_id)
                 )
                 changes = level_changes(data["bids"], data["asks"], instrument)
-                limit = key.depth if self.partial else 5000
+                limit = key.depth if self._partial(instrument) else 5000
                 if limit is None:
                     raise ValueError("missing subscription depth")
                 if any(
@@ -668,7 +675,7 @@ class _BinanceAdapter:
 
     def new_reducer(self, instrument: Instrument, key: SubscriptionKey) -> BookReducer:
         caps = self.capabilities(instrument, key)
-        if not self.partial and key.channel == "book":
+        if not self._partial(instrument) and key.channel == "book":
             return BinanceGlobalReducer(
                 instrument,
                 key,

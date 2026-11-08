@@ -129,6 +129,12 @@ def _to_wire(value, canonical, decimal_memo, decimal_policy):
                     getattr(value, name), canonical, decimal_memo, decimal_policy
                 )
                 for name in _record_fields(_registry()[type(value).__name__])[0]
+                # Keep existing verified capture identities byte-compatible.
+                if not (
+                    type(value).__name__ == "Instrument"
+                    and name == "metadata_status"
+                    and getattr(value, name) == "verified"
+                )
             },
         }
     if isinstance(value, (tuple, frozenset)):
@@ -205,13 +211,18 @@ def _decode(value, expected, decimal_policy):
         if not isinstance(value, dict) or value.get("$type") != expected.__name__:
             raise ValueError("incorrect wire record type")
         names, allowed = _record_fields(expected)
-        if value.keys() != allowed:
+        legacy_instrument = (
+            expected.__name__ == "Instrument"
+            and value.keys() == allowed - {"metadata_status"}
+        )
+        if value.keys() != allowed and not legacy_instrument:
             raise ValueError("missing/unknown wire fields")
         hints = _record_hints(expected)
         return expected(
             **{
                 name: _decode(value[name], hints[name], decimal_policy)
                 for name in names
+                if name in value
             }
         )
     raise ValueError(f"unsupported wire annotation: {expected}")

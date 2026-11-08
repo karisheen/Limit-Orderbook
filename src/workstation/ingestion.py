@@ -966,6 +966,7 @@ class FeedSupervisor:
                         self.key.venue == "binance-global"
                         and self.instrument.market_type == "spot"
                         and self.key.channel == "book"
+                        and self.adapter.capabilities(self.instrument, self.key).deltas
                     ):
                         snapshot = self.adapter.snapshot_request(
                             self.instrument, self.key

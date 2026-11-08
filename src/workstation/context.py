@@ -178,12 +178,15 @@ class ContextEngine:
         self._specs = {str(spec.stream_id): spec for spec in self.streams}
         if len(self._specs) != len(self.streams):
             raise ValueError("duplicate context stream identity")
-        self._instruments: dict[str, Instrument] = {}
+        self._instruments: dict[str, dict[str, Instrument]] = {}
         for spec in self.streams:
             key = str(spec.instrument.instrument_id)
-            previous = self._instruments.setdefault(key, spec.instrument)
+            versions = self._instruments.setdefault(key, {})
+            previous = versions.setdefault(
+                spec.instrument.metadata_version, spec.instrument
+            )
             if previous != spec.instrument:
-                raise ValueError("ambiguous context instrument metadata")
+                raise ValueError("ambiguous context instrument metadata version")
         if len(self._instruments) > MAX_INSTRUMENTS:
             raise ValueError("context instrument bound exceeded")
         for channel, maximum in (
@@ -192,6 +195,11 @@ class ContextEngine:
         ):
             if sum(s.key.channel == channel for s in self.streams) > maximum:
                 raise ValueError("context channel bound exceeded")
+        self._book_instruments = {
+            (spec.key, spec.instrument.metadata_version): spec.instrument
+            for spec in self.streams
+            if spec.key.channel == "book"
+        }
         self._signature = sha256(
             dumps(tuple((str(s.stream_id), s.instrument, s.key) for s in self.streams))
         ).hexdigest()
@@ -348,7 +356,7 @@ class ContextEngine:
                 )
             elif selected is not None and (
                 spec.instrument.instrument_id == instrument_id
-                or _related(selected, spec.instrument)
+                or any(_related(item, spec.instrument) for item in selected.values())
             ):
                 if value is not None and not isinstance(value, AssetContext):
                     raise ValueError("invalid asset context observation payload")
@@ -394,17 +402,25 @@ class ContextEngine:
             reasons.append("context_channel_not_subscribed")
         basis = []
         if selected is not None:
-            for candidate in self._instruments.values():
-                if {selected.market_type, candidate.market_type} != {
-                    "spot",
-                    "perpetual",
-                } or not _related(selected, candidate):
+            for candidate_id, candidates in self._instruments.items():
+                if candidate_id == instrument_id:
                     continue
-                spot, perp = (
-                    (selected, candidate)
-                    if selected.market_type == "spot"
-                    else (candidate, selected)
+                # Versions only discover related pairs. Evidence below chooses
+                # its own stream-pinned metadata, never a catalogue replacement.
+                pair = next(
+                    (
+                        (left, right) if left.market_type == "spot" else (right, left)
+                        for left in selected.values()
+                        for right in candidates.values()
+                        if {left.market_type, right.market_type}
+                        == {"spot", "perpetual"}
+                        and _related(left, right)
+                    ),
+                    None,
                 )
+                if pair is None:
+                    continue
+                spot, perp = pair
                 for kind in ("mark", "oracle", "mid"):
                     basis.append(self._basis(spot, perp, kind, books, now, fx_rates))
         if not basis:
@@ -428,16 +444,6 @@ class ContextEngine:
         fx_rates: tuple[FXRate, ...],
     ) -> ReferenceBasis:
         reasons = []
-        if not _same_underlying(spot, perp):
-            reasons.append("incompatible_underlying_identity")
-        if (
-            spot.quantity_unit != "base"
-            or perp.quantity_unit != "base"
-            or perp.inverse
-            or perp.contract_multiplier != 1
-            or perp.reference_multiplier not in (None, Decimal(1))
-        ):
-            reasons.append("unsupported_reference_units")
         if now is None:
             reasons.append("clock_unavailable")
         candidates = [b for b in books if b.instrument_id == spot.instrument_id]
@@ -446,6 +452,15 @@ class ContextEngine:
             reasons.append("missing_spot_book")
         elif len(candidates) != 1:
             reasons.append("ambiguous_spot_book")
+        if book is not None:
+            book_instrument = self._book_instruments.get(
+                (book.key, book.metadata_version)
+            )
+            if book_instrument is None:
+                reasons.append("spot_book_identity_mismatch")
+                book = None
+            else:
+                spot = book_instrument
         if book is not None and now is not None:
             reasons.extend(evaluate(book, spot, "comparison", now, POLICY).reasons)
         channel = "reference" if kind == "mid" else "context"
@@ -463,6 +478,9 @@ class ContextEngine:
             reasons.append("ambiguous_perpetual_reference")
         else:
             spec, state = sources[0]
+            perp = spec.instrument
+            if perp.metadata_status != "verified":
+                reasons.append("instrument_metadata_unverified")
             reasons.extend(self._gate(spec, state, now).reasons)
             event = state.observation
             if event is not None:
@@ -473,6 +491,18 @@ class ContextEngine:
                     price = payload.mark if kind == "mark" else payload.oracle
                 else:
                     raise ValueError("invalid perpetual reference observation payload")
+        if not _same_underlying(spot, perp):
+            reasons.append("incompatible_underlying_identity")
+        if spot.market_type != "spot" or perp.market_type != "perpetual":
+            reasons.append("incompatible_market_type")
+        if (
+            spot.quantity_unit != "base"
+            or perp.quantity_unit != "base"
+            or perp.inverse
+            or perp.contract_multiplier != 1
+            or perp.reference_multiplier not in (None, Decimal(1))
+        ):
+            reasons.append("unsupported_reference_units")
         if price is None:
             reasons.append("missing_perpetual_" + kind)
         if event is not None and book is not None:

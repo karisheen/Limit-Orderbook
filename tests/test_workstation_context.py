@@ -52,6 +52,24 @@ def perpetual(symbol="BTC"):
     return replace(metadata.instruments[0], data_access="available")
 
 
+def streaming_only(instrument):
+    return replace(
+        instrument,
+        metadata_version="streaming-only-v1",
+        metadata_status="streaming_only",
+        metadata_source="synthetic-protocol-candidates",
+        metadata_asof_wall_ns=0,
+        status="unknown",
+        tick_size=None,
+        lot_size=None,
+        constraints=replace(
+            instrument.constraints,
+            price_rule="unconstrained",
+            size_rule="unconstrained",
+        ),
+    )
+
+
 def spec(instrument, channel, stream_id=None):
     key = SubscriptionKey.for_instrument(instrument, channel=channel)
     if instrument.venue == "hyperliquid":
@@ -77,7 +95,15 @@ class Feed:
         self.books = ()
 
     def send(self, channel, payload, stamp=SECOND, **overrides):
-        stream = next(s for s in self.streams if s.key.channel == channel)
+        stream = next(
+            s
+            for s in self.streams
+            if s.key.channel == channel
+            and (
+                channel != "book"
+                or s.instrument.instrument_id == self.spot.instrument_id
+            )
+        )
         event = synthetic_envelope(
             stream.instrument,
             payload,
@@ -619,3 +645,113 @@ def test_actual_market_channel_controls_still_segment_visuals(channel):
         history.on_batch(RecordedBatch(index, (event,)), (), clock)
     assert history.segment_number == 2
     assert tuple(history.discontinuities) == (2,)
+
+
+@pytest.mark.parametrize("old_channel", ["reference", "context", "both"])
+@pytest.mark.parametrize("reverse", [False, True])
+def test_mixed_pinned_metadata_keeps_context_evidence_and_basis_separate(
+    old_channel, reverse
+):
+    perp = replace(
+        synthetic_instrument(quote="USDT"),
+        instrument_id="synthetic:perpetual:BTC-USDT",
+        market_type="perpetual",
+    )
+    feed = Feed(perp=perp)
+    old_spot, old_perp = streaming_only(feed.spot), streaming_only(perp)
+    reference = old_perp if old_channel in ("reference", "both") else perp
+    context = old_perp if old_channel in ("context", "both") else perp
+    book = spec(feed.spot, "book")
+    streams = (
+        spec(old_spot, "trades", "old-spot-trades"),
+        replace(book, key=replace(book.key, depth=5000)),
+        spec(perp, "book", "perpetual-book"),
+        spec(reference, "reference"),
+        spec(context, "context"),
+        spec(old_perp, "trades", "old-perpetual-trades"),
+    )
+    feed.streams = tuple(reversed(streams)) if reverse else streams
+    feed.engine = ContextEngine(feed.streams)
+    feed.book()
+    context_event = feed.context()
+    reference_event = feed.mid()
+    checkpoint = feed.engine.checkpoint()
+    for selected in (feed.spot.instrument_id, perp.instrument_id):
+        result = feed.snapshot(selected=selected)
+        assert result.watchlist[0].instrument == reference
+        assert result.contexts[0].instrument == context
+        assert result.watchlist[0].asof == reference_event.ref()
+        assert result.contexts[0].asof == context_event.ref()
+        assert result.watchlist[0].eligibility.eligible
+        assert result.contexts[0].eligibility.eligible
+        assert len(result.basis) == 3
+        for row in result.basis:
+            source = reference if row.reference_kind == "mid" else context
+            assert row.spot_asof == feed.books[0].asof
+            assert row.spot_mid == D(100)
+            assert row.perpetual_reference is not None
+            assert "instrument_mismatch" not in row.reasons
+            if source.metadata_status == "streaming_only":
+                assert row.reasons == ("instrument_metadata_unverified",)
+                assert row.proceeds_basis_bps is None
+                assert row.funding_basis_bps is None
+                assert row.proceeds_conversion is None
+                assert row.funding_conversion is None
+            else:
+                assert not row.reasons
+                assert row.proceeds_basis_bps is not None
+                assert row.funding_basis_bps is not None
+        feed.engine.reset()
+        feed.engine.restore(checkpoint)
+        assert feed.snapshot(selected=selected) == result
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_verified_trade_metadata_cannot_upgrade_streaming_only_spot_basis(reverse):
+    verified = synthetic_instrument(quote="USDT")
+    feed = Feed(spot=streaming_only(verified))
+    streams = (spec(verified, "trades"), *feed.streams)
+    feed.streams = tuple(reversed(streams)) if reverse else streams
+    feed.engine = ContextEngine(feed.streams)
+    feed.book()
+    feed.context()
+    row = mark(feed.snapshot())
+    assert row.reasons == ("instrument_metadata_unverified",)
+    assert row.spot_mid == D(100)
+    assert row.spot_asof == feed.books[0].asof
+    assert row.proceeds_basis_bps is None
+    assert row.funding_basis_bps is None
+
+
+@pytest.mark.parametrize("mismatch", ["version", "key"])
+def test_reference_basis_requires_exact_book_subscription_metadata(mismatch):
+    feed = Feed()
+    old_spot = streaming_only(feed.spot)
+    feed.streams = (*feed.streams, spec(old_spot, "trades"))
+    feed.engine = ContextEngine(feed.streams)
+    feed.book()
+    feed.context()
+    book = feed.books[0]
+    feed.books = (
+        replace(book, metadata_version=old_spot.metadata_version)
+        if mismatch == "version"
+        else replace(book, key=replace(book.key, depth=20)),
+    )
+    row = mark(feed.snapshot())
+    assert "spot_book_identity_mismatch" in row.reasons
+    assert row.spot_asof is None
+    assert row.spot_mid is None
+    assert row.proceeds_basis_bps is None
+
+
+def test_context_rejects_conflicting_descriptors_for_same_metadata_version():
+    instrument = synthetic_instrument()
+    with pytest.raises(
+        ValueError, match="ambiguous context instrument metadata version"
+    ):
+        ContextEngine(
+            (
+                spec(instrument, "book"),
+                spec(replace(instrument, data_access="blocked"), "trades"),
+            )
+        )

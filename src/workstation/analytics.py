@@ -428,20 +428,28 @@ class AnalyticsEngine:
         if len({s.stream_id for s in self.streams}) != len(self.streams):
             raise ValueError("duplicate analytics stream")
         self._specs = {s.stream_id: s for s in self.streams}
-        self._instruments: dict[str, Instrument] = {
-            s.instrument.instrument_id: s.instrument for s in self.streams
-        }
+        # Fallback descriptors only label unavailable metrics; evidence always uses
+        # its own stream's pinned descriptor, never another channel's version.
+        self._fallback_instruments: dict[str, Instrument] = {}
+        self._book_instruments: dict[SubscriptionKey, Instrument] = {}
+        versions: dict[tuple[str, str], Instrument] = {}
         self._trade_streams: dict[str, list[StreamId]] = {}
         for spec in self.streams:
+            instrument = spec.instrument
+            identity = (instrument.instrument_id, instrument.metadata_version)
+            if versions.setdefault(identity, instrument) != instrument:
+                raise ValueError("ambiguous instrument metadata")
+            self._fallback_instruments.setdefault(instrument.instrument_id, instrument)
+            if spec.key.channel == "book":
+                if (
+                    self._book_instruments.setdefault(spec.key, instrument)
+                    != instrument
+                ):
+                    raise ValueError("ambiguous book metadata")
             if spec.key.channel in ("trade", "trades"):
                 self._trade_streams.setdefault(
                     spec.instrument.instrument_id, []
                 ).append(spec.stream_id)
-        if any(
-            self._instruments[s.instrument.instrument_id] != s.instrument
-            for s in self.streams
-        ):
-            raise ValueError("ambiguous instrument metadata")
         self.config_hash = sha256(
             dumps(config, decimal_policy=DERIVED_DECIMAL_POLICY)
         ).hexdigest()
@@ -508,8 +516,11 @@ class AnalyticsEngine:
         if len({book.key for book in selected}) != len(selected):
             raise ValueError("duplicate initial book key")
         for book in selected:
-            instrument = self._instruments[book.instrument_id]
-            if book.metadata_version != instrument.metadata_version:
+            instrument = self._book_instruments[book.key]
+            if (book.instrument_id, book.metadata_version) != (
+                instrument.instrument_id,
+                instrument.metadata_version,
+            ):
                 raise ValueError("initial book metadata mismatch")
         for book in selected:
             self._books[book.key].book = book
@@ -760,7 +771,7 @@ class AnalyticsEngine:
         now = ClockReading(book.asof.clock_id, max(e.receive_mono_ns for e in events))
         eligible = evaluate(
             book,
-            self._instruments[book.instrument_id],
+            self._book_instruments[book.key],
             "display",
             now,
             self.config.policy,
@@ -793,7 +804,7 @@ class AnalyticsEngine:
         elif changed and old is not None:
             event_flow = evaluate(
                 book,
-                self._instruments[book.instrument_id],
+                self._book_instruments[book.key],
                 "event_ofi",
                 now,
                 self.config.policy,
@@ -871,8 +882,10 @@ class AnalyticsEngine:
     def _trade_source(
         self, instrument_id: str, now: ClockReading
     ) -> tuple[_TradeWindow | None, Eligibility]:
-        instrument = self._instruments[instrument_id]
+        instrument = self._fallback_instruments[instrument_id]
         candidates = self._trade_streams.get(instrument_id, ())
+        if candidates:
+            instrument = self._specs[candidates[0]].instrument
         state = self._trades[candidates[0]] if len(candidates) == 1 else None
         eligibility = evaluate_trades(
             state.evidence if state else None, instrument, now, self.config.policy
@@ -897,7 +910,7 @@ class AnalyticsEngine:
         A selected book key cannot disambiguate multiple matching trade streams.
         This read-only gate does not establish evidence or compute metric totals.
         """
-        if instrument_id not in self._instruments:
+        if instrument_id not in self._fallback_instruments:
             raise ValueError("unknown analytics instrument")
         if key is not None and key.instrument_id != instrument_id:
             raise ValueError("analytics key/instrument mismatch")
@@ -911,7 +924,7 @@ class AnalyticsEngine:
         *,
         key: SubscriptionKey | None = None,
     ) -> AnalyticsSnapshot:
-        if instrument_id not in self._instruments:
+        if instrument_id not in self._fallback_instruments:
             raise ValueError("unknown analytics instrument")
         with localcontext(DECIMAL_CONTEXT):
             return self._snapshot(instrument_id, now, key)
@@ -919,7 +932,6 @@ class AnalyticsEngine:
     def _snapshot(
         self, instrument_id: str, now: ClockReading, key: SubscriptionKey | None
     ) -> AnalyticsSnapshot:
-        instrument = self._instruments[instrument_id]
         candidates = [
             s
             for k, s in self._books.items()
@@ -928,6 +940,17 @@ class AnalyticsEngine:
         if key is not None and key.instrument_id != instrument_id:
             raise ValueError("analytics key/instrument mismatch")
         state = candidates[0] if len(candidates) == 1 else None
+        instrument = (
+            self._book_instruments[state.key]
+            if state
+            else self._fallback_instruments[instrument_id]
+        )
+        trade_candidates = self._trade_streams.get(instrument_id, ())
+        trade_instrument = (
+            self._specs[trade_candidates[0]].instrument
+            if trade_candidates
+            else self._fallback_instruments[instrument_id]
+        )
         book = state.book if state else None
         book_reasons = (
             ("ambiguous_book_key",)
@@ -997,7 +1020,7 @@ class AnalyticsEngine:
                     None if reason_codes else value,
                     unit,
                     str(instrument_id),
-                    instrument.venue,
+                    trade_instrument.venue if trade_metric else instrument.venue,
                     asof,
                     result_window,
                     quality,
@@ -1218,7 +1241,7 @@ class AnalyticsEngine:
             metric(
                 f"trade_{side}_notional",
                 totals[side],
-                str(instrument.quote.asset_id),
+                str(trade_instrument.quote.asset_id),
                 trade_reasons,
                 trade_state=trade_state,
                 trade_metric=True,
@@ -1228,7 +1251,7 @@ class AnalyticsEngine:
             metric(
                 f"observed_trade_{side}_notional",
                 totals[side],
-                str(instrument.quote.asset_id),
+                str(trade_instrument.quote.asset_id),
                 observed_reasons,
                 trade_state=trade_state,
                 trade_metric=True,
@@ -1247,7 +1270,7 @@ class AnalyticsEngine:
         metric(
             "cvd_base",
             cvd,
-            str(instrument.base.asset_id),
+            str(trade_instrument.base.asset_id),
             trade_reasons,
             trade_state=trade_state,
             trade_metric=True,
@@ -1258,7 +1281,7 @@ class AnalyticsEngine:
         metric(
             "cvd_quote",
             totals["buy"] - totals["sell"],
-            str(instrument.quote.asset_id),
+            str(trade_instrument.quote.asset_id),
             trade_reasons,
             trade_state=trade_state,
             trade_metric=True,
@@ -1268,7 +1291,7 @@ class AnalyticsEngine:
         metric(
             "observed_cvd_base",
             cvd,
-            str(instrument.base.asset_id),
+            str(trade_instrument.base.asset_id),
             observed_reasons,
             trade_state=trade_state,
             trade_metric=True,
@@ -1289,7 +1312,7 @@ class AnalyticsEngine:
         metric(
             "executed_profile_base",
             sum((t.base_quantity for t in flow if t.base_quantity is not None), ZERO),
-            str(instrument.base.asset_id),
+            str(trade_instrument.base.asset_id),
             observed_reasons,
             trade_state=trade_state,
             trade_metric=True,
