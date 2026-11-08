@@ -187,15 +187,13 @@ class CaptureService:
         source_id = "capture-" + row["id"]
         self.runtime.capture_map[source_id] = path
         self.runtime.capture_descriptors[source_id] = descriptor
-        instruments = tuple(
-            {
-                str(spec.instrument.instrument_id): spec.instrument
-                for spec in manifest.streams
-            }.values()
-        )
-        self.runtime.source_instruments[source_id] = instruments
-        for instrument in instruments:
-            self.runtime.instruments[str(instrument.instrument_id)] = instrument
+        instruments = {}
+        for spec in manifest.streams:
+            identity = str(spec.instrument.instrument_id)
+            if identity not in instruments or spec.key.channel == "book":
+                instruments[identity] = spec.instrument
+        self.runtime.source_instruments[source_id] = tuple(instruments.values())
+        self.runtime.instruments.update(instruments)
         self.runtime.sources[source_id] = {
             "id": source_id,
             "mode": "replay",

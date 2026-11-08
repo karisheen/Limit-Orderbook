@@ -3,7 +3,8 @@
 import { useMemo } from "react";
 import { useSessionStore } from "@/lib/session/SessionContext";
 import { resampleBars, rollingRealizedVolatility, rollingVolumeZScores, secondsPerYear } from "@/lib/engine/analytics";
-import { formatCompact, formatPercent, formatPriceValue, formatSigned, priceDecimals, VENUE_LABEL } from "@/lib/format";
+import { formatCompact, formatPercent, formatPriceValue, formatSigned, priceDecimals } from "@/lib/format";
+import { venueLabel } from "../../format";
 import { Stat } from "@/components/ui/Primitives";
 import { AssetLogo } from "@/components/AssetLogo";
 import { assetFor } from "@/lib/config/instruments";
@@ -45,7 +46,6 @@ export default function MarketStatsBar() {
   const delta = session ? session.buyVolume - session.sellVolume : 0;
   const buyShare = session && session.volume ? (session.buyVolume / session.volume) * 100 : 50;
   const assetName = assetFor(symbol)?.name;
-  const venueLabel = VENUE_LABEL[venue] ?? venue;
   const quote = symbol.split("/")[1] ?? "";
 
   return (
@@ -55,7 +55,7 @@ export default function MarketStatsBar() {
           <AssetLogo symbol={symbol} size={30} />
           <div>
             <strong>{symbol}</strong>
-            <small>{assetName ?? venueLabel} · {marketType === "perpetual" ? "Perp" : "Spot"}</small>
+            <small>{assetName ?? venueLabel(venue)} · {marketType === "perpetual" ? "Perp" : "Spot"}</small>
           </div>
         </div>
         <span className={`hero-price-value ${change >= 0 ? "is-up" : "is-down"}`}>{px(last || undefined)}</span>

@@ -4,6 +4,7 @@ import type { ManagedRecording, RecordingMutationResponse, RecordingsResponse } 
 import { Reasons } from '../WorkflowUI';
 import { useNativeTerminal } from './NativeContext';
 import { ownedSessionRecording } from './nativeWorkspace';
+import { venueLabel } from '../format';
 
 export function NativeRecording() {
   const { terminal, connected, fence, selectSource } = useNativeTerminal();
@@ -75,7 +76,7 @@ export function NativeRecording() {
         <p className="caption">Scope: {item.scope === 'cohort' ? 'Session cohort' : 'Selected instrument'} · {item.instruments.length} instruments · {item.channels.length} channels</p>
         <details><summary>Captured instruments and channels</summary>
           <p>Instruments: {item.instruments.length ? item.instruments.join(', ') : 'None reported'}</p>
-          {item.channels.length ? <ul>{item.channels.map(channel => <li key={JSON.stringify([channel.venue, channel.instrument_id, channel.stream])}>{channel.venue} · {channel.instrument_id} · {channel.stream}</li>)}</ul> : <p>No channels reported.</p>}
+          {item.channels.length ? <ul>{item.channels.map(channel => <li key={JSON.stringify([channel.venue, channel.instrument_id, channel.stream])}>{venueLabel(channel.venue)} · {channel.instrument_id} · {channel.stream}</li>)}</ul> : <p>No channels reported.</p>}
         </details>
         {item.source_id && <button disabled={terminal.busy || source?.status !== 'ready'} onClick={() => { if (source) selectSource(source); }}>Replay recording</button>}
       </section>;

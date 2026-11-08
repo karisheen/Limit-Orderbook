@@ -2,7 +2,8 @@
 
 import React, { useMemo, useState } from "react";
 import { useSessionStore } from "@/lib/session/SessionContext";
-import { formatClock, formatCompact, formatPriceValue, priceDecimals, VENUE_SHORT } from "@/lib/format";
+import { formatClock, formatCompact, formatPriceValue, priceDecimals } from "@/lib/format";
+import { venueLabel } from "../../format";
 import { Icon } from "@/components/ui/Icons";
 import { Panel, Segmented } from "@/components/ui/Primitives";
 
@@ -90,7 +91,7 @@ export default function TimeAndSales() {
                   <i className={`tick-arrow ${tick > 0 ? "up" : tick < 0 ? "down" : ""}`} />
                 </span>
                 <span className="tape-size">{formatCompact(trade.quantity, 3)}</span>
-                {showVenue && <span className="tape-venue">{VENUE_SHORT[trade.venue] ?? trade.venue}</span>}
+                {showVenue && <span className="tape-venue">{venueLabel(trade.venue)}</span>}
               </div>
             );
           })}

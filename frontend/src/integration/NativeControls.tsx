@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { label, milliseconds } from '../format';
+import { label, milliseconds, venueLabel } from '../format';
 import { presetLayout } from '../workspace';
 import type { WorkspacePreferences } from '../workspace';
 import { terminalIncidents } from '../terminal-incident';
@@ -7,6 +7,7 @@ import { Details, Empty, Panel, Reasons, Value } from '../WorkflowUI';
 import { ReplayControls } from './NativeWidgets';
 import { NativeRecording } from './NativeRecording';
 import { useNativeTerminal } from './NativeContext';
+import { metadataNotice, selectableInstrument } from '../instrument-metadata';
 
 const instrumentPageSize = 100;
 const abbreviateCaptureLabel = (value: string) => value.replace(/\b[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\b/gi, id => `${id.slice(0, 8)}…`);
@@ -16,6 +17,7 @@ export function NativeControls() {
     selectInstrument: selectContextInstrument, selectSource: changeSource, workspace } = useNativeTerminal();
   const { catalog, frame } = terminal;
   const { storageError, slots, saveSlot, loadSlot } = workspace;
+  const capabilityNotice = metadataNotice(frame, instruments);
   const [query, setQuery] = useState('');
   const [venue, setVenue] = useState('');
   const [quote, setQuote] = useState('');
@@ -37,7 +39,7 @@ export function NativeControls() {
   }), [instruments]);
   const filtered = useMemo(() => {
     const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    return instruments.filter(item => (!venue || item.venue === venue) && (!quote || item.quote.asset_id === quote) && (!market || item.market_type === market) && terms.every(term => [item.instrument_id, item.native_symbol, item.venue, item.base.ticker, item.quote.ticker, item.market_type].join(' ').toLowerCase().includes(term)));
+    return instruments.filter(item => (!venue || item.venue === venue) && (!quote || item.quote.asset_id === quote) && (!market || item.market_type === market) && terms.every(term => [item.instrument_id, item.native_symbol, item.venue, venueLabel(item.venue), item.base.ticker, item.quote.ticker, item.market_type].join(' ').toLowerCase().includes(term)));
   }, [instruments, venue, quote, market, query]);
   const pageCount = Math.max(1, Math.ceil(filtered.length / instrumentPageSize));
   const page = Math.min(instrumentPage, pageCount - 1);
@@ -122,12 +124,12 @@ export function NativeControls() {
         <label>Search instruments<input ref={search} aria-label="Search instruments" aria-controls="instrument-results" placeholder="Symbol, venue, quote…" type="search" value={query} onChange={event => setQuery(event.target.value)} /></label>
       <div id="instrument-results" className="native-watchlist"><Panel title="Instruments" extra={<span className="muted">{filtered.length}</span>}>
         <div className="instrument-filters">
-          <select aria-label="Filter venue" value={venue} onChange={event => setVenue(event.target.value)}><option value="">All venues</option>{choices.venues.map(value => <option key={value}>{value}</option>)}</select>
+          <select aria-label="Filter venue" value={venue} onChange={event => setVenue(event.target.value)}><option value="">All venues</option>{choices.venues.map(value => <option key={value} value={value}>{venueLabel(value)}</option>)}</select>
           <select aria-label="Filter quote" value={quote} onChange={event => setQuote(event.target.value)}><option value="">All exact quote assets</option>{choices.quotes.map(asset => <option key={asset.asset_id} value={asset.asset_id}>{asset.ticker} · {asset.asset_id}</option>)}</select>
           <select aria-label="Filter market" value={market} onChange={event => setMarket(event.target.value)}><option value="">All markets</option>{choices.markets.map(value => <option key={value}>{value}</option>)}</select>
       <label className="cohort-control">Cohort<select aria-label="Native cohort" value={quote && market ? JSON.stringify([quote, market]) : quote || market ? 'custom' : ''} onChange={event => { const [nextQuote, nextMarket] = event.target.value ? JSON.parse(event.target.value) as [string, string] : ['', '']; setQuote(nextQuote); setMarket(nextMarket); update({ leftOpen: true }); }}><option value="">All native cohorts</option>{(quote || market) && !(quote && market) && <option value="custom" disabled>Custom filters</option>}{choices.cohorts.map(([value, item]) => <option key={value} value={value}>{item.quote.ticker} · {item.market_type} · {item.quote.asset_id}</option>)}</select></label>
         </div>
-        <div className="instrument-list scroll" key={JSON.stringify([sourceId, query, venue, quote, market, page])}>{!filtered.length ? <Empty>{catalog ? 'No exact instruments match these filters.' : 'Loading instrument catalog…'}</Empty> : pageInstruments.map(item => <button className={`instrument ${item.instrument_id === selected?.instrument_id ? 'selected' : ''}`} key={item.instrument_id} title={item.instrument_id} data-instrument-id={item.instrument_id} aria-pressed={item.instrument_id === selected?.instrument_id} disabled={terminal.busy || !usable} onClick={() => { if (watchlist.current) closeDetails(watchlist.current, true); void selectContextInstrument(item.instrument_id); }}><span><strong>{item.native_symbol}</strong><small>{item.venue}</small></span><span><small>{item.market_type} · {item.quote.ticker}</small><small>{item.status} / {item.data_access}</small></span></button>)}</div>
+        <div className="instrument-list scroll" key={JSON.stringify([sourceId, query, venue, quote, market, page])}>{!filtered.length ? <Empty>{catalog ? 'No exact instruments match these filters.' : 'Loading instrument catalog…'}</Empty> : pageInstruments.map(item => <button className={`instrument ${item.instrument_id === frame?.selection.instrument_id ? 'selected' : ''}`} key={item.instrument_id} title={item.instrument_id} data-instrument-id={item.instrument_id} aria-pressed={item.instrument_id === frame?.selection.instrument_id} disabled={terminal.busy || !connected || frame?.status === 'seeking' || frame?.source.mode === 'live' && !selectableInstrument(item)} onClick={() => { if (watchlist.current) closeDetails(watchlist.current, true); void selectContextInstrument(item.instrument_id); }}><span><strong>{item.native_symbol}</strong><small>{venueLabel(item.venue)}</small></span><span><small>{item.market_type} · {item.quote.ticker}</small><small>{item.metadata_status === 'streaming_only' ? 'Streaming only' : item.status} / {item.data_access}</small></span></button>)}</div>
         {pageCount > 1 && <nav className="panel-toolbar" aria-label="Instrument pages"><button aria-label="Previous instrument page" disabled={page === 0} onClick={() => setInstrumentPage(page - 1)}>Prev</button><span>{page + 1} / {pageCount} · {instrumentPageSize}/page</span><button aria-label="Next instrument page" disabled={page + 1 >= pageCount} onClick={() => setInstrumentPage(page + 1)}>Next</button></nav>}
       </Panel></div>
       </div></details>
@@ -155,10 +157,12 @@ export function NativeControls() {
         <dl className="metadata"><dt>Native feed mode</dt><dd>{frame?.book?.quality.source_mode ?? 'Awaiting evidence'}</dd><dt>Recorded source mode</dt><dd>{frame?.book?.quality.recorded_source_mode ?? '—'}</dd><dt>Capture complete</dt><dd>{frame?.book ? String(frame.book.quality.capture_complete) : 'Unknown'}</dd><dt>Coverage</dt><dd>{frame?.book?.quality.coverage.full_depth ? 'Full depth' : 'Bounded / unknown outside scope'}</dd><dt>Source state</dt><dd>{frame?.source.status ?? 'Loading'}</dd><dt>Settlement</dt><dd>{selected?.settlement?.ticker ?? 'None declared'}</dd><dt>Tick / lot</dt><dd><Value value={selected?.tick_size} /> / <Value value={selected?.lot_size} /></dd><dt>Execution access</dt><dd>{selected?.execution_access ?? 'Unknown'}</dd></dl>
         {frame?.book && (frame.book.presentation.bids_omitted > 0 || frame.book.presentation.asks_omitted > 0) && <p className="caption">Frame carries the first {frame.book.presentation.depth_limit} levels per side. Native reconstruction, grouped ladder and cost walks retain full source depth.</p>}
         <Details title="Exact instrument metadata" value={selected ?? null} /><Details title="Source & capture descriptor" value={frame?.source ?? null} />
+        <Details title="Session-pinned metadata identity" value={frame?.selection ?? null} />
         <Details title="Available source readiness & reasons" value={catalog?.sources ?? []} /><Details title={`Live ingestion evidence · ${frame?.telemetry.ingestion.length ?? 0} streams`} value={frame?.telemetry.ingestion ?? []} />
         <Details title="All terminal incidents and exact causes" value={{ incidents, qualityReasons }} />
       </div></details>
     </div>
+    {capabilityNotice && <p className="caption warning" role="status" data-testid="metadata-capability-notice">{capabilityNotice}</p>}
     {frame?.replay && <ReplayControls frame={frame} busy={terminal.busy || !connected} replay={terminal.replay} />}
     <details ref={diagnostics} className="diagnostics"><summary>Diagnostics</summary>
       <Details title="All terminal incidents and exact causes" value={{ incidents, qualityReasons }} />

@@ -1,11 +1,14 @@
 // Adapted from zadescoxp/order-flow-screener (Apache-2.0), revision 2b451b5. Modified for Limit Orderbook: Vite integration, strict typing and local workspace.
 
+import { useMemo } from "react";
 import { useSessionStore } from "@/lib/session/SessionContext";
 import type { PanelVisibility, Timeframe, ToolProfile, VenueSelection } from "@/lib/types/market";
 import { THEME_OPTIONS, type Theme } from "@/lib/theme";
 import { displayCohort, displayMarketType, displaySymbol, displayVenue, sameNativeMarket } from "@/lib/config/instruments";
 import { useNativeTerminal } from "../../integration/NativeContext";
 import type { Instrument } from "../../api";
+import { venueLabel } from "../../format";
+import { selectableInstrument } from "../../instrument-metadata";
 import { AssetLogo, VenueLogo } from "@/components/AssetLogo";
 import { Picker, type PickerOption } from "@/components/ui/Picker";
 import { useUIStore } from "@/lib/store/uiStore";
@@ -34,7 +37,7 @@ const PANEL_ITEMS: { key: keyof PanelVisibility; label: string; hint: string; gr
 ];
 
 export default function TopBar() {
-  const { instruments, instrument, selectInstrument } = useNativeTerminal();
+  const { terminal, connected, instruments, instrument, selectInstrument } = useNativeTerminal();
   const symbol = useSessionStore((s) => s.symbol);
   const venue = useSessionStore((s) => s.venue);
   const marketType = useSessionStore((s) => s.marketType);
@@ -51,35 +54,57 @@ export default function TopBar() {
   const setToolProfile = useUIStore((s) => s.setToolProfile);
   const setPanelVisible = useUIStore((s) => s.setPanelVisible);
 
-  const available = instruments.filter((item) => displayMarketType(item) === marketType);
-  const symbols = [...new Map(available.map((item) => [displaySymbol(item), item])).entries()];
-  const instrumentOptions: PickerOption<string>[] = symbols.map(([value, item]) => ({
-    value,
-    label: value,
-    sub: item.base.ticker,
-    keywords: `${item.base.ticker} ${item.quote.ticker}`,
-    icon: <AssetLogo symbol={value} size={22} />,
-  }));
+  // A candidate can be subscribed before it has any ready market evidence.
+  const canSelect = connected && !terminal.busy && terminal.frame?.status !== "seeking";
+  const live = terminal.frame?.source.mode === "live";
+  const candidates = useMemo(
+    () => instruments.filter((item) => !live || selectableInstrument(item)),
+    [instruments, live],
+  );
+  const available = useMemo(
+    () => instruments.filter((item) => displayMarketType(item) === marketType),
+    [instruments, marketType],
+  );
+  const selectable = useMemo(
+    () => candidates.filter((item) => displayMarketType(item) === marketType),
+    [candidates, marketType],
+  );
+  const instrumentOptions = useMemo<PickerOption<string>[]>(() => {
+    // Native discovery is much larger than a curated watchlist. One symbol index
+    // avoids rescanning the entire catalogue for every option on each frame.
+    const enabledSymbols = new Set(selectable.map(displaySymbol));
+    const symbols = new Map(available.map((item) => [displaySymbol(item), item]));
+    return [...symbols].map(([value, item]) => ({
+      value,
+      label: value,
+      sub: item.base.ticker,
+      keywords: `${item.base.ticker} ${item.quote.ticker}`,
+      icon: <AssetLogo symbol={value} size={22} />,
+      disabled: !canSelect || !enabledSymbols.has(value),
+    }));
+  }, [available, selectable, canSelect]);
   const aggregateValue: VenueSelection = marketType === "perpetual" ? "all-perps" : "all-spot";
   const primary = instrument && displayMarketType(instrument) === marketType
     ? instrument : available.find((item) => displaySymbol(item) === symbol);
   const cohort = primary ? available.filter((item) => sameNativeMarket(item, primary)) : [];
-  const aggregateCohort = primary ? displayCohort(available, primary) : [];
+  const selectableCohort = primary ? selectable.filter((item) => sameNativeMarket(item, primary)) : [];
+  const aggregateCohort = primary ? displayCohort(selectable, primary) : [];
   const venues = [...new Set(cohort.map(displayVenue))];
   const aggregate = venue === "all-perps" || venue === "all-spot";
 
   const activate = (next: Instrument, nextVenue: VenueSelection) => {
+    if (!canSelect || !candidates.some((item) => item.instrument_id === next.instrument_id)) return;
     setMarketType(displayMarketType(next));
     setSymbol(displaySymbol(next));
     setVenue(nextVenue);
     if (nextVenue === "all-perps" || nextVenue === "all-spot") {
-      setSelectedVenues([...new Set(displayCohort(instruments, next).map(displayVenue))]);
+      setSelectedVenues([...new Set(displayCohort(candidates, next).map(displayVenue))]);
     }
     selectInstrument(next.instrument_id);
   };
 
   const chooseSymbol = (next: string) => {
-    const matches = available.filter((item) => displaySymbol(item) === next);
+    const matches = selectable.filter((item) => displaySymbol(item) === next);
     const selected = matches.find((item) => displayVenue(item) === (instrument ? displayVenue(instrument) : venue)) ?? matches[0];
     if (selected) activate(selected, aggregate ? aggregateValue : displayVenue(selected));
   };
@@ -87,16 +112,17 @@ export default function TopBar() {
   const venuePickerOptions: PickerOption<VenueSelection>[] = [
     {
       value: aggregateValue,
-      label: marketType === "perpetual" ? "All perps" : "All spot",
+      label: venueLabel(aggregateValue),
       sub: `Indicative aggregate · ${aggregateCohort.length} venues · eligible quotes only`,
       icon: <VenueLogo venue={aggregateValue} size={20} />,
-      disabled: !primary,
+      disabled: !canSelect || !primary || !candidates.some((item) => item.instrument_id === primary.instrument_id),
     },
     ...venues.map((value) => ({
       value,
-      label: value,
+      label: venueLabel(value),
       sub: marketType === "perpetual" ? "Perpetual" : "Spot",
       icon: <VenueLogo venue={value} size={20} />,
+      disabled: !canSelect || !selectableCohort.some((item) => displayVenue(item) === value),
     })),
   ];
 
@@ -105,7 +131,7 @@ export default function TopBar() {
       if (primary) activate(primary, next);
       return;
     }
-    const matches = cohort.filter((item) => displayVenue(item) === next);
+    const matches = selectableCohort.filter((item) => displayVenue(item) === next);
     const selected = matches.find((item) => item.instrument_id === primary?.instrument_id)
       ?? matches.find((item) => item.quote.asset_id === primary?.quote.asset_id)
       ?? matches.find((item) => displaySymbol(item) === symbol) ?? matches[0];
@@ -114,7 +140,7 @@ export default function TopBar() {
 
   const chooseMarket = (next: "spot" | "perpetual") => {
     if (next === marketType) return;
-    const matches = instruments.filter((item) => displayMarketType(item) === next);
+    const matches = candidates.filter((item) => displayMarketType(item) === next);
     const sameBase = matches.filter((item) => item.base.asset_id === instrument?.base.asset_id);
     const selected = sameBase.find((item) => displayVenue(item) === instrument?.venue && item.quote.asset_id === instrument?.quote.asset_id)
       ?? sameBase.find((item) => displayVenue(item) === instrument?.venue) ?? sameBase[0] ?? matches[0];
@@ -130,8 +156,8 @@ export default function TopBar() {
           value={marketType}
           onChange={chooseMarket}
           options={[
-            { value: "perpetual", label: "Perp", title: "Crypto perpetual futures", disabled: !instruments.some((item) => displayMarketType(item) === "perpetual") },
-            { value: "spot", label: "Spot", title: "Crypto spot", disabled: !instruments.some((item) => displayMarketType(item) === "spot") },
+            { value: "perpetual", label: "Perp", title: "Crypto perpetual futures", disabled: !canSelect || !candidates.some((item) => displayMarketType(item) === "perpetual") },
+            { value: "spot", label: "Spot", title: "Crypto spot", disabled: !canSelect || !candidates.some((item) => displayMarketType(item) === "spot") },
           ]}
           ariaLabel="Market"
         />
@@ -149,6 +175,7 @@ export default function TopBar() {
         />
           <Picker
             value={venue}
+            fallbackLabel={venueLabel(venue)}
             options={venuePickerOptions}
             onChange={chooseVenue}
             ariaLabel="Venue"

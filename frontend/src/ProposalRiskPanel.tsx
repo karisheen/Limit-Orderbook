@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { Frame, ProposalRisk, ProposalRiskInput } from './api';
 import { errorMessage } from './api';
+import { metadataVerified } from './instrument-metadata';
 
 interface RiskSnapshot {
   data: ProposalRisk;
@@ -37,10 +38,11 @@ export function ProposalRiskPanel({ frame, connected, calculate }: {
     ...(feeMode === 'assumed' ? { fee_bps: fee, fee_provenance: provenance, fee_date: feeDate } : {}),
   };
   const inputKey = JSON.stringify(input);
-  const identity = JSON.stringify([frame?.session_id, frame?.generation, frame?.source.id, frame?.source.mode, frame?.selection.instrument_id]);
+  const identity = JSON.stringify([frame?.session_id, frame?.generation, frame?.source.id, frame?.source.mode, frame?.selection.instrument_id, frame?.selection.metadata_status, frame?.selection.metadata_version]);
   const unavailable = !connected ? 'Disconnected · reconnect before calculating.'
     : !frame ? 'Waiting for a session frame.'
     : !frame.selection.instrument_id ? 'Select an exact instrument before calculating.'
+    : !metadataVerified(frame) ? 'Streaming-only or unverified session metadata: proposed risk requires verified session-pinned instrument metadata. Market data and analytics remain available.'
     : frame.status === 'loading' || frame.status === 'seeking' ? 'Source is loading or seeking · wait before calculating.'
     : frame.status === 'unavailable' || frame.status === 'error' ? frame.error ?? 'Source unavailable · inspect the source health reasons.'
     : null;

@@ -34,7 +34,7 @@ export function NativeProvider({ children }: { children: ReactNode }) {
   const metadata = retainConfirmedCatalog(confirmedCatalog.current, frame, terminal.catalog?.instruments ?? emptyInstruments, terminal.catalogError);
   useEffect(() => { confirmedCatalog.current = metadata; }, [metadata]);
   const instruments = metadata?.instruments ?? emptyInstruments;
-  const instrument = instruments.find(item => item.instrument_id === frame?.selection.instrument_id);
+  const instrument = metadata?.selected;
   const connected = terminal.connection === 'Connected';
   const usable = connected && !!frame && !['seeking', 'unavailable', 'error', 'loading'].includes(frame.status);
   const fence = frame ? `${frame.session_id}:${frame.generation}:${frame.source.id}:${frame.selection.instrument_id}` : '';

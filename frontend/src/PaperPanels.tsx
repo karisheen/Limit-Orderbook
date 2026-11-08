@@ -7,6 +7,8 @@ import type {
   PaperSnapshot, WorkflowPanelProps, WorkflowQuery,
 } from './workflow-api';
 import { Details, Empty, Panel, Reasons, Value } from './WorkflowUI';
+import { venueLabel } from './format';
+import { metadataVerified } from './instrument-metadata';
 import './paper-panels.css';
 
 const detailLimits = { orders_limit: 100, fills_limit: 100 };
@@ -135,15 +137,15 @@ function Accounting({ snapshot, cancel, disabled = false }: { snapshot: PaperSna
     {!snapshot.run && <Empty>No configured paper run. Set explicit starting balances and sourced fees below.</Empty>}
     {snapshot.run && <Details title="Run configuration intent, starting balances, fee schedules, latency and origin (not current funds)" value={snapshot.run} />}
     <h3>Balances at the stated accounting prefix</h3>
-    {snapshot.balances.length === 0 ? <Empty>No balances visible at this accounting prefix. Configuration intent is not available funds.</Empty> : <div className="paper-table-scroll"><table><thead><tr><th>Venue</th><th>Asset ID</th><th>Available — exact</th></tr></thead><tbody>{snapshot.balances.map(balance => <tr key={`${balance.venue}:${balance.asset_id}`}><td>{balance.venue}</td><td>{balance.asset_id}</td><td><Exact value={balance.available} /></td></tr>)}</tbody></table></div>}
+    {snapshot.balances.length === 0 ? <Empty>No balances visible at this accounting prefix. Configuration intent is not available funds.</Empty> : <div className="paper-table-scroll"><table><thead><tr><th>Venue</th><th>Asset ID</th><th>Available — exact</th></tr></thead><tbody>{snapshot.balances.map(balance => <tr key={`${balance.venue}:${balance.asset_id}`}><td>{venueLabel(balance.venue)}</td><td>{balance.asset_id}</td><td><Exact value={balance.available} /></td></tr>)}</tbody></table></div>}
     <h3>Positions and native P&amp;L</h3>
     <p className="caption">Unrealized P&amp;L uses gross best-bid marks, not net liquidation proceeds. Initial inventory cost basis can be unknown. No browser valuation or cross-asset totals.</p>
-    {snapshot.positions.length === 0 ? <Empty>No positions at this prefix.</Empty> : <div className="paper-table-scroll"><table><thead><tr><th>Venue / instrument / assets</th><th>Quantity</th><th>Cost basis (quote)</th><th>Realized P&amp;L (quote)</th><th>Gross bid-mark unrealized (quote)</th><th>Bid mark / reasons</th></tr></thead><tbody>{snapshot.positions.map(position => <tr key={`${position.venue}:${position.instrument_id}`}><td>{position.venue}<br />{position.instrument_id}<br />{position.asset_id} / {position.quote_asset_id}</td><td><Exact value={position.quantity} /></td><td><Exact value={position.cost_basis_quote} /></td><td><Exact value={position.realized_pnl_quote} /></td><td><Exact value={position.unrealized_pnl_quote} /></td><td><Exact value={position.mark_price} /><Reasons reasons={position.reasons} /></td></tr>)}</tbody></table></div>}
+    {snapshot.positions.length === 0 ? <Empty>No positions at this prefix.</Empty> : <div className="paper-table-scroll"><table><thead><tr><th>Venue / instrument / assets</th><th>Quantity</th><th>Cost basis (quote)</th><th>Realized P&amp;L (quote)</th><th>Gross bid-mark unrealized (quote)</th><th>Bid mark / reasons</th></tr></thead><tbody>{snapshot.positions.map(position => <tr key={`${position.venue}:${position.instrument_id}`}><td>{venueLabel(position.venue)}<br />{position.instrument_id}<br />{position.asset_id} / {position.quote_asset_id}</td><td><Exact value={position.quantity} /></td><td><Exact value={position.cost_basis_quote} /></td><td><Exact value={position.realized_pnl_quote} /></td><td><Exact value={position.unrealized_pnl_quote} /></td><td><Exact value={position.mark_price} /><Reasons reasons={position.reasons} /></td></tr>)}</tbody></table></div>}
     <h3>Orders — market / marketable-limit IOC</h3>
     {snapshot.orders.length === 0 ? <Empty>No orders visible at this prefix.</Empty> : <div className="paper-table-scroll"><table><thead><tr><th>Order / instrument</th><th>Request</th><th>Status / exact execution</th><th>Latency clocks / reasons / action</th></tr></thead><tbody>{snapshot.orders.map(order => <tr key={order.order_id}><td>{order.order_id}<br />{order.request.instrument_id}</td><td>{order.request.side} {order.request.order_type}<br />Quantity <Exact value={order.request.quantity} /><br />Limit <Exact value={order.request.limit_price} /></td><td>{order.status}<br />Filled <Exact value={order.filled_quantity} /><br />Remaining <Exact value={order.remaining_quantity} /></td><td>Submit ns <Exact value={order.submitted_at.mono_ns} /><br />Arrival ns <Exact value={order.arrival_at.mono_ns} /><Reasons reasons={order.reasons} />{cancel && order.status === 'pending' && <button type="button" disabled={disabled} onClick={() => cancel(order.order_id)}>Cancel pending order</button>}<Details title="Exact order provenance" value={order} /></td></tr>)}</tbody></table></div>}
     <p className="caption">Showing up to {snapshot.presentation.orders_limit} orders; {snapshot.presentation.orders_omitted} omitted.</p>
     <h3>Fills, exact fees and consumed native book levels</h3>
-    {snapshot.fills.length === 0 ? <Empty>No fills visible at this prefix. No passive touch-fill inference.</Empty> : <div className="paper-table-scroll"><table><thead><tr><th>Fill / order / instrument</th><th>Quantity / notional</th><th>Fee / schedule</th><th>Time / native evidence</th></tr></thead><tbody>{snapshot.fills.map(fill => <tr key={fill.fill_id}><td>{fill.fill_id}<br />Order {fill.order_id}<br />{fill.venue} · {fill.instrument_id} · {fill.side}</td><td><Exact value={fill.quantity} /><br /><Exact value={fill.notional_quote} /> {fill.quote_asset_id}</td><td><Exact value={fill.fee_amount} /> {fill.fee_asset_id}<br />Rate <Exact value={fill.fees.rate} /><br />{fill.fees.provenance}<br />As-of wall ns <Exact value={fill.fees.asof_wall_ns} /> · {fill.fees.assumed ? 'assumed' : 'not assumed'}</td><td>Delivery <Exact value={fill.delivery_index} /><br />Clock {fill.at.clock_id}<br />ns <Exact value={fill.at.mono_ns} /><Details title="Fill, fees, book reference and consumed levels" value={fill} /><span>{fill.consumed_levels_omitted} consumed levels omitted (limit {snapshot.presentation.fill_levels_limit}).</span></td></tr>)}</tbody></table></div>}
+    {snapshot.fills.length === 0 ? <Empty>No fills visible at this prefix. No passive touch-fill inference.</Empty> : <div className="paper-table-scroll"><table><thead><tr><th>Fill / order / instrument</th><th>Quantity / notional</th><th>Fee / schedule</th><th>Time / native evidence</th></tr></thead><tbody>{snapshot.fills.map(fill => <tr key={fill.fill_id}><td>{fill.fill_id}<br />Order {fill.order_id}<br />{venueLabel(fill.venue)} · {fill.instrument_id} · {fill.side}</td><td><Exact value={fill.quantity} /><br /><Exact value={fill.notional_quote} /> {fill.quote_asset_id}</td><td><Exact value={fill.fee_amount} /> {fill.fee_asset_id}<br />Rate <Exact value={fill.fees.rate} /><br />{fill.fees.provenance}<br />As-of wall ns <Exact value={fill.fees.asof_wall_ns} /> · {fill.fees.assumed ? 'assumed' : 'not assumed'}</td><td>Delivery <Exact value={fill.delivery_index} /><br />Clock {fill.at.clock_id}<br />ns <Exact value={fill.at.mono_ns} /><Details title="Fill, fees, book reference and consumed levels" value={fill} /><span>{fill.consumed_levels_omitted} consumed levels omitted (limit {snapshot.presentation.fill_levels_limit}).</span></td></tr>)}</tbody></table></div>}
     <p className="caption">Showing up to {snapshot.presentation.fills_limit} fills; {snapshot.presentation.fills_omitted} omitted.</p>
     <h3>Native assumptions and limitations</h3><Reasons reasons={snapshot.assumptions} />
   </div>;
@@ -179,13 +181,15 @@ export function PaperPanel(props: WorkflowPanelProps & { resumeRun: (id: string,
   const snapshot = paper?.snapshot;
   const instrument = props.instruments.find(item => item.instrument_id === props.frame?.selection.instrument_id);
   const disabled = !io.enabled || io.pending;
+  const verified = metadataVerified(props.frame);
+  const configurationDisabled = disabled || !verified;
   const currentRun = snapshot?.run;
   const runActive = !!currentRun && !snapshot?.reasons.some(reason => ['run_not_active_at_cursor', 'future_commands_fork_required', 'stale_run_reload_required', 'run_source_clock_mismatch'].includes(reason));
-  const canOrder = !disabled && runActive && instrument?.market_type === 'spot' && instrument.quantity_unit === 'base';
+  const canOrder = !configurationDisabled && runActive && instrument?.market_type === 'spot' && instrument.quantity_unit === 'base';
   useEffect(() => { setArchive(null); setConfirmedFork(false); setQuantity(''); setLimitPrice(''); }, [scope]);
   const configure = (event: FormEvent) => {
     event.preventDefault();
-    if (disabled || !confirmedFork) return;
+    if (configurationDisabled || !confirmedFork) return;
     const input: PaperConfigurationInput = {
       balances: balances.map((balance): BalanceInput => ({ ...balance })), fees: fees.map(fee => ({ ...fee })),
       feed_latency_ns: feed, decision_latency_ns: decision, order_latency_ns: orderLatency,
@@ -223,6 +227,7 @@ export function PaperPanel(props: WorkflowPanelProps & { resumeRun: (id: string,
   return <Panel title="Paper execution — native spot simulation" className="paper-workflow" extra={<button type="button" disabled={disabled} onClick={io.refresh}>Refresh native state</button>}>
     <p className="caption">Simulation only. No credentials or real orders. Spot market and marketable-limit IOC; no passive fills or derivative economics. Native fees, funds, depth, latency and reservations determine outcomes.</p>
     <Availability {...io} />
+    {props.frame?.selection.instrument_id && !verified && <p className="paper-notice" role="status">Streaming-only or unverified session metadata: paper configuration and orders require verified session-pinned instrument metadata. Native accounting, archived audits, market data and analytics remain available.</p>}
     {paper && <Provenance response={paper} />}
     {resumeRequested && resumeRequested.session === props.frame?.session_id && <p className="paper-notice">Resume requested: {resumeRequested.id}. {resumeRequested.acceptedGeneration !== null && paper?.generation === resumeRequested.acceptedGeneration && currentRun?.run_id === resumeRequested.id && !snapshot?.reasons.includes('run_not_active_at_cursor') ? 'Confirmed by a new-generation native run snapshot; accounting is rebuilt only through the current cursor.' : 'Not yet confirmed by a new-generation native run snapshot. Inspect terminal lifecycle/errors and refresh; completion alone is not success.'}</p>}
     <form className="paper-order-form" onSubmit={submitOrder}>
@@ -242,7 +247,7 @@ export function PaperPanel(props: WorkflowPanelProps & { resumeRun: (id: string,
       <summary>Explicit new run / fork — starting funds, sourced fees and latency</summary>
       <p className="caption">Every configuration creates a new durable run, preserving prior history. With a selected run it records the parent as a fork; starting balances are exactly what you enter, not copied accounting or automatic funds. Fees and latencies are never inferred. Zero must be an explicit entry.</p>
       <form onSubmit={configure}>
-        <fieldset disabled={disabled}>
+        <fieldset disabled={configurationDisabled}>
           <h3>Starting balances by venue and exact asset ID</h3>
           {balances.map((balance, index) => <div className="paper-draft-row" key={index}>
             {(['venue', 'asset_id', 'available', 'provenance'] as const).map(key => <Field key={key} label={{ venue: 'Venue', asset_id: 'Asset ID', available: 'Starting available — exact', provenance: 'Balance provenance' }[key]}><input required value={balance[key]} inputMode={key === 'available' ? 'decimal' : undefined} onChange={event => setBalances(previous => previous.map((row, rowIndex) => rowIndex === index ? { ...row, [key]: event.target.value } : row))} /></Field>)}
@@ -252,7 +257,7 @@ export function PaperPanel(props: WorkflowPanelProps & { resumeRun: (id: string,
           <p className="caption">Selected metadata: venue {instrument?.venue ?? 'unavailable'}; base {instrument?.base.asset_id ?? 'unavailable'}; quote {instrument?.quote.asset_id ?? 'unavailable'}. These identifiers do not grant funds. Balance as-of is unspecified; provenance is supplied by you.</p>
           <h3>Explicit sourced and dated fee schedules</h3>
           {fees.map((fee, index) => <div className="paper-draft-row" key={index}>
-            <Field label="Fee instrument"><select required value={fee.instrument_id} onChange={event => setFees(previous => previous.map((row, rowIndex) => rowIndex === index ? { ...row, instrument_id: event.target.value } : row))}><option value="">Select exact instrument</option>{props.instruments.map(item => <option key={item.instrument_id} value={item.instrument_id}>{item.venue} · {item.native_symbol} · {item.instrument_id}</option>)}</select></Field>
+            <Field label="Fee instrument"><select required value={fee.instrument_id} onChange={event => setFees(previous => previous.map((row, rowIndex) => rowIndex === index ? { ...row, instrument_id: event.target.value } : row))}><option value="">Select exact instrument</option>{props.instruments.map(item => <option key={item.instrument_id} value={item.instrument_id}>{venueLabel(item.venue)} · {item.native_symbol} · {item.instrument_id}</option>)}</select></Field>
             {(['fee_bps', 'fee_asset_id', 'fee_provenance', 'fee_date'] as const).map(key => <Field key={key} label={{ fee_bps: 'Fee basis points — exact', fee_asset_id: 'Fee asset ID', fee_provenance: 'Fee source / provenance', fee_date: 'Fee source date' }[key]}><input required type={key === 'fee_date' ? 'date' : 'text'} inputMode={key === 'fee_bps' ? 'decimal' : undefined} value={fee[key]} onChange={event => setFees(previous => previous.map((row, rowIndex) => rowIndex === index ? { ...row, [key]: event.target.value } : row))} /></Field>)}
             <button type="button" onClick={() => setFees(previous => previous.filter((_, rowIndex) => rowIndex !== index))}>Remove fee</button>
           </div>)}

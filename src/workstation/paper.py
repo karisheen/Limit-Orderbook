@@ -704,6 +704,8 @@ class PaperEngine:
         instrument = self._metadata.get(request.instrument_id)
         if instrument is None:
             raise PaperError("unknown_instrument")
+        if instrument.metadata_status != "verified":
+            raise PaperError("instrument_metadata_unverified")
         if (
             instrument.market_type != "spot"
             or instrument.quantity_unit != "base"
@@ -1098,6 +1100,9 @@ class PaperEngine:
         if instrument is None:
             self._finish(order, ("instrument_metadata_unavailable",))
             return
+        if instrument.metadata_status != "verified":
+            self._finish(order, ("instrument_metadata_unverified",))
+            return
         if (
             instrument.market_type != "spot"
             or instrument.quantity_unit != "base"
@@ -1116,6 +1121,8 @@ class PaperEngine:
         if not gate.eligible:
             self._finish(order, gate.reasons)
             return
+        lot = instrument.lot_size
+        assert lot is not None  # Verified instruments require a known native lot.
         fees = next(
             (
                 item.schedule
@@ -1176,9 +1183,7 @@ class PaperEngine:
                 if take * level.price > budget:
                     resource_reason = ("insufficient_cash",)
                 take = min(take, budget / level.price)
-            take = (take / instrument.lot_size).to_integral_value(
-                rounding=ROUND_FLOOR
-            ) * instrument.lot_size
+            take = (take / lot).to_integral_value(rounding=ROUND_FLOOR) * lot
             if take > 0:
                 available.append(Level(level.price, take.normalize()))
                 remaining -= take

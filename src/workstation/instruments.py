@@ -93,7 +93,7 @@ class Instrument:
     base: AssetIdentity
     quote: AssetIdentity
     tick_size: Decimal | None
-    lot_size: Decimal
+    lot_size: Decimal | None
     native_asset_id: str | None = None
     dex_namespace: str | None = None
     settlement: AssetIdentity | None = None
@@ -112,6 +112,7 @@ class Instrument:
     reference_multiplier: Decimal | None = None
     settlement_conversion: str = "unknown"
     contract_specification_source: str | None = None
+    metadata_status: str = "verified"
 
     def __post_init__(self):
         object.__setattr__(self, "instrument_id", InstrumentId(self.instrument_id))
@@ -156,6 +157,14 @@ class Instrument:
             ("active", "suspended", "delisted", "unavailable", "unknown"),
             "status",
         )
+        choice(self.metadata_status, ("verified", "streaming_only"), "metadata status")
+        if self.metadata_status == "streaming_only" and (
+            self.tick_size is not None
+            or self.lot_size is not None
+            or self.constraints.price_rule != "unconstrained"
+            or self.constraints.size_rule != "unconstrained"
+        ):
+            raise ValueError("streaming_only metadata cannot specify tick or lot rules")
         for value in (self.data_access, self.execution_access):
             choice(value, ("available", "blocked", "unsupported", "unknown"), "access")
         if type(self.inverse) is not bool:
@@ -170,7 +179,10 @@ class Instrument:
             )
         elif self.constraints.price_rule == "fixed_tick":
             raise ValueError("fixed_tick requires a known tick size")
-        object.__setattr__(self, "lot_size", decimal(self.lot_size, positive=True))
+        if self.lot_size is not None:
+            object.__setattr__(self, "lot_size", decimal(self.lot_size, positive=True))
+        elif self.metadata_status != "streaming_only":
+            raise ValueError("verified metadata requires a known lot size")
         object.__setattr__(
             self,
             "contract_multiplier",
@@ -188,6 +200,12 @@ class Instrument:
         if self.market_type == "future" and self.expiry_wall_ns is None:
             raise ValueError("future requires expiry")
 
+    @property
+    def streamable(self) -> bool:
+        return self.status == "active" or (
+            self.status == "unknown" and self.metadata_status == "streaming_only"
+        )
+
     def validate_price(self, price: Decimal) -> None:
         decimal(price, positive=True)
         if self.tick_size is not None:
@@ -199,11 +217,14 @@ class Instrument:
         self, quantity: Decimal, *, incremental: bool = False
     ) -> None:
         decimal(quantity, nonnegative=not incremental)
-        validate_increment(quantity, self.lot_size, name="quantity")
+        if self.lot_size is not None:
+            validate_increment(quantity, self.lot_size, name="quantity")
 
     def validate_order(
         self, price: Decimal, quantity: Decimal, *, order_type: str
     ) -> None:
+        if self.metadata_status != "verified":
+            raise ValueError("instrument_metadata_unverified")
         choice(order_type, ("limit", "market"), "order type")
         self.validate_price(price)
         self.validate_quantity(quantity)
@@ -271,19 +292,29 @@ class InstrumentCatalog:
 
     def apply_metadata(self, snapshot: MetadataSnapshot) -> tuple[Instrument, ...]:
         versions, latest = self._versions.copy(), self._latest.copy()
+        native_ids = {
+            (item.venue, item.api_family, item.native_symbol): item.instrument_id
+            for item in latest.values()
+        }
         for instrument in snapshot.instruments:
             key = (instrument.instrument_id, instrument.metadata_version)
             if key in versions and versions[key] != instrument:
                 raise ValueError("metadata version is immutable")
             old = latest.get(instrument.instrument_id)
-            if old is not None and self._identity(old) != self._identity(instrument):
-                raise ValueError("stable instrument identity changed")
+            if old is not None:
+                native_id_enriched = (
+                    old.metadata_status == "streaming_only"
+                    and instrument.metadata_status == "verified"
+                    and old.native_asset_id is None
+                )
+                if self._identity(old) != self._identity(instrument) or (
+                    old.native_asset_id != instrument.native_asset_id
+                    and not native_id_enriched
+                ):
+                    raise ValueError("stable instrument identity changed")
             native = (instrument.venue, instrument.api_family, instrument.native_symbol)
-            if any(
-                (item.venue, item.api_family, item.native_symbol) == native
-                and item.instrument_id != instrument.instrument_id
-                for item in latest.values()
-            ):
+            native_id = native_ids.get(native)
+            if native_id is not None and native_id != instrument.instrument_id:
                 raise ValueError("ambiguous native instrument")
             versions[key] = instrument
             if (
@@ -291,6 +322,7 @@ class InstrumentCatalog:
                 or instrument.metadata_asof_wall_ns >= old.metadata_asof_wall_ns
             ):
                 latest[instrument.instrument_id] = instrument
+            native_ids[native] = instrument.instrument_id
         self._versions, self._latest = versions, latest
         return snapshot.instruments
 
@@ -300,7 +332,6 @@ class InstrumentCatalog:
             item.venue,
             item.api_family,
             item.native_symbol,
-            item.native_asset_id,
             item.dex_namespace,
             item.base.asset_id,
             item.quote.asset_id,

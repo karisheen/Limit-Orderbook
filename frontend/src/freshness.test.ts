@@ -21,7 +21,7 @@ const reference = (mono = '1000000000', clock = 'recorded-clock'): Reference => 
 function frame(asof = reference(), mode: Frame['source']['mode'] = 'replay'): Frame {
   return {
     version: '1', type: 'frame', frame_id: '1', session_id: 'browser-session', generation: '3', status: 'playing',
-    selection: { instrument_id: 'BTC' }, source: { id: mode, mode, label: mode, status: 'ready', synthetic: false,
+    selection: { instrument_id: 'BTC', metadata_status: 'verified', metadata_version: '1' }, source: { id: mode, mode, label: mode, status: 'ready', synthetic: false,
       recording: false, duration_ns: null, streams: 1, reasons: [] },
     book: { instrument_id: 'BTC', bids: [], asks: [], asof, revision: '1', presentation: { depth_limit: 10, bids_omitted: 0, asks_omitted: 0 },
       quality: { lifecycle: 'live', integrity: 'valid', source_mode: mode, recorded_source_mode: null, reason_codes: [],
@@ -32,6 +32,24 @@ function frame(asof = reference(), mode: Frame['source']['mode'] = 'replay'): Fr
       publish_to_ack_upper_bound_ms: null, browser_receive_to_paint_ms: null },
   };
 }
+
+test('streaming-only selection does not turn transport frames into fresh market evidence', () => {
+  const live = frame(reference(), 'live');
+  live.selection.metadata_status = 'streaming_only';
+  live.selection.metadata_version = 'subscription-candidate';
+  live.book = null;
+  live.health = { ready: false, reasons: ['awaiting_snapshot'] };
+  assert.equal(referenceLag(live, null, true).ms, null);
+  assert.equal(sourceFrontier(live), null);
+  live.frame_id = '100';
+  live.telemetry.published_mono_ns = '999999999999999999999';
+  assert.equal(referenceLag(live, null, true).ms, null);
+  // Valid source observations, not verified precision, establish source-clock lag.
+  const observed = frame(reference('4000000000'), 'live');
+  observed.selection = live.selection;
+  assert.equal(referenceLag(observed, reference(), true).ms, 3000);
+  assert.equal(referenceLag(observed, reference(), false).ms, null);
+});
 
 function column(asof = reference(), time = '1000000000'): VisualColumn {
   return { id: time, time_ns: time, end_ns: (BigInt(time) + 1_000_000_000n).toString(), segment_id: 'segment',

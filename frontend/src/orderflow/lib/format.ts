@@ -80,29 +80,3 @@ export function formatDuration(ms: number): string {
   if (m > 0) return `${m}m ${sec.toString().padStart(2, "0")}s`;
   return `${sec}s`;
 }
-
-export const VENUE_SHORT: Record<string, string> = {
-  binance: "BIN",
-  "binance-global": "BIN",
-  binance_us: "BUS",
-  bybit: "BYB",
-  okx: "OKX",
-  bitget: "BGT",
-  hyperliquid: "HYP",
-  deribit: "DRB",
-  coinbase: "CB",
-};
-
-export const VENUE_LABEL: Record<string, string> = {
-  binance: "Binance",
-  "binance-global": "Binance",
-  binance_us: "Binance US",
-  bybit: "Bybit",
-  okx: "OKX",
-  bitget: "Bitget",
-  hyperliquid: "Hyperliquid",
-  deribit: "Deribit",
-  coinbase: "Coinbase",
-  "all-perps": "All Perps",
-  "all-spot": "All Spot",
-};

@@ -98,6 +98,52 @@ class AdapterCatalog:
             for venue in ADAPTER_CLASSES
             if include_binance_us or venue != "binance-us"
         }
+        self._authoritative_families: set[tuple[str, str]] = set()
+
+    def seed_streaming(self) -> tuple[Instrument, ...]:
+        """Explicitly publish candidates without overwriting discovery evidence."""
+        from .streaming_bootstrap import streaming_snapshot
+
+        snapshot = streaming_snapshot()
+        existing = {item.instrument_id for item in self.instruments.list()}
+        candidates = tuple(
+            item
+            for item in snapshot.instruments
+            if item.instrument_id not in existing
+            and (item.venue, item.api_family) not in self._authoritative_families
+        )
+        return self.instruments.apply_metadata(
+            replace(snapshot, instruments=candidates)
+        )
+
+    def _apply_discovery(self, venue, adapter, snapshot):
+        """Retire absent products only in completely discovered API families."""
+        evidence = getattr(adapter, "discovery_evidence", ())
+        families = (
+            {family for family, state, _ in evidence if state == "available"}
+            if evidence
+            else {item.api_family for item in snapshot.instruments}
+        )
+        present = {item.instrument_id for item in snapshot.instruments}
+        missing = tuple(
+            replace(
+                item,
+                status="unavailable",
+                metadata_version=(
+                    f"missing:{snapshot.payload_hash}:{snapshot.fetch_wall_ns}"
+                ),
+                metadata_asof_wall_ns=snapshot.fetch_wall_ns,
+                metadata_source=snapshot.source,
+            )
+            for item in self.instruments.list(InstrumentQuery(venue=venue))
+            if item.api_family in families
+            and item.instrument_id not in present
+            and item.metadata_asof_wall_ns <= snapshot.fetch_wall_ns
+        )
+        self.instruments.apply_metadata(
+            replace(snapshot, instruments=snapshot.instruments + missing)
+        )
+        self._authoritative_families.update((venue, family) for family in families)
 
     def adapter(self, venue: str) -> Adapter:
         if venue == "binance-us" and not self.include_binance_us:
@@ -107,7 +153,9 @@ class AdapterCatalog:
         return self.adapters[venue]
 
     @staticmethod
-    def canonical_key(key: SubscriptionKey) -> SubscriptionKey:
+    def canonical_key(
+        key: SubscriptionKey, instrument: Instrument | None = None
+    ) -> SubscriptionKey:
         """Resolve implicit bounded book depth without changing explicit choices."""
         if key.channel != "book" or key.depth is not None:
             return key
@@ -123,7 +171,14 @@ class AdapterCatalog:
             "deribit": 20,
         }
         depth = depths.get(key.venue)
-        if key.venue == "binance-global" and key.api_family == "usdm-v1":
+        if key.venue == "binance-global" and (
+            key.api_family == "usdm-v1"
+            or (
+                key.api_family == "spot-v3"
+                and instrument is not None
+                and instrument.metadata_status == "streaming_only"
+            )
+        ):
             depth = 20
         if key.venue == "hyperliquid" and dict(key.aggregation).get("fast") == "true":
             depth = 5
@@ -150,7 +205,7 @@ class AdapterCatalog:
                 else:
                     snapshot = await discover_metadata(timeout=metadata_timeout)
                 metadata_received = True
-                self.instruments.apply_metadata(snapshot)
+                self._apply_discovery(venue, adapter, snapshot)
                 self.statuses[venue] = metadata_status(venue, adapter)
                 if probe_dependencies and venue in ("binance-global", "binance-us"):
                     products = self.instruments.list(
@@ -205,7 +260,9 @@ class AdapterCatalog:
         evidence["metadata:product"] = evidence.get(
             f"metadata:{instrument.api_family}", evidence.get("metadata", "unknown")
         )
-        book_key = self.canonical_key(SubscriptionKey.for_instrument(instrument))
+        book_key = self.canonical_key(
+            SubscriptionKey.for_instrument(instrument), instrument
+        )
         trade_key = SubscriptionKey.for_instrument(instrument, channel="trades")
         for name, key in (("snapshot", book_key), ("trades", trade_key)):
             request = adapter.snapshot_request(instrument, key)

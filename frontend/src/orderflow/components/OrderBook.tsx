@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useSessionStore } from "@/lib/session/SessionContext";
-import { formatCompact, formatPriceValue, inferDecimals, priceDecimals, VENUE_LABEL } from "@/lib/format";
+import { formatCompact, formatPriceValue, inferDecimals, priceDecimals } from "@/lib/format";
+import { venueLabel } from "../../format";
 import { Icon } from "@/components/ui/Icons";
 import { Panel, Segmented } from "@/components/ui/Primitives";
 import { showTooltip, hideTooltip } from "./GlobalTooltip";
@@ -85,7 +86,7 @@ export default function OrderBookPanel() {
     title: g === 0 ? "Exchange price levels" : `Group levels into ${tickSize * g} buckets`,
   }));
 
-  const sourceLabel = book && "venue" in book ? VENUE_LABEL[book.venue] ?? book.venue : "Consolidated";
+  const sourceLabel = book && "venue" in book ? venueLabel(book.venue) : "Consolidated";
 
   return (
     <Panel
@@ -101,7 +102,7 @@ export default function OrderBookPanel() {
               onChange={(value) => setMode(value)}
               options={[
                 { value: "aggregated", label: "Consolidated" },
-                { value: "single", label: VENUE_LABEL[selectedVenues[0]!]?.split(" ")[0] ?? "Primary" },
+                { value: "single", label: venueLabel(selectedVenues[0]!) },
               ]}
               ariaLabel="Book source"
             />

@@ -28,21 +28,26 @@ preference. `http://127.0.0.1:8000/?source=live` explicitly requests public live
 data; unavailable requests retain their error instead of substituting demo.
 Live session creation still requires an exact native instrument ID. When no
 instrument was explicitly saved for that source, the browser resolves one from
-the source-filtered catalog, preferring accessible active Binance-global
-BTCUSDT spot, then Hyperliquid BTC perpetual, then another active native entry.
+the source-filtered catalog. Within entries with available access evidence (or
+all selectable entries when none has that evidence), it prefers Binance BTCUSDT
+spot, then Hyperliquid BTC perpetual, then another streamable native entry.
 It never sends a foreign demo instrument or weakens the API identity requirement.
 
-Native Binance and Bybit discovery isolates spot and perpetual API families.
-Only complete successful family snapshots enter the catalog; a blocked or failed
-family does not erase a successful sibling. Native `VenueStatus.dependencies`
-records aggregate `metadata` plus `metadata:<api_family>` states. Mixed success is
-`state="degraded"` with `metadata="partial"` and `metadata_partial` detail;
-no successful family yields explicit failure evidence, not synthetic instruments.
-Exact-product probes additionally retain `probed_instrument_id` and
-`metadata:product`; their snapshot/trade/WebSocket evidence cannot certify other
-products or families. The existing live source `reasons` list exposes degraded
-or unavailable venue details to HTTP clients without making usable families
-unselectable. Catalog metadata alone does not establish live readiness.
+Runtime-owned live catalogs seed 116 subscription candidates for 29 crypto assets
+across Binance spot/USDⓈ-M and Bybit spot/linear before asynchronous REST discovery. They carry
+`metadata_status="streaming_only"`, `status="unknown"`, null tick/lot sizes and
+explicit bundled provenance. Active products and these unknown-status candidates
+are streamable; suspended/delisted/unavailable products are not. Candidate presence
+does not establish current listing, access or valid market evidence.
+
+Only complete successful metadata families enrich the catalog. Successful families
+retire absent products; failed families retain candidates and their failure evidence.
+`VenueStatus.dependencies` records aggregate `metadata` plus `metadata:<api_family>`;
+mixed success is `degraded`/`partial`. A metadata HTTP failure is not a WebSocket
+failure. Source `reasons` retains these warnings without blocking candidate startup.
+Exact-product probes separately retain `probed_instrument_id` and `metadata:product`;
+their snapshot/trade/WebSocket evidence cannot certify other products or families.
+Discovery is cancelled and joined at runtime shutdown.
 See [adapter access and endpoints](ADAPTERS_ASIAN.md#metadata-and-identity).
 
 `--capture` may be repeated. The catalog verifies each capture using the released `RecordingReader`; incomplete/corrupt/unfinalized captures become unavailable with reasons, never healthy. Each client opens its own verified reader on its dedicated owner thread. Readers, SQLite connections, caches and iterators are never shared between threads or clients. There is no `verify=False` terminal path. Catalog IDs are opaque; operator-configured IDs are valid for this server lifetime, while managed recording IDs are rediscovered from the state directory. HTTP never accepts paths or SQL.
@@ -145,7 +150,7 @@ invalidate all display caches. Do not join histories across these fences.
 Trade-history resets preserve independent depth/OBI. Books are current snapshots
 at the query frontier, not reconstructed snapshots at each trade-page cursor.
 
-`instruments` contains the selected native instrument and active same-base,
+`instruments` contains the selected native instrument and streamable same-base,
 same-market peers from the session's streams, bounded to 16 products with
 venue-fair selection. Quote and settlement identities remain separate.
 `books` retains native quality, coverage, capabilities and provenance, with at
@@ -551,10 +556,18 @@ Every Frame has:
 
 - `version:'1'`, `type:'frame'`, `frame_id`, `session_id`, `generation`: frame ID and generation are decimal strings. Frame ID strictly increases per session; generation changes on selection, seek/reset and explicit paper resume. Clients discard reordered old generations/frames.
 - `status`: `loading`, `paused`, `playing`, `seeking`, `ended`, `live`, `unavailable`, or `error`.
-- `selection:{instrument_id}`, `source`, exact selected `book` or null, `analytics` (`AnalyticsSnapshot`) or null.
+- `selection:{instrument_id,metadata_status,metadata_version}`, `source`, exact selected `book` or null, `analytics` (`AnalyticsSnapshot`) or null. Metadata fields describe the session-pinned book descriptor, not the latest discovery catalog; both are null when no descriptor is selected.
 - `replay`: null for live; otherwise `{cursor:{delivery_index,ordinal,event_index},speed,status,total_deliveries}` with exact string counters.
 - `health:{ready,reasons}` using centralized book eligibility, not transport activity.
 - `telemetry` described below; `error` string or null.
+
+Streaming-only data can support display/flow and durable recording/replay, but
+comparison, exact costs, proposed risk and paper/order validation reject
+`instrument_metadata_unverified`. Background discovery never relabels old evidence.
+Book and trade leases may pin different versions; book presentation resolves its
+own key/version, while trades retain their own StreamSpec metadata. Shared streams
+adopt newer metadata only after their existing session/recording leases release.
+Close other owners and reconnect/reselect before expecting the verified version.
 
 Read-worker contention may retain one last completed book/analytics/replay presentation from the same session generation and instrument. It is explicitly diagnostic (`health.ready=false`, reasons `owner_busy` and `last_completed_presentation`), not newly validated market evidence. This keeps a slow historical query from erasing the tape/cursor or relabeling replay as live. Loading, seek, unavailable/error and generation changes never reuse that cache. Action ownership and fresh execution/analytics eligibility remain authoritative; the cache is not an execution input.
 

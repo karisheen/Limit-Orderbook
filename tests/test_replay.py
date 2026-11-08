@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 
+from src.workstation.adapters.bybit import BybitAdapter
 from src.workstation.adapters.hyperliquid import HyperliquidAdapter
 from src.workstation.events import (
     BookUpdate,
@@ -25,7 +26,7 @@ from src.workstation.events import (
     synthetic_envelope,
 )
 from src.workstation.projection import RecordingProjection
-from src.workstation.quality import ClockReading
+from src.workstation.quality import ClockReading, evaluate
 from src.workstation.recording import (
     RecordedBatch,
     Recorder,
@@ -40,6 +41,7 @@ from src.workstation.replay import (
     ReplayCursor,
     ReplaySession,
 )
+from src.workstation.streaming_bootstrap import streaming_snapshot
 from src.workstation.wire import dumps
 
 
@@ -244,6 +246,106 @@ def fingerprint(session):
         session.book_hash,
         session.clock.state_hash,
     )
+
+
+@pytest.mark.parametrize("mode", ["raw", "normalized"])
+def test_streaming_only_capture_preserves_unknown_precision_and_replay(tmp_path, mode):
+    instrument = next(
+        item
+        for item in streaming_snapshot().instruments
+        if item.venue == "bybit"
+        and item.api_family == "v5-spot"
+        and item.native_symbol == "BTCUSDT"
+    )
+    adapter = BybitAdapter()
+    key = SubscriptionKey.for_instrument(instrument, depth=50)
+    reducer = adapter.new_reducer(instrument, key)
+    spec = StreamSpec(
+        StreamId("streaming-book"),
+        instrument,
+        key,
+        reducer.adapter_revision,
+        reducer.config_hash,
+    )
+    # A later metadata version on another channel must not relabel this book.
+    verified = replace(
+        instrument,
+        metadata_status="verified",
+        metadata_version="verified-v2",
+        metadata_asof_wall_ns=123,
+        status="active",
+        tick_size=D("0.01"),
+        lot_size=D("0.001"),
+        constraints=replace(
+            instrument.constraints, price_rule="fixed_tick", size_rule="fixed_lot"
+        ),
+    )
+    trade_key = SubscriptionKey.for_instrument(verified, channel="trades")
+    trade_reducer = adapter.new_reducer(verified, trade_key)
+    trade_spec = StreamSpec(
+        StreamId("verified-trades"),
+        verified,
+        trade_key,
+        trade_reducer.adapter_revision,
+        trade_reducer.config_hash,
+    )
+    frames = []
+    for ordinal in (1, 2):
+        message = {
+            "topic": "orderbook.50.BTCUSDT",
+            "type": "snapshot",
+            "ts": 1700000000000 + ordinal,
+            "data": {
+                "s": "BTCUSDT",
+                "u": ordinal + 10,
+                "seq": ordinal + 20,
+                "b": [["60000.000123", f"0.00000000{ordinal}"]],
+                "a": [["60001.000456", "0.000000003"]],
+            },
+        }
+        frames.append(
+            RawFrame(
+                SessionId(SESSION),
+                spec.stream_id,
+                "connection-1",
+                1,
+                CLOCK,
+                ordinal,
+                1700000000000000000 + ordinal,
+                ordinal * 10,
+                "ws",
+                "wss://stream.bybit.com/v5/public/spot",
+                json.dumps(message, separators=(",", ":")).encode(),
+            )
+        )
+    captured = record(
+        tmp_path, (spec, trade_spec), tuple(frames), checkpoint_interval=1
+    )
+    with RecordingReader(captured.path) as reader:
+        recorded, recorded_trade = reader.manifest.streams
+        assert recorded_trade.instrument == verified
+        assert recorded.instrument == instrument
+        assert recorded.instrument.metadata_status == "streaming_only"
+        assert recorded.instrument.status == "unknown"
+        assert recorded.instrument.lot_size is recorded.instrument.tick_size is None
+        assert recorded.instrument.metadata_asof_wall_ns == 0
+        assert tuple(reader.iter_raw()) == tuple(frames)
+    with replay(captured, mode=mode) as session:
+        session.step(2)
+        assert session.state_hash == captured.state_hash
+        assert session.book_hash == captured.book_hash
+        (book,) = session.books()
+        assert book.bids[0].quantity == D("0.000000002")
+        now = ClockReading(book.asof.clock_id, book.asof.receive_mono_ns)
+        assert evaluate(book, instrument, "display", now).eligible
+        assert (
+            "instrument_metadata_unverified"
+            in evaluate(book, instrument, "paper_fill", now).reasons
+        )
+        session.seek(0)
+        session.step(2)
+        assert session.state_hash == captured.state_hash
+        assert session.book_hash == captured.book_hash
 
 
 def test_step_preserves_delivery_order_not_receive_or_exchange_order(capture):

@@ -118,7 +118,7 @@ test('request ownership fences include generation, source, native instrument and
   assert.notEqual(candleIdentity({ ...frame, generation: '5' }, '1h'), identity);
   assert.notEqual(candleIdentity({ ...frame, session_id: 'new' }, '1h'), identity);
   assert.notEqual(candleIdentity({ ...frame, source: { ...frame.source, id: 'source-b' } }, '1h'), identity);
-  assert.notEqual(candleIdentity({ ...frame, selection: { instrument_id: 'other' } }, '1h'), identity);
+  assert.notEqual(candleIdentity({ ...frame, selection: { ...frame.selection, instrument_id: 'other' } }, '1h'), identity);
   assert.notEqual(candleIdentity(frame, '4h'), identity);
   const response = history();
   assert.equal(matchesCandleHistory(response, 'session', '4', 'native', '1h'), true);

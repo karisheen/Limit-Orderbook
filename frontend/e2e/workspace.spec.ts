@@ -931,7 +931,11 @@ for (const width of [320, 390]) {
     const ranged = await body<VisualGrid>(rangedResponse);
     await primary(page).locator('.m4-chart-plot').scrollIntoViewIfNeeded();
     await expect(chart).toHaveAttribute('data-painted-view-id', ranged.view_id);
-    const pinnedResponse = nextResponse(page, 'visualization', request => request.bucket_ns === '5000000000' && typeof request.start_ns === 'string' && typeof request.end_ns === 'string');
+    // A pending incremental poll can have identical bounds but no new columns.
+    // Pinning requests a full view; do not mistake that prior delta for its response.
+    const pinnedResponse = nextResponse(page, 'visualization', request => request.bucket_ns === '5000000000'
+      && typeof request.start_ns === 'string' && typeof request.end_ns === 'string'
+      && request.after_column === undefined);
     await primary(page).getByLabel('Follow time', { exact: true }).uncheck();
     const pinned = await body<VisualGrid>(pinnedResponse);
     expect(pinned.generation).toBe(advanced.generation);

@@ -504,7 +504,9 @@ class SubscriptionRegistry:
     async def acquire(
         self, client_id: ClientId, key: SubscriptionKey
     ) -> SubscriptionLease:
-        key = self.catalog.canonical_key(key)
+        key = self.catalog.canonical_key(
+            key, self.catalog.instruments.get(key.instrument_id)
+        )
         client_id = ClientId(client_id)
         async with self._client_operation(client_id):
             return await self._acquire(
@@ -556,7 +558,12 @@ class SubscriptionRegistry:
         client_id = ClientId(client_id)
         if type(generation) is not int or generation < 0:
             raise ValueError("invalid generation")
-        keys = frozenset(self.catalog.canonical_key(key) for key in keys)
+        keys = frozenset(
+            self.catalog.canonical_key(
+                key, self.catalog.instruments.get(key.instrument_id)
+            )
+            for key in keys
+        )
         async with self._client_operation(client_id):
             previous = tuple(
                 lease for lease in self._leases.values() if lease.client_id == client_id
@@ -737,7 +744,12 @@ class RecorderBinding:
             or float(config.get("poll_interval", "2")) != registry.config.poll_interval
         ):
             raise ValueError("recorder reconstruction config does not match registry")
-        keys = frozenset(registry.catalog.canonical_key(key) for key in keys)
+        keys = frozenset(
+            registry.catalog.canonical_key(
+                key, registry.catalog.instruments.get(key.instrument_id)
+            )
+            for key in keys
+        )
         if not keys:
             raise ValueError("recording requires at least one stream")
         binding = cls(registry, recorder, ClientId(client_id or f"recorder:{uuid4()}"))

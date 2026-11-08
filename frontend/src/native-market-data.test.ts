@@ -10,7 +10,7 @@ const primary: Instrument = {
   base: { asset_id: 'btc', ticker: 'BTC', native_token_id: null },
   quote: { asset_id: 'USD', ticker: 'USD', native_token_id: null }, settlement: null,
   market_type: 'spot', tick_size: '0.01', lot_size: '0.001', quantity_unit: 'base',
-  status: 'active', data_access: 'public', execution_access: 'none', metadata_version: '1',
+  status: 'active', data_access: 'public', execution_access: 'none', metadata_version: '1', metadata_status: 'verified',
 };
 function trade(event: number, patch: Partial<NativeMarketTrade> = {}): NativeMarketTrade {
   return {

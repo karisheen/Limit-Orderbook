@@ -36,24 +36,38 @@ def market_data(session, request):
     selected = next(
         (spec.instrument for spec in session.streams if spec.key == session.key), None
     )
-    instruments = {
-        str(spec.instrument.instrument_id): spec.instrument
-        for spec in session.streams
-        if selected is not None
-        and spec.instrument.base.asset_id == selected.base.asset_id
-        and spec.instrument.market_type == selected.market_type
-    }
+    instruments = {}
+    for spec in session.streams:
+        instrument = spec.instrument
+        if (
+            selected is None
+            or instrument.base.asset_id != selected.base.asset_id
+            or instrument.market_type != selected.market_type
+        ):
+            continue
+        identity = str(instrument.instrument_id)
+        # The display catalogue describes books; trade leases can retain an
+        # older pinned version and must not replace the book's descriptor.
+        if spec.key.channel == "book" or identity not in instruments:
+            instruments[identity] = instrument
     if selected is not None:
         instruments = {
             str(instrument.instrument_id): instrument
             for instrument in _live_cohort(selected, tuple(instruments.values()))
         }
     specs = {spec.stream_id: spec for spec in session.streams}
+    book_instruments = {
+        (spec.key, spec.instrument.metadata_version): spec.instrument
+        for spec in session.streams
+        if spec.key.channel == "book"
+    }
     now = session._now()
     books = []
     with localcontext(DECIMAL_CONTEXT):
         for book in session.replay.books() if session.replay else session.live_books:
-            instrument = instruments.get(str(book.key.instrument_id))
+            if str(book.key.instrument_id) not in instruments:
+                continue
+            instrument = book_instruments.get((book.key, book.metadata_version))
             if instrument is None:
                 continue
             presented = _book_presentation(book)

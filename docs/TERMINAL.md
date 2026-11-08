@@ -53,8 +53,10 @@ See [development](DEVELOPMENT.md), [API](API.md), [demo/CLI](DEMO.md) and
 
 The top bar exposes **Instrument**, **Venue**, **Market** (**Perp / Spot**),
 **Candle interval**, **Workspace**, **Panels** and **Theme**. Instruments come
-from the active native source catalog, not a fixed coin list. Venue selection
-includes native venues and **All perps / All spot** aggregates. Aggregate inputs
+from the active native source catalog, including initial streaming-only crypto
+candidates while official metadata loads. Venue labels are friendly (**Binance**,
+**Bybit**); native IDs remain unchanged. Venue selection includes native venues and
+**All perps / All spot** aggregates. Aggregate inputs
 are the selected base asset's same-market cohort; the native primary instrument
 remains explicit for exact workflows.
 
@@ -75,14 +77,17 @@ Discovery excludes Bybit linear TradFi products (stock, ETF, commodity and
 forex classifications) and Bitget RWA/non-perpetual futures classifications.
 Native crypto quantity, quote and settlement metadata remain intact.
 
-Binance and Bybit publish complete reachable metadata families independently:
-spot can remain selectable when perpetual metadata is restricted, and vice versa.
-Mixed discovery is explicitly partial; selecting a known instrument still needs
-usable live book/trade evidence. Metadata success is neither execution permission
-nor proof of every family or channel. Failed families retain their native access
-reasons rather than fabricated instruments or a hidden switch to another exchange.
-Open **Source & instrument details** to inspect these venue warnings. A ready
-selected instrument does not imply that every other provider is available.
+Binance and Bybit begin direct public WebSocket subscriptions without waiting for
+REST metadata. Their spot/perpetual metadata requests run independently in the
+background. A **Streaming-only metadata** notice means tick, lot and order limits
+are unknown—not that delivered market data is synthetic. Charts, studies and
+recording/replay can work; exact costs, comparison, proposed risk and paper orders
+remain disabled until the session's pinned metadata is verified.
+Valid books/trades still determine freshness. REST metadata restrictions do not
+prove WebSocket unavailability, and source readiness does not certify every feed.
+**Source & instrument details** retains metadata warnings. If newer verified
+metadata becomes available, close other sessions and stop recordings holding that
+instrument, then reconnect/reselect; existing shared streams keep their old version.
 Bybit uses the [official equivalent mainnet REST host](https://bybit-exchange.github.io/docs/v5/guide)
 `api.bytick.com`, which remains subject to regional restrictions.
 

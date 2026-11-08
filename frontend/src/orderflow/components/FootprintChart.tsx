@@ -4,7 +4,8 @@ import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { useSessionStore } from "@/lib/session/SessionContext";
 import { useUIStore, type FootprintMode, type IndicatorSettings } from "@/lib/store/uiStore";
 import { useCanvas, withAlpha, monoFont, type Palette } from "@/hooks/useCanvas";
-import { formatCompact, formatHM, formatPriceValue, formatSigned, priceDecimals, VENUE_LABEL } from "@/lib/format";
+import { formatCompact, formatHM, formatPriceValue, formatSigned, priceDecimals } from "@/lib/format";
+import { venueLabel } from "../../format";
 import { Icon } from "@/components/ui/Icons";
 import { Button, Panel, Segmented } from "@/components/ui/Primitives";
 import { showTooltip, hideTooltip } from "./GlobalTooltip";
@@ -480,7 +481,7 @@ export default function FootprintChart() {
       setCrosshair(candle.openTime, null);
       const venues = Object.entries(candle.venueVolumes)
         .sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))
-        .map(([v, vol]) => `${VENUE_LABEL[v] ?? v}: ${formatCompact(vol ?? 0)} (${(((vol ?? 0) / candle.volume) * 100).toFixed(0)}%)`);
+        .map(([v, vol]) => `${venueLabel(v)}: ${formatCompact(vol ?? 0)} (${(((vol ?? 0) / candle.volume) * 100).toFixed(0)}%)`);
       showTooltip(
         `Candle ${formatHM(candle.openTime)}`,
         [
@@ -528,12 +529,11 @@ export default function FootprintChart() {
   };
 
   const tf = timeframe.toUpperCase();
-  const venueLabel = VENUE_LABEL[venue] ?? venue;
 
   return (
     <Panel
       title="Footprint" icon={<Icon.Footprint />}
-      subtitle={`${symbol} · ${tf} · ${venueLabel}`}
+      subtitle={`${symbol} · ${tf} · ${venueLabel(venue)}`}
       className="footprint-panel"
       actions={
         <>
