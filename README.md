@@ -1,17 +1,57 @@
 # Crypto Limit Order Book
 
-A local public-market workstation with an exact Python core and a React/TypeScript
-terminal. The default **Price action** workspace puts historical **1h candles**
-and volume beside the live aggregate-L2 book and tape. **Order flow** retains the
-independent liquidity and footprint charts. Quality-gated analytics, size-aware
-costs, deterministic replay, alerts, reference context, spot IOC paper accounting,
-journal and offline research remain available.
-The supported Streamlit dashboard is a thin native-API observation client, not a
-second market-data engine.
+A live crypto and FX **order-flow terminal**, closely adapted from
+[zadescoxp/order-flow-screener](https://github.com/zadescoxp/order-flow-screener)
+v2.1.0 under Apache-2.0. The default workspace combines a footprint, session
+profile/VWAP, order book, tape, CVD, volume z-score, realized volatility and depth.
 
-[![Price-action workspace with native hourly BTCUSDT history, order book and time & sales](docs/evidence/desktop-redesign/after-live-1568.png)](docs/evidence/desktop-redesign/after-live-1568.png)
+**Workbench** retains this project's exact Python core: historical price candles,
+quality-gated analytics, costs, deterministic replay, alerts, spot IOC paper
+accounting, journal and offline research. These remain a separate native session;
+screener feeds do not silently become paper-execution or replay inputs.
 
-*Public read-only Binance-global BTCUSDT, 1568 × 1000 CSS pixels. This is a UI capture, not exchange-latency certification. See [desktop redesign evidence and limits](docs/WORKSPACE_IMPROVEMENT.md#desktop-price-action-redesign).*
+[![Live order-flow demo: footprint modes, indicators, liquidity, volatility, themes, grouped depth and tape filters](docs/media/orderbook-demo.gif)](docs/media/orderbook-demo.mp4)
+
+[Watch the full 74-second demo (MP4)](docs/media/orderbook-demo.mp4).
+Recorded from this application using real public crypto feeds, not fixture data.
+The animated preview follows the reference README's format; the linked video
+retains the full 1568 × 1000 recording. This is a UI demonstration, not latency
+or trading-readiness certification.
+
+## Order-flow terminal
+
+- Reference-style layout, six themes, Order Flow / Liquidity / Volatility presets,
+  panel visibility and draggable panel borders.
+- Bid × Ask / Delta / Volume footprints; session profile, traded-volume heatmap,
+  VWAP deviation bands, POC/value area, stacked imbalances and follow/pan/zoom.
+- Raw/grouped books, primary or consolidated depth, size-filtered tape,
+  1s–1m studies and 1m–4h footprint timeframes.
+- The reference's 29-coin catalog, spot/perpetual venue selection and aggregates.
+  Binance, Bybit, OKX and Bitget provide spot/perpetual feeds; Coinbase supplies
+  spot; Hyperliquid and Deribit supply perpetuals (Deribit: BTC/ETH).
+- Finnhub supplies EUR/USD, GBP/USD, USD/JPY, AUD/USD and USD/CAD ticks through its
+  OANDA namespace. Set `VITE_FINNHUB_API_KEY` in `frontend/.env.local` using
+  [the example](frontend/.env.example), then rebuild. This is a **browser-public**
+  key; use an appropriately restricted key, never a secret trading credential.
+
+Crypto needs no key. Feeds connect directly from the browser to the same providers
+as the reference. Binance spot uses Binance's official data-only host; futures
+uses the current separate `/public` depth and `/market` trade routes.
+Exchange reachability and symbol coverage depend on region/provider availability.
+No history is fabricated: the footprint begins collecting when a selection opens.
+Reloading or changing selection starts a new market session.
+
+FX depth/OBI are explicitly labeled **synthetic quote/flow proxies, not L2**;
+direction is inferred and volume uses provider volume or unit ticks. Aggregate
+crypto prices combine USD/USDT/USDC without conversion and are indicative, not
+executable arbitrage prices. Use Workbench for exact venue/quote analysis.
+
+The adapted source is in `frontend/src/orderflow`; attribution and licenses ship
+in [third-party notices](frontend/public/THIRD_PARTY_NOTICES.txt). Upstream
+revision: `2b451b5e3d9c3220b06fa6497b13996b3841b583`. No upstream telemetry or
+first-visit solicitation is included. Protocol fixes cover Bybit update IDs,
+Binance routed streams/depth, Hyperliquid object levels, Bitget prints and
+Coinbase aggressor direction.
 
 ## Upgrade progress
 
@@ -80,23 +120,27 @@ npm --prefix frontend run build
 uv run --locked --offline --no-sync python -m src.workstation.cli serve --network
 ```
 
-Open `http://127.0.0.1:8000/?source=live` for public exchange data. The explicit
-`--network` flag enables discovery/collection and makes live the server's preferred
-source. Binance global and Hyperliquid remain native, separately qualified feeds.
-No durable capture is generated on startup. Health distinguishes process
-liveness from synchronized session data.
+Open `http://127.0.0.1:8000/` for the order-flow terminal. It also runs standalone
+with `npm --prefix frontend run dev`; its public browser feeds do not need Python.
+**Workbench** (`/?workspace=native`) opens the native workstation.
 
-Omit `--network` for the deliberately sparse, initially paused **synthetic offline
-demo**; use **Play synthetic demo** to advance its fixture, not to obtain live
-orders. Use `serve --capture data/workstation/SESSION_ID` for verified recorded
-replay. A URL source overrides saved preferences; unavailable live data never
-silently becomes demo. Do not run a second live collector beside a recorder.
+For native public exchange data, use `/?source=live` with `serve --network`.
+The explicit `--network` flag enables **native** discovery/collection and makes
+live the native server's preferred source. Binance global and Hyperliquid remain
+separately qualified native feeds. No durable capture is generated on startup.
+
+Without `--network`, Workbench uses the sparse, initially paused **synthetic
+offline demo**; **Play synthetic demo** advances fixtures, not live orders.
+Use `serve --capture data/workstation/SESSION_ID` for verified replay. A URL source
+overrides saved native preferences; unavailable live data never becomes demo.
+The default screener still uses public network feeds even when the native server
+is offline. For an entirely offline workflow, open `/?workspace=native`.
 Unknown fees, missing depth, stale inputs and incompatible quotes remain explicit
 exclusions. No order is sent to an exchange. See
 [terminal controls](docs/TERMINAL.md), [API](docs/API.md),
 [analytics](docs/ANALYTICS.md) and [costs](docs/COSTS.md).
 
-The [operator guide](docs/TERMINAL.md) covers timeframe selection, chart navigation,
+The native [operator guide](docs/TERMINAL.md) covers timeframe selection, chart navigation,
 independent order-flow settings and source/diagnostic inspectors. **1m / 5m / 15m /
 1h / 4h / 1d** are one-click candle choices; **More** groups additional minute,
 hour and longer intervals supported by the selected venue. Candle history refreshes
@@ -112,16 +156,16 @@ Flow / Book / Tape** tabs retain mounted pane state and gate hidden queries.
 The bottom workflow dock opens the existing analysis, alert, context, paper,
 journal and research tools. Preferences never save a mutable backend session.
 
-The desktop composition and timeframe hierarchy are informed by
+The retained native desktop composition and timeframe hierarchy are informed by
 [TradeXYZ](https://app.trade.xyz/) and [Hyperdash](https://hyperdash.com/), including
 the supplied screenshots. [JTX](https://app.jtx.com/) informs restrained separators
 and explicit market identity. These are interface references, not integrations
 or backend-speed claims. Earlier footprint/tape influences remain documented in
 the [research record](docs/WORKSPACE_IMPROVEMENT.md).
-The native Canvas renderer is independently implemented; no proprietary assets,
-chart package or new dependency was adopted. Public-live
-`analytical_queue_overflow` remains a collector-capacity boundary, not something
-a frontend redesign or reconnect repairs.
+The native Canvas renderer is independently implemented. The default screener
+instead adapts the Apache-2.0 reference renderer, Geist fonts and licensed icons.
+Native `analytical_queue_overflow` remains a collector-capacity boundary, not
+something a frontend redesign or reconnect repairs.
 
 ## Local alerts, paper, journal and research
 
@@ -154,7 +198,7 @@ provenance; research reports retain failed attempts and all candidate outcomes.
 Interrupted mutations may already have committed: inspect native state before
 retrying; the client does not retry workflow mutations automatically.
 
-## New headless feeds
+## Native headless feeds
 
 The new backend is independent of Streamlit rendering. Run an explicit public
 network probe (not a recorder and not an execution client):

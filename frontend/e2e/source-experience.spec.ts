@@ -119,7 +119,7 @@ test('explicit saved paused demo survives a server live preference and URL overr
     ...view, secondary: view, domPriceStep: '100', domFrozen: true, tapeFrozen: true,
   })), { key: preferenceKey, id: demo.id, view: savedView });
   const created = creation(page);
-  await page.goto('/');
+  await page.goto('/?workspace=native');
   const frame = await (await created).json() as Frame;
   expect(frame.source.id).toBe(demo.id);
   expect(frame.status).toBe('paused');
@@ -163,7 +163,7 @@ for (const resolution of ['URL override', 'server preference'] as const) {
       ...view, secondary: { ...view, priceOffset: -7 }, domPriceStep: '100', domFrozen: true, tapeFrozen: true,
     })), { key: preferenceKey, view: savedView, explicit: resolution === 'URL override' });
     const created = creation(page);
-    await page.goto(resolution === 'URL override' ? `/?source=${encodeURIComponent(demo.id)}` : '/');
+    await page.goto(resolution === 'URL override' ? `/?source=${encodeURIComponent(demo.id)}` : '/?workspace=native');
     expect((await (await created).json() as Frame).source.id).toBe(expectedSource);
     await expect(page.locator('.status')).toContainText('Connected');
     await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Order flow', exact: true }).click();
@@ -332,7 +332,7 @@ test('network launch migrates automatic legacy demo to actual public live with a
   test.skip(catalog.preferred_source_id !== 'live', 'Requires operator-enabled public live server; offline mode is not promoted to network access.');
   await page.addInitScript(({ key, id }) => localStorage.setItem(key, JSON.stringify({ version: 1, source: { id, mode: 'demo' } })), { key: preferenceKey, id: demo.id });
   const created = creation(page);
-  await page.goto('/');
+  await page.goto('/?workspace=native');
   const frame = await (await created).json() as Frame;
   expect(frame.source.mode).toBe('live');
   expect(frame.source.synthetic).toBe(false);

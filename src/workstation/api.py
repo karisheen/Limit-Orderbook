@@ -775,12 +775,6 @@ def create_app(
                     pass
 
     dist = frontend_dist or Path(__file__).resolve().parents[2] / "frontend" / "dist"
-    if (dist / "assets").is_dir():
-        app.mount(
-            "/assets",
-            StaticFiles(directory=dist / "assets", follow_symlink=False),
-            name="assets",
-        )
 
     @app.get("/", include_in_schema=False)
     async def terminal():
@@ -793,5 +787,14 @@ def create_app(
                 status_code=503,
             )
         return FileResponse(index, headers={"Cache-Control": "no-cache"})
+
+    # Serve the complete production bundle, including local fonts, venue icons
+    # and distribution licenses. API routes and the no-cache entry stay first.
+    if dist.is_dir():
+        app.mount(
+            "/",
+            StaticFiles(directory=dist, follow_symlink=False),
+            name="frontend",
+        )
 
     return app

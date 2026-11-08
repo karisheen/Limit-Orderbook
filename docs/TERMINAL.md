@@ -1,6 +1,76 @@
-# Native order-flow and research workstation
+# Order-flow terminal and native research workbench
 
-The React/TypeScript terminal is a presentation client of the versioned Runtime HTTP/WebSocket API. **Price action** is the default desktop workspace: native historical **1h candles** and volume on the left, independently updating L2 book and tape on the right, and existing research/workflow tools below. **Order flow** retains the simultaneous liquidity and footprint/candlestick charts. All panes share one exact instrument, not independent feeds. The browser does not collect feeds, construct books, calculate financial metrics, estimate fills, or inject fallback fixtures. Python supplies authoritative financial values and replay boundaries.
+## Default live screener
+
+The default `/` page adapts the Apache-2.0
+[order-flow-screener](https://github.com/zadescoxp/order-flow-screener) v2.1.0 UI,
+engine and provider adapters. **Perp / Spot / FX**, searchable **Instrument**,
+**Venue** (including aggregates), and **1m–4h** select the session. The footprint
+starts with newly received trades; it does not backfill history. Switching
+instrument, venue, market or timeframe resets collected session data.
+
+**Order Flow**, **Liquidity**, and **Volatility** configure the studies/sidebar.
+**Panels** fine-tunes visibility. Drag visible card borders to resize the sidebar,
+studies dock and sidebar panels. Narrow screens use a scrolling single column.
+Six themes, panels and indicator preferences persist in browser-local storage
+under `limit-orderbook.orderflow.ui-preferences`.
+
+Use **Bid × Ask / Delta / Volume**, **Profile**, **Heatmap**, and **Indicators** to
+configure the footprint. Indicators include session VWAP/bands, POC, value area,
+high/low, imbalance ratios and stacked levels. Drag to pan, wheel to scroll,
+Ctrl/⌘+wheel to change row height, Alt+wheel to change candle width; **Live** or
+double-click restores following. Heatmap means executed volume, not resting depth.
+Book grouping, tape size filters and study resolution/window controls are local
+to their panels. Studies stay warming until enough real observations exist.
+
+All reference crypto providers are retained: Binance, Bybit, OKX, Bitget,
+Coinbase, Hyperliquid and Deribit. Public browser sockets operate independently
+of the native `--network` flag. Binance uses its official data-only spot host and
+separate futures public/market routes. Region, symbol listings and provider
+restrictions can affect availability; the status strip identifies errors.
+
+FX requires `VITE_FINNHUB_API_KEY` in `frontend/.env.local` and a rebuild. This is
+a browser-exposed Finnhub key, not a server secret. OANDA EUR/USD, GBP/USD,
+USD/JPY, AUD/USD and USD/CAD ticks have inferred direction and provider/unit-tick
+volume. FX quote/depth/OBI are **synthetic proxies, not native L2**. Crypto
+aggregates combine USD/USDT/USDC prices without conversion and are indicative.
+
+**Workbench** navigates to `/?workspace=native`; **Order-flow terminal** returns
+here. Navigation starts a new document, isolating feeds, state and styles. Native
+`?source=...` links still open Workbench directly. Screener session data is not
+silently routed into native replay, paper accounting or research.
+
+Verification for this adaptation: a finite 35-second BTCUSDT probe received both
+trades and books from all 11 configured crypto venue/market combinations. The
+browser also displayed six live perpetual venues in aggregate mode. This is a
+smoke observation, not all-symbol coverage, continuous-depth certification or a
+long-running soak. Live Finnhub was not verified without a key; the missing-key
+state and offline FX proxy/market-hours behavior were exercised.
+
+The Binance routing change follows the
+[official stream migration contract](https://developers.binance.com/docs/derivatives/usds-margined-futures/websocket-market-streams/Connect).
+Pristine upstream fixtures reproduced Bybit update rejection, ignored Binance
+futures depth, Hyperliquid object-level parsing failure and Coinbase side
+inversion before corrections. Adapter regressions retain these cases.
+
+Local verification: lint, strict TypeScript/Vite build and 123 frontend tests
+passed. All 64 offline native browser scenarios passed across the broad run and
+an isolated completion run; one native-network scenario was skipped. The broad
+run hit its 15-minute command deadline and three desktop keyboard scenarios
+hit their per-test deadlines during concurrent live capture. The eight selected
+desktop/unfinished scenarios then passed unchanged with capture browsers closed.
+Desktop/mobile visual checks, persisted themes, indicators, presets, resizing,
+replay seek, research access and document-level stylesheet isolation were also
+exercised. The README video records the actual browser-direct terminal.
+
+## Native workbench
+
+The retained native React/TypeScript workspace is a presentation client of the
+versioned Runtime HTTP/WebSocket API. **Price action** is its default desktop
+view: native historical **1h candles** and volume beside L2 book and tape.
+**Order flow** retains the liquidity and footprint charts. All native panes share
+one exact instrument; Python supplies financial values and replay boundaries.
+The remaining sections describe this native workspace, not the browser screener.
 
 The desktop redesign follows the chart-first composition and minute/hour/day
 hierarchy visible in the supplied TradeXYZ and Hyperdash screenshots, with
@@ -34,7 +104,7 @@ Development uses the same backend on port 8000 plus:
 npm --prefix frontend run dev
 ```
 
-Open `http://127.0.0.1:5173`. Vite proxies `/api` (including WebSocket upgrades) and `/health` to loopback port 8000. Port 5173 is strict; no silent move to an unapproved origin. `vite preview` is a static build-inspection tool, not an API server; use the Python server for the working production terminal.
+Open `http://127.0.0.1:5173/?workspace=native`. Vite proxies `/api` (including WebSocket upgrades) and `/health` to loopback port 8000. Port 5173 is strict; no silent move to an unapproved origin. `vite preview` can run the browser-direct screener, but does not provide the native API; use the Python server for Workbench.
 
 ## Working controls
 

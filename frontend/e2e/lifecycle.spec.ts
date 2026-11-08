@@ -13,7 +13,7 @@ test('a silent open socket loses current status and recovers with a new session'
     server.onMessage(message => { if (!suppress) client.send(message); });
   });
   const initialCreated = page.waitForResponse(response => response.url().endsWith('/api/v1/sessions') && response.request().method() === 'POST');
-  await page.goto('/');
+  await page.goto('/?workspace=native');
   const initial = await (await initialCreated).json() as Frame;
   await expect(page.locator('.status')).toContainText('Connected');
   await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Order flow', exact: true }).click();
@@ -74,7 +74,7 @@ test('setup retries survive repeated HTTP failure without a manual reconnect', a
     if (failures < 3) { failures++; await route.abort('connectionfailed'); }
     else await route.continue();
   });
-  await page.goto('/');
+  await page.goto('/?workspace=native');
   await expect(page.locator('.status')).toContainText('Connected', { timeout: 20_000 });
   expect(failures).toBe(3);
   await expect(page.locator('.ladder tbody tr').first()).toBeVisible();
@@ -93,7 +93,7 @@ test('a replaced session does not inherit an obsolete mutation lock', async ({ p
     // The old request is intentionally aborted when the document replaces its session.
     await route.fulfill({ response }).catch(() => undefined);
   });
-  await page.goto('/');
+  await page.goto('/?workspace=native');
   await expect(page.locator('.status')).toContainText('Connected');
   await page.getByTestId('replay-step').click();
   await responseCaptured;
@@ -121,7 +121,7 @@ test('catalog readiness refreshes without replacing the active session', async (
     await route.fulfill({ response, json: catalog });
   });
   const created = page.waitForResponse(response => response.url().endsWith('/api/v1/sessions') && response.request().method() === 'POST');
-  await page.goto('/');
+  await page.goto('/?workspace=native');
   const frame = await (await created).json() as Frame;
   await expect(page.locator('.status')).toContainText('Connected');
   const source = page.getByLabel('Data source').locator(`option[value="${frame.source.id}"]`);
@@ -152,7 +152,7 @@ test('receive-to-paint ACK includes frame decode time', async ({ page }) => {
       server.send(message);
     });
   });
-  await page.goto('/');
+  await page.goto('/?workspace=native');
   await expect.poll(() => measured).not.toBeNull();
   expect(measured).toBeGreaterThanOrEqual(80);
 });
