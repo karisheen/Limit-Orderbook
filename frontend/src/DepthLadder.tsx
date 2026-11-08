@@ -36,6 +36,7 @@ export function DepthLadder({ data, loading, error, frozen, viewPaused, rows, on
   const middle = useRef<HTMLTableRowElement>(null);
   const table = useRef<HTMLTableElement>(null);
   const headerAction = useRef<HTMLButtonElement | null>(null);
+  const settings = useRef<HTMLDetailsElement>(null);
   const focusedRow = useRef<HTMLTableRowElement | null>(null);
   useLayoutEffect(() => {
     if (focusedRow.current && !focusedRow.current.isConnected) {
@@ -43,6 +44,22 @@ export function DepthLadder({ data, loading, error, frozen, viewPaused, rows, on
       if (document.activeElement === document.body) headerAction.current?.focus();
     }
   });
+  useEffect(() => {
+    const disclosure = settings.current;
+    if (!disclosure) return;
+    const dismissOutside = (event: PointerEvent | FocusEvent) => {
+      if (!disclosure.open || !(event.target instanceof Node) || disclosure.contains(event.target)) return;
+      const restoreFocus = event.type === 'pointerdown' && disclosure.contains(document.activeElement);
+      disclosure.open = false;
+      if (restoreFocus) disclosure.querySelector<HTMLElement>(':scope > summary')?.focus({ preventScroll: true });
+    };
+    document.addEventListener('pointerdown', dismissOutside, true);
+    document.addEventListener('focusin', dismissOutside);
+    return () => {
+      document.removeEventListener('pointerdown', dismissOutside, true);
+      document.removeEventListener('focusin', dismissOutside);
+    };
+  }, []);
   const [following, setFollowing] = useState(true);
   const follow = useRef(true);
   const expectedScroll = useRef<number | null>(null);
@@ -180,7 +197,7 @@ export function DepthLadder({ data, loading, error, frozen, viewPaused, rows, on
         <span className={error || held || diagnostic || health === 'Partial' ? 'warning' : undefined} role={error ? 'alert' : undefined} aria-label={`${health} · ${healthDetail}`}>{health}</span>
         {!held && <span title={following ? 'Following midpoint' : 'Manual position'}>{following ? 'Follow' : 'Pinned'}</span>}
       </div>
-      <details className="dom-settings">
+      <details ref={settings} className="dom-settings">
         <summary>Settings</summary>
         <div className="dom-settings-panel">
           <div className="dom-controls">

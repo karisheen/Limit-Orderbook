@@ -398,7 +398,8 @@ def _valuation(
         and instrument.contract_value_currency == instrument.quote.asset_id
         and instrument.inverse
     ):
-        base = quantity * instrument.contract_multiplier / price
+        quote = quantity * instrument.contract_multiplier
+        return quote / price, quote
     else:
         return None, None
     return base, base * price

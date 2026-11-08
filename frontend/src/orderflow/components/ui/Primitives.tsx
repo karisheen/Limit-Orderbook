@@ -32,7 +32,7 @@ export function Segmented<T extends string | number>({
   accent = false,
 }: {
   value: T;
-  options: readonly { value: T; label: ReactNode; title?: string }[];
+  options: readonly { value: T; label: ReactNode; title?: string; disabled?: boolean }[];
   onChange: (value: T) => void;
   size?: "xs" | "sm" | "md";
   ariaLabel?: string;
@@ -47,6 +47,7 @@ export function Segmented<T extends string | number>({
           role="radio"
           aria-checked={value === option.value}
           title={option.title}
+          disabled={option.disabled}
           className={value === option.value ? "is-active" : ""}
           onClick={() => onChange(option.value)}
         >

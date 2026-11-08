@@ -31,7 +31,6 @@ export default function CVDPanel() {
   const liveBar = useSessionStore((s) => s.liveBar);
   const tickSize = useSessionStore((s) => s.tickSize);
   const crosshairTime = useSessionStore((s) => s.crosshairTime);
-  const marketType = useSessionStore((s) => s.marketType);
   const [resolution, setResolution] = useState<Resolution>(5);
   const [showPrice, setShowPrice] = useState(true);
   const visibleRef = useRef<{ points: FlowBar[]; slot: number; plotR: number }>({ points: [], slot: 0, plotR: 0 });
@@ -141,9 +140,7 @@ export default function CVDPanel() {
         `Bar delta: ${formatSigned(bar.buyVolume - bar.sellVolume, 3)}`,
         `Bar volume: ${formatCompact(bar.volume, 3)}`,
         "",
-        marketType === "forex"
-          ? "What this means: Tick-rule direction weighted by provider volume or unit ticks. This is a quote-flow proxy, not centralized executed buy/sell volume."
-          : "What this means: Rising CVD with falling price (or the reverse) is a divergence: aggressive flow is not moving price, which often signals absorption.",
+        "What this means: Rising CVD with falling price (or the reverse) is a divergence: aggressive flow is not moving price, which often signals absorption.",
       ].join("\n"),
       e
     );
@@ -159,7 +156,7 @@ export default function CVDPanel() {
   return (
     <Panel
       title="Cumulative Delta" icon={<Icon.Delta />}
-      subtitle={marketType === "forex" ? "tick-rule delta · volume proxy" : "aggressive buy − sell, session"}
+      subtitle="aggressive buy − sell, session"
       value={<span className={last && last.cvd >= 0 ? "tone-buy" : "tone-sell"}>{last ? formatSigned(last.cvd) : "—"}</span>}
       actions={
         <>

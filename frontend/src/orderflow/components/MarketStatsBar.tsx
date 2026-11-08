@@ -29,10 +29,10 @@ export default function MarketStatsBar() {
     const last10 = bars.slice(-11, -1);
     const tradesPerSec = last10.length ? last10.reduce((s, b) => s + b.trades, 0) / last10.length : 0;
     const bars5 = resampleBars(bars.slice(-900), 5);
-    const rv = rollingRealizedVolatility(bars5, 60, 5, secondsPerYear(marketType)).at(-1)?.value ?? null;
+    const rv = rollingRealizedVolatility(bars5, 60, 5, secondsPerYear()).at(-1)?.value ?? null;
     const z = rollingVolumeZScores(bars5, 20).at(-1)?.z ?? null;
     return { tradesPerSec, rv, z };
-  }, [flowBars, liveBar, marketType]);
+  }, [flowBars, liveBar]);
 
   const last = ticker?.price ?? session?.last ?? 0;
   const decimals = priceDecimals(tickSize, last);
@@ -44,10 +44,9 @@ export default function MarketStatsBar() {
   const vwapSigma = session && session.vwapStd > 0 ? (last - session.vwap) / session.vwapStd : 0;
   const delta = session ? session.buyVolume - session.sellVolume : 0;
   const buyShare = session && session.volume ? (session.buyVolume / session.volume) * 100 : 50;
-  const base = marketType === "forex" ? symbol.split("/")[0] : symbol.replace(/USDT?$|USDC$/, "");
-  const assetName = marketType === "forex" ? undefined : assetFor(symbol)?.name;
-  const venueLabel = marketType === "forex" ? "FX quote proxy · no L2" : VENUE_LABEL[venue] ?? venue;
-  const quote = marketType === "forex" ? "" : symbol.endsWith("USDT") ? "$" : "";
+  const assetName = assetFor(symbol)?.name;
+  const venueLabel = VENUE_LABEL[venue] ?? venue;
+  const quote = symbol.split("/")[1] ?? "";
 
   return (
     <section className="hero" aria-label="Session statistics">
@@ -55,8 +54,8 @@ export default function MarketStatsBar() {
         <div className="hero-id">
           <AssetLogo symbol={symbol} size={30} />
           <div>
-            <strong>{marketType === "forex" ? symbol : `${base}/USDT`}</strong>
-            <small>{assetName ?? venueLabel} · {marketType === "perpetual" ? "Perp" : marketType === "spot" ? "Spot" : "FX"}</small>
+            <strong>{symbol}</strong>
+            <small>{assetName ?? venueLabel} · {marketType === "perpetual" ? "Perp" : "Spot"}</small>
           </div>
         </div>
         <span className={`hero-price-value ${change >= 0 ? "is-up" : "is-down"}`}>{px(last || undefined)}</span>
@@ -67,7 +66,7 @@ export default function MarketStatsBar() {
       <div className="hero-stats">
         <Stat label="Session H / L" value={session ? `${px(session.high)} / ${px(session.low)}` : "—"} sub={session ? `${rangeBp.toFixed(0)} bp range` : undefined} />
         <Stat
-          label={marketType === "forex" ? "VWAP proxy" : "VWAP"}
+          label="VWAP"
           value={px(session?.vwap)}
           sub={session ? `${formatPercent(vwapDist, 3)} · ${vwapSigma >= 0 ? "+" : ""}${vwapSigma.toFixed(1)}σ` : undefined}
           tone="vwap"
@@ -75,17 +74,17 @@ export default function MarketStatsBar() {
         />
         <Stat label="POC" value={px(profile?.poc)} sub={profile ? `VA ${px(profile.val)} – ${px(profile.vah)}` : undefined} tone="poc" />
         <Stat
-          label={marketType === "forex" ? "Tick volume" : "Volume"}
+          label="Volume"
           value={session ? formatCompact(session.volume) : "—"}
-          sub={marketType === "forex" ? "provider / unit-tick proxy" : session ? `${quote}${formatCompact(session.notional)} notional` : undefined}
+          sub={session ? `${formatCompact(session.notional)} ${quote} notional` : undefined}
         />
         <Stat
-          label={marketType === "forex" ? "Tick-rule delta" : "Delta"}
+          label="Delta"
           value={session ? formatSigned(delta) : "—"}
           sub={session ? `${buyShare.toFixed(1)}% buy` : undefined}
           tone={delta >= 0 ? "buy" : "sell"}
         />
-        <Stat label={marketType === "forex" ? "Ticks / s" : "Trades / s"} value={studies.tradesPerSec.toFixed(1)} sub={session ? `${session.trades.toLocaleString()} total` : undefined} />
+        <Stat label="Trades / s" value={studies.tradesPerSec.toFixed(1)} sub={session ? `${session.trades.toLocaleString()} total` : undefined} />
         <Stat
           label="Realized vol"
           value={studies.rv === null ? "—" : `${studies.rv.toFixed(1)}%`}

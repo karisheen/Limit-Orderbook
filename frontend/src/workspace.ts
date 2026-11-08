@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import type { Catalog, Mode, VisualGrid } from './api';
 import type { ChartTimeZone } from './chart-time';
 
@@ -9,6 +10,7 @@ export type PaneId = 'heatmap' | 'flow' | 'dom' | 'tape';
 export interface WorkspacePreferences {
   version: 1; source: { mode: Mode; id: string } | null; sourceExplicit: boolean; instrument: string;
   desktopView: 'price' | 'orderflow'; candleInterval: string;
+  nativeView?: 'footprint' | 'price' | 'orderflow' | 'book';
   preset: 'balanced' | 'analysis' | 'ladder'; leftWidth: number; rightWidth: number; bottomHeight: number;
   rightWidthMode?: 'auto' | 'manual';
   leftOpen: boolean; rightOpen: boolean; bottomOpen: boolean;
@@ -31,7 +33,7 @@ const secondaryDefaults: ChartSettings = {
 };
 const defaults: WorkspacePreferences = {
   version: 1, source: null, sourceExplicit: false, instrument: '', preset: 'balanced', leftWidth: 222, rightWidth: 360, rightWidthMode: 'auto', bottomHeight: 248,
-  desktopView: 'price', candleInterval: '1h',
+  desktopView: 'price', candleInterval: '1h', nativeView: 'footprint',
   leftOpen: false, rightOpen: true, bottomOpen: false, mode: 'heatmap', contrast: 1,
   showTrades: true, showQuotes: true, footprintOverview: false, timeZone: 'UTC', priceStep: '', bucket: '1000000000', rangeSeconds: 180,
   range: null, follow: true, followSpanNs: null, paused: false, domFrozen: false, domRows: 15, priceOffset: 0,
@@ -116,6 +118,9 @@ export function validatePreferences(value: unknown, nested = false): WorkspacePr
   const p = value as Record<string, unknown>;
   const next = { ...defaults };
   if (p.desktopView === 'price' || p.desktopView === 'orderflow') next.desktopView = p.desktopView;
+  if (['footprint', 'price', 'orderflow', 'book'].includes(p.nativeView as string)) next.nativeView = p.nativeView as WorkspacePreferences['nativeView'];
+  // Legacy Price action was the default, not evidence of an intentional choice.
+  else if (p.desktopView === 'orderflow') next.nativeView = 'orderflow';
   if (typeof p.candleInterval === 'string' && candleIntervals.includes(p.candleInterval)) next.candleInterval = p.candleInterval;
   for (const key of ['leftOpen', 'rightOpen', 'bottomOpen', 'showTrades', 'showQuotes', 'footprintOverview', 'follow', 'paused', 'domFrozen', 'domCumulative', 'tapeFrozen', 'rangeLinked'] as const) if (typeof p[key] === 'boolean') next[key] = p[key];
   next.leftWidth = Math.round(bounded(p.leftWidth, 180, 360, defaults.leftWidth));
@@ -201,7 +206,16 @@ function loadWorkspaceSlots() {
     return validateWorkspaceSlots(raw && raw.length <= 32768 ? JSON.parse(raw) : null);
   } catch { return validateWorkspaceSlots(null); }
 }
-export function useWorkspacePreferences() {
+export interface WorkspaceState {
+  preferences: WorkspacePreferences;
+  setPreferences: Dispatch<SetStateAction<WorkspacePreferences>>;
+  storageError: string | null;
+  slots: (WorkspacePreferences | null)[];
+  saveSlot: (index: number) => void;
+  loadSlot: (index: number) => void;
+}
+
+export function useWorkspacePreferences(): WorkspaceState {
   const [preferences, setPreferences] = useState(loadPreferences);
   const latestPreferences = useRef(preferences);
   useLayoutEffect(() => { latestPreferences.current = preferences; }, [preferences]);

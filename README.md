@@ -1,113 +1,75 @@
 # Crypto Limit Order Book
 
-A live crypto and FX **order-flow terminal**, closely adapted from
-[zadescoxp/order-flow-screener](https://github.com/zadescoxp/order-flow-screener)
-v2.1.0 under Apache-2.0. The default workspace combines a footprint, session
-profile/VWAP, order book, tape, CVD, volume z-score, realized volatility and depth.
+A crypto order-flow terminal with **one Python-backed session** for public market
+data, exact analytics, historical charts, recording/replay and local research
+workflows. The footprint, book, tape and studies share the same source and native
+instrument as the integrated chart and workflow tools. No exchange order is sent.
 
-**Workbench** retains this project's exact Python core: historical price candles,
-quality-gated analytics, costs, deterministic replay, alerts, spot IOC paper
-accounting, journal and offline research. These remain a separate native session;
-screener feeds do not silently become paper-execution or replay inputs.
+[![Order-flow terminal demo](docs/media/orderbook-demo.gif)](docs/media/orderbook-demo.mp4)
 
-[![Live order-flow demo: footprint modes, indicators, liquidity, volatility, themes, grouped depth and tape filters](docs/media/orderbook-demo.gif)](docs/media/orderbook-demo.mp4)
+[Watch the video walkthrough (MP4)](docs/media/orderbook-demo.mp4): recorded
+public-market replay showing footprint modes, CVD and volume bars, depth,
+historical candles, native liquidity, book/tape and exact cost estimates.
+The animated preview links to the full video. This is actual application
+interaction, not an all-provider correctness, latency, sustained-capacity or
+trading-readiness claim.
 
-[Watch the full 74-second demo (MP4)](docs/media/orderbook-demo.mp4).
-Recorded from this application using real public crypto feeds, not fixture data.
-The animated preview follows the reference README's format; the linked video
-retains the full 1568 × 1000 recording. This is a UI demonstration, not latency
-or trading-readiness certification.
+## Terminal features
 
-## Order-flow terminal
+- Six themes, **Order Flow / Liquidity / Volatility** presets, panel visibility
+  and draggable panel borders.
+- **Bid × Ask / Delta / Volume** footprints; session profile, executed-volume
+  heatmap, VWAP deviation bands, POC/value area and stacked imbalances.
+- Raw/grouped books, primary or consolidated depth, size-filtered tape, CVD,
+  volume z-score, depth/imbalance and realized-volatility studies.
+- Spot/perpetual market selection, searchable instruments, venue selection and
+  indicative cross-venue aggregates, all supplied by the native backend.
+- **Footprint / Price action / Liquidity & flow / Native book & tape** chart
+  tabs, exact book/print inspection and source/quality diagnostics.
+- Exact costs and proposed-risk scenarios, core analytics, alerts/evidence,
+  Hyperliquid context, spot IOC paper accounting, journal and read-only research.
+- Source switching, replay controls, managed recording and browser-local
+  workspace preferences in the same terminal—not a separate application.
 
-- Reference-style layout, six themes, Order Flow / Liquidity / Volatility presets,
-  panel visibility and draggable panel borders.
-- Bid × Ask / Delta / Volume footprints; session profile, traded-volume heatmap,
-  VWAP deviation bands, POC/value area, stacked imbalances and follow/pan/zoom.
-- Raw/grouped books, primary or consolidated depth, size-filtered tape,
-  1s–1m studies and 1m–4h footprint timeframes.
-- The reference's 29-coin catalog, spot/perpetual venue selection and aggregates.
-  Binance, Bybit, OKX and Bitget provide spot/perpetual feeds; Coinbase supplies
-  spot; Hyperliquid and Deribit supply perpetuals (Deribit: BTC/ETH).
-- Finnhub supplies EUR/USD, GBP/USD, USD/JPY, AUD/USD and USD/CAD ticks through its
-  OANDA namespace. Set `VITE_FINNHUB_API_KEY` in `frontend/.env.local` using
-  [the example](frontend/.env.example), then rebuild. This is a **browser-public**
-  key; use an appropriately restricted key, never a secret trading credential.
+### Public crypto coverage
 
-Crypto needs no key. Feeds connect directly from the browser to the same providers
-as the reference. Binance spot uses Binance's official data-only host; futures
-uses the current separate `/public` depth and `/market` trade routes.
-Exchange reachability and symbol coverage depend on region/provider availability.
-No history is fabricated: the footprint begins collecting when a selection opens.
-Reloading or changing selection starts a new market session.
+| Provider | Native markets |
+| --- | --- |
+| Binance global | Spot and USDT USDⓈ-M perpetuals |
+| Bybit | Spot and USDT linear crypto perpetuals |
+| OKX | Spot and linear perpetual swaps |
+| Bitget | Spot and USDT perpetuals |
+| Coinbase | Spot |
+| Hyperliquid | Perpetuals |
+| Deribit | BTC/ETH inverse perpetuals |
+| Binance.US, Kraken, KuCoin | Spot |
 
-FX depth/OBI are explicitly labeled **synthetic quote/flow proxies, not L2**;
-direction is inferred and volume uses provider volume or unit ticks. Aggregate
-crypto prices combine USD/USDT/USDC without conversion and are indicative, not
-executable arbitrage prices. Use Workbench for exact venue/quote analysis.
+The source catalog determines available instruments. Discovery, live books,
+trades and historical candles have provider-specific coverage and quality;
+listing an adapter does not certify every symbol, region or channel. Public
+endpoints may rate-limit, restrict access or change protocols. Derivative
+contract units and settlement remain explicit; perpetual display support does
+not enable derivative paper execution. See [feed validation](docs/FEED_VALIDATION.md)
+for historical observations, not blanket qualification of this release.
+Discovery excludes Bybit linear TradFi classifications and Bitget RWA futures;
+native crypto contract metadata remains explicit.
 
-The adapted source is in `frontend/src/orderflow`; attribution and licenses ship
-in [third-party notices](frontend/public/THIRD_PARTY_NOTICES.txt). Upstream
-revision: `2b451b5e3d9c3220b06fa6497b13996b3841b583`. No upstream telemetry or
-first-visit solicitation is included. Protocol fixes cover Bybit update IDs,
-Binance routed streams/depth, Hyperliquid object levels, Bitget prints and
-Coinbase aggressor direction.
+Binance and Bybit discover spot and perpetual families independently: a complete
+reachable family remains listed when another is restricted or fails. Mixed
+metadata availability is explicitly partial, not evidence that every feed works.
+No missing metadata is fabricated and no other exchange is silently substituted.
+Bybit uses the [official equivalent mainnet host](https://bybit-exchange.github.io/docs/v5/guide)
+`api.bytick.com`; regional restrictions still apply. See
+[native adapter access semantics](docs/ADAPTERS_ASIAN.md#metadata-and-identity).
 
-## Upgrade progress
-
-- **M0:** baseline audit, architecture decisions, contracts and acceptance backlog
-  recorded. Historical audit observations describe the starting code, not all
-  current behavior.
-- **M1:** exact core, seven public venue adapters, supervised shared subscription
-  ownership and legacy safety fixes implemented and merged. Live feed integrations
-  have measured evidence below.
-- **M2:** durable raw/normalized capture, verified manifests/checkpoints, deterministic
-  replay and an explicitly synthetic offline demo implemented. Integration and
-  Git delivery evidence are tracked in the handoff.
-- **M3–M4:** native analytics/costs, independent terminal sessions, historical
-  liquidity visualization and persistent workspace are implemented. Earlier
-  benchmark and capture observations remain historical evidence in the handoff.
-- **M5:** native alerts/evidence, Hyperliquid context, paper/journal persistence
-  and research CLI/report tabs are implemented. These workflows are simulations
-  and analysis, not exchange execution or evidence of profitable signals.
-- **M6:** local-only defaults, locked setup, multi-client/restart/fault recovery,
-  a complete30-minute Binance-global/Hyperliquid capture with full replay parity,
-  and measured native/rendering behavior. Evidence includes failed attempts,
-  bootstrap/tail-latency limits and the explicitly unrun24-hour soak.
-- **M7:** the dedicated order-flow workstation redesign is implemented: independent
-  primary/secondary chart views, exact source-time/price cursor links, four
-  maximizable market panes, browser-local workspace slots, independent tape
-  controls, watchlist/research drawers and pinned identity, quality and freshness
-  evidence. Source-clock lag, browser evidence residency and rendering/ACK
-  measurements remain distinct. Implementation is not a gate result: current
-  verification and visual evidence belong in the
-  [delivery/evidence handoff](docs/OMP_UPGRADE_HANDOFF.md).
-- **M8:** the market-first workstation adds native receive-clock date/time labels,
-  readable numeric footprints, compact responsive pane controls and exact
-  DOM/print inspection. Cursor linking and optional chart-time navigation are
-  independent; follow, fit and recenter have separate meanings. Keyboard
-  navigation, layout presets and prioritized incidents retain access to exact
-  evidence without turning transport health into market-data quality. See the
-  [M8 handoff](docs/OMP_UPGRADE_HANDOFF.md#m8--market-first-workstation)
-  for implementation scope and source-specific evidence.
-- **Current workspace refinement:** identity/search hierarchy, multi-term catalog
-  search and a **Source / workspace** configuration disclosure; at widths
-  ≤965 CSS px, state-preserving **Liquidity / Flow / Book / Tape** tabs replace
-  the four-pane vertical stack. Desktop dual charts and DOM/tape remain.
-  Sparse book deltas use bounded incremental sorted-side candidates; snapshots
-  and dense changes retain full sorting, with Binance observed-depth boundaries
-  unchanged. See [research, measured results and limits](docs/WORKSPACE_IMPROVEMENT.md).
-  Repeated finite native measurements and matched UI comparisons are recorded
-  separately from final integration-gate status; these changes add no economics,
-  execution modes, live-feed integrations or sustainable-capacity guarantee.
-
-For current acceptance status and executed evidence, see the
-[operational readiness and recovery](docs/READINESS.md),
-[full acceptance backlog](docs/UPGRADE_BACKLOG.md),
-[delivery/evidence handoff](docs/OMP_UPGRADE_HANDOFF.md),
-[architecture decisions](docs/ARCHITECTURE.md) and
-[exact contracts](docs/CONTRACTS.md). Neither fixture tests nor successful access
-probes establish complete live-feed correctness or trading readiness.
+Aggregate display prices can combine USD/USDT/USDC **without conversion** and
+are indicative, not executable arbitrage prices. The primary native instrument
+and exact quote identity remain authoritative for costs and paper workflows.
+Other quote currencies are not mixed into that dollar-family display. Each
+venue/market contributes one native instrument; outside that family, aggregates
+require the same exact quote identity.
+Missing conversion evidence or fees stay unknown; display-only studies do not
+replace native quality-gated financial results. No missing history is fabricated.
 
 ## Run the terminal
 
@@ -120,195 +82,130 @@ npm --prefix frontend run build
 uv run --locked --offline --no-sync python -m src.workstation.cli serve --network
 ```
 
-Open `http://127.0.0.1:8000/` for the order-flow terminal. It also runs standalone
-with `npm --prefix frontend run dev`; its public browser feeds do not need Python.
-**Workbench** (`/?workspace=native`) opens the native workstation.
+Open `http://127.0.0.1:8000/`. Python serves the built frontend and owns public
+exchange connections; no frontend keys or environment file are needed.
+`--network` explicitly enables native discovery/collection and makes live the
+server-preferred source. Starting the server does not start durable recording.
 
-For native public exchange data, use `/?source=live` with `serve --network`.
-The explicit `--network` flag enables **native** discovery/collection and makes
-live the native server's preferred source. Binance global and Hyperliquid remain
-separately qualified native feeds. No durable capture is generated on startup.
+Omit `--network` for the initially paused **synthetic offline demo**. Playing it
+advances fixtures, not real orders. Use `serve --capture data/workstation/SESSION_ID`
+to expose an existing verified capture as a replay source. Select sources inside
+the terminal, or request a catalog source with `/?source=live` or
+`/?source=<catalog ID>`. A URL source takes precedence over saved preferences;
+unavailable live data never silently becomes demo.
 
-Without `--network`, Workbench uses the sparse, initially paused **synthetic
-offline demo**; **Play synthetic demo** advances fixtures, not live orders.
-Use `serve --capture data/workstation/SESSION_ID` for verified replay. A URL source
-overrides saved native preferences; unavailable live data never becomes demo.
-The default screener still uses public network feeds even when the native server
-is offline. For an entirely offline workflow, open `/?workspace=native`.
-Unknown fees, missing depth, stale inputs and incompatible quotes remain explicit
-exclusions. No order is sent to an exchange. See
-[terminal controls](docs/TERMINAL.md), [API](docs/API.md),
-[analytics](docs/ANALYTICS.md) and [costs](docs/COSTS.md).
+For development, keep the Python server running and start
+`npm --prefix frontend run dev`; open `http://127.0.0.1:5173/`. Vite proxies the
+native API and WebSocket to port 8000. It is not a standalone exchange client.
+Each browser document owns an independent session; feed subscriptions may be
+shared by the backend, but selections and replay cursors are not shared.
 
-The native [operator guide](docs/TERMINAL.md) covers timeframe selection, chart navigation,
-independent order-flow settings and source/diagnostic inspectors. **1m / 5m / 15m /
-1h / 4h / 1d** are one-click candle choices; **More** groups additional minute,
-hour and longer intervals supported by the selected venue. Candle history refreshes
-about every five seconds, independently of book/tape updates. Drag/scroll to pan
-and zoom; **Fit** shows returned history and **Latest** follows recent bars.
-One bar means the selected duration, not one incoming event. Live history is a
-bounded native OHLCV page; demo/replay uses only delivered retained trades and
-explicitly labels partial coverage. It does not invent historical candles.
+See [terminal controls](docs/TERMINAL.md), [development](docs/DEVELOPMENT.md),
+[API](docs/API.md), [analytics](docs/ANALYTICS.md) and [costs](docs/COSTS.md).
 
-Open **Source / workspace** for source selection, presets and four browser-local
-workspace slots. **/** focuses market search. At ≤965 CSS px, **Price / Liquidity /
-Flow / Book / Tape** tabs retain mounted pane state and gate hidden queries.
-The bottom workflow dock opens the existing analysis, alert, context, paper,
-journal and research tools. Preferences never save a mutable backend session.
+## Charts, recording and replay
 
-The retained native desktop composition and timeframe hierarchy are informed by
-[TradeXYZ](https://app.trade.xyz/) and [Hyperdash](https://hyperdash.com/), including
-the supplied screenshots. [JTX](https://app.jtx.com/) informs restrained separators
-and explicit market identity. These are interface references, not integrations
-or backend-speed claims. Earlier footprint/tape influences remain documented in
-the [research record](docs/WORKSPACE_IMPROVEMENT.md).
-The native Canvas renderer is independently implemented. The default screener
-instead adapts the Apache-2.0 reference renderer, Geist fonts and licensed icons.
-Native `analytical_queue_overflow` remains a collector-capacity boundary, not
-something a frontend redesign or reconnect repairs.
+The order-flow footprint and studies use delivered native events. Native candle
+history is a bounded provider OHLCV page where supported; demo/replay candles
+use only already-delivered retained trades and label partial coverage. A candle
+represents its selected duration, not one incoming event. Changing a display
+interval does not create a new financial session or change replay speed.
+Trade-stream continuity boundaries restart affected trade studies without
+discarding independent depth history. Busy workflow actions pause display
+polling without clearing same-owner caches. Missing timestamp evidence shows
+unavailable lag; **Recorded lag** describes capture-time receipt, not playback
+latency.
 
-## Local alerts, paper, journal and research
+Open **Recordings** and choose one of exactly two capture scopes:
+**Selected instrument** (`instrument`, default) captures all primary-owned
+channels, including book/trades and any reference/context streams;
+**Session cohort** (`cohort`) captures all native session-owned keys.
+Default capture does not require unrelated cohort channels. Scope and keys are
+fixed at start; display selection changes do not retarget recording. Rows retain
+scope, instrument IDs and channel metadata across restarts. The server chooses
+paths under `--state-dir`; browser clients never supply filesystem paths.
+**Stop recording** finalizes and validates; completed usable captures offer
+**Replay recording** without restarting the server. **Refresh recordings**
+exposes status and incomplete/error reasons. Missing evidence or incomplete
+captures are not made complete by scope choice or successful finalization.
+Session/server close finalizes capture; restart rediscovers verified recordings
+from retained state. Limits are two active captures per server (one per session),
+64 retained entries and 128 MiB per capture.
 
-`serve --state-dir data/workstation-state` stores `paper.sqlite3`,
-`journal.sqlite3` and `research.sqlite3` under the chosen directory (this is also
-the CLI default). Use the same directory for `research run`, `research list`,
-`research show` and the server to inspect persisted attempts in the terminal.
-See [demo/CLI workflows](docs/DEMO.md) for exact research configuration and
-commands, and [API contracts](docs/API.md) for bounded request/response fields.
+Replay play/pause, step, speed, delivery-index seek and reset control the actual
+native replay engine. Seek/reset and source changes invalidate obsolete chart
+and workflow evidence. Chart freezes hold presentation only; they do not pause
+collection, recording or the replay clock.
 
-Saved hypotheses and test plans live in the
-[strategy research backlog](docs/STRATEGY_RESEARCH.md), covering the three built-in
-signal families plus absorption, hourly-context and cost-filter experiments.
-These are planned investigations, not validated strategies or trading results.
-
-The terminal's **Alerts**, **Context**, **Paper**, **Journal** and **Research**
-tabs consume native results. Alert thresholds have explicit units, hysteresis,
-cooldown and supporting evidence; they are not forecasts. Hyperliquid mids,
-mark/oracle, funding and open interest are reference-only. USD, USDT and USDC
-remain distinct identities; missing FX or fees remain unknown.
-
-Paper requires explicit venue/asset funds, dated fee assumptions and feed,
-decision and order latencies. Only spot market/marketable-limit IOC is modeled:
-partial fills cancel the remainder, consumed depth cannot be reused without
-observed replenishment, and neither passive fills nor market impact is inferred.
-Initial inventory cost basis is unknown. Archives preserve accounting evidence;
-they do not silently become the active replay ledger. Resume is explicit,
-source-matched and unavailable for live histories. Journals preserve authored
-provenance; research reports retain failed attempts and all candidate outcomes.
-Interrupted mutations may already have committed: inspect native state before
-retrying; the client does not retry workflow mutations automatically.
-
-## Native headless feeds
-
-The new backend is independent of Streamlit rendering. Run an explicit public
-network probe (not a recorder and not an execution client):
+Headless workflows remain available:
 
 ```sh
-uv run --locked python tools/probe_feeds.py --live --duration 60 --include-hype
-```
-
-Observed integration evidence, not blanket regional-access guarantees:
-
-| Venue | Actual validation | Limitation |
-| --- | --- | --- |
-| Binance global | BTC/ETH/SOL metadata, REST depth/trades, synchronized diff books and live trades on official data-only hosts | Preferred over US only when required dependencies work |
-| Coinbase | BTC/ETH/SOL Advanced Trade REST snapshots, full WS books and live trades | Public Advanced Trade schema; not the legacy Exchange REST API |
-| Kraken | BTC/ETH/SOL REST snapshots, CRC-validated WS books and live trades | REST has no WS continuity/checksum claim |
-| Hyperliquid | BTC/ETH/SOL/HYPE perpetual REST snapshots, bounded WS replacement books and live trades | No exact event OFI or invented depth beyond the subscription |
-| Binance.US | BTC/ETH/SOL REST and partial WS books; ETH/SOL live prints | BTC produced no live print in the short observation window; distinct venue |
-| KuCoin | BTC/ETH/SOL REST books and trade history | Degraded snapshots; unknown aggressor side, not continuous WS |
-| Bybit | Offline protocol/reset fixtures | Metadata HTTP 403 blocked this machine; remaining live checks unrun |
-
-The initial failed run and corrected run are retained in
-[`docs/evidence/`](docs/evidence/); see [feed validation](docs/FEED_VALIDATION.md)
-for exact commands and [contracts](docs/CONTRACTS.md) for loss, freshness,
-ownership and source-transition semantics. No fixture data fills gaps in live
-history. Streamlit uses the same native API as the React terminal, without
-separate exchange collectors or financial formulas.
-
-## Record, replay and offline demo
-
-After the locked Python setup below:
-
-```sh
-# Offline: original CC0 synthetic BTC/ETH/SOL scenarios, 180 virtual seconds.
+# Explicitly synthetic, original CC0 scenarios; not exchange history.
 uv run --locked python -m src.workstation.cli demo
 
-# Actual public data; both venues retain distinct market/quote identities.
+# Actual public data with distinct venue/market/quote identities.
 uv run --locked python -m src.workstation.cli record --network \
   --venue binance-global --venue hyperliquid --assets BTC ETH SOL --duration 60
 
-# Replace SESSION_ID with the capture directory reported by either command.
+# Use the capture directory reported by demo or record.
 uv run --locked python -m src.workstation.cli inspect data/workstation/SESSION_ID
 uv run --locked python -m src.workstation.cli replay data/workstation/SESSION_ID --mode raw
 uv run --locked python -m src.workstation.cli replay data/workstation/SESSION_ID --interactive
 ```
 
 Interactive replay supports `play SPEED`, `pause`, `step N`, `seek ORDINAL`,
-`run` and `quit`. Raw and normalized paths share reconstruction and quality rules.
-Incomplete/corrupt captures are not silently accepted. The recorder owns its
-subscription leases independently of browser clients; capture starts before
-synchronization, and CLI readiness labels that distinction.
+`run` and `quit`. Raw and normalized replay share reconstruction/quality rules;
+incomplete or corrupt captures are not silently accepted. See
+[recording](docs/RECORDING.md), [replay](docs/REPLAY.md) and [demo/CLI](docs/DEMO.md).
 
-The terminal's memory-backed demo and the `demo` command's durable capture
-are separate workflows; neither represents historical exchange activity.
-See [recording](docs/RECORDING.md), [replay](docs/REPLAY.md), [demo/CLI](docs/DEMO.md)
-and the handoff for exact evidence, budgets, recovery and source limitations.
+## Exact local workflows and limits
 
-## Run the supported Streamlit client
+`serve --state-dir data/workstation-state` selects durable storage (also the CLI
+default), including paper, journal, research and managed captures. Use the same
+directory for `research run`, `research list`, `research show` and the server.
+Research reports retain configuration, exclusions, failed attempts and all
+candidate outcomes; the browser does not launch experiments or tune parameters.
+The [strategy research backlog](docs/STRATEGY_RESEARCH.md) contains hypotheses,
+not validated strategies.
 
-Use the same locked Python 3.13 environment as the native backend. In one
-terminal, start the offline synthetic demo API:
+Alerts have explicit units, hysteresis, cooldown and supporting native evidence;
+they are not forecasts. Hyperliquid mids, mark/oracle, funding and open interest
+are reference-only. USD, USDT and USDC remain distinct identities; missing
+quote-conversion evidence, fees, depth or eligible history stay explicit.
 
-```sh
-uv run --locked --offline --no-sync python -m src.workstation.cli serve
-```
+Paper requires explicit venue/asset funds, dated fee assumptions and feed,
+decision and order latencies. Only **spot market/marketable-limit IOC** is modeled:
+partial fills cancel the remainder, consumed depth requires observed
+replenishment, and neither passive fills, derivative economics nor market impact
+is inferred. Initial inventory cost basis is unknown. Archives are read-only
+accounting evidence, not automatically active ledgers. Resume is explicit,
+source-matched and available only for demo/replay, not live histories.
 
-In another terminal:
+Journals preserve authored provenance. Interrupted workflow mutations may already
+have committed: inspect native state before retrying. The client does not
+retry mutations automatically. No credentials, wallet/signing, private exchange
+operations or live execution are provided.
 
-```sh
-uv run --locked --offline --no-sync python -m streamlit run crypto_lob.py --server.address 127.0.0.1
-```
+## Repository and evidence
 
-Streamlit connects only to a loopback API origin. Select a catalog source and
-exact native instrument, then open the selection. It shares the backend's
-metadata, books, quality, historical grids, analytics and cost engine with the
-React terminal; it has no separate exchange collectors or financial formulas.
-Each browser document owns an independent API session. Live feed leases remain
-shared by the native registry, not by Streamlit process-global resources.
-
-The default is synthetic and offline. Recordings require `serve --capture`;
-public live data requires explicit `serve --network`. Unknown fees, incompatible
-quotes, invalid books and incomplete flow remain visible, not zero or profit.
-See [legacy client operation and bounds](docs/LEGACY.md), [API](docs/API.md) and
-[native development](docs/DEVELOPMENT.md). No credentials or wallet are required.
-
-## Repository layout
-
-- `crypto_lob.py`, `src/ui/`: thin Streamlit observation client of the native API.
-- `frontend/`: React/TypeScript order-flow workstation and independent native Canvas chart panes.
+- `frontend/`: unified React/TypeScript terminal, display studies and native chart/workflow integration.
 - `src/workstation/`: exact core, public adapters, shared feed registry,
   recording/replay, analytics, visualization, alerts/context, paper/journal,
   research and versioned terminal API.
-- `tests/`: offline contracts/regressions and explicitly separate live checks.
-- `docs/`: development instructions, contracts, acceptance and evidence.
+- `crypto_lob.py`, `src/ui/`: supported thin Streamlit observation client of the
+  same API; see [legacy client operation](docs/LEGACY.md).
+- `tests/`: offline contracts/regressions and separately opted-in live checks.
+- `docs/`: development instructions, contracts, acceptance and historical evidence.
 
-## Checks and live access
+After synchronizing dependencies, `./tools/check.sh` is the documented offline
+gate; see [development](docs/DEVELOPMENT.md#offline-checks-and-quality-scope).
+For deliberate public-service observations, use
+`uv run --locked python tools/probe_feeds.py --live --duration 60 --include-hype`.
 
-After synchronizing the environment, use the documented offline gate:
-
-```sh
-./tools/check.sh
-```
-
-The gate and its environment-selection rules are explained in
-[DEVELOPMENT.md](docs/DEVELOPMENT.md#offline-checks-and-quality-scope).
-Public live probes and recordings use the explicit native CLI `--network`
-commands above; the duplicate legacy smoke script and collectors are retired.
-Executed checks, access observations and remaining blockers belong in the
-[handoff](docs/OMP_UPGRADE_HANDOFF.md), not inferred pass counts in this README.
-
-Public endpoints may rate-limit, block regional access, suspend products or
-change their protocols. This is an educational/research project, not trading
-advice. No live order execution, private credentials, signing or withdrawals are
-implemented or authorized by this upgrade.
+Executed checks and known limits belong in the
+[delivery/evidence handoff](docs/OMP_UPGRADE_HANDOFF.md),
+[operational readiness](docs/READINESS.md), [acceptance backlog](docs/UPGRADE_BACKLOG.md)
+and [exact contracts](docs/CONTRACTS.md). Historical results are not certification
+of current changes. Fixture success and finite live probes do not establish
+all-symbol correctness, a long-running soak, sustainable capacity or trading
+readiness. This is an educational/research project, not trading advice.

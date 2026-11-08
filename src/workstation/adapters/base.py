@@ -57,6 +57,14 @@ _PUBLIC_QUERY_FIELDS = frozenset(
         "type",
         "startAt",
         "endAt",
+        "instType",
+        "instId",
+        "sz",
+        "productType",
+        "precision",
+        "currency",
+        "kind",
+        "expired",
     )
 )
 _PUBLIC_BODY_FIELDS = frozenset(
@@ -84,6 +92,10 @@ _PUBLIC_BODY_FIELDS = frozenset(
         "interval",
         "startTime",
         "endTime",
+        "instType",
+        "instId",
+        "jsonrpc",
+        "channels",
     )
 )
 _PUBLIC_OPERATIONS = frozenset(("subscribe", "unsubscribe", "ping", "pong"))
@@ -104,6 +116,11 @@ _PUBLIC_TYPES = frozenset(
         "activeAssetCtx",
         "candleSnapshot",
     )
+)
+_DERIBIT_PUBLIC_CHANNEL = re.compile(
+    r"(?:book\.(?:BTC|ETH)-PERPETUAL(?:\.none\.(?:1|10|20))?"
+    r"|trades\.(?:BTC|ETH)-PERPETUAL)\.100ms\Z",
+    re.ASCII,
 )
 
 
@@ -155,16 +172,48 @@ def _validate_public_body(body: bytes) -> None:
     value = exact_json_loads(body, max_bytes=4_194_304)
     if not isinstance(value, dict):
         raise ValueError("public request body must be a JSON object")
+    if "jsonrpc" in value or value.get("method") == "public/subscribe":
+        params = value.get("params")
+        if (
+            set(value) != {"jsonrpc", "id", "method", "params"}
+            or value["jsonrpc"] != "2.0"
+            or value["method"] != "public/subscribe"
+            or not isinstance(params, dict)
+            or set(params) != {"channels"}
+            or not isinstance(params["channels"], list)
+            or not params["channels"]
+            or any(
+                not isinstance(channel, str)
+                or _DERIBIT_PUBLIC_CHANNEL.fullmatch(channel) is None
+                for channel in params["channels"]
+            )
+        ):
+            raise ValueError("unsupported public JSON-RPC request")
     pending = [value]
     while pending:
         item = pending.pop()
         if isinstance(item, dict):
             if any(key not in _PUBLIC_BODY_FIELDS for key in item):
                 raise ValueError("unsupported public request field")
+            if ("jsonrpc" in item and item is not value) or (
+                "channels" in item
+                and not (
+                    value.get("method") == "public/subscribe"
+                    and item is value.get("params")
+                )
+            ):
+                raise ValueError("unsupported public JSON-RPC request")
             for key in ("method", "op"):
                 if key in item and (
                     not isinstance(item[key], str)
-                    or item[key].lower() not in _PUBLIC_OPERATIONS
+                    or (
+                        item[key].lower() not in _PUBLIC_OPERATIONS
+                        and not (
+                            item is value
+                            and key == "method"
+                            and item[key] == "public/subscribe"
+                        )
+                    )
                 ):
                     raise ValueError("unsupported public request operation")
             if "type" in item and (

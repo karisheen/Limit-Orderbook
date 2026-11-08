@@ -1,4 +1,4 @@
-"""Bybit v5 mainnet spot snapshots/deltas; update IDs are not contiguous."""
+"""Bybit v5 spot and linear USDT perpetual books; IDs are not contiguous."""
 
 from hashlib import sha256
 import json
@@ -15,6 +15,7 @@ from .binance import (
     array_field,
     asset_identity,
     decode_failure,
+    discover_metadata_families,
     integer_field,
     level_changes,
     metadata_snapshot,
@@ -49,31 +50,105 @@ def bybit_sequence(previous, incoming, snapshot):
 class BybitAdapter:
     venue = "bybit"
     api_family = "v5-spot"
-    rest_host = "https://api.bybit.com"
+    # Both mainnet hosts are official; neither bypasses regional restrictions.
+    # https://bybit-exchange.github.io/docs/v5/guide
+    rest_host = "https://api.bytick.com"
     stream = "wss://stream.bybit.com/v5/public/spot"
+    linear_api_family = "v5-linear"
+    linear_stream = "wss://stream.bybit.com/v5/public/linear"
+    MAX_METADATA_PAGES = 32
+    metadata_families = ("v5-spot", "v5-linear")
+    discovery_evidence: tuple[tuple[str, str, str], ...] = ()
 
     async def discover(self) -> MetadataSnapshot:
+        return await self.discover_metadata()
+
+    async def discover_metadata(self, *, timeout=30) -> MetadataSnapshot:
+        return await discover_metadata_families(self, timeout=timeout)
+
+    async def discover_family(self, family) -> MetadataSnapshot:
         from ..transport import fetch_public
 
-        raw = await fetch_public(
-            TransportRequest(
-                "GET", f"{self.rest_host}/v5/market/instruments-info?category=spot"
+        if family == self.api_family:
+            raw = await fetch_public(
+                TransportRequest(
+                    "GET", f"{self.rest_host}/v5/market/instruments-info?category=spot"
+                )
             )
-        )
-        return self.parse_metadata(raw, fetch_wall_ns=time_ns())
+            snapshot, _ = self._metadata_page(
+                raw, fetch_wall_ns=time_ns(), expected_category="spot"
+            )
+            return snapshot
+        if family != self.linear_api_family:
+            raise ValueError("unsupported metadata API family")
+        fetched = time_ns()
+        raws, instruments = [], []
+        cursor = ""
+        seen = set()
+        for _ in range(self.MAX_METADATA_PAGES):
+            endpoint = f"{self.rest_host}/v5/market/instruments-info?category=linear&limit=1000"
+            if cursor:
+                endpoint += f"&cursor={quote(cursor, safe='')}"
+            raw = await fetch_public(TransportRequest("GET", endpoint))
+            page, cursor = self._metadata_page(
+                raw, fetch_wall_ns=fetched, expected_category="linear"
+            )
+            raws.append(raw)
+            instruments.extend(page.instruments)
+            if not cursor:
+                return metadata_snapshot(
+                    page.source,
+                    b"\n".join(raws),
+                    fetched,
+                    instruments,
+                )
+            if cursor in seen:
+                raise ValueError("repeated metadata pagination cursor")
+            seen.add(cursor)
+        raise ValueError("metadata pagination limit exceeded")
 
     def parse_metadata(self, raw: bytes, *, fetch_wall_ns: int = 0) -> MetadataSnapshot:
+        snapshot, cursor = self._metadata_page(raw, fetch_wall_ns=fetch_wall_ns)
+        if cursor:
+            raise ValueError("incomplete paginated metadata")
+        return snapshot
+
+    def _metadata_page(
+        self, raw: bytes, *, fetch_wall_ns: int, expected_category: str | None = None
+    ):
         root = object_field(exact_json_loads(raw))
         if integer_field(root["retCode"]) != 0:
             raise ValueError(f"metadata endpoint error: {root['retCode']}")
         result = object_field(root["result"])
-        if result["category"] != "spot" or result.get("nextPageCursor"):
+        category = result["category"]
+        if category not in ("spot", "linear"):
+            raise ValueError("unexpected metadata category")
+        if expected_category is not None and category != expected_category:
+            raise ValueError("unexpected metadata category")
+        cursor = result.get("nextPageCursor", "")
+        if not isinstance(cursor, str) or len(cursor) > 4096:
+            raise ValueError("invalid metadata pagination cursor")
+        if category == "spot" and cursor:
             raise ValueError("unexpected spot metadata category/pagination")
-        source = f"{self.rest_host}/v5/market/instruments-info?category=spot"
+        source = f"{self.rest_host}/v5/market/instruments-info?category={category}"
+        linear = category == "linear"
+        family = self.linear_api_family if linear else self.api_family
+        market_type = "perpetual" if linear else "spot"
         version = f"{sha256(raw).hexdigest()}:{fetch_wall_ns}"
         instruments = []
         for value in array_field(result["list"]):
             row = object_field(value)
+            if linear:
+                # Linear also lists TradFi perpetuals, not just crypto contracts.
+                if row.get("symbolType") in ("stock", "ETF", "commodity", "forex"):
+                    continue
+                if (
+                    row["contractType"] != "LinearPerpetual"
+                    or row["quoteCoin"] != "USDT"
+                ):
+                    continue
+                if row["settleCoin"] != "USDT":
+                    raise ValueError("unexpected linear settlement asset")
             symbol = text(row["symbol"])
             base, currency = (
                 asset_identity(self.venue, row["baseCoin"]),
@@ -92,31 +167,52 @@ class BybitAdapter:
                 "PreLaunch": "unavailable",
                 "PendingOpen": "unavailable",
             }.get(text(row["status"]), "unknown")
-            # Deprecated minOrderQty/maxOrderQty/maxOrderAmt are not constraints.
-            # Token books keep token units; xstock scaling is reference metadata only.
+            # Spot's deprecated quantity fields are not order constraints.
+            # Derivative qtyStep and order-type limits remain authoritative.
             instruments.append(
                 Instrument(
-                    InstrumentId(f"{self.venue}:{self.api_family}:spot:{symbol}"),
+                    InstrumentId(f"{self.venue}:{family}:{market_type}:{symbol}"),
                     version,
                     self.venue,
-                    self.api_family,
+                    family,
                     symbol,
                     base,
                     currency,
                     decimal(price["tickSize"], positive=True),
-                    decimal(lot["basePrecision"], positive=True),
+                    decimal(
+                        lot["qtyStep" if linear else "basePrecision"], positive=True
+                    ),
+                    settlement=asset_identity(self.venue, row["settleCoin"])
+                    if linear
+                    else None,
+                    market_type=market_type,
+                    quantity_unit="base",
+                    contract_multiplier=decimal("1"),
+                    contract_value_currency=base.asset_id if linear else None,
+                    settlement_conversion="none" if linear else "unknown",
+                    contract_specification_source=source if linear else None,
                     native_asset_id=str(integer_field(row["symbolId"]))
                     if "symbolId" in row
                     else None,
                     reference_multiplier=decimal(
                         row.get("xstockMultiplier", "1"), positive=True
                     )
-                    if row.get("symbolType") == "xstocks"
+                    if not linear and row.get("symbolType") == "xstocks"
                     else None,
                     constraints=OrderConstraints(
-                        max_limit_base=optional_decimal(lot, "maxLimitOrderQty"),
-                        max_market_base=optional_decimal(lot, "maxMarketOrderQty"),
-                        min_notional=decimal(lot["minOrderAmt"], nonnegative=True),
+                        min_base=optional_decimal(lot, "minOrderQty")
+                        if linear
+                        else None,
+                        max_limit_base=optional_decimal(
+                            lot, "maxOrderQty" if linear else "maxLimitOrderQty"
+                        ),
+                        max_market_base=optional_decimal(
+                            lot, "maxMktOrderQty" if linear else "maxMarketOrderQty"
+                        ),
+                        min_notional=decimal(
+                            lot["minNotionalValue" if linear else "minOrderAmt"],
+                            nonnegative=True,
+                        ),
                         min_notional_currency=currency.asset_id,
                     ),
                     status=status,
@@ -124,12 +220,19 @@ class BybitAdapter:
                     metadata_source=source,
                 )
             )
-        return metadata_snapshot(source, raw, fetch_wall_ns, instruments)
+        return metadata_snapshot(source, raw, fetch_wall_ns, instruments), cursor
 
     def _validate(self, instrument, key):
-        validate_key(instrument, key, self.venue, self.api_family)
+        linear = instrument.api_family == self.linear_api_family
+        validate_key(
+            instrument,
+            key,
+            self.venue,
+            self.linear_api_family if linear else self.api_family,
+            market_type="perpetual" if linear else "spot",
+        )
         if key.channel == "book" and key.depth not in (1, 50, 200, 1000):
-            raise ValueError("unsupported Bybit spot depth")
+            raise ValueError("unsupported Bybit depth")
 
     def _topic(self, instrument, key):
         return (
@@ -153,7 +256,11 @@ class BybitAdapter:
 
     def ws_endpoint(self, instrument: Instrument, key: SubscriptionKey) -> str:
         self._validate(instrument, key)
-        return self.stream
+        return (
+            self.linear_stream
+            if instrument.api_family == self.linear_api_family
+            else self.stream
+        )
 
     def subscription_requests(
         self, instrument: Instrument, key: SubscriptionKey
@@ -179,10 +286,13 @@ class BybitAdapter:
     ) -> TransportRequest:
         self._validate(instrument, key)
         symbol = quote(instrument.native_symbol, safe="")
+        category = (
+            "linear" if instrument.api_family == self.linear_api_family else "spot"
+        )
         suffix = (
-            f"recent-trade?category=spot&symbol={symbol}&limit=60"
+            f"recent-trade?category={category}&symbol={symbol}&limit=60"
             if key.channel == "trades"
-            else f"orderbook?category=spot&symbol={symbol}&limit={key.depth}"
+            else f"orderbook?category={category}&symbol={symbol}&limit={key.depth}"
         )
         return TransportRequest("GET", f"{self.rest_host}/v5/market/{suffix}")
 
@@ -197,14 +307,19 @@ class BybitAdapter:
             )
             if frame.transport != ("rest" if rest else "ws"):
                 raise ValueError("wrong_transport")
-            if not rest and frame.endpoint_id != self.stream:
+            if not rest and frame.endpoint_id != self.ws_endpoint(instrument, key):
                 raise ValueError("wrong_endpoint")
             if rest:
                 if integer_field(root["retCode"]) != 0:
                     raise ValueError(f"endpoint_error:{root['retCode']}")
                 data = object_field(root["result"])
                 if key.channel == "trades":
-                    if data["category"] != "spot":
+                    category = (
+                        "linear"
+                        if instrument.api_family == self.linear_api_family
+                        else "spot"
+                    )
+                    if data["category"] != category:
                         raise ValueError("wrong_category")
                     return DecodeResult(
                         tuple(
@@ -336,6 +451,10 @@ class BybitAdapter:
             capabilities=self.capabilities(instrument, key),
             truncate_depth=True,
             sequence_validator=bybit_sequence if key.channel == "book" else None,
-            strategy_id="bybit-v5-spot-v1",
-            adapter_revision="bybit-v1",
+            strategy_id="bybit-v5-linear-v1"
+            if instrument.api_family == self.linear_api_family
+            else "bybit-v5-spot-v1",
+            adapter_revision="bybit-linear-v1"
+            if instrument.api_family == self.linear_api_family
+            else "bybit-v1",
         )

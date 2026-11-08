@@ -3,22 +3,14 @@
 
 
 import { createTerminalStore, type TerminalStore } from "@/lib/store/terminalStore";
-import { MarketDataManager } from "@/lib/managers/marketDataManager";
+import { NativeMarketBridge } from "./NativeMarketBridge";
 
 export class MarketSession {
   readonly store = createTerminalStore();
-  readonly manager = new MarketDataManager(this.store);
-
-  pause(): void {
-    this.manager.pause();
-  }
-
-  resume(): void {
-    this.manager.resume();
-  }
+  readonly bridge = new NativeMarketBridge(this.store);
 
   dispose(): void {
-    this.manager.disconnect();
+    this.bridge.reset(null);
   }
 }
 

@@ -24,7 +24,7 @@ test('paused fixture supports scale recovery and independent replay controls', a
   await page.goto(`/?source=${encodeURIComponent(demo.id)}`);
   const frame = await (await created).json() as Frame;
   await expect(page.locator('.status')).toContainText('Connected');
-  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Order flow', exact: true }).click();
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Liquidity & flow', exact: true }).click();
   const primary = page.getByTestId('chart-pane-heatmap');
   await expect(primary).toBeVisible();
   const secondary = page.getByTestId('chart-pane-flow');
@@ -97,6 +97,7 @@ test('missing URL source never opens demo and explicit recovery persists the sou
   await incident.getByRole('button', { name: /^Diagnostics/ }).click();
   await page.locator('.diagnostics').getByText('All terminal incidents and exact causes', { exact: true }).click();
   await expect(page.locator('.diagnostics').getByText('All terminal incidents and exact causes', { exact: true }).locator('..').locator('pre')).toContainText('missing-source-regression');
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Native book & tape', exact: true }).click();
   await expect(page.getByTestId('grouped-ladder')).toHaveCount(0);
   expect(sessions).toBe(0);
   const created = creation(page);
@@ -119,12 +120,12 @@ test('explicit saved paused demo survives a server live preference and URL overr
     ...view, secondary: view, domPriceStep: '100', domFrozen: true, tapeFrozen: true,
   })), { key: preferenceKey, id: demo.id, view: savedView });
   const created = creation(page);
-  await page.goto('/?workspace=native');
+  await page.goto('/');
   const frame = await (await created).json() as Frame;
   expect(frame.source.id).toBe(demo.id);
   expect(frame.status).toBe('paused');
   await expect(page.locator('.status')).toContainText('Connected');
-  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Order flow', exact: true }).click();
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Liquidity & flow', exact: true }).click();
   await expect(page.getByTestId('chart-pane-heatmap').getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByTestId('chart-pane-flow').getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'true');
   await expect.poll(() => page.evaluate(key => JSON.parse(localStorage.getItem(key) ?? '{}'), preferenceKey))
@@ -134,6 +135,7 @@ test('explicit saved paused demo survives a server live preference and URL overr
   const restored = await (await reloaded).json() as Frame;
   expect(restored.source.id).toBe(demo.id);
   await expect(page.locator('.status')).toContainText('Connected');
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Liquidity & flow', exact: true }).click();
   await expect.poll(() => page.evaluate(key => JSON.parse(localStorage.getItem(key) ?? '{}'), preferenceKey))
     .toMatchObject({ ...savedView, secondary: savedView, domPriceStep: '100', domFrozen: true, tapeFrozen: true });
   // A replacement in this document must not inherit the old evidence fence.
@@ -150,6 +152,7 @@ test('explicit saved paused demo survives a server live preference and URL overr
   await page.goto('/?source=missing-explicit-override');
   await expect(page.getByTestId('terminal-incident')).toHaveAttribute('data-incident', 'terminal');
   await expect(page.getByRole('button', { name: 'Play synthetic demo', exact: true })).toHaveCount(0);
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Native book & tape', exact: true }).click();
   await expect(page.getByTestId('grouped-ladder')).toHaveCount(0);
 });
 
@@ -163,10 +166,10 @@ for (const resolution of ['URL override', 'server preference'] as const) {
       ...view, secondary: { ...view, priceOffset: -7 }, domPriceStep: '100', domFrozen: true, tapeFrozen: true,
     })), { key: preferenceKey, view: savedView, explicit: resolution === 'URL override' });
     const created = creation(page);
-    await page.goto(resolution === 'URL override' ? `/?source=${encodeURIComponent(demo.id)}` : '/?workspace=native');
+    await page.goto(resolution === 'URL override' ? `/?source=${encodeURIComponent(demo.id)}` : '/');
     expect((await (await created).json() as Frame).source.id).toBe(expectedSource);
     await expect(page.locator('.status')).toContainText('Connected');
-    await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Order flow', exact: true }).click();
+    await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Liquidity & flow', exact: true }).click();
     await expect(page.getByTestId('chart-pane-heatmap').getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'false');
     await expect(page.getByTestId('chart-pane-flow').getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'false');
     await expect(page.getByRole('button', { name: 'Freeze tape', exact: true })).toHaveAttribute('aria-pressed', 'false');
@@ -189,8 +192,10 @@ test('persisted tape freeze captures first eligible trades and holds them until 
   const initial = await (await created).json() as Frame;
   expect(initial.analytics!.tape.length).toBeGreaterThan(0);
   await expect(page.locator('.status')).toContainText('Connected');
-  const rows = page.locator('.tape-panel tbody tr');
-  const prices = page.locator('.tape-panel .tape-price');
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Native book & tape', exact: true }).click();
+  const tape = page.locator('[data-pane="tape"]');
+  const rows = tape.locator('tbody tr');
+  const prices = tape.locator('.tape-price');
   await expect(rows).toHaveCount(initial.analytics!.tape.slice(-50).length);
   await expect.poll(() => prices.evaluateAll(nodes => nodes.map(node => node.getAttribute('aria-label'))))
     .toEqual(initial.analytics!.tape.slice(-50).reverse().map(item => `Link trade price ${item.trade.price}`));
@@ -220,10 +225,8 @@ test('persisted tape freeze captures first eligible trades and holds them until 
 test('research tabs support roving keyboard focus without chart shortcuts', async ({ page }) => {
   const { demo } = await demoCatalog(page);
   await page.goto(`/?source=${encodeURIComponent(demo.id)}`);
-  await expect(page.locator('.ladder tbody tr').first()).toBeVisible();
-  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Order flow', exact: true }).click();
-  const toggle = page.getByRole('button', { name: 'Costs / analytics', exact: true });
-  if (await toggle.getAttribute('aria-pressed') !== 'true') await toggle.click();
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Liquidity & flow', exact: true }).click();
+  await expect(page.getByTestId('grouped-ladder').locator('tbody tr').first()).toBeVisible();
   const tabs = page.getByRole('tablist', { name: 'Research pane', exact: true });
   const names = await tabs.getByRole('tab').allTextContents();
   expect(names.length).toBeGreaterThan(2);
@@ -257,6 +260,7 @@ test('trade inspection retains exact native print identity and restores focus th
   const initial = await (await created).json() as Frame;
   const print = initial.analytics!.tape.at(-1)!;
   expect(print).toBeDefined();
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Native book & tape', exact: true }).click();
   const tape = page.locator('[data-pane="tape"]');
   const maximize = tape.getByRole('button', { name: 'Maximize tape', exact: true });
   await maximize.click();
@@ -332,7 +336,7 @@ test('network launch migrates automatic legacy demo to actual public live with a
   test.skip(catalog.preferred_source_id !== 'live', 'Requires operator-enabled public live server; offline mode is not promoted to network access.');
   await page.addInitScript(({ key, id }) => localStorage.setItem(key, JSON.stringify({ version: 1, source: { id, mode: 'demo' } })), { key: preferenceKey, id: demo.id });
   const created = creation(page);
-  await page.goto('/?workspace=native');
+  await page.goto('/');
   const frame = await (await created).json() as Frame;
   expect(frame.source.mode).toBe('live');
   expect(frame.source.synthetic).toBe(false);
@@ -341,11 +345,13 @@ test('network launch migrates automatic legacy demo to actual public live with a
   await page.getByText('Source & instrument details', { exact: true }).click();
   await expect(page.locator('[data-testid="terminal-incident"][data-incident="synthetic"]')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Play synthetic demo', exact: true })).toHaveCount(0);
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Liquidity & flow', exact: true }).click();
   await expect(page.getByTestId('grouped-ladder').locator('tr.bid').first()).toBeInViewport();
   await expect(page.getByTestId('grouped-ladder').locator('tr.ask').last()).toBeInViewport();
   await page.locator('.workspace-configuration > summary').click();
   await page.getByLabel('Workspace preset').selectOption('ladder');
   await page.locator('.workspace-configuration > summary').click();
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Native book & tape', exact: true }).click();
   await expect(page.getByTestId('grouped-ladder').locator('tr.bid').first()).toBeInViewport();
   await expect(page.getByTestId('grouped-ladder').locator('tr.ask').last()).toBeInViewport();
   await page.locator('.dom-settings > summary').click();
@@ -367,8 +373,8 @@ test('network launch migrates automatic legacy demo to actual public live with a
   await expect(page.getByLabel('Follow midpoint', { exact: true })).toBeChecked();
   await expect(page.getByTestId('grouped-ladder').locator('tr.bid').first()).toBeInViewport();
   await expect(page.getByTestId('grouped-ladder').locator('tr.ask').last()).toBeInViewport();
-  const watchlist = page.getByRole('button', { name: 'Watchlist', exact: true });
-  if (await watchlist.getAttribute('aria-pressed') !== 'true') await watchlist.click();
+  const watchlist = page.locator('.native-controls summary').filter({ hasText: /^Watchlist$/ });
+  if (await watchlist.locator('..').getAttribute('open') === null) await watchlist.click();
   const instruments = page.locator('[data-instrument-id]');
   const firstPage = await instruments.evaluateAll(nodes => nodes.map(node => node.getAttribute('data-instrument-id')));
   expect(firstPage.length).toBeLessThanOrEqual(100);
@@ -388,6 +394,8 @@ test('network launch migrates automatic legacy demo to actual public live with a
     && response.request().method() === 'POST' && response.request().postDataJSON().instrument_id === 'hyperliquid:info:perpetual:BTC');
   await page.locator('[data-instrument-id="hyperliquid:info:perpetual:BTC"]').click();
   expect(((await (await subscribed).json()) as Frame).selection.instrument_id).toBe('hyperliquid:info:perpetual:BTC');
+  await expect(watchlist.locator('..')).not.toHaveAttribute('open', '');
+  await expect(watchlist).toBeFocused();
   if (await page.locator('.dom-settings').getAttribute('open') === null) {
     await page.locator('.dom-settings > summary').click();
   }

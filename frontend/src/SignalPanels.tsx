@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { errorMessage } from './api';
-import type { AlertEvidenceResponse, AlertEvaluation, AlertKind, AlertRuleInput, AlertsResponse, ContextResponse, FXInput, ResearchReport, ResearchResponse, WorkflowPanelProps } from './workflow-api';
+import type { AlertEvidenceResponse, AlertEvaluation, AlertKind, AlertRuleInput, AlertsResponse, ContextResponse, ResearchReport, ResearchResponse, WorkflowPanelProps } from './workflow-api';
 import { Details, Empty, Panel, Reasons, Value } from './WorkflowUI';
 import './signal-panels.css';
 
@@ -213,27 +213,14 @@ export function AlertsPanel(props: WorkflowPanelProps) {
 
 export function ContextPanel(props: WorkflowPanelProps & { selectInstrument: (id: string) => Promise<void> }) {
   const scope = panelScope(props);
-  const [applied, setApplied] = useState<{ scope: string; rates: FXInput[] } | null>(null);
-  const input = useMemo(() => ({ fx_rates: applied?.scope === scope ? applied.rates : [] }), [applied, scope]);
+  const input = useMemo(() => ({}), []);
   const query = useNativePanel<ContextResponse>(props, '/context', input);
-  const [fields, setFields] = useState({ base: '', quote: '', bid: '', ask: '', fee: '', source: '' });
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const [selecting, setSelecting] = useState(false);
   const selectingRef = useRef(false);
-  const edit = (key: keyof typeof fields) => (value: string) => setFields(current => ({ ...current, [key]: value }));
   const snapshot = query.data?.snapshot;
-  const rates = applied?.scope === scope ? applied.rates : [];
   const disabled = !query.enabled || query.pending || selecting;
-  useEffect(() => { setApplied(null); setSelectionError(null); }, [scope]);
-  const apply = (event: FormEvent) => {
-    event.preventDefault();
-    if (disabled || !snapshot?.now) return;
-    const rate: FXInput = {
-      base_asset_id: fields.base, quote_asset_id: fields.quote, bid: fields.bid, ask: fields.ask,
-      conversion_fee_rate: fields.fee, source: fields.source, assumed: true, asof: { ...snapshot.now },
-    };
-    setApplied({ scope, rates: [...rates.filter(item => item.base_asset_id !== rate.base_asset_id || item.quote_asset_id !== rate.quote_asset_id), rate] });
-  };
+  useEffect(() => { setSelectionError(null); }, [scope]);
   const select = async (id: string) => {
     if (disabled || selectingRef.current) return;
     selectingRef.current = true; setSelecting(true); setSelectionError(null);
@@ -244,20 +231,6 @@ export function ContextPanel(props: WorkflowPanelProps & { selectInstrument: (id
   return <Panel title="Native reference context" className="signal-panel" extra={<button disabled={disabled} onClick={query.refresh}>Refresh context</button>}>
     <p className="caption">AllMids, marks and oracles are non-executable references, not order prices. No USD/USDT/USDC equivalence is assumed. Reference basis is not an executable spread or profit claim.</p>
     <QueryStatus {...query} />{selectionError && <p className="error" role="alert">{selectionError}</p>}
-    <details className="signal-disclosure"><summary>Optional explicit FX assumptions ({rates.length} applied)</summary>
-      <p className="caption">Each apply freezes the most recently observed native source-clock as-of shown below. Polling never re-dates it. Rates expire under native freshness rules; review and explicitly reapply if appropriate. Source, session, generation or instrument changes clear applied FX. User-supplied rates are always labeled assumed.</p>
-      <p className="caption">Apply as-of: {snapshot?.now?.clock_id ?? 'unavailable'} · monotonic {snapshot?.now?.mono_ns ?? 'unavailable'} ns · wall {snapshot?.now?.wall_ns ?? 'unavailable'} ns.</p>
-      <form onSubmit={apply}><fieldset disabled={disabled || !snapshot?.now} className="signal-form"><legend>Source-clock-dated FX quote</legend>
-        <TextField title="Base native asset ID" value={fields.base} change={edit('base')} />
-        <TextField title="Quote native asset ID" value={fields.quote} change={edit('quote')} />
-        <TextField title="Bid (quote per base)" value={fields.bid} change={edit('bid')} />
-        <TextField title="Ask (quote per base)" value={fields.ask} change={edit('ask')} />
-        <TextField title="Conversion fee rate (decimal; explicit 0 allowed)" value={fields.fee} change={edit('fee')} />
-        <TextField title="FX quote source / provenance" value={fields.source} change={edit('source')} />
-        <button type="submit">Apply / replace FX pair</button>
-      </fieldset></form>
-      {rates.map(rate => <div key={`${rate.base_asset_id}/${rate.quote_asset_id}`} className="signal-fx"><Details title={`${rate.base_asset_id} → ${rate.quote_asset_id}: frozen FX assumption`} value={rate} /><button disabled={disabled} onClick={() => setApplied({ scope, rates: rates.filter(item => item !== rate) })}>Remove FX {rate.base_asset_id} / {rate.quote_asset_id}</button></div>)}
-    </details>
     {snapshot && <>
       <p className="caption">Source {query.data?.source_identity} · delivery {query.data?.delivery_index} · now {snapshot.now?.mono_ns ?? 'unavailable'} ns.</p>
       <Reasons reasons={snapshot.reasons} />
@@ -266,7 +239,7 @@ export function ContextPanel(props: WorkflowPanelProps & { selectInstrument: (id
       <h3>Mark, oracle, hourly funding and open interest</h3>
       {snapshot.contexts.length === 0 ? <Empty>No native asset-context observations available.</Empty> : <TableScroll title="Asset context observations"><table><thead><tr><th scope="col">Native instrument</th><th scope="col">Mark / oracle</th><th scope="col">Funding</th><th scope="col">Open interest</th><th scope="col">Provenance / reasons</th></tr></thead><tbody>{snapshot.contexts.map(item => <tr key={`${item.stream_id}:${item.instrument.instrument_id}`}><th scope="row">{item.instrument.native_symbol}<small>{item.instrument.instrument_id}</small><small>{item.label}</small></th><td>Mark <Value value={item.value?.mark} /><p>Oracle <Value value={item.value?.oracle} /></p><small>{item.instrument.quote.asset_id} · non-executable</small></td><td><Value value={item.value?.funding_rate} /><small>{item.funding_rate_unit}</small><p>Interval {item.value?.funding_interval_ns ?? 'unavailable'} ns</p><small>Native hourly interval; no annualization</small></td><td><Value value={item.value?.open_interest} /><small>Unit: {item.value?.open_interest_unit ?? 'unavailable'}</small><small>Unit provenance: {item.open_interest_unit_provenance}</small></td><td>{item.eligibility.eligible ? 'Eligible reference' : 'Unavailable'}<Reasons reasons={item.eligibility.reasons} />{item.field_reasons.map(([field, reasons]) => <div key={field}><strong>{field}</strong><Reasons reasons={reasons} /></div>)}<Details title="Exact native context and observation provenance" value={item} /></td></tr>)}</tbody></table></TableScroll>}
       <h3>Reference-only basis — non-executable</h3>
-      {snapshot.basis.length === 0 ? <Empty>No native reference-basis pairs available.</Empty> : <TableScroll title="Non-executable reference basis"><table><thead><tr><th scope="col">Pair / reference</th><th scope="col">Native references</th><th scope="col">Converted proceeds / funding</th><th scope="col">Basis / reasons</th></tr></thead><tbody>{snapshot.basis.map((item, index) => <tr key={`${item.spot_instrument_id}:${item.perpetual_instrument_id}:${item.reference_kind}:${index}`}><th scope="row">{item.spot_instrument_id}<small>{item.perpetual_instrument_id}</small><small>{item.reference_kind} · {item.label}</small></th><td>Spot mid <Value value={item.spot_mid} /> {item.quote_asset_id}<p>Perpetual <Value value={item.perpetual_reference} /> {item.perpetual_quote_asset_id}</p></td><td>Proceeds <Value value={item.proceeds_in_spot_quote} /><p>Funding cost <Value value={item.funding_cost_in_spot_quote} /></p><small>{item.quote_asset_id}</small></td><td>Proceeds <Value value={item.proceeds_basis_bps} /> bps<p>Funding <Value value={item.funding_basis_bps} /> bps</p><small>{item.cost_scope}</small><Reasons reasons={item.reasons} /><Details title="Reference clocks, explicit FX conversions and cost scope" value={item} /></td></tr>)}</tbody></table></TableScroll>}
+      {snapshot.basis.length === 0 ? <Empty>No native reference-basis pairs available.</Empty> : <TableScroll title="Non-executable reference basis"><table><thead><tr><th scope="col">Pair / reference</th><th scope="col">Native references</th><th scope="col">Converted proceeds / funding</th><th scope="col">Basis / reasons</th></tr></thead><tbody>{snapshot.basis.map((item, index) => <tr key={`${item.spot_instrument_id}:${item.perpetual_instrument_id}:${item.reference_kind}:${index}`}><th scope="row">{item.spot_instrument_id}<small>{item.perpetual_instrument_id}</small><small>{item.reference_kind} · {item.label}</small></th><td>Spot mid <Value value={item.spot_mid} /> {item.quote_asset_id}<p>Perpetual <Value value={item.perpetual_reference} /> {item.perpetual_quote_asset_id}</p></td><td>Proceeds <Value value={item.proceeds_in_spot_quote} /><p>Funding cost <Value value={item.funding_cost_in_spot_quote} /></p><small>{item.quote_asset_id}</small></td><td>Proceeds <Value value={item.proceeds_basis_bps} /> bps<p>Funding <Value value={item.funding_basis_bps} /> bps</p><small>{item.cost_scope}</small><Reasons reasons={item.reasons} /><Details title="Reference clocks, quote compatibility and cost scope" value={item} /></td></tr>)}</tbody></table></TableScroll>}
     </>}
   </Panel>;
 }

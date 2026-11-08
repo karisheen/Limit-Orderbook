@@ -32,7 +32,20 @@ the source-filtered catalog, preferring accessible active Binance-global
 BTCUSDT spot, then Hyperliquid BTC perpetual, then another active native entry.
 It never sends a foreign demo instrument or weakens the API identity requirement.
 
-`--capture` may be repeated. The catalog verifies each capture using the released `RecordingReader`; incomplete/corrupt/unfinalized captures become unavailable with reasons, never healthy. Each client opens its own verified reader on its dedicated owner thread. Readers, SQLite connections, caches and iterators are never shared between threads or clients. There is no `verify=False` terminal path. Catalog IDs are opaque and valid for this server lifetime; HTTP never accepts paths or SQL.
+Native Binance and Bybit discovery isolates spot and perpetual API families.
+Only complete successful family snapshots enter the catalog; a blocked or failed
+family does not erase a successful sibling. Native `VenueStatus.dependencies`
+records aggregate `metadata` plus `metadata:<api_family>` states. Mixed success is
+`state="degraded"` with `metadata="partial"` and `metadata_partial` detail;
+no successful family yields explicit failure evidence, not synthetic instruments.
+Exact-product probes additionally retain `probed_instrument_id` and
+`metadata:product`; their snapshot/trade/WebSocket evidence cannot certify other
+products or families. The existing live source `reasons` list exposes degraded
+or unavailable venue details to HTTP clients without making usable families
+unselectable. Catalog metadata alone does not establish live readiness.
+See [adapter access and endpoints](ADAPTERS_ASIAN.md#metadata-and-identity).
+
+`--capture` may be repeated. The catalog verifies each capture using the released `RecordingReader`; incomplete/corrupt/unfinalized captures become unavailable with reasons, never healthy. Each client opens its own verified reader on its dedicated owner thread. Readers, SQLite connections, caches and iterators are never shared between threads or clients. There is no `verify=False` terminal path. Catalog IDs are opaque; operator-configured IDs are valid for this server lifetime, while managed recording IDs are rediscovered from the state directory. HTTP never accepts paths or SQL.
 
 Each managed ID pins the verified immutable manifest plus directory/manifest filesystem identity. Client open compares both to its catalog pin, and each subsequent owner operation checks the filesystem identity before accessing reader caches/history. Removed/replaced/rewritten captures become explicitly unavailable rather than silently substituting a new capture under old metadata. ReplaySource declares `total_deliveries`; callers do not depend on a concrete memory batch-array implementation.
 
@@ -41,6 +54,7 @@ Each managed ID pins the verified immutable manifest plus directory/manifest fil
 `--state-dir` defaults to `data/workstation-state`. The server opens worker-owned
 `paper.sqlite3` (runs, commands and accounting archives), `journal.sqlite3`
 (manual entries) and `research.sqlite3` (CLI attempts, evidence and reports).
+Managed captures live under its `recordings/` directory.
 Keep this directory to retain local state across restarts. The Python
 `TerminalRuntime` constructor without `state_dir` instead uses temporary state;
 that embedding default is not the `serve` CLI persistence policy. HTTP accepts
@@ -51,7 +65,7 @@ The supported Streamlit entrypoint is a thin loopback client of these same APIs;
 
 ## Exact JSON boundary
 
-All routes below are prefixed `/api/v1`, except health. Native immutable domain models become plain JSON field objects (no persisted-wire tags), tuples become arrays, Decimal and **all domain integer/timestamp/ordinal fields become strings**. Presentation counters and measured `*_ms` durations remain JSON numbers. Null means absent/unavailable, never a financial zero. Instrument `base`, `quote`, and optional `settlement` remain full `AssetIdentity` objects, preserving `asset_id` and `ticker`; no ticker-only identity simplification.
+All routes below are prefixed `/api/v1`, except health. Native immutable domain models become plain JSON field objects (no persisted-wire tags), tuples become arrays, Decimal and **all domain integer/timestamp/ordinal fields become strings**. Presentation counters, the `/market-data` cursor's bounded `event` offset, and measured `*_ms` durations remain JSON numbers. Null means absent/unavailable, never a financial zero. Instrument `base`, `quote`, and optional `settlement` remain full `AssetIdentity` objects, preserving `asset_id` and `ticker`; no ticker-only identity simplification.
 
 The native persisted recording/wire schemas are unchanged. Derived financial output uses the explicit bounded `DERIVED_DECIMAL_POLICY`; market input validation remains stricter. Browser plotting/measurement numbers must never be submitted as economic inputs.
 
@@ -73,12 +87,212 @@ Requests reject unknown fields, numeric JSON economics, nonfinite decimals, exce
 | POST | `/subscriptions` | `{session_id,generation,instrument_id}` → Frame; exact-key selection and generation increment. |
 | POST | `/replay` | `{session_id,generation,action,count?,speed?,delivery_index?}` → Frame. Actions `play`, `pause`, `step`, `speed`, `seek`, `reset`. Step 1–1000; speed exact string 0.01–100. Seek targets delivery index string. |
 | GET | `/history` | Query `session_id,generation,start_delivery?,end_delivery?,limit?` → `{generation,cursor,events,truncated}`. End is clamped to current cursor. Limit 1–1000 events, at most 10,000 inspected deliveries and 4 MiB estimated result per request. Live history retains at most 4096 batches and 8 MiB accounted event representation; missing retained prefixes are marked truncated. |
+| POST | `/market-data` | `{session_id,generation,after_delivery?,after_event?,limit?}` → exact cohort books and cursor-paged native trades/continuity boundaries; see below. |
+| GET | `/recordings` | `{version:'1',recordings:[...]}`; managed capture status, active owner and replay source IDs. |
+| POST | `/recordings/start` | `{session_id,generation,scope?:'instrument'|'cohort'}` → recording list plus `recording_id`; freezes owned live keys in the requested scope (default `instrument`). |
+| POST | `/recordings/stop` | `{session_id,generation,id}` → recording list plus `recording_id`; owner-only finalization and verification. |
 | POST | `/costs` | Shared-core depth walk and directed comparison matrix; see below. |
 | POST | `/visualization` | Exact bounded historical liquidity, trades, candles, footprints, profile and shared flow metrics; session/generation and explicit price/time grid. Half-open visible window, quality/retention reasons, incremental column token and chart publication ID. See [VISUALIZATION](VISUALIZATION.md). |
 | POST | `/visualization/ack` | Chart-specific finite browser receive-to-paint timing for an issued view ID; returns server publication-to-ACK upper bound. Not an exchange latency or GPU-completion claim. |
 | POST | `/ladder` | Current eligible native book grouped with explicit price quantum; exact side/cumulative base quantities and original-price quote notionals, ungrouped midpoint/spread summary, native step options and depth scope. Presentation freezing does not alter collection. See [VISUALIZATION](VISUALIZATION.md#ladder-and-proposal-risk). |
 | POST | `/proposal-risk` | Hypothetical entry/stop, side and quantity or risk budget; explicit fee assumptions, native constraints and unavailable reasons. Neither an order nor guaranteed maximum loss. |
 | WS | `/stream?session_id=...` | One socket per session. Full Frames at up to 5 Hz. Disconnect destroys the session; reconnection creates an independent session, never steals another tab's state. |
+
+### Native market-data delivery
+
+`POST /market-data` requires the current `session_id` and decimal-string
+`generation`. Optional `after_delivery` defaults to `'0'` (at most 24 decimal
+digits), `after_event` to `-1` (integer −1–1,000,000,000), and `limit` to 1000
+(integer 1–2000 returned trades plus boundaries, subject to atomic fan-out below).
+Delivery zero requires event −1.
+
+The response is:
+
+```text
+{version:'1',session_id,generation,
+ cursor:{delivery:string,event:number},highwater:string,gap:boolean,has_more:boolean,
+ books:[...],instruments:[...],trades:[...],boundaries:[...],
+ now:{clock_id:string,mono_ns:string,wall_ns:string|null}|null}
+```
+
+The cursor is an **exclusive (delivery, event offset) pair**, not a trade ID,
+timestamp or ingest ordinal. Start with `('0',-1)`; pass the returned
+`cursor.delivery` and `cursor.event` as the next request's `after_delivery` and
+`after_event`. Paging can stop inside a multi-event delivery without replaying
+earlier prints. Nontrade and out-of-cohort events also advance the cursor;
+an empty delivery ends at event −1. Therefore a response with no trades can
+still advance. An event offset beyond an inspected delivery's event array is
+invalid, not silently clamped.
+
+Only owner-completed canonical deliveries are inspected, in recorded total
+order. `highwater` is the current replay delivery cursor or completed live
+delivery index, never a future recording endpoint. `has_more` means a request
+bound interrupted scanning; continue from the returned pair, including after
+empty trade pages. Each request inspects at most 10,000 events and 10,000
+batches, applies the combined trade/boundary limit, and bounds their estimated
+representation to 2 MiB. One canonical event's fan-out boundary group is atomic:
+it is deferred to the next page if needed, or admitted whole as the first group
+even when it exceeds the requested limit or size estimate. This estimate is
+not a total HTTP response-byte cap. Live history separately retains at most
+4096 batches / 8 MiB of accounted events; replay reads verified source history
+only through its current cursor.
+
+`gap:true` means the supplied pair precedes the retained live boundary or its
+delivery is ahead of `highwater`; scanning restarts at the available boundary.
+It does not fabricate lost events or prove exchange continuity. Clear obsolete
+trade history on a cursor gap; session/generation/source/instrument changes
+invalidate all display caches. Do not join histories across these fences.
+Trade-history resets preserve independent depth/OBI. Books are current snapshots
+at the query frontier, not reconstructed snapshots at each trade-page cursor.
+
+`instruments` contains the selected native instrument and active same-base,
+same-market peers from the session's streams, bounded to 16 products with
+venue-fair selection. Quote and settlement identities remain separate.
+`books` retains native quality, coverage, capabilities and provenance, with at
+most 100 levels per side and
+`presentation:{depth_limit,bids_omitted,asks_omitted}`. Each book also has
+`eligibility`, evaluated for display at `now`, or null before clock evidence.
+Ineligible last-known books may be present; receiving a book is not permission
+to trade or a claim of full depth.
+
+Live subscriptions keep the exact primary and one instrument per venue/market,
+bounded to 16 products. Peers must share its exact quote identity or belong to
+the canonical USD/USDT/USDC display family. Exact primary quote wins, then
+USDT/USDC/USD and native ID; selected-market groups precede other markets.
+Unrelated fiat quotes and similarly named/scoped assets are not interchangeable.
+The browser applies the same display boundary to older captures too. This
+indicative selection never changes native financial conversion requirements.
+
+Each displayed level preserves exact native `price` and `quantity` and adds
+`base_quantity` and `quote_notional`. Each trade is
+`{trade,asof,stream_id,base_quantity,quote_notional,instrument_id,cursor,source_identity}`,
+where `trade` retains quantity units, taker side/provenance and
+`is_subscription_history`, and `asof` is the original event reference.
+`source_identity` is
+`{session_id:string,segment_id:string,clock_id:string,connection_epoch:string}`:
+the native event's continuity identity, not the terminal session/generation.
+These financial fields are decimal strings or null, never plotting numbers.
+Native base units and documented linear base-valued contracts use
+`base_quantity = quantity * contract_multiplier`; documented inverse
+quote-valued contracts use `quantity * contract_multiplier / price`.
+For inverse contracts, `quote_notional = quantity * contract_multiplier`
+directly, preserving the exact quote product rather than multiplying a rounded
+base quotient back by price. Other supported valuations use
+`quote_notional = base_quantity * price`, under the native Decimal context,
+in the instrument's own quote asset. Unsupported contract valuation, or a
+trade quantity-unit mismatch, yields null for both derived fields.
+`reference_multiplier` is not a valuation conversion. No quote conversion or
+settlement/P&L model is implied.
+
+The additive `boundaries` array contains
+`{instrument_id,stream_id,cursor,asof,kind,reason}`. `kind` is `gap`, `reset`,
+`disconnect`, `source_change` or `rejection`; `reason` preserves the native
+reason code. Only affected trade streams in the display cohort are emitted.
+A native gap can fan out to its own stream and declared `affected_streams`,
+sharing one canonical cursor; book-only controls do not reset trade studies.
+Merge trades and boundaries in cursor order. Compare `source_identity` per
+trade stream across pages, including transitions without an explicit boundary.
+Restart affected trade continuity on either signal, without discarding
+unrelated stream evidence or valid depth. Ordinary acknowledgments/heartbeats
+are not trade boundaries. The top-level `gap` flag instead describes cursor
+retention/frontier loss and requires a broader display-history reset.
+
+Trades are delivered evidence, not individually quality-certified executions:
+unknown aggressors stay unknown and subscription-history flags stay visible.
+Use book quality/eligibility and coverage limitations alongside display studies.
+`now` is the native source clock; replay uses its recorded monotonic highwater
+and cannot expose events beyond its current delivery. Original exchange/receive
+timestamps remain in `asof`. Never substitute browser wall time for replay
+freshness or send display aggregates back as economic inputs.
+
+The display bridge recomputes timeframe, tick/indicator and venue changes from
+retained trades without restarting the native session; only a changed depth
+cohort resets depth history. Busy mutations pause polling without clearing
+same-owner caches or cursor. Retention does not certify freshness.
+
+Status lag uses exact `receive_wall_ns - exchange_event_wall_ns` before
+conversion to display milliseconds. Missing exchange timestamps,
+subscription-history prints, negative differences or nonfinite projections
+are unavailable (`—`), not zero. Positive differences still include clock skew.
+**Recorded lag** describes original capture-time receipt, not replay delivery
+latency; demo uses **Synthetic lag**. Neither measures browser paint latency.
+
+### Managed recordings
+
+`GET /recordings` returns:
+
+```text
+{version:'1',recordings:[{
+ id:string,label:string,status:'recording'|'complete'|'incomplete'|'error',
+ source_id:string|null,reasons:string[],session_id:string|null,
+ scope:'instrument'|'cohort',instruments:string[],
+ channels:[{venue:string,instrument_id:string,stream:string}]
+}]}
+```
+
+`session_id` is the active owning terminal session, not the native recording
+manifest identity; it becomes null after finalization and after restart.
+An active recorder can already report `incomplete` or `error`, so status alone
+does not determine ownership. Start/stop return this same list **plus**
+`recording_id`, the ID affected by that mutation.
+
+`POST /recordings/start` requires `{session_id,generation,scope?}` and a live
+session. There are exactly two scopes:
+
+- `instrument` (default): all currently owned keys for the selected primary
+  instrument, including its book/trades and any owned reference/context channels.
+- `cohort`: all currently owned native session keys, including reference/context
+  channels. This is the native session cohort, not merely visible chart venues.
+
+The scope and key set are fixed at start. `RecorderBinding` holds its own
+leases; later display, instrument, cohort or scope-selector changes do not
+retarget an active capture. Default instrument capture does not acquire or
+require unrelated cohort channels. Attaching starts a fresh bootstrap/epoch on
+the shared owners, preserving other leases rather than pretending a mid-book
+join is complete. Pre-attachment loss remains recorded by existing captures;
+it does not poison the new capture's completeness. Loss after attachment still
+makes that capture incomplete.
+Capture lifecycle operations remain serialized against selection and closure,
+but recorder disk work and owner reconnects do not block analytical draining.
+
+Rows persist `scope`, sorted native `instruments` IDs and `channels` summaries
+(`stream` is the channel name, not a stream ID) in managed capture metadata for
+restart discovery. Bounds are 24 instruments, 48 channel/key entries and 64 KiB
+metadata; the native manifest retains the full subscription keys and evidence.
+Scope metadata declares intended capture membership, not successful receipt:
+missing channel evidence, gaps and incomplete captures are not made complete
+by selecting either scope, stopping successfully or restarting the server.
+
+Bounds are **one active capture per session, two active captures per server,
+64 retained managed catalog entries, and a 128 MiB managed budget per capture**.
+These are admission/storage bounds, not sustained-capacity or RSS guarantees.
+Capacity rejects with 429; an already-recording owner gets 409. Non-live
+sessions, scopes with no live streams or scopes exceeding native bounds get
+422. Failed/incomplete rows count toward the catalog bound; this API has no
+delete or automatic oldest-row eviction route.
+
+`POST /recordings/stop` requires `{session_id,generation,id}`, with `id` exactly
+32 lowercase hexadecimal characters. Only its active owner may stop it;
+missing, already-stopped or foreign active IDs return 404. Stale generation
+returns 409. A failed live feed remains stoppable. Finalization status and
+reasons must be inspected even after HTTP success: stop can return an error
+row. Only a complete, verified capture gets a non-null replay `source_id` and
+is registered immediately in `/instruments`, without restart.
+
+Closing the owning session (including its stream disconnect) finalizes its
+captures; server shutdown finalizes all active captures before registry close.
+Other sessions cannot adopt or stop them. Mutation cancellation is shielded
+through completion: refresh the list before retrying an interrupted request.
+The browser gives these durable mutations their own owner-fenced cancellation
+scope rather than the ten-second analytical-query deadline. Reconnect/attachment
+and replay validation can take longer; an interrupted client must inspect the
+recording list instead of assuming the operation failed.
+The server chooses opaque paths under `--state-dir/recordings`; browsers never
+submit filesystem paths. Startup recovers and verifies managed entries from
+that directory, rediscovers usable replay sources, and retains incomplete/error
+reasons such as `capture_interrupted` or `capture_verification_failed` rather
+than advertising interrupted history as healthy. Preserve the state directory
+for restart discovery; embedded temporary runtime state is not durable storage.
 
 ### Explicit visualization viewport origin
 

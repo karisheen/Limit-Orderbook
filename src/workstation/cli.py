@@ -366,7 +366,7 @@ async def _demo(args) -> int:
 
 
 async def _record(args) -> int:
-    from .adapter_catalog import AdapterCatalog, VenueStatus
+    from .adapter_catalog import AdapterCatalog, metadata_status
     from .demo import source_tree_revision
     from .events import AssetContext, ReferencePrice, SubscriptionKey, Trade
     from .instruments import InstrumentQuery
@@ -377,15 +377,10 @@ async def _record(args) -> int:
     catalog = AdapterCatalog(include_binance_us="binance-us" in venues)
     products = []
     for venue in venues:
-        snapshot = await catalog.adapter(venue).discover()
+        adapter = catalog.adapter(venue)
+        snapshot = await adapter.discover()
         catalog.instruments.apply_metadata(snapshot)
-        catalog.statuses[venue] = VenueStatus(
-            venue,
-            "available",
-            "metadata_only",
-            (("metadata", "available"),),
-            snapshot.fetch_wall_ns,
-        )
+        catalog.statuses[venue] = metadata_status(venue, adapter)
         available = catalog.instruments.list(
             InstrumentQuery(venue=venue, status="active")
         )

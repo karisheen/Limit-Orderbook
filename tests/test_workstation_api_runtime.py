@@ -879,47 +879,189 @@ def test_live_suspended_peer_does_not_reject_active_selection(tmp_path):
     asyncio.run(scenario())
 
 
-def test_live_cohort_fills_bound_fairly_without_quote_aliasing():
+@pytest.fixture
+def cohort_product():
     from dataclasses import replace
 
     from src.workstation.instruments import AssetIdentity
+
+    template = next(
+        spec.instrument
+        for spec in demo_source().streams
+        if spec.instrument.instrument_id == "binance-global:spot-v3:spot:BTCUSDT"
+    )
+
+    def make(
+        venue,
+        quote="USD",
+        market_type="spot",
+        *,
+        suffix="",
+        ticker=None,
+        base="BTC",
+        status="active",
+    ):
+        symbol = f"{base}{quote}{suffix}"
+        return replace(
+            template,
+            instrument_id=f"{venue}:cohort:{market_type}:{symbol}",
+            venue=venue,
+            native_symbol=symbol,
+            market_type=market_type,
+            base=AssetIdentity(base, base),
+            quote=AssetIdentity(quote, ticker or quote),
+            status=status,
+        )
+
+    return make
+
+
+@pytest.mark.parametrize("primary_quote", ("USD", "USDT", "USDC"))
+def test_live_cohort_allows_only_exact_or_canonical_usd_family(
+    cohort_product, primary_quote
+):
     from src.workstation.runtime import _live_cohort
 
-    source = demo_source()
-    candidates = {
-        spec.instrument.instrument_id: spec.instrument
-        for spec in source.streams
-        if spec.instrument.base.asset_id == "BTC"
-    }
-    selected = candidates["binance-global:spot-v3:spot:BTCUSDT"]
-    variants = tuple(
-        replace(
-            selected,
-            instrument_id=f"binance-global:spot-v3:spot:BTCQUOTE{index:02}",
-            native_symbol=f"BTCQUOTE{index:02}",
-            quote=AssetIdentity(f"QUOTE{index:02}", f"QUOTE{index:02}"),
-        )
-        for index in range(30)
+    selected = cohort_product("primary", primary_quote)
+    eligible = tuple(
+        cohort_product(f"peer-{quote}", quote) for quote in ("USD", "USDC", "USDT")
     )
-    suspended = replace(variants[0], status="suspended")
-    inputs = (selected, suspended, *variants[1:], *candidates.values())
-    # Catalogs have unique instruments; preserve exactly that production invariant.
-    inputs = tuple({item.instrument_id: item for item in inputs}.values())
+    unrelated = tuple(
+        cohort_product(f"other-{index}", quote, ticker="USD")
+        for index, quote in enumerate(
+            ("BRL", "AED", "EUR", "ARS", "AUD", "USD1", "venue:USD", "usd", "BTC")
+        )
+    )
+    inputs = (*unrelated, *eligible, selected)
+    cohort = _live_cohort(selected, inputs)
+    assert cohort == (selected, *eligible)
+    assert _live_cohort(selected, tuple(reversed(inputs))) == cohort
+    for actual, original in zip(cohort, (selected, *eligible)):
+        assert actual is original
+
+
+@pytest.mark.parametrize("primary_quote", ("venue:EUR", "BRL", "ETH", "usd", "USD1"))
+def test_live_cohort_non_usd_quotes_require_exact_asset_identity(
+    cohort_product, primary_quote
+):
+    from src.workstation.runtime import _live_cohort
+
+    selected = cohort_product("primary", primary_quote, ticker="SAME")
+    exact = cohort_product("exact", primary_quote, ticker="DIFFERENT")
+    unrelated = tuple(
+        cohort_product(f"other-{index}", quote, ticker="SAME")
+        for index, quote in enumerate(("USD", "USDT", "USDC", "other:EUR", "EUR"))
+    )
+    assert _live_cohort(selected, (*unrelated, exact, selected)) == (selected, exact)
+
+
+@pytest.mark.parametrize("status", ("suspended", "delisted", "unavailable", "unknown"))
+def test_live_cohort_filters_inactive_and_other_base_products(cohort_product, status):
+    from src.workstation.runtime import _live_cohort
+
+    selected = cohort_product("primary")
+    inactive = cohort_product("peer", status=status)
+    active = cohort_product("peer", "USDT")
+    other_base = cohort_product("other-base", base="ETH")
+    assert _live_cohort(selected, (inactive, other_base, active)) == (selected, active)
+
+
+@pytest.mark.parametrize(
+    ("primary_quote", "quotes", "preferred"),
+    (
+        ("USD", ("USDT", "USDC", "USD"), "USD"),
+        ("USDT", ("USDT", "USDC", "USD"), "USDT"),
+        ("USDC", ("USDT", "USDC", "USD"), "USDC"),
+        ("USD", ("USDT", "USDC"), "USDT"),
+        ("USDT", ("USDC", "USD"), "USDC"),
+        ("USDC", ("USD",), "USD"),
+    ),
+)
+def test_live_cohort_ranks_exact_quote_then_family_then_native_id(
+    cohort_product, primary_quote, quotes, preferred
+):
+    from src.workstation.runtime import _live_cohort
+
+    selected = cohort_product("primary", primary_quote, suffix="z")
+    same_group = cohort_product("primary", primary_quote, suffix="A")
+    peers = tuple(
+        cohort_product("peer", quote, suffix=suffix)
+        for quote in quotes
+        for suffix in ("a", "A")
+    )
+    expected = next(
+        item
+        for item in peers
+        if item.quote.asset_id == preferred and item.native_symbol.endswith("A")
+    )
+    inputs = (same_group, *peers)
+    cohort = _live_cohort(selected, inputs)
+    assert cohort == (selected, expected)
+    assert cohort[0] is selected
+    assert cohort[1] is expected
+    assert _live_cohort(selected, tuple(reversed(inputs))) == cohort
+
+
+def test_live_cohort_multi_quote_venues_cannot_starve_market_groups(cohort_product):
+    from src.workstation.runtime import _live_cohort
+
+    groups = (
+        ("coinbase", "spot"),
+        ("kraken", "spot"),
+        ("binance-us", "spot"),
+        ("binance-global", "spot"),
+        ("binance-global", "perpetual"),
+        ("hyperliquid", "spot"),
+        ("hyperliquid", "perpetual"),
+        ("okx", "spot"),
+        ("okx", "perpetual"),
+        ("bitget", "spot"),
+        ("bitget", "perpetual"),
+        ("kucoin", "spot"),
+        ("kucoin", "perpetual"),
+    )
+    selected = cohort_product("coinbase", suffix="selected")
+    inputs = tuple(
+        cohort_product(venue, quote, market, suffix=suffix)
+        for venue, market in groups
+        for quote in ("USD", "USDT", "USDC", "BRL", "EUR", "AED", "AUD", "USD1")
+        for suffix in ("A", "B")
+    )
+    cohort = _live_cohort(selected, inputs)
+    assert cohort[0] is selected
+    assert {(item.venue, item.market_type) for item in cohort} == set(groups)
+    assert len(cohort) == len(groups)
+    assert all(item.quote.asset_id == "USD" for item in cohort)
+    assert _live_cohort(selected, tuple(reversed(inputs))) == cohort
+
+
+@pytest.mark.parametrize("selected_market", ("spot", "perpetual"))
+def test_live_cohort_bound_retains_exact_primary_and_prioritizes_selected_market(
+    cohort_product, selected_market
+):
+    from src.workstation.runtime import _live_cohort
+
+    selected = cohort_product("zz-primary", market_type=selected_market, suffix="z")
+    same_group = cohort_product("zz-primary", market_type=selected_market, suffix="A")
+    inputs = (
+        same_group,
+        *(
+            cohort_product(f"venue-{index:02}", quote, market)
+            for index in range(20)
+            for market in ("spot", "perpetual")
+            for quote in ("USDT", "USDC", "USD")
+        ),
+    )
     cohort = _live_cohort(selected, inputs)
     assert len(cohort) == 16
     assert cohort[0] is selected
-    assert len({item.instrument_id for item in cohort}) == 16
-    assert {"binance-global", "coinbase", "kraken", "hyperliquid"} <= {
-        item.venue for item in cohort
-    }
-    assert suspended.instrument_id not in {item.instrument_id for item in cohort}
+    assert [item.venue for item in cohort[1:]] == [
+        f"venue-{index:02}" for index in range(15)
+    ]
+    assert all(item.market_type == selected_market for item in cohort)
+    assert all(item.quote.asset_id == "USD" for item in cohort)
+    assert len({(item.venue, item.market_type) for item in cohort}) == len(cohort)
     assert _live_cohort(selected, tuple(reversed(inputs))) == cohort
-    for item in cohort:
-        assert item is next(
-            original
-            for original in inputs
-            if original.instrument_id == item.instrument_id
-        )
 
 
 @pytest.mark.parametrize("departed", (True, False))
@@ -1650,6 +1792,133 @@ def test_cancelled_native_candle_query_releases_capacity_without_cache(
             if query is not None:
                 query.cancel()
                 await asyncio.gather(query, return_exceptions=True)
+            await runtime.close()
+            await registry.close()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("cancel_capture", (False, True))
+def test_capture_disk_work_keeps_live_delivery_and_lifecycle_fence(
+    tmp_path, monkeypatch, cancel_capture
+):
+    from types import SimpleNamespace
+
+    async def scenario():
+        runtime, registry, instrument = live_runtime(tmp_path)
+        entered, release = threading.Event(), threading.Event()
+        capture = selection = None
+        create = runtime.captures._create
+
+        def held_create(*args):
+            entered.set()
+            if not release.wait(15):
+                raise RuntimeError("capture disk worker was not released")
+            return create(*args)
+
+        async def drain(session):
+            async with asyncio.timeout(5):
+                while session.live_queue.qsize() or session.live_inflight:
+                    await asyncio.sleep(0.001)
+
+        try:
+            session = await runtime.create("live", "live", instrument.instrument_id)
+            async with asyncio.timeout(5):
+                while session.delivery < 4:
+                    await asyncio.sleep(0.001)
+            await drain(session)
+            before = session.delivery
+            generation = str(session.generation)
+            monkeypatch.setattr(runtime.captures, "_create", held_create)
+            capture = asyncio.create_task(
+                runtime.recording_action(
+                    SimpleNamespace(
+                        session_id=session.id, generation=generation, scope="instrument"
+                    )
+                )
+            )
+            assert await asyncio.to_thread(entered.wait, 5)
+            if cancel_capture:
+                capture.cancel()
+                await asyncio.sleep(0)
+                assert not capture.done()
+
+            async def select_after_capture():
+                async with session.activity(), session.actions:
+                    return await runtime.select(
+                        session, generation, instrument.instrument_id
+                    )
+
+            selection = asyncio.create_task(select_after_capture())
+            feed = next(
+                entry.supervisor
+                for key, entry in registry._entries.items()
+                if key.instrument_id == instrument.instrument_id
+                and key.channel == "book"
+            )
+            # More than the unchanged queue count bound, delivered through the
+            # native decoder/reducer while real recorder creation is pending.
+            # Drain in bounded chunks, not by releasing the capture operation.
+            for index in range(300):
+                feed._receive(
+                    json.dumps(
+                        {
+                            "channel": "l2Book",
+                            "data": {
+                                "coin": instrument.native_symbol,
+                                "time": 1700000000001 + index,
+                                "levels": [
+                                    [{"px": "60000", "sz": str(index + 2), "n": 1}],
+                                    [{"px": "60001", "sz": "2", "n": 1}],
+                                ],
+                            },
+                        }
+                    ).encode(),
+                    "ws",
+                    "wss://api.hyperliquid.xyz/ws",
+                    feed.epoch,
+                )
+                raw = feed.queue.get_nowait()
+                feed.queued_bytes -= len(raw.payload)
+                await feed._process(raw)
+                if index % 16 == 15:
+                    await drain(session)
+                    boundary = await session.frame()
+                    assert boundary["book"]["bids"][0]["quantity"] == str(index + 2)
+            await drain(session)
+            frame = await session.frame()
+            assert frame["status"] == "live"
+            assert frame["book"]["bids"][0]["quantity"] == "301"
+            assert session.delivery == before + 300
+            assert [
+                batch.delivery_index
+                for batch in session.history
+                if batch.delivery_index > before
+            ] == list(range(before + 1, before + 301))
+            assert session.live_bytes == session.live_inflight == 0
+            assert session.telemetry["overflows"] == 0
+            assert not capture.done() and not selection.done()
+            assert str(session.generation) == generation
+
+            release.set()
+            if cancel_capture:
+                with pytest.raises(asyncio.CancelledError):
+                    await capture
+            else:
+                result = await capture
+                assert result["recording_id"] in runtime.captures.active
+            selected = await selection
+            assert selected["generation"] == str(int(generation) + 1)
+            # Cancellation joins the actual attachment before selection is
+            # allowed to change its frozen scope; it never abandons a recorder.
+            assert len(runtime.captures.active) == 1
+            active = next(iter(runtime.captures.active.values()))
+            assert active.owner == session.id
+        finally:
+            release.set()
+            for task in (capture, selection):
+                if task is not None:
+                    await asyncio.gather(task, return_exceptions=True)
             await runtime.close()
             await registry.close()
 

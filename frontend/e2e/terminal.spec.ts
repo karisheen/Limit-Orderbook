@@ -4,16 +4,20 @@ import type { Frame } from '../src/api';
 // Requires the actual backend serving a built terminal with its synthetic demo source.
 // No route interception, fixture overlay, fake WebSocket or duplicate economic engine.
 test('exact selection, costs, replay and visible API errors', async ({ page }) => {
-  await page.goto('/?workspace=native');
+  await page.goto('/');
   await expect(page.locator('.status')).toContainText('Connected');
   await expect(page.locator('.source-banner')).toContainText('SYNTHETIC DEMO');
+  await page.locator('summary').filter({ hasText: /^Watchlist$/ }).click();
   await page.getByLabel('Search instruments').fill('ETH');
   const instrument = page.locator('[data-instrument-id]').first();
   const id = await instrument.getAttribute('data-instrument-id');
   await instrument.click();
   await expect(instrument).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByLabel('Search instruments')).toBeHidden();
+  await expect(page.locator('summary').filter({ hasText: /^Watchlist$/ })).toBeFocused();
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Native book & tape', exact: true }).click();
   await expect(page.locator('.ladder tbody tr').first()).toBeVisible();
-  await page.getByRole('button', { name: 'Costs / analytics', exact: true }).click();
+  await page.getByRole('tablist', { name: 'Research pane', exact: true }).getByRole('tab', { name: 'Costs & proposed risk', exact: true }).click();
   await page.getByLabel('Order size', { exact: true }).fill('0.123456789012345678');
   const inputRequest = page.waitForRequest(request => request.url().endsWith('/api/v1/costs'));
   await page.getByTestId('estimate').click();
@@ -26,7 +30,7 @@ test('exact selection, costs, replay and visible API errors', async ({ page }) =
   await page.getByTestId('estimate').click();
   await expect(page.locator('.result-heading')).toBeVisible();
   await expect(page.locator('.estimate-grid')).toBeVisible();
-  await expect(page.locator('.selected-identity')).toContainText('ETH');
+  await expect(page.getByRole('button', { name: /^Instrument:/ })).toContainText('ETH');
   expect(id).toBeTruthy();
   const before = await page.locator('.cursor').textContent();
   await page.getByTestId('replay-step').click();
@@ -43,10 +47,10 @@ test('documents own independent sessions and closing releases one owner', async 
   const first = await context.newPage();
   const second = await context.newPage();
   const firstCreated = first.waitForResponse(response => response.url().endsWith('/api/v1/sessions') && response.request().method() === 'POST');
-  await first.goto('/?workspace=native');
+  await first.goto('/');
   const firstFrame = await (await firstCreated).json() as Frame;
   const secondCreated = second.waitForResponse(response => response.url().endsWith('/api/v1/sessions') && response.request().method() === 'POST');
-  await second.goto('/?workspace=native');
+  await second.goto('/');
   const secondFrame = await (await secondCreated).json() as Frame;
   expect(firstFrame.session_id).not.toBe(secondFrame.session_id);
   await expect(first.locator('.status')).toContainText('Connected');
@@ -63,14 +67,17 @@ test('documents own independent sessions and closing releases one owner', async 
   await expect(second.locator('.status')).toContainText('Connected');
 });
 
-test('laptop workspace retains controls and reconnect replaces a session', async ({ page }) => {
+test('laptop workspace retains controls and reconnect replaces a session', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto('/?workspace=native');
+  await page.goto('/');
   await expect(page.locator('.status')).toContainText('Connected');
+  await page.locator('summary').filter({ hasText: /^Watchlist$/ }).click();
   await page.getByLabel('Search instruments').fill('SOL');
   const selected = page.locator('[data-instrument-id]').first();
   await selected.click();
   await expect(selected).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByLabel('Search instruments')).toBeHidden();
+  await expect(page.locator('summary').filter({ hasText: /^Watchlist$/ })).toBeFocused();
   const created = page.waitForResponse(response => response.url().endsWith('/api/v1/sessions') && response.request().method() === 'POST');
   await page.locator('.diagnostics > summary').click();
   const sessionBefore = await page.locator('.telemetry').textContent();
@@ -81,5 +88,5 @@ test('laptop workspace retains controls and reconnect replaces a session', async
   await expect(page.locator('.telemetry')).toContainText(replacement.session_id.slice(0, 8));
   expect(sessionBefore).not.toContain(replacement.session_id.slice(0, 8));
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await page.screenshot({ path: 'test-results/terminal-1280.png', fullPage: true });
+  await page.screenshot({ path: testInfo.outputPath('terminal-1280.png'), fullPage: true });
 });

@@ -479,6 +479,10 @@ class SubscriptionRegistry:
                             await _join_cleanup(
                                 asyncio.gather(entry.task, return_exceptions=True)
                             )
+                            # The joined loss boundary has reached existing
+                            # recorders. New capture starts at the fresh epoch,
+                            # not with completeness inherited from the old run.
+                            entry.supervisor.capture_complete = True
                             before_start(entry.supervisor)
                         finally:
                             entry.task = asyncio.create_task(

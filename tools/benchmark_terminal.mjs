@@ -606,18 +606,20 @@ async function runScenario(speed) {
     }
     scenario.expected_source = { id: expectedSourceId, label: options.source, capture: options.manifest ? dirname(options.manifest) : null };
     const launch = new URL(url.origin);
-    launch.searchParams.set('workspace', 'native');
     if (options.manifest) launch.searchParams.set('source', expectedSourceId);
     scenario.launch_url = launch.href;
     await page.goto(launch.href);
     await page.locator('.status').filter({ hasText:/^Transport: Connected$/ }).waitFor({ timeout:60000 });
+    await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Liquidity & flow', exact: true }).click();
     if (options.manifest) {
       await page.waitForFunction(id => document.querySelector('select[aria-label="Data source"]')?.value === id, expectedSourceId, { timeout:30000 });
       await page.locator('.source-banner > strong').filter({hasText:/^RECORDED$/}).waitFor({timeout:120000});
     }
     if (options.instrument) {
+      await page.locator('summary').filter({ hasText: /^Watchlist$/ }).click();
       await page.getByLabel('Search instruments').fill(options.instrument);
       await page.locator('[data-instrument-id='+JSON.stringify(options.instrument)+']').click();
+      await page.locator('summary').filter({ hasText: /^Watchlist$/ }).click();
     }
     const start = options.start ?? (options.manifest ? null : '2000');
     if (start !== null) {

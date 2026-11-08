@@ -11,17 +11,7 @@ const SessionContext = createContext<MarketSession | null>(null);
 export function MarketSessionProvider({ children }: { children: ReactNode }) {
   const [session] = useState(() => new MarketSession());
 
-  useEffect(() => {
-    const onVisibilityChange = () => {
-      if (document.hidden) session.pause();
-      else session.resume();
-    };
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => {
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      session.dispose();
-    };
-  }, [session]);
+  useEffect(() => () => session.dispose(), [session]);
 
   return (
     <SessionContext.Provider value={session}>

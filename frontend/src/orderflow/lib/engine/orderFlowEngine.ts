@@ -150,7 +150,7 @@ export function applyTradeToCandle(
   if (trade.side === "buy") {
     level.askVolume += trade.quantity;
     level.buyTrades += 1;
-  } else {
+  } else if (trade.side === "sell") {
     level.bidVolume += trade.quantity;
     level.sellTrades += 1;
   }
@@ -176,7 +176,7 @@ export function applyTradeToCandle(
   candle.tradeCount += 1;
   if (trade.side === "buy") {
     candle.delta += trade.quantity;
-  } else {
+  } else if (trade.side === "sell") {
     candle.delta -= trade.quantity;
   }
 
@@ -334,27 +334,28 @@ export function computeVolumeProfile(
   candles: FootprintCandle[],
   valueAreaPct = 0.7
 ) {
-  const map = new Map<number, { bid: number; ask: number; trades: number }>();
+  const map = new Map<number, { bid: number; ask: number; total: number; trades: number }>();
 
   for (const candle of candles) {
     for (const [price, level] of candle.levels) {
-      const existing = map.get(price) ?? { bid: 0, ask: 0, trades: 0 };
+      const existing = map.get(price) ?? { bid: 0, ask: 0, total: 0, trades: 0 };
       existing.bid += level.bidVolume;
       existing.ask += level.askVolume;
+      existing.total += level.totalVolume;
       existing.trades += level.tradeCount;
       map.set(price, existing);
     }
   }
 
   const prices = [...map.keys()].sort((a, b) => a - b);
-  const totalVol = prices.reduce((s, p) => s + (map.get(p)?.bid ?? 0) + (map.get(p)?.ask ?? 0), 0);
+  const totalVol = prices.reduce((s, p) => s + map.get(p)!.total, 0);
 
   // POC
   let pocPrice = prices[0] ?? 0;
   let pocVol = 0;
   for (const p of prices) {
     const d = map.get(p)!;
-    const v = d.bid + d.ask;
+    const v = d.total;
     if (v > pocVol) {
       pocVol = v;
       pocPrice = p;
@@ -371,9 +372,9 @@ export function computeVolumeProfile(
 
   while (accumulated < target && (hi < prices.length - 1 || lo > 0)) {
     const nextHiVol = hi < prices.length - 1
-      ? ((d => d.bid + d.ask)(map.get(prices[hi + 1]!)!)) : 0;
+      ? map.get(prices[hi + 1]!)!.total : 0;
     const nextLoVol = lo > 0
-      ? ((d => d.bid + d.ask)(map.get(prices[lo - 1]!)!)) : 0;
+      ? map.get(prices[lo - 1]!)!.total : 0;
 
     if (nextHiVol >= nextLoVol && hi < prices.length - 1) {
       hi++;
@@ -390,7 +391,7 @@ export function computeVolumeProfile(
 
   const levels = prices.map((price) => {
     const d = map.get(price)!;
-    const tv = d.bid + d.ask;
+    const tv = d.total;
     return {
       price,
       totalVolume: tv,

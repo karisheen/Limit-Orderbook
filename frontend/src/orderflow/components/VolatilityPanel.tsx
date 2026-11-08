@@ -57,7 +57,6 @@ export default function VolatilityPanel() {
   const liveBar = useSessionStore((s) => s.liveBar);
   const candles = useSessionStore((s) => s.candles);
   const currentCandle = useSessionStore((s) => s.currentCandle);
-  const marketType = useSessionStore((s) => s.marketType);
   const timeframe = useSessionStore((s) => s.timeframe);
   const tickSize = useSessionStore((s) => s.tickSize);
   const crosshairTime = useSessionStore((s) => s.crosshairTime);
@@ -65,7 +64,7 @@ export default function VolatilityPanel() {
   const [window, setWindow] = useState<Window>(60);
   const visibleRef = useRef<{ points: VolatilityPoint[]; slot: number; plotR: number }>({ points: [], slot: 0, plotR: 0 });
 
-  const yearSeconds = secondsPerYear(marketType);
+  const yearSeconds = secondsPerYear();
   const series = useMemo(() => {
     const bars = liveBar ? [...flowBars, liveBar] : flowBars;
     return rollingRealizedVolatility(resampleBars(bars, resolution), window, resolution, yearSeconds);

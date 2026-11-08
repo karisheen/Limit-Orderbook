@@ -1,12 +1,10 @@
 import { Component, lazy, Suspense } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
+import './orderflow/orderflow.css';
+import './styles.css';
 
-// A document owns one engine and stylesheet. Navigation between workspaces
-// reloads the document so feeds and global theme tokens cannot leak across it.
-const params = new URLSearchParams(window.location.search);
-const native = params.get('workspace') === 'native' || params.has('source');
-const Workspace = native ? lazy(() => import('./App')) : lazy(() => import('./OrderFlowApp'));
+const Workspace = lazy(() => import('./App'));
 
 class TerminalBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
   state: { error: string | null } = { error: null };

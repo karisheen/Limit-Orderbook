@@ -158,3 +158,24 @@ export interface ResearchResponse {
   attempt: ResearchAttempt | null; report: ResearchReport | null;
   config: Record<string, unknown> | null; source: [string, string][] | null;
 }
+
+export interface ManagedRecording {
+  id: string;
+  session_id: string | null;
+  label: string;
+  status: 'recording' | 'complete' | 'incomplete' | 'error';
+  source_id: string | null;
+  reasons: string[];
+  scope: 'instrument' | 'cohort';
+  instruments: string[];
+  channels: { venue: string; instrument_id: string; stream: string }[];
+}
+
+export interface RecordingsResponse {
+  version: '1';
+  recordings: ManagedRecording[];
+}
+
+export interface RecordingMutationResponse extends RecordingsResponse {
+  recording_id: string;
+}

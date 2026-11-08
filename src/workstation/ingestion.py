@@ -735,10 +735,13 @@ class FeedSupervisor:
             self._set_fault("snapshot:" + _failure_reason(exc))
 
     async def _heartbeat(self, ws) -> None:
-        body = {"hyperliquid": '{"method":"ping"}', "bybit": '{"op":"ping"}'}.get(
-            self.key.venue
-        )
-        protocol_ping = self.key.venue == "binance-global"
+        body = {
+            "hyperliquid": '{"method":"ping"}',
+            "bybit": '{"op":"ping"}',
+            "okx": "ping",
+            "bitget": "ping",
+        }.get(self.key.venue)
+        protocol_ping = self.key.venue in ("binance-global", "deribit")
         if body is None and not protocol_ping:
             return
         while True:
@@ -961,6 +964,7 @@ class FeedSupervisor:
                     tasks.append(asyncio.create_task(self._heartbeat(ws)))
                     if (
                         self.key.venue == "binance-global"
+                        and self.instrument.market_type == "spot"
                         and self.key.channel == "book"
                     ):
                         snapshot = self.adapter.snapshot_request(

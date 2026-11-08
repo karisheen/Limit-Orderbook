@@ -12,10 +12,9 @@ async function openDemo(page: Page) {
   const created = page.waitForResponse(response => response.url().endsWith('/api/v1/sessions') && response.status() === 201);
   await page.goto(`/?source=${encodeURIComponent(demo.id)}`);
   await expect(page.locator('.status')).toContainText(/\bConnected$/i);
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Liquidity & flow', exact: true }).click();
   if ((page.viewportSize()?.width ?? 1440) <= 965) {
     await page.getByRole('tablist', { name: 'Market panes', exact: true }).getByRole('tab', { name: 'Liquidity', exact: true }).click();
-  } else {
-    await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Order flow', exact: true }).click();
   }
   const frame = await (await created).json() as Frame;
   if (!frame.replay) throw new Error('The native demo must provide a replay cursor');
@@ -38,11 +37,11 @@ async function expectUnclipped(control: Locator) {
   })).toBe(true);
 }
 
-async function tabTo(page: Page, control: Locator) {
+async function tabTo(page: Page, control: Locator, key: 'Tab' | 'Shift+Tab' = 'Tab') {
   // Traverse the real tab sequence without pinning the surrounding layout order.
   const candidates = await page.locator('button, input, select, textarea, a[href], summary, [tabindex]').count();
   for (let index = 0; index < candidates; index++) {
-    await page.keyboard.press('Tab');
+    await page.keyboard.press(key);
     if (await control.evaluate(element => element === document.activeElement)) return;
   }
   await expect(control).toBeFocused();
@@ -56,6 +55,7 @@ for (const width of [320, 390, 1280, 1920]) {
       if (width <= 965) await page.getByRole('tablist', { name: 'Market panes', exact: true }).getByRole('tab', { name: id === 'heatmap' ? 'Liquidity' : 'Flow', exact: true }).click();
       const pane = page.getByTestId(`chart-pane-${id}`);
       const chart = pane.getByTestId('market-charts');
+      await pane.locator('.m4-chart-plot').scrollIntoViewIfNeeded();
       await expect(chart).toHaveAttribute('data-painted-view-id', /.+/);
       await expectUnclipped(pane.getByLabel('Chart mode', { exact: true }));
       for (const name of ['Time bucket', 'Price aggregation']) {
@@ -93,21 +93,22 @@ for (const width of [320, 390, 1280, 1920]) {
       const centered = await centeredHTTP.json() as VisualGrid;
       expect(centered.start_ns).toBe(frozenStart);
       expect(centered.end_ns).toBe(frozenEnd);
+      await pane.locator('.m4-chart-plot').scrollIntoViewIfNeeded();
       await expect(chart).toHaveAttribute('data-painted-view-id', centered.view_id);
       await expect(freeze).toHaveAttribute('aria-pressed', 'true');
       await expect(settingsPanel).toHaveCount(0);
       await expect(settings).toBeFocused();
       // Resume is explicit; subsequent navigation does not rely on price fitting
       // to silently restart automatic chart refresh.
-      await tabTo(page, freeze);
+      await tabTo(page, freeze, 'Shift+Tab');
       await page.keyboard.press('Enter');
       await expect(freeze).toHaveAttribute('aria-pressed', 'false');
       const maximize = pane.getByRole('button', { name: `Maximize ${title}`, exact: true });
       await maximize.press('Enter');
-      await expect(page.locator('.workstation-workspace')).toHaveAttribute('data-maximized', id);
+      await expect(page.getByTestId('workspace')).toHaveAttribute('data-maximized', id);
       await page.keyboard.press('Enter');
       await expect(maximize).toBeFocused();
-      await expect(page.locator('.workstation-workspace')).toHaveAttribute('data-maximized', '');
+      await expect(page.getByTestId('workspace')).toHaveAttribute('data-maximized', '');
 
       await settings.click();
       await expect(settingsPanel).toBeVisible();
@@ -149,6 +150,7 @@ for (const width of [320, 390, 1280, 1920]) {
       expect(response.ok()).toBe(true);
       const changed = await response.json() as VisualGrid;
       expect(BigInt(changed.end_ns) - BigInt(changed.start_ns)).toBeLessThan(beforeEnd - beforeStart);
+      await pane.locator('.m4-chart-plot').scrollIntoViewIfNeeded();
       await expect(chart).toHaveAttribute('data-painted-view-id', changed.view_id);
       await expect(pane.locator('.chart-pane-follow')).toHaveText('Pinned');
       await page.keyboard.press('Escape');
@@ -235,8 +237,19 @@ for (const width of [320, 390]) {
     await expect(page.getByTestId('chart-pane-flow')).toBeVisible();
     await tabs.getByRole('tab', { name: 'Book', exact: true }).click();
     await page.getByRole('button', { name: 'DOM / tape', exact: true }).click();
+    await expect(liquidity).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId('chart-pane-heatmap')).toBeVisible();
+    await expect(page.getByTestId('price-chart')).toBeHidden();
+    await expect(page.locator('[id^="market-panel-"]:visible')).toHaveCount(1);
+    await expect(page.getByRole('button', { name: 'DOM / tape', exact: true })).toHaveAttribute('aria-pressed', 'false');
+    await tabs.getByRole('tab', { name: 'Price', exact: true }).click();
+    await tabs.getByRole('tab', { name: 'Book', exact: true }).click();
+    await page.getByRole('button', { name: 'DOM / tape', exact: true }).click();
     await expect(tabs.getByRole('tab', { name: 'Price', exact: true })).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByTestId('price-chart')).toBeVisible();
+    await expect(page.getByTestId('chart-pane-heatmap')).toBeHidden();
+    await expect(page.locator('[id^="market-panel-"]:visible')).toHaveCount(1);
+    await tabs.getByRole('tab', { name: 'Flow', exact: true }).click();
     await tabs.getByRole('tab', { name: 'Tape', exact: true }).click();
     await expect(page.getByRole('button', { name: 'DOM / tape', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('[data-pane="tape"]')).toBeVisible();
@@ -249,16 +262,23 @@ for (const width of [320, 390]) {
       const active = document.activeElement;
       return active instanceof HTMLElement && active !== document.body && active.getClientRects().length > 0;
     })).toBe(true);
-    await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Order flow', exact: true }).click();
+    for (const id of ['dom', 'tape']) await expect(page.locator(`#market-panel-${id}`)).toBeVisible();
+    for (const id of ['price', 'heatmap', 'flow']) await expect(page.locator(`#market-panel-${id}`)).toBeHidden();
+    await page.setViewportSize({ width, height: 900 });
+    await expect(tabs.getByRole('tab', { name: 'Tape', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('[data-pane="tape"]')).toBeVisible();
+    await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Liquidity & flow', exact: true }).click();
+    await expect(liquidity).toHaveAttribute('aria-selected', 'true');
+    await page.setViewportSize({ width: 966, height: 900 });
     for (const id of ['heatmap', 'flow', 'dom', 'tape']) await expect(page.locator(`#market-panel-${id}`)).toBeVisible();
     const split = page.getByRole('separator', { name: 'Chart split', exact: true });
     await split.press('Home');
     await expect(split).toHaveAttribute('aria-valuenow', '30');
     await page.setViewportSize({ width, height: 900 });
-    await expect(tabs.getByRole('tab', { name: 'Tape', exact: true })).toHaveAttribute('aria-selected', 'true');
-    await expect(page.locator('[data-pane="tape"]')).toBeVisible();
+    await expect(liquidity).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByTestId('chart-pane-heatmap')).toBeVisible();
 
-    const configuration = page.locator('.workspace-configuration > summary');
+    const configuration = page.locator('.workspace-configuration > summary').filter({ hasText: 'Source / workspace' });
     await configuration.press('Enter');
     await tabTo(page, page.getByLabel('Data source', { exact: true }));
     await page.keyboard.press('Escape');
@@ -267,3 +287,33 @@ for (const width of [320, 390]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 }
+
+test('unified chart tabs support keyboard selection across reference and native views', async ({ page }) => {
+  await openDemo(page);
+  const tabs = page.getByRole('tablist', { name: 'Chart workspace', exact: true });
+  await tabs.getByRole('tab', { name: 'Liquidity & flow', exact: true }).focus();
+  for (const [key, name, panel] of [
+    ['ArrowRight', 'Native book & tape', 'dom'],
+    ['ArrowRight', 'Footprint', null],
+    ['ArrowRight', 'Price action', 'price'],
+    ['ArrowRight', 'Liquidity & flow', 'heatmap'],
+    ['End', 'Native book & tape', 'tape'],
+    ['Home', 'Footprint', null],
+    ['ArrowLeft', 'Native book & tape', 'dom'],
+  ] as const) {
+    await page.keyboard.press(key);
+    const tab = tabs.getByRole('tab', { name, exact: true });
+    await expect(tab).toBeFocused();
+    await expect(tab).toHaveAttribute('aria-selected', 'true');
+    await expect(tabs.locator('[tabindex="0"]')).toHaveCount(1);
+    if (panel) await expect(page.locator(`#market-panel-${panel}`)).toBeVisible();
+    if (name === 'Footprint') {
+      await expect(page.locator('#native-footprint')).toBeVisible();
+      await expect(page.getByTestId('price-chart')).toBeHidden();
+      await expect(page.getByTestId('chart-pane-heatmap')).toBeHidden();
+      await expect(page.locator('#market-panel-dom')).toBeHidden();
+    }
+    expect(await tab.evaluate(element => element.matches(':focus-visible')
+      && getComputedStyle(element).outlineStyle !== 'none')).toBe(true);
+  }
+});

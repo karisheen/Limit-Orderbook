@@ -16,6 +16,8 @@ The exact instrument/event/quality/book/wire contracts, venue adapters, transpor
 | `transport.py` | Bounded public HTTP response bytes, per-origin retry/rate/circuit policy |
 | `analytics.py`, `costs.py`, `visuals.py` | Metrics, depth walks, costs/cohort/conversion policy and bounded visual history |
 | `recording.py`, `replay.py` | Capture, manifests, recovery, deterministic clock/order |
+| `market_presentation.py` | Owner-completed cohort books/trades, ordered trade-stream boundaries, exact valuation and exclusive display cursors |
+| `capture_service.py` | Session-owned managed capture lifecycle, bounds and restart discovery |
 | `alerts.py`, `context.py` | Quality-gated local alert evidence and non-executable references |
 | `paper.py`, `journal.py` | Spot IOC simulation, durable command/accounting archive and manual rationale |
 | `research.py` | Causal offline experiments, durable attempts/evidence/all trial outcomes |
@@ -89,6 +91,35 @@ market type and exact quote identity precede other native instruments. Suspended
 delisted or unknown implicit peers cannot prevent selecting an active product.
 Explicit selection still passes subscription validation. Collection membership is
 not executable comparability; quote identities and native book depths stay intact.
+
+Public crypto adapters include Binance global spot/USDT USDⓈ-M perpetuals, Bybit
+spot/USDT linear crypto perpetuals, OKX spot/linear swaps, Bitget spot/USDT perpetuals,
+Deribit BTC/ETH inverse perpetuals, Hyperliquid, Coinbase, Kraken, KuCoin and
+Binance.US. Discovery excludes Bybit linear TradFi `symbolType` values `stock`,
+`ETF`, `commodity` and `forex`, and Bitget perpetual rows marked `isRwa: "YES"`
+or not classified as `symbolType: "perpetual"`. This does not rewrite native
+crypto contract metadata, or erase reference metadata from existing captures.
+Provider presence is not certification of every symbol, channel or region.
+
+Binance `spot-v3` / `usdm-v1` and Bybit `v5-spot` / `v5-linear` metadata
+discovery runs per family with independent deadlines. Publish only complete
+family snapshots: a sibling failure does not discard successful native metadata,
+and an incomplete Bybit linear cursor walk never becomes a partial product list.
+Per-family `discovery_evidence` retains state plus endpoint or failure reason.
+`VenueStatus.dependencies` includes `metadata:<api_family>` and aggregate
+`metadata`. Mixed success yields venue `degraded`, aggregate `partial`, and
+`metadata_partial` detail. When every family fails, preserve the common failure
+state or aggregate differing states to `unavailable`, with `metadata_unavailable`
+detail. No replacement products, invented constraints or hidden exchange fallback
+are allowed. Metadata discovery alone leaves data/execution access unknown.
+
+Exact-product probes retain `probed_instrument_id` and derive `metadata:product`
+from its family. `fully_usable` requires that product's metadata plus available
+snapshot, trades and WebSocket evidence; a successful probe may coexist with
+aggregate partial metadata. Its `available` state applies to the probed product,
+not all venue families. Bybit uses `api.bytick.com`, an
+[official equivalent mainnet REST host](https://bybit-exchange.github.io/docs/v5/guide),
+without bypassing provider restrictions.
 
 At live ownership cutover, paper observation removes departed book keys **before**
 awaiting collector replacement. Pending arrivals cannot consume departed books
@@ -209,7 +240,12 @@ Binance's private bootstrap candidate transfers immutable native `ReducerState` 
 
 `effective_depth` defaults to `key.depth`. An adapter may resolve an omitted depth to its documented bounded-feed depth without changing the physical key on events, books or checkpoints; an explicit key depth cannot be overridden with a conflicting value. Payload depth validation, coverage and opt-in truncation use this effective depth. Checkpoints store it and reject restore into a different reconstruction depth, even when the physical key and capacity match. REST reducer clones must preserve it. This does not enable truncation: Hyperliquid rejects snapshots beyond its 20/5-level source bound.
 
-Protocol obligations: Kraken v2 applies all changes, truncates to subscription depth, checks top-10 CRC32 on every update; Coinbase Advanced Trade `level2` receives `l2_data` with absolute `new_quantity` and per-connection sequence handling; Binance global buffers diff events while fetching REST snapshot, bridges update IDs according to documented spot rules and resyncs gaps; US partial top-N replaces snapshots; Bybit new snapshots and service restart `u=1` replace state without invented `u+1` continuity; Hyperliquid l2Book replaces bounded snapshots and records actual aggregation/cadence with no fictional checksum/sequence. Missing sequence support is a capability limitation, not a pass.
+Protocol obligations: Kraken v2 applies all changes, truncates to subscription depth, checks top-10 CRC32 on every update; Coinbase Advanced Trade `level2` receives `l2_data` with absolute `new_quantity` and per-connection sequence handling; Binance global spot buffers diff events while fetching REST snapshot, bridges update IDs according to documented spot rules and resyncs gaps; Binance USDⓈ-M and US partial top-N replace bounded snapshots without exact-flow claims; Bybit spot/linear new snapshots and service restart `u=1` replace state without invented `u+1` continuity; Hyperliquid l2Book replaces bounded snapshots and records actual aggregation/cadence with no fictional checksum/sequence. Missing sequence support is a capability limitation, not a pass.
+
+OKX public WebSocket is `wss://ws.okx.com:443/ws/v5/public`. Connection-wide
+`notice` envelopes become informational `Control("clock_tick", "venue_notice:<code>", detail)`,
+not errors, acknowledgments, heartbeats or book/trade observations. Notices cannot
+establish synchronization or healthy market-data evidence.
 
 Book and trade subscriptions are separate physical owners: Coinbase book keys subscribe to `level2` plus required `heartbeats`, trade keys to `market_trades` plus `heartbeats`; Kraken keys subscribe only to `book` or `trade` and receive automatic connection heartbeats. Neither book key claims trade capability or accepts the other data channel. Coinbase connection sequence still covers acknowledgments and heartbeats on each independent connection, including empty trade batches. Subscription acknowledgments validate channel-specific identities: Coinbase's connection-scoped heartbeat identity is `"heartbeats"`, while data-channel identities must match the instrument product symbol.
 
@@ -236,7 +272,11 @@ Normalized event callbacks retain reducer-produced evidence annotations, includi
 
 Registry owns an entry `{leases, supervisor task, closing task}` per key; the supervisor owns its active epoch. Acquire is atomic under a registry lock; start once on 0→1. Repeated acquire for the same client/key returns the existing lease. Release is idempotent and cancels/awaits the owner on 1→0 outside the lock; a new acquire waits for closing before creating another owner. Replacement rejects obsolete client generations, acquires the new set before releasing that client's removed leases, rolls back new leases on failure, and never edits another client's set. Repeating a generation is allowed only with the same key set. Disconnect releases that client's leases and closes its presentation queue. Recorder/headless analytics hold their own leases so closing a tab or pausing a view does not stop recording. `close()` (also used by the async context manager) rejects new leases and joins cancellation/transport cleanup before releasing ownership; cancellation does not bypass the join. There is no separate registry shutdown timeout.
 
-`AdapterCatalog.canonical_key(key)` supplies omitted bounded book depths before registry acquire/replace: Binance global 5000, Binance.US 20, Kraken 25, Bybit 50, KuCoin 20, and Hyperliquid 20 (5 with `fast=true`). Explicit depth and aggregation are preserved; non-book keys are unchanged. Omitted and explicit default depths therefore share the same lease/physical owner, including same-generation replacement; different reconstruction settings remain different keys.
+This lease independence is not a managed-capture lifetime promise: the terminal's
+`CaptureService` explicitly finalizes captures when their owning session closes.
+Unrelated browser leases remain independent.
+
+`AdapterCatalog.canonical_key(key)` supplies omitted bounded book depths before registry acquire/replace: Binance global spot 5000, Binance global `usdm-v1` 20, Binance.US 20, Kraken 25, Bybit 50, KuCoin 20, and Hyperliquid 20 (5 with `fast=true`). Explicit depth and aggregation are preserved; non-book keys are unchanged. Omitted and explicit default depths therefore share the same lease/physical owner, including same-generation replacement; different reconstruction settings remain different keys.
 
 The default collector lock is `${tempfile.gettempdir()}/limit-orderbook-collector-${os.getuid()}.lock`, acquired nonblockingly on the first physical feed and retained until registry close. `worker_count`, `WEB_CONCURRENCY` and `UVICORN_WORKERS` must select one backend worker; a competing collector fails rather than silently duplicating feeds. Default client capacity is 1024 concurrently retained identities. Disconnected identity/generation/lock state retires only after its operation holders and waiters, leases and presentation queues are gone; no concurrent operation can acquire a competing lock for that identity.
 
@@ -317,6 +357,121 @@ Per-event-loop/origin budgets reserve requests at 0.1-second intervals. HTTP 401
 `walk_book(book, side, base_quantity: Optional[Decimal], quote_budget: Optional[Decimal], constraints, fees, policy, now) -> ExecutionEstimate` accepts exactly one size input and returns requested/filled/unfilled base, quote spent/received, VWAP, best-price slippage, fee amounts/currencies, effective price, coverage and eligibility. No extrapolation beyond known depth. `compare_pair(buy_book, sell_book, feasible_base_quantity, conversion, fees, inventory_assumptions, latency_stress, now) -> PairEstimate` uses the same feasible size on both sides and explicit conversion orientation/cost. Paper orders use this shared engine at simulated arrival with an explicit liquidity-consumption model; they do not submit exchange orders.
 
 Terminal JSON uses `version:'1'`, session ID and generation, exact decimal/domain-integer strings, quality and reasons. Implemented routes and bounded request/response fields are specified in [API](API.md), including alerts, context, paper, journal and read-only research queries. `/health/live` reports process liveness; `/health/ready` reports synchronized active-session eligibility, not just HTTP success. UI never reconstructs authoritative exchange books from coalesced display frames. Accessible tables retain exact values; chart floats are disposable projections.
+
+### Native market presentation
+
+`POST /api/v1/market-data` is an owner-serialized read of completed canonical
+deliveries, not a second exchange feed or an authoritative browser reducer.
+Generation is checked before and under session ownership fences. The exclusive
+cursor is `(delivery:string,event:number)`, initially `('0',-1)`; `event` is a
+bounded array offset, unlike string-valued domain ordinals. It advances across
+nontrade/out-of-cohort events as well as returned trades and can resume inside
+one atomic delivery. Consumers must use the response cursor, not infer it from
+the last trade.
+
+`highwater` is the completed live delivery index or current replay cursor.
+Replay never exposes later recorded events. `gap` marks a cursor behind live
+retention or ahead of the current frontier and restarts scanning at the
+available boundary; it does not repair missing history. `has_more` requires
+another sequential page, even when the current page has no trades. Scan bounds
+are 10,000 events / 10,000 batches, a combined trade/boundary limit of 1–2000
+(default 1000), and 2 MiB estimated trade/boundary representation. A canonical
+event's fan-out boundary group is never split: it can exceed the count/size
+bound when admitted first on a page. Live history remains independently bounded
+to 4096 batches / 8 MiB. This is not a total response-size or unlimited
+historical coverage guarantee.
+
+The display cohort is the selected instrument plus active same-base,
+same-market session peers, bounded to 16 with venue-fair selection. It is not
+an executable comparison cohort: quote and settlement identities remain native.
+Books are current frontier snapshots, not historical snapshots at the page
+cursor. They retain native quality/provenance/coverage, expose at most 100
+levels per side with omission counts, and add display `eligibility` evaluated
+at source `now` (nullable before clock evidence). Diagnostic ineligible books
+may remain visible.
+
+Book levels and `TapePrint` records add exact-string-or-null `base_quantity`
+and `quote_notional`, alongside unchanged native price/quantity. Valuation uses
+native contract metadata: base quantity times multiplier for base units or
+documented non-inverse base-valued contracts; quantity times multiplier divided
+by price for documented inverse quote-valued contracts. Inverse quote notional
+is directly `quantity * contract_multiplier`, not the rounded base quotient
+multiplied back by price. Other supported valuations use base quantity times
+price under the native Decimal context, never a cross-quote conversion.
+Unsupported metadata or trade-unit mismatch leaves both derived values null;
+reference multipliers never substitute for contract units.
+Trade records additionally carry `instrument_id`, delivery/event `cursor` and
+`source_identity:{session_id,segment_id,clock_id,connection_epoch}` (all strings),
+preserving original event reference, aggressor provenance and subscription-history
+flag. They are not individually eligibility-certified.
+
+The additive `boundaries` array carries `{instrument_id,stream_id,cursor,asof,
+kind,reason}` for cohort trade-stream gaps, resets, disconnects, source changes
+and rejections. Gaps fan out only to affected trade streams; ordinary heartbeats
+and book-only controls do not reset trade studies. Consumers merge boundaries
+and trades by cursor and compare source identity per stream across pages.
+Either a boundary or identity transition restarts that stream's trade continuity.
+The browser removes its obsolete retained trades and rebuilds studies from the
+remaining evidence, preserving independent depth/OBI history and other streams.
+
+Source `now` and event receive/exchange clocks stay distinct; replay uses its
+recorded monotonic frontier, never today's browser wall time. Native ownership
+(session/generation/source/instrument) changes reset all display caches; a cursor
+retention gap clears obsolete trade history without inventing replacement prints.
+Display interval, tick/indicator and venue changes recompute retained trade
+inputs without creating a native session. A changed depth cohort separately
+resets depth history; ordinary trade-study rebuilds preserve it. Busy mutations
+pause bridge polling without clearing same-owner caches/cursor.
+
+Status lag subtracts exact exchange-event wall nanoseconds from receive-wall
+nanoseconds before converting to display milliseconds. Missing exchange time,
+subscription-history prints, negative differences or nonfinite projections are
+unavailable, not zero. Positive differences still include source clock skew.
+Replay labels this **Recorded lag** (capture-time receipt, not playback latency);
+demo labels it **Synthetic lag**. Display floats/studies cannot become financial
+inputs. Full request and response contracts are in
+[API](API.md#native-market-data-delivery).
+
+### Managed capture lifecycle
+
+`CaptureService` exposes `/api/v1/recordings` (GET) and
+`/api/v1/recordings/start` / `/stop` (POST). Start accepts exactly two scopes:
+`instrument` (default), all currently owned primary-instrument keys including
+reference/context channels; or `cohort`, all currently owned native session
+keys. Default capture does not require unrelated cohort channels.
+`RecorderBinding` retains independent leases and its fresh bootstrap/epoch
+contract. Scope/key membership is frozen at start; later display selection or
+session-cohort changes do not retarget capture.
+
+Start/stop require current session/generation; stop additionally takes the
+opaque `id` and requires its active owner. A failed feed remains stoppable.
+Responses list rows `{id,label,status,source_id,reasons,session_id,scope,
+instruments,channels}`; mutations also return the affected `recording_id`.
+`instruments` contains native IDs; `channels` contains
+`{venue,instrument_id,stream}` summaries, with `stream` naming the channel.
+Scope/instruments/channels persist in managed metadata across restart; the
+native manifest retains full key/evidence detail. Metadata is bounded to
+24 instruments, 48 channels/keys and 64 KiB.
+Row `session_id` is the active terminal owner (null after finalization/restart),
+not the native manifest session ID. Active incomplete/error rows can still
+have an owner. Stop finalizes and verifies; only complete usable captures
+receive replay sources immediately. Scope metadata is not evidence of receipt:
+missing channels or incomplete captures are never made complete by scope choice,
+successful stop or restart.
+
+Bounds are one active capture per session, two active per server, 64 retained
+catalog entries and a 128 MiB managed budget per capture. Capacity fails with
+429 rather than evicting an older row; no HTTP deletion is exposed. Ownership
+cannot transfer between sessions. Session close, including stream disconnect,
+finalizes owned captures; server shutdown finalizes all before registry close.
+Cancellation-shielded mutations may commit even if their HTTP caller leaves,
+so clients inspect the list before retrying.
+
+Opaque managed paths live under `--state-dir/recordings`; clients submit IDs,
+never paths. Startup recovers/verifies these directories, re-registers complete
+replay sources and exposes interrupted/corrupt entries with incomplete/error
+reasons, never healthy fallback data. Embedded temporary state is not durable.
+See [API](API.md#managed-recordings) for exact fields and rejection semantics.
 
 ## Native M5 consumer contracts
 
@@ -408,10 +563,11 @@ are gross best bid, not fee-adjusted liquidation proceeds or guaranteed fills.
 ### Durable state, archive, resume and manual provenance
 
 `serve --state-dir` defaults to `data/workstation-state`, holding
-`paper.sqlite3`, `journal.sqlite3` and `research.sqlite3`. SQLite connections
-belong to their dedicated worker; serialized immutable records preserve exact
-values. The embedded runtime without a state directory instead uses temporary
-storage. These databases supplement immutable recording files, not replace them.
+`paper.sqlite3`, `journal.sqlite3`, `research.sqlite3` and managed `recordings/`.
+SQLite connections belong to their dedicated worker; serialized immutable
+records preserve exact values. The embedded runtime without a state directory
+instead uses temporary storage. These databases supplement immutable recording
+files, not replace them.
 
 Paper stores durable run configuration/metadata and ordered commands, plus a
 separately queried transition archive. Archives preserve historical accounting,

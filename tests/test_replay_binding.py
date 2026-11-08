@@ -285,6 +285,50 @@ def test_durable_binding_restarts_existing_owner_and_survives_browser_close(tmp_
     asyncio.run(scenario())
 
 
+def test_fresh_capture_does_not_inherit_loss_or_erase_overlapping_capture_loss(
+    tmp_path,
+):
+    async def scenario():
+        registry, instruments = registry_fixture(
+            tmp_path, config=SupervisorConfig(queue_count=1)
+        )
+        key = SubscriptionKey.for_instrument(instruments["BTC"])
+        earlier = recorder_fixture(tmp_path / "earlier", registry)
+        fresh = recorder_fixture(tmp_path / "fresh", registry)
+        try:
+            earlier_binding = await RecorderBinding.start(registry, earlier, (key,))
+            owner = registry._entries[earlier_binding.leases[0].key].supervisor
+            await asyncio.wait_for(owner.started.get(), 5)
+            await owner.emit(snapshot())
+            # Overflow the real required-input queue before the fresh capture
+            # attaches. The existing recorder must retain this loss permanently.
+            for price in (60001, 60002):
+                owner._receive(
+                    snapshot(price=price),
+                    "ws",
+                    "wss://api.hyperliquid.xyz/ws",
+                    owner.epoch,
+                )
+            assert not owner.capture_complete
+            fresh_binding = await RecorderBinding.start(registry, fresh, (key,))
+            await asyncio.wait_for(owner.started.get(), 5)
+            raw = await owner.emit(snapshot(price=60003))
+            fresh_manifest = await fresh_binding.stop()
+            earlier_manifest = await earlier_binding.stop()
+            assert not earlier_manifest.complete
+            assert any(
+                reason.startswith("source_capture_lost:")
+                for reason in earlier_manifest.incomplete_reasons
+            )
+            assert_complete_drain(fresh, fresh_manifest, [raw], instruments["BTC"])
+        finally:
+            await registry.close()
+            await earlier.finalize()
+            await fresh.finalize()
+
+    asyncio.run(scenario())
+
+
 def test_fresh_binding_registers_before_first_source_event(tmp_path):
     async def scenario():
         registry, instruments = registry_fixture(tmp_path)

@@ -20,6 +20,7 @@ async function openObservedDemo(page: Page) {
   const source = catalog.sources.find(item => item.mode === 'demo' && item.status === 'ready');
   if (!source) throw new Error('The actual backend must provide its offline synthetic source');
   await page.goto(`/?source=${encodeURIComponent(source.id)}`);
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Price action', exact: true }).click();
   await expect(chart(page)).toBeVisible();
   await expect(page.getByLabel('Seek delivery')).toBeEnabled();
   await page.getByLabel('Seek delivery').fill('5000');
@@ -70,6 +71,7 @@ test('hour candles, interval persistence and independent live book during replay
   await interval(page, '4h').click();
   await expect(interval(page, '4h')).toHaveAttribute('aria-pressed', 'true');
   await page.reload();
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Price action', exact: true }).click();
   await expect(chart(page)).toBeVisible();
   await expect(interval(page, '4h')).toHaveAttribute('aria-pressed', 'true');
 });

@@ -24,7 +24,6 @@ function obiTone(value: number): "buy" | "sell" | "muted" {
 export default function OBIPanel() {
   const history = useSessionStore((s) => s.obiHistory);
   const current = useSessionStore((s) => s.currentOBI);
-  const marketType = useSessionStore((s) => s.marketType);
   const hoverRef = useRef<{ points: OBISnapshot[]; slot: number }>({ points: [], slot: 0 });
 
   const smoothed = useMemo(() => {
@@ -89,7 +88,7 @@ export default function OBIPanel() {
   return (
     <Panel
       title="Book Imbalance" icon={<Icon.Gauge />}
-      subtitle={marketType === "forex" ? "SYNTHETIC PROXY · not L2 liquidity" : "OBI · common depth band"}
+      subtitle="OBI · common depth band"
       value={<span className={`tone-${tone}`}>{current >= 0 ? "+" : ""}{current.toFixed(2)}</span>}
       className="obi-panel"
     >
@@ -121,9 +120,7 @@ export default function OBIPanel() {
               `Bid depth: ${formatCompact(snap.bidVolume, 2)}`,
               `Ask depth: ${formatCompact(snap.askVolume, 2)}`,
               "",
-              marketType === "forex"
-                ? "What this means: Synthetic quote-flow proxy derived from price ticks and tick-rule direction. Sizes and spread are modeled, not observed bid/ask quotes or L2 liquidity."
-                : "What this means: +1 means all resting size in the band is on the bid, −1 means all on the ask. The white line is a smoothed reading.",
+              "What this means: +1 means all resting size in the band is on the bid, −1 means all on the ask. The white line is a smoothed reading.",
             ].join("\n"),
             e
           );

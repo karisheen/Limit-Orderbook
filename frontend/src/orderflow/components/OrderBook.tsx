@@ -44,7 +44,6 @@ export default function OrderBookPanel() {
   const setMode = useSessionStore((s) => s.setOrderBookMode);
   const selectedVenues = useSessionStore((s) => s.selectedVenues);
   const tickSize = useSessionStore((s) => s.tickSize);
-  const marketType = useSessionStore((s) => s.marketType);
   const lastTrade = useSessionStore((s) => s.ticker);
   const [group, setGroup] = useState<Group>(0);
 
@@ -91,7 +90,7 @@ export default function OrderBookPanel() {
   return (
     <Panel
       title="Order Book" icon={<Icon.Book />}
-      subtitle={marketType === "forex" ? "SYNTHETIC PROXY · not L2 liquidity" : sourceLabel}
+      subtitle={sourceLabel}
       className="orderbook-panel"
       actions={
         <>
@@ -112,7 +111,7 @@ export default function OrderBookPanel() {
       }
       footer={
         view && (
-          <div className="book-imbalance" title={marketType === "forex" ? "Synthetic modeled sizes, not observed bid/ask quotes or resting L2 liquidity" : "Resting size within the displayed levels"}>
+          <div className="book-imbalance" title="Resting size within the displayed levels">
             <span className="tone-buy">{formatCompact(view.bidTotal)}</span>
             <div className="imbalance-track">
               <div
@@ -129,7 +128,7 @@ export default function OrderBookPanel() {
       }
     >
       {!view ? (
-        <div className="empty-state">{marketType === "forex" ? "Waiting for synthetic FX quote proxy…" : "Waiting for order book…"}</div>
+        <div className="empty-state">Waiting for order book…</div>
       ) : (
         <div className="ladder">
           <div className="ladder-head">
@@ -139,7 +138,7 @@ export default function OrderBookPanel() {
           </div>
           <div className="ladder-side ladder-asks">
             {[...view.asks].reverse().map((row) => (
-              <LadderRow key={`a${row.price}`} row={row} side="ask" view={view} decimals={decimals} synthetic={marketType === "forex"} />
+              <LadderRow key={`a${row.price}`} row={row} side="ask" view={view} decimals={decimals} />
             ))}
           </div>
           <div className="ladder-spread">
@@ -158,7 +157,7 @@ export default function OrderBookPanel() {
           </div>
           <div className="ladder-side ladder-bids">
             {view.bids.map((row) => (
-              <LadderRow key={`b${row.price}`} row={row} side="bid" view={view} decimals={decimals} synthetic={marketType === "forex"} />
+              <LadderRow key={`b${row.price}`} row={row} side="bid" view={view} decimals={decimals} />
             ))}
           </div>
         </div>
@@ -172,13 +171,11 @@ function LadderRow({
   side,
   view,
   decimals,
-  synthetic,
 }: {
   row: Row;
   side: "bid" | "ask";
   view: { median: number; wallSize: number; maxSize: number; maxCum: number };
   decimals: number;
-  synthetic: boolean;
 }) {
   const wall = view.median > 0 && row.size >= view.wallSize;
   return (
@@ -192,9 +189,7 @@ function LadderRow({
             `Cumulative: ${formatCompact(row.cum, 3)}`,
             `vs median level: ${view.median ? (row.size / view.median).toFixed(1) : "—"}×`,
             "",
-            synthetic
-              ? "What this means: Synthetic quote proxy: spread and sizes modeled from price ticks and tick-rule direction, not observed bid/ask quotes or resting L2 liquidity."
-              : `What this means: Resting limit ${side === "bid" ? "buy" : "sell"} orders. ${wall ? "This level is a liquidity wall (≥4× the median level size)." : "Cumulative size is the liquidity that must be consumed to move price through this level."}`,
+            `What this means: Resting limit ${side === "bid" ? "buy" : "sell"} orders. ${wall ? "This level is a liquidity wall (≥4× the median level size)." : "Cumulative size is the liquidity that must be consumed to move price through this level."}`,
           ].join("\n"),
           e
         )
