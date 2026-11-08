@@ -14,7 +14,6 @@ else
 fi
 
 "${PYTHON[@]}" -c 'import sys; sys.exit(0 if sys.version_info[:2] == (3, 13) else "Python 3.13 is required")'
-"${PYTHON[@]}" -m pytest "$@" -m 'not network'
 
 # Both observation clients use the workstation core; keep the thin legacy
 # presentation and its protocol-boundary regressions inside the quality gate.
@@ -27,6 +26,7 @@ for path in tests/test_workstation*.py tests/test_recording*.py tests/test_repla
 done
 "${PYTHON[@]}" -m ruff check "${RUFF_PATHS[@]}"
 "${PYTHON[@]}" -m ruff format --check "${RUFF_PATHS[@]}"
+"${PYTHON[@]}" -m pytest "$@" -m 'not network'
 "${PYTHON[@]}" -m mypy src/workstation
 
 if [[ -f frontend/package.json ]]; then

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Run the same locked offline gate before Git uploads any updates.
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+printf '%s\n' 'Running offline checks before push...'
+exec "$ROOT/tools/check.sh" </dev/null

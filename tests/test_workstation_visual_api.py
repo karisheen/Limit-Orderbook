@@ -658,7 +658,11 @@ def test_candle_history_is_local_exact_and_rewind_fenced(market, monkeypatch):
     assert (
         client.post(
             "/api/v1/candles",
-            json={**identity(frame), "interval": "1h", "endpoint": "https://example.com"},
+            json={
+                **identity(frame),
+                "interval": "1h",
+                "endpoint": "https://example.com",
+            },
         ).status_code
         == 422
     )

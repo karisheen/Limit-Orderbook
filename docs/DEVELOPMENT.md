@@ -61,17 +61,19 @@ resolve a different environment silently.
 
 `./tools/check.sh` runs these gates in order:
 
-1. Python 3.13 runtime guard and the complete pytest suite, excluding the
-   `network` marker. Additional script arguments are forwarded to pytest.
+1. Python 3.13 runtime guard.
 2. Ruff's conservative `E4`, `E7`, `E9`, and `F` rules plus `ruff format --check`
    on `src/workstation`, `src/ui`, `crypto_lob.py`,
    `tests/test_legacy_api_client.py`, `tests/test_workstation*.py`,
    `tests/test_recording*.py`, `tests/test_replay*.py`, and Python tools other
-   than the pre-existing `tools/connector_spike.py`.
-3. mypy on `src/workstation`, including bodies of untyped functions. Untyped
+   than the pre-existing `tools/connector_spike.py`. These fast checks run before
+   pytest so formatting failures do not wait for the full suite.
+3. The complete pytest suite, excluding the `network` marker. Additional script
+   arguments are forwarded to pytest.
+4. mypy on `src/workstation`, including bodies of untyped functions. Untyped
    third-party dependencies may lack stubs (`ignore_missing_imports = true`);
    project errors are not globally suppressed.
-4. Node syntax checks for browser tooling, frontend lint/unit tests, and the
+5. Node syntax checks for browser tooling, frontend lint/unit tests, and the
    TypeScript/Vite production build.
 
 The thin Streamlit client shares the native API/core; the duplicate legacy
@@ -104,6 +106,35 @@ Use `python tools/probe_feeds.py --live` and
 see the README for venue/asset selection and capture replay. The old
 `tests/smoke_live.py` and its separate collectors were retired.
 Offline fixture success is not live-feed validation.
+
+### Pre-push protection
+
+After synchronizing the locked Python and frontend dependencies, enable the
+versioned hook once per clone:
+
+```sh
+git config --local core.hooksPath .githooks
+```
+
+The hook runs `tools/check.sh` before Git uploads updates and blocks the push on
+any failure. It uses the same environment selection and quality scope as CI;
+it does not install dependencies, format files, or submit orders. No additional
+hook framework is required. Check an existing `core.hooksPath` before enabling
+this in another clone so unrelated custom hooks are not silently replaced.
+
+Commit the intended changes before pushing: this gate checks the current working
+tree, not every historical commit or an independently selected ref. Hooks can be
+bypassed and do not replace GitHub checks. CI additionally launches the real
+offline server and runs Chromium workflows; wait for that run before treating a
+push as verified.
+
+The desktop redesign push `e3d1f36` failed after 1,302 passing Python tests because
+one candle API test payload did not meet Ruff formatting. The payload formatting
+was corrected, the shared gate was reordered to fail fast, and the hook's
+rejection path was exercised with a temporary unformatted file (exit 1 before
+pytest). The temporary probe was removed; the existing formatter gate remains
+the regression protection rather than a test that inspects source formatting.
+
 
 ## Frontend and legacy UI
 

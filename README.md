@@ -132,6 +132,11 @@ the CLI default). Use the same directory for `research run`, `research list`,
 See [demo/CLI workflows](docs/DEMO.md) for exact research configuration and
 commands, and [API contracts](docs/API.md) for bounded request/response fields.
 
+Saved hypotheses and test plans live in the
+[strategy research backlog](docs/STRATEGY_RESEARCH.md), covering the three built-in
+signal families plus absorption, hourly-context and cost-filter experiments.
+These are planned investigations, not validated strategies or trading results.
+
 The terminal's **Alerts**, **Context**, **Paper**, **Journal** and **Research**
 tabs consume native results. Alert thresholds have explicit units, hysteresis,
 cooldown and supporting evidence; they are not forecasts. Hyperliquid mids,
