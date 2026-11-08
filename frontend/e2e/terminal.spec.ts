@@ -4,7 +4,7 @@ import type { Frame } from '../src/api';
 // Requires the actual backend serving a built terminal with its synthetic demo source.
 // No route interception, fixture overlay, fake WebSocket or duplicate economic engine.
 test('exact selection, costs, replay and visible API errors', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/?workspace=native');
   await expect(page.locator('.status')).toContainText('Connected');
   await expect(page.locator('.source-banner')).toContainText('SYNTHETIC DEMO');
   await page.getByLabel('Search instruments').fill('ETH');
@@ -43,10 +43,10 @@ test('documents own independent sessions and closing releases one owner', async 
   const first = await context.newPage();
   const second = await context.newPage();
   const firstCreated = first.waitForResponse(response => response.url().endsWith('/api/v1/sessions') && response.request().method() === 'POST');
-  await first.goto('/');
+  await first.goto('/?workspace=native');
   const firstFrame = await (await firstCreated).json() as Frame;
   const secondCreated = second.waitForResponse(response => response.url().endsWith('/api/v1/sessions') && response.request().method() === 'POST');
-  await second.goto('/');
+  await second.goto('/?workspace=native');
   const secondFrame = await (await secondCreated).json() as Frame;
   expect(firstFrame.session_id).not.toBe(secondFrame.session_id);
   await expect(first.locator('.status')).toContainText('Connected');
@@ -65,7 +65,7 @@ test('documents own independent sessions and closing releases one owner', async 
 
 test('laptop workspace retains controls and reconnect replaces a session', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto('/');
+  await page.goto('/?workspace=native');
   await expect(page.locator('.status')).toContainText('Connected');
   await page.getByLabel('Search instruments').fill('SOL');
   const selected = page.locator('[data-instrument-id]').first();

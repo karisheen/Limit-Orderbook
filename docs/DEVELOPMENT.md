@@ -199,6 +199,28 @@ exists; a package without its lock must fail rather than perform an unpinned
 install. Python and Node dependency installation may access package registries;
 no live-market probe belongs in the offline CI job.
 
+The default `/` entry is the browser-direct order-flow screener. Vite runs it
+without Python; the production Python host serves the complete built bundle,
+including fonts, logos and licenses. `/?workspace=native` and `?source=...` select
+the retained native client. Native browser tests explicitly use those routes.
+Styles and engines are lazy-loaded per document rather than co-mounted.
+
+The Apache-2.0 adaptation lives under `frontend/src/orderflow`, with `@/` resolving
+there. React remains pinned to this project's version; Zustand and Lucide are
+additional runtime dependencies. Node tests use `tsx` to resolve the same aliases.
+Provider regression fixtures are offline; actual live access is verified
+separately. Do not add network-dependent assertions to the offline gate.
+
+For FX only, copy `frontend/.env.example` to `frontend/.env.local`, supply
+`VITE_FINNHUB_API_KEY`, then rebuild. Vite embeds this value in the browser bundle:
+it is not a secret. No trading credentials, upstream telemetry or remote font
+requests are used. Upstream revision and licenses are distributed in
+`frontend/public/THIRD_PARTY_NOTICES.txt` and `frontend/public/licenses`.
+
+An isolated native browser run may set
+`PLAYWRIGHT_BASE_URL=http://127.0.0.1:8011` after starting
+`serve --port 8011 --state-dir /tmp/orderbook-smoke`.
+
 The supported thin Streamlit client requires a separately running loopback API:
 
 ```sh

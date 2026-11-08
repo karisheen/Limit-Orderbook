@@ -14,6 +14,7 @@ import { useMarketView } from './useMarketView';
 import { chartSettings, navigateChartTime, presetLayout, useWorkspacePreferences, workspaceGeometry } from './workspace';
 import type { ChartTimeIntent, PaneId, WorkspacePreferences } from './workspace';
 import { terminalIncidents } from './terminal-incident';
+import './styles.css';
 import './workstation.css';
 import { Details, Empty, Panel, Reasons, Value } from './WorkflowUI';
 import { AlertsPanel, ContextPanel, ResearchPanel } from './SignalPanels';
@@ -529,7 +530,7 @@ export default function App() {
       if (pane) setInteractionPane(pane as MarketPane);
     }}>
     <header className="topbar">
-      <div className="terminal-brand"><strong>LIMIT ORDERBOOK</strong><span>Public-market workstation</span></div>
+      <div className="terminal-brand"><strong>LIMIT ORDERBOOK</strong><a href="/" title="Live multi-venue order-flow screener">← Order-flow terminal</a></div>
       <label className="market-search"><span className="visually-hidden">Search instruments</span><input ref={search} className="top-search" aria-label="Search instruments" aria-controls="instrument-results" placeholder="Symbol, venue, quote…" type="search" value={query} onFocus={() => { setMaximized(null); update({ leftOpen: true }); }} onChange={event => { setQuery(event.target.value); update({ leftOpen: true }); }} /><kbd aria-hidden="true">/</kbd></label>
       <details className="workspace-configuration"><summary>Source / workspace</summary><div className="workspace-configuration-body">
       <label className="source-control">Source<select aria-label="Data source" title={frame?.source.label} value={frame?.source.id ?? p.source?.id ?? ''} disabled={!catalog} onChange={event => { const source = catalog?.sources.find(item => item.id === event.target.value); if (source?.status === 'ready') changeSource(source); }}>{!frame && <option value="">Choose source…</option>}{catalog?.sources.map(source => <option key={source.id} value={source.id} disabled={source.status !== 'ready'} title={[source.label, ...source.reasons].join('; ')}>{abbreviateCaptureLabel(source.label)} · {source.mode} · {source.status}{source.synthetic ? ' · SYNTHETIC' : ''}{source.reasons.length ? ` · ${source.reasons.join('; ')}` : ''}</option>)}</select></label>

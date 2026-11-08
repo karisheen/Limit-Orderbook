@@ -56,7 +56,7 @@ async function panel(page: Page, name: 'Alerts' | 'Context' | 'Paper' | 'Journal
 async function openDemo(page: Page) {
   const created = nextResponse(page, 'sessions');
   const catalogResponse = page.waitForResponse(response => response.url().endsWith('/api/v1/instruments') && response.request().method() === 'GET');
-  await page.goto('/');
+  await page.goto('/?workspace=native');
   let frame = await body<Frame>(created);
   const catalog = await body<Catalog>(catalogResponse);
   expect(frame.source.mode).toBe('demo');

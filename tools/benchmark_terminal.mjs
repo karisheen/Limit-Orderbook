@@ -606,6 +606,7 @@ async function runScenario(speed) {
     }
     scenario.expected_source = { id: expectedSourceId, label: options.source, capture: options.manifest ? dirname(options.manifest) : null };
     const launch = new URL(url.origin);
+    launch.searchParams.set('workspace', 'native');
     if (options.manifest) launch.searchParams.set('source', expectedSourceId);
     scenario.launch_url = launch.href;
     await page.goto(launch.href);
