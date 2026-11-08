@@ -19,7 +19,12 @@ from src.workstation.events import (
     synthetic_frame,
 )
 from src.workstation.ingestion import make_snapshot_reducer
-from src.workstation.instruments import Instrument
+from src.workstation.instruments import (
+    Instrument,
+    InstrumentCatalog,
+    OrderConstraints,
+    native_order_constraints,
+)
 from src.workstation.wire import dumps, loads
 
 
@@ -155,9 +160,9 @@ def test_metadata_preserves_native_units_and_explicit_contract_valuation(swap):
     assert instrument.quantity_unit == ("contracts" if swap else "base")
     assert instrument.lot_size == D("0.01" if swap else "0.000001")
     assert instrument.contract_multiplier == D("0.01" if swap else "1")
-    assert instrument.constraints.min_base == D("0.0001" if swap else "0.00001")
-    assert instrument.constraints.max_limit_base == D("1000" if swap else "100000")
-    assert instrument.constraints.max_market_base == (D("100") if swap else None)
+    assert instrument.constraints.min_base == D("0.01" if swap else "0.00001")
+    assert instrument.constraints.max_limit_base == D("100000")
+    assert instrument.constraints.max_market_base == (D("10000") if swap else None)
     assert not instrument.inverse
     assert instrument.metadata_asof_wall_ns == 123
     assert instrument.data_access == instrument.execution_access == "unknown"
@@ -169,7 +174,7 @@ def test_metadata_preserves_native_units_and_explicit_contract_valuation(swap):
     assert loads(dumps(instrument), Instrument) == instrument
 
 
-def test_metadata_constraints_conversion_is_independent_of_ambient_precision():
+def test_native_constraints_and_legacy_interpretation_ignore_ambient_precision():
     row = metadata_row(True, ctVal="0.000123456789", minSz="123.45")
     with localcontext() as context:
         context.prec = 4
@@ -178,7 +183,120 @@ def test_metadata_constraints_conversion_is_independent_of_ambient_precision():
             .parse_metadata(metadata_bytes(row), inst_type="SWAP")
             .instruments[0]
         )
-    assert instrument.constraints.min_base == D("0.01524074060205")
+    assert instrument.constraints.min_base == D("123.45")
+    assert native_order_constraints(instrument) is instrument.constraints
+    legacy = replace(
+        instrument,
+        metadata_version=instrument.metadata_version.replace(
+            "okx-v2-native-size", "okx-v1"
+        ),
+        constraints=OrderConstraints(
+            min_base=D("0.01524074060205"),
+            max_limit_base=D("12.3456789"),
+            max_market_base=D("1.23456789"),
+        ),
+    )
+    with localcontext() as context:
+        context.prec = 4
+        assert native_order_constraints(legacy) == instrument.constraints
+
+
+@pytest.mark.parametrize("base", ["BTC", "INJ"])
+def test_okx_native_contract_limits_preserve_legacy_capture_identity(base):
+    raw = metadata_bytes(
+        metadata_row(
+            True,
+            instId=f"{base}-USDT-SWAP",
+            instFamily=f"{base}-USDT",
+            ctValCcy=base,
+            lotSz="1",
+            minSz="2",
+            maxLmtSz="20000",
+        )
+    )
+    snapshot = OKXAdapter().parse_metadata(raw, inst_type="SWAP", fetch_wall_ns=123)
+    (instrument,) = snapshot.instruments
+    suffix = ":canonical-assets-v2" if base == "INJ" else ""
+    digest = sha256(raw).hexdigest()
+    assert snapshot.payload_hash == digest
+    assert snapshot.fetch_wall_ns == instrument.metadata_asof_wall_ns == 123
+    assert instrument.metadata_version == f"{digest}:123:okx-v2-native-size{suffix}"
+    assert instrument.quantity_unit == "contracts"
+    assert instrument.contract_multiplier == Decimal("0.01")
+    assert instrument.lot_size == Decimal("1")
+    assert instrument.constraints == OrderConstraints(
+        min_base=Decimal("2"),
+        max_limit_base=Decimal("20000"),
+        max_market_base=Decimal("10000"),
+    )
+    assert native_order_constraints(instrument) is instrument.constraints
+
+    # Reconstitute exactly the descriptor emitted by the old parser. Loading or
+    # financially interpreting its wire bytes must never migrate its identity.
+    legacy = replace(
+        instrument,
+        metadata_version=f"{digest}:123:okx-v1{suffix}",
+        constraints=OrderConstraints(
+            min_base=Decimal("0.02"),
+            max_limit_base=Decimal("200"),
+            max_market_base=Decimal("100"),
+        ),
+    )
+    captured = dumps(legacy)
+    restored = loads(captured)
+    assert restored == legacy
+    assert native_order_constraints(restored) == instrument.constraints
+    assert dumps(restored) == captured
+    assert restored.metadata_version == legacy.metadata_version
+    assert restored.base == legacy.base
+    assert restored.constraints.min_base == Decimal("0.02")
+    assert restored.constraints.max_market_base == Decimal("100")
+    catalog = InstrumentCatalog()
+    catalog.apply_metadata(replace(snapshot, instruments=(restored,)))
+    catalog.apply_metadata(snapshot)
+    with pytest.raises(ValueError, match="metadata version is immutable"):
+        catalog.apply_metadata(
+            replace(
+                snapshot,
+                instruments=(replace(restored, constraints=instrument.constraints),),
+            )
+        )
+
+    # A native-looking ticker or multiplier alone is not legacy provenance.
+    for unrelated in (
+        replace(legacy, metadata_version=f"{digest}:123:okx-v10"),
+        replace(legacy, metadata_asof_wall_ns=124),
+        replace(legacy, metadata_source="synthetic"),
+        replace(legacy, contract_specification_source="synthetic"),
+        replace(legacy, venue="other"),
+        replace(legacy, quantity_unit="base"),
+        replace(legacy, inverse=True),
+    ):
+        assert native_order_constraints(unrelated) is unrelated.constraints
+
+    if base == "INJ":
+        scoped = replace(
+            legacy,
+            metadata_version=f"{digest}:123:okx-v1",
+            base=replace(legacy.base, asset_id="okx:INJ"),
+            contract_value_currency="okx:INJ",
+        )
+        scoped_capture = dumps(scoped)
+        restored_scoped = loads(scoped_capture)
+        assert native_order_constraints(restored_scoped) == instrument.constraints
+        assert restored_scoped.base.asset_id == "okx:INJ"
+        assert restored_scoped.contract_value_currency == "okx:INJ"
+        assert dumps(restored_scoped) == scoped_capture
+
+
+def test_okx_spot_native_constraints_and_version_are_unchanged():
+    raw = metadata_bytes(metadata_row(lotSz="0.001", minSz="0.002", maxLmtSz="200"))
+    (instrument,) = OKXAdapter().parse_metadata(raw, fetch_wall_ns=123).instruments
+    assert instrument.metadata_version == f"{sha256(raw).hexdigest()}:123:okx-v1"
+    assert native_order_constraints(instrument) is instrument.constraints
+    assert instrument.constraints == OrderConstraints(
+        min_base=Decimal("0.002"), max_limit_base=Decimal("200")
+    )
 
 
 def test_discovery_excludes_inverse_and_noncrypto_without_aliasing_symbols():

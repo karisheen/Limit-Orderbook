@@ -3,7 +3,13 @@
 from hashlib import sha256
 
 from .adapters.binance import asset_identity
-from .instruments import Instrument, InstrumentId, MetadataSnapshot, OrderConstraints
+from .instruments import (
+    Instrument,
+    InstrumentId,
+    MetadataSnapshot,
+    OrderConstraints,
+    asset_identity_metadata_version,
+)
 
 
 STREAMING_SOURCE = "bundled:crypto-public-ws-subscription-candidates:v1"
@@ -72,7 +78,7 @@ def streaming_snapshot() -> MetadataSnapshot:
         instruments.append(
             Instrument(
                 instrument_id=InstrumentId(f"{venue}:{family}:{market_type}:{symbol}"),
-                metadata_version=version,
+                metadata_version=asset_identity_metadata_version(version, base, quote),
                 venue=venue,
                 api_family=family,
                 native_symbol=symbol,

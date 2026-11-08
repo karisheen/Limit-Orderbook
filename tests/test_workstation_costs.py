@@ -2,9 +2,11 @@
 
 from dataclasses import FrozenInstanceError, replace
 from decimal import Decimal, localcontext
+import json
 
 import pytest
 
+from src.workstation.adapters.okx import OKXAdapter
 from src.workstation.book import BookReducer
 from src.workstation.costs import (
     ComparisonEntry,
@@ -305,6 +307,87 @@ def test_linear_contracts_honor_native_contract_lots_and_maximum():
     assert result.notional_quote == D("20.2")
     assert result.unfilled_base_quantity == D("0.3")
     assert result.settlement_notional == D("20.2")
+
+
+@pytest.mark.parametrize("legacy", [False, True])
+@pytest.mark.parametrize(
+    ("order_type", "requested_base", "expected_native", "reason"),
+    [
+        ("market", "1.01", "101", None),
+        ("market", "100.01", "10000", "native_order_maximum"),
+        ("limit", "100.01", "10001", None),
+        ("limit", "200.01", "20000", "native_order_maximum"),
+        ("market", "0.01", "0", "below_order_minimum"),
+        ("limit", "0.01", "0", "below_order_minimum"),
+        ("market", "0.02", "2", None),
+        ("limit", "0.02", "2", None),
+    ],
+)
+def test_parsed_okx_contract_size_limits(
+    legacy, order_type, requested_base, expected_native, reason
+):
+    raw = json.dumps(
+        {
+            "code": "0",
+            "data": [
+                {
+                    "instType": "SWAP",
+                    "instId": "BTC-USDT-SWAP",
+                    "instFamily": "BTC-USDT",
+                    "ctType": "linear",
+                    "ctVal": "0.01",
+                    "ctValCcy": "BTC",
+                    "settleCcy": "USDT",
+                    "tickSz": "0.1",
+                    "lotSz": "1",
+                    "minSz": "2",
+                    "maxLmtSz": "20000",
+                    "maxMktSz": "10000",
+                    "state": "live",
+                }
+            ],
+        }
+    ).encode()
+    (instrument,) = (
+        OKXAdapter().parse_metadata(raw, inst_type="SWAP", fetch_wall_ns=1).instruments
+    )
+    if legacy:
+        instrument = replace(
+            instrument,
+            metadata_version=instrument.metadata_version.replace(
+                "okx-v2-native-size", "okx-v1"
+            ),
+            constraints=OrderConstraints(
+                min_base=D("0.02"),
+                max_limit_base=D("200"),
+                max_market_base=D("100"),
+            ),
+        )
+    captured = dumps(instrument)
+    instrument, book, now = fixture(
+        instrument=instrument, bids=(("99", "30000"),), asks=(("100", "30000"),)
+    )
+    result = walk(
+        instrument,
+        book,
+        now,
+        base_quantity=D(requested_base),
+        order_type=order_type,
+        limit_price=D("100") if order_type == "limit" else None,
+    )
+    assert result.eligibility.eligible
+    assert result.filled_native_quantity == D(expected_native)
+    assert result.filled_base_quantity == D(expected_native) * D("0.01")
+    assert result.notional_quote == D(expected_native)
+    assert result.settlement_notional == D(expected_native)
+    assert result.unfilled_base_quantity == (
+        D(requested_base) - D(expected_native) * D("0.01")
+    )
+    if reason is None:
+        assert not result.reasons
+    else:
+        assert reason in result.reasons
+    assert dumps(instrument) == captured
 
 
 def inverse(venue="a", **options):

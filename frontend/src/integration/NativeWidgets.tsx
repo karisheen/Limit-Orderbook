@@ -261,8 +261,10 @@ export function CostsPanel({ frame, instruments, connected, calculate }: { frame
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abort = useRef<AbortController | null>(null);
-  const selected = instruments.find(item => item.instrument_id === frame?.selection.instrument_id);
-  const verified = metadataVerified(frame);
+  const selected = instruments.find(item => item.instrument_id === frame?.selection.instrument_id
+    && item.metadata_version === frame.selection.metadata_version && item.metadata_status === frame.selection.metadata_status);
+  const verified = metadataVerified(frame) && !!selected;
+  const derivative = !!selected && selected.market_type !== 'spot';
   const identity = JSON.stringify([frame?.session_id, frame?.generation, frame?.selection.instrument_id, frame?.selection.metadata_status, frame?.selection.metadata_version]);
   const unavailable = !frame || !connected || frame.status === 'seeking' || !verified;
   const input: CostInput = { side, ...(sizeMode === 'base' ? { base_quantity: size } : { quote_budget: size }), ...(feeMode === 'assumed' ? { fee_bps: fee, fee_provenance: provenance, fee_date: feeDate } : {}), latency_bps: latency, rebalance_quote: rebalance };
@@ -287,8 +289,8 @@ export function CostsPanel({ frame, instruments, connected, calculate }: { frame
   return <Panel title="Proposed order & comparable venue costs" className="costs-panel" extra={<span className="muted">Informational · not an order ticket</span>}>
     <form className="cost-form" onSubmit={event => { event.preventDefault(); void submit(); }}>
       <label>Side<select aria-label="Order side" value={side} onChange={event => setSide(event.target.value as 'buy' | 'sell')}><option value="buy">Buy</option><option value="sell">Sell</option></select></label>
-      <label>Size convention<select aria-label="Size convention" value={sizeMode} onChange={event => setSizeMode(event.target.value)}><option value="base">Base quantity ({selected?.base.ticker ?? 'base'})</option><option value="budget">Native quote budget ({selected?.quote.ticker ?? 'quote'})</option></select></label>
-      <label>{sizeMode === 'base' ? 'Base quantity' : 'Quote budget'}<input aria-label="Order size" value={size} onChange={event => setSize(event.target.value)} inputMode="decimal" maxLength={128} required /></label>
+      <label>Size convention<select aria-label="Size convention" value={sizeMode} onChange={event => setSizeMode(event.target.value)}><option value="base">Base quantity ({selected?.base.ticker ?? 'base'})</option><option value="budget">{derivative ? 'Contract/quote notional limit' : 'Native quote budget'} ({selected?.quote.ticker ?? 'quote'})</option></select></label>
+      <label>{sizeMode === 'base' ? 'Base quantity' : derivative ? 'Quote notional limit' : 'Quote budget'}<input aria-label="Order size" value={size} onChange={event => setSize(event.target.value)} inputMode="decimal" maxLength={128} required /></label>
       <label>Fees<select aria-label="Fee assumption" value={feeMode} onChange={event => setFeeMode(event.target.value)}><option value="unknown">Unknown fees</option><option value="assumed">Explicit user assumption</option></select></label>
       {feeMode === 'assumed' && <><label>Fee bps / leg<input aria-label="Fee basis points" value={fee} onChange={event => setFee(event.target.value)} inputMode="decimal" maxLength={128} required /></label><label>Assumption date<input aria-label="Fee date" type="date" value={feeDate} onChange={event => setFeeDate(event.target.value)} required /></label><label className="provenance-input">Provenance<input aria-label="Fee provenance" value={provenance} onChange={event => setProvenance(event.target.value)} maxLength={200} required /></label></>}
       <label>Latency stress bps<input aria-label="Latency stress basis points" value={latency} onChange={event => setLatency(event.target.value)} inputMode="decimal" maxLength={128} /></label>
@@ -297,12 +299,13 @@ export function CostsPanel({ frame, instruments, connected, calculate }: { frame
     </form>
     {frame?.selection.instrument_id && !verified && <p className="caption warning" role="status">Streaming-only or unverified session metadata: cost estimates require verified session-pinned instrument metadata. Market data and analytics remain available.</p>}
     <p className="caption">Same native quote / market cohorts only. USD ≠ USDT ≠ USDC. Same feasible base on both legs; prefunded inventory unknown unless supplied by the engine. No atomic execution or market-impact claim.</p>
+    {derivative && <p className="caption">Native quantity unit: {selected.quantity_unit}; settlement: {selected.settlement ? `${selected.settlement.ticker} (${selected.settlement.asset_id})` : 'unavailable'}. Contract/quote notional is exposure, not cash paid, available collateral or required margin. Settlement follows native contract rules; no currency equivalence is assumed.</p>}
     {error && <p role="alert" className="error">{error}</p>}
     {!valid ? <Empty>Choose an exact instrument and request an estimate. Unknown fees never become zero.</Empty> : <>
       <div className="result-heading"><span>Snapshot estimate · requested at delivery {result.cursor} · use Estimate again to refresh</span>{result.input !== inputKey && <strong className="warning">Inputs changed · recalculate</strong>}</div>
       <Reasons reasons={data?.reasons ?? []} />
       {!estimate ? <Empty>Execution estimate unavailable. See the exclusion reasons.</Empty> : <><div className="estimate-grid">
-        <div><span>Filled base</span><Value value={estimate.filled_base_quantity} /></div><div><span>Unfilled base</span><Value value={estimate.unfilled_base_quantity} /></div><div><span>VWAP ({selected?.quote.ticker})</span><Value value={estimate.vwap} /></div><div><span>Cash notional ({selected?.quote.ticker})</span><Value value={estimate.notional_quote} /></div><div><span>Slippage bps</span><Value value={estimate.slippage_bps} /></div><div><span>Fee ({estimate.fee_asset_id ?? 'unknown'})</span><Value value={estimate.fee_amount} /></div><div><span>Effective price</span><Value value={estimate.effective_price} /></div><div><span>Coverage</span><strong className={estimate.partial ? 'warning' : ''}>{estimate.partial ? 'Partial known depth' : estimate.eligibility.eligible ? 'Eligible' : 'Unavailable'}</strong></div>
+        <div><span>Filled base</span><Value value={estimate.filled_base_quantity} /></div><div><span>Unfilled base</span><Value value={estimate.unfilled_base_quantity} /></div><div><span>VWAP ({selected?.quote.ticker})</span><Value value={estimate.vwap} /></div><div><span>{derivative ? 'Contract/quote notional' : 'Cash notional'} ({selected?.quote.ticker})</span><Value value={estimate.notional_quote} /></div><div><span>Slippage bps</span><Value value={estimate.slippage_bps} /></div><div><span>Fee ({estimate.fee_asset_id ?? 'unknown'})</span><Value value={estimate.fee_amount} /></div><div><span>Effective price</span><Value value={estimate.effective_price} /></div><div><span>Coverage</span><strong className={estimate.partial ? 'warning' : ''}>{estimate.partial ? 'Partial known depth' : estimate.eligibility.eligible ? 'Eligible' : 'Unavailable'}</strong></div>
       </div><Reasons reasons={estimate.reasons} /><Details title="Exact execution ledger, fee assumptions, consumed levels & provenance" value={estimate} /></>}
       <div className="scroll matrix-scroll">{data?.matrix.length ? <PairTable pairs={data.matrix} instruments={instruments} /> : <Empty>No pair estimates for this size/cohort. No cross-quote conversion is assumed.</Empty>}</div>
     </>}

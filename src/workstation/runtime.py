@@ -42,7 +42,7 @@ from .demo_memory import MemoryReplaySource
 from .events import ClientId, EventEnvelope, Gap, StreamId, SubscriptionKey
 from .instruments import Instrument
 from .journal import JournalStore
-from .market_presentation import market_data
+from .market_presentation import AdmittedTradeHistory, market_data
 from .paper import PaperEngine, PaperStore
 from .precision import DERIVED_DECIMAL_POLICY, canonical_decimal, decimal
 from .quality import ClockReading, EligibilityPolicy, evaluate
@@ -380,6 +380,7 @@ class ClientSession:
         self.reader: RecordingReader | ReplaySource | None = None
         self.engine: AnalyticsEngine | None = None
         self.visuals: VisualHistory | None = None
+        self.trade_history = AdmittedTradeHistory(())
         self.context: ContextEngine | None = None
         self.alerts: AlertEngine | None = None
         self.paper: PaperEngine | None = None
@@ -519,7 +520,9 @@ class ClientSession:
 
     def _observers(
         self,
-    ) -> tuple[VisualHistory, ContextEngine, AlertEngine, PaperEngine]:
+    ) -> tuple[
+        VisualHistory, AdmittedTradeHistory, ContextEngine, AlertEngine, PaperEngine
+    ]:
         if (
             self.visuals is None
             or self.context is None
@@ -527,7 +530,7 @@ class ClientSession:
             or self.paper is None
         ):
             raise RuntimeError("session consumers have not been initialized")
-        return self.visuals, self.context, self.alerts, self.paper
+        return self.visuals, self.trade_history, self.context, self.alerts, self.paper
 
     def _initialize_replay(
         self,
@@ -558,6 +561,7 @@ class ClientSession:
         )
         self.streams = streams
         self.engine = AnalyticsEngine(streams)
+        self.trade_history = AdmittedTradeHistory(streams, self.engine)
         if isinstance(self.reader, RecordingReader):
             manifest_hash = sha256(
                 (self.reader.path / "manifest.json").read_bytes()
@@ -610,6 +614,7 @@ class ClientSession:
         self.streams = streams
         self.choose(instrument_id)
         self.engine = AnalyticsEngine(streams)
+        self.trade_history = AdmittedTradeHistory(streams, self.engine)
         self.live_books = baseline
         self.live_clock.observe_frontier(
             ClockReading(clock_id, time.monotonic_ns(), time.time_ns())
@@ -1124,16 +1129,55 @@ class ClientSession:
             "truncated": truncated or range_truncated,
         }
 
-    def _candle_input(self, interval, limit):
+    def _candle_input(
+        self, interval, limit, instrument_ids=(), source="session_trades"
+    ):
         instrument = next(
             (spec.instrument for spec in self.streams if spec.key == self.key), None
         )
-        if instrument is None or self.visuals is None:
+        if instrument is None:
             raise RuntimeFailure(409, "candle source unavailable")
+        primary = str(instrument.instrument_id)
+        requested = tuple(instrument_ids) or (primary,)
+        if (
+            len(requested) > 16
+            or len(set(requested)) != len(requested)
+            or primary not in requested
+        ):
+            raise RuntimeFailure(
+                422, "candle cohort must include the primary without duplicates"
+            )
+        pinned = {}
+        for spec in self.streams:
+            item = spec.instrument
+            if spec.key.channel == "book" or str(item.instrument_id) not in pinned:
+                pinned[str(item.instrument_id)] = item
+        allowed = {
+            str(item.instrument_id)
+            for item in _live_cohort(instrument, tuple(pinned.values()))
+            if item.base.asset_id == instrument.base.asset_id
+            and item.market_type == instrument.market_type
+        }
+        if not set(requested) <= allowed:
+            raise RuntimeFailure(
+                422, "candle cohort is not an active pinned native cohort"
+            )
+        cohort = (
+            instrument,
+            *(pinned[key] for key in sorted(set(requested) - {primary})),
+        )
+        if source == "venue_ohlcv" and len(cohort) != 1:
+            raise RuntimeFailure(
+                422, "venue history requires an exact primary instrument"
+            )
+        if source not in ("session_trades", "venue_ohlcv"):
+            raise RuntimeFailure(422, "unsupported candle source")
         identity = (self.mode, self.source_identity, self.key, instrument)
         local = (
-            session_candles(self.visuals, instrument, interval, limit)
-            if self.mode != "live"
+            session_candles(
+                self.trade_history, instrument, interval, limit, cohort=cohort
+            )
+            if source == "session_trades"
             else None
         )
         return identity, instrument, local
@@ -1706,6 +1750,7 @@ class ClientSession:
         if isinstance(self.reader, RecordingReader):
             self.reader.close()
         self.pending_views.clear()
+        self.trade_history.reset()
         if self.visuals is not None:
             self.visuals.reset()
             self.visuals = None
@@ -2303,7 +2348,11 @@ class TerminalRuntime:
             async with session.actions, session.lock:
                 session.check(request.generation)
                 identity, instrument, local = await session.work(
-                    session._candle_input, request.interval, request.limit
+                    session._candle_input,
+                    request.interval,
+                    request.limit,
+                    request.instrument_ids,
+                    request.source,
                 )
             # No observer or lifecycle lock is held over public HTTP. Source
             # replacement and live book delivery remain independent of candles.
@@ -2335,6 +2384,7 @@ class TerminalRuntime:
                     **result,
                     "session_id": session.id,
                     "generation": str(session.generation),
+                    "source_identity": session.source_identity,
                 }
 
     async def select(self, session, generation, instrument_id):

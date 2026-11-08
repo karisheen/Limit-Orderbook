@@ -1315,6 +1315,16 @@ def test_live_batched_owner_preserves_order_and_complete_observer_state(tmp_path
             # Keep exact context, alert and financial state equality; only the
             # visual source/scope IDs and their derived segment IDs may differ.
             assert batched_state[1:] == serial_state[1:]
+
+            def restore_trade_history(owner):
+                saved = owner.trade_history.checkpoint()
+                owner.trade_history.reset()
+                owner.trade_history.restore(saved)
+                return owner.trade_history.checkpoint()
+
+            assert await batched.work(
+                restore_trade_history, batched
+            ) == await serial.work(restore_trade_history, serial)
             assert batched.source_identity != serial.source_identity
             axes = []
             market_states = []
@@ -1728,6 +1738,8 @@ def test_native_candle_query_releases_owner_and_rejects_obsolete_generation(
                 generation=str(session.generation),
                 interval="1h",
                 limit=300,
+                source="venue_ohlcv",
+                instrument_ids=[],
             )
             query = asyncio.create_task(runtime.candles(request))
             await asyncio.wait_for(entered.wait(), 5)
@@ -1777,6 +1789,8 @@ def test_cancelled_native_candle_query_releases_capacity_without_cache(
                         generation=str(session.generation),
                         interval="1h",
                         limit=300,
+                        source="venue_ohlcv",
+                        instrument_ids=[],
                     )
                 )
             )

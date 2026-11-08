@@ -19,29 +19,18 @@ from ..events import (
     Trade,
 )
 from ..instruments import (
-    AssetId,
+    CANONICAL_ASSETS,
     AssetIdentity,
     Instrument,
     InstrumentId,
     MetadataSnapshot,
     OrderConstraints,
+    asset_identity_metadata_version,
+    canonical_asset_id,
 )
 from ..precision import decimal, exact_json_loads, nonnegative_int, text
 from ..quality import Capabilities
 from .base import DecodeError, DecodedEvent, DecodeResult, TransportRequest
-
-CANONICAL_ASSETS = (
-    "BTC",
-    "ETH",
-    "SOL",
-    "XRP",
-    "DOGE",
-    "ADA",
-    "LTC",
-    "LINK",
-    "AVAX",
-    "DOT",
-)
 
 
 def object_field(value):
@@ -66,16 +55,28 @@ def integer_field(value):
 
 def asset_identity(venue, symbol):
     symbol = text(symbol)
-    canonical = symbol in CANONICAL_ASSETS + ("USD", "USDT", "USDC")
+    # Shared curated policy; retain the native ticker/token spelling on the wire.
     return AssetIdentity(
-        AssetId(symbol if canonical else f"{venue}:{symbol}"),
+        canonical_asset_id(venue, symbol),
         symbol,
         native_token_id=symbol,
     )
 
 
 def metadata_snapshot(source, raw, fetched, instruments):
-    instruments = tuple(instruments)
+    # Raw bytes/as-of alone do not distinguish the expanded identity parser.
+    # Do this only at metadata generation, never when loading old descriptors.
+    instruments = tuple(
+        replace(item, metadata_version=version)
+        if (
+            version := asset_identity_metadata_version(
+                item.metadata_version, item.base, item.quote, item.settlement
+            )
+        )
+        != item.metadata_version
+        else item
+        for item in instruments
+    )
     if len({item.instrument_id for item in instruments}) != len(instruments):
         raise ValueError("duplicate metadata instrument")
     priority = {asset: index for index, asset in enumerate(CANONICAL_ASSETS)}
@@ -104,6 +105,7 @@ async def discover_metadata_families(adapter, *, timeout=30):
     from ..transport import PublicTransportError
 
     adapter.discovery_evidence = ()
+    adapter.discovery_snapshots = ()
 
     async def one(family):
         try:
@@ -131,6 +133,7 @@ async def discover_metadata_families(adapter, *, timeout=30):
     )
     adapter.discovery_evidence = tuple(result[1] for result in results)
     snapshots = [snapshot for snapshot, _, _ in results if snapshot is not None]
+    adapter.discovery_snapshots = tuple(snapshots)
     if not snapshots:
         raise next(error for _, _, error in results if error is not None)
     if len(snapshots) == 1:

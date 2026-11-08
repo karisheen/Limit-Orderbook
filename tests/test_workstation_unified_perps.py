@@ -1086,3 +1086,280 @@ def test_streaming_candidates_do_not_override_known_product_rejection(status):
         )
         with pytest.raises(ValueError, match=f"product_{status}"):
             catalog.adapter(instrument.venue).capabilities(instrument, key)
+
+
+@pytest.mark.parametrize("family", ["v5-spot", "v5-linear"])
+@pytest.mark.parametrize(
+    "reason,status",
+    [("network_error", None), ("server_error", 500), ("server_error", 503)],
+)
+def test_bybit_official_peer_recovers_only_service_failure(
+    monkeypatch, family, reason, status
+):
+    adapter = BybitAdapter()
+    requests = []
+    category = "linear" if family == "v5-linear" else "spot"
+    suffix = f"/v5/market/instruments-info?category={category}"
+    if category == "linear":
+        suffix += "&limit=1000"
+    primary, peer = (host + suffix for host in adapter.metadata_hosts)
+
+    async def fetch(request):
+        endpoint = request.endpoint_id
+        requests.append(endpoint)
+        if endpoint == primary:
+            raise PublicTransportError(reason, status=status, endpoint_id=endpoint)
+        return encoded(bybit_metadata(perpetual="category=linear" in endpoint))
+
+    monkeypatch.setattr("src.workstation.transport.fetch_public", fetch)
+    snapshot = asyncio.run(adapter.discover())
+    assert requests.count(primary) == 1 and requests.count(peer) == 1
+    assert len(requests) == 3
+    recovered = next(item for item in snapshot.instruments if item.api_family == family)
+    assert recovered.metadata_source == peer
+    if recovered.market_type == "perpetual":
+        assert recovered.contract_specification_source == peer
+    assert recovered.tick_size == Decimal("0.25")
+    assert recovered.lot_size == Decimal("0.005")
+    assert recovered.metadata_status == "verified"
+    assert (family, "available", peer) in adapter.discovery_evidence
+    assert len(adapter.discovery_snapshots) == 2
+    assert adapter.rest_host == "https://api.bytick.com"
+
+
+@pytest.mark.parametrize("family", ["v5-spot", "v5-linear"])
+@pytest.mark.parametrize(
+    "reason,status,failure_reason",
+    [
+        ("blocked", 403, None),
+        ("blocked", 451, None),
+        ("blocked", None, None),
+        ("unsupported", 404, None),
+        ("rate_limited", 429, None),
+        ("response_too_large", 200, None),
+        ("circuit_open", 429, "rate_limited"),
+        ("circuit_open", None, None),
+    ],
+)
+def test_bybit_denied_or_nonservice_origin_is_never_bypassed(
+    monkeypatch, family, reason, status, failure_reason
+):
+    adapter = BybitAdapter()
+    requests = []
+
+    async def fetch(request):
+        requests.append(request.endpoint_id)
+        raise PublicTransportError(
+            reason,
+            status=status,
+            failure_reason=failure_reason,
+            endpoint_id=request.endpoint_id,
+        )
+
+    monkeypatch.setattr("src.workstation.transport.fetch_public", fetch)
+    with pytest.raises(PublicTransportError) as failure:
+        asyncio.run(adapter.discover_family(family))
+    assert len(requests) == 1
+    assert requests[0].startswith(adapter.rest_host + "/")
+    assert failure.value.status == status
+    assert requests[0] in str(failure.value)
+
+
+@pytest.mark.parametrize("peer_fails", [False, True])
+def test_bybit_peer_restarts_complete_family_without_mixing_pages(
+    monkeypatch, peer_fails
+):
+    from hashlib import sha256
+
+    adapter = BybitAdapter()
+    primary, peer = adapter.metadata_hosts
+    path = "/v5/market/instruments-info?category=linear&limit=1000"
+    requests = []
+    peer_first = encoded(bybit_metadata(base="ETH", cursor="peer/next"))
+    peer_last = encoded(bybit_metadata(base="SOL"))
+
+    async def fetch(request):
+        endpoint = request.endpoint_id
+        requests.append(endpoint)
+        if "category=spot" in endpoint:
+            return encoded(bybit_metadata(perpetual=False))
+        if endpoint.startswith(primary):
+            if "cursor=" in endpoint:
+                raise PublicTransportError("server_error", status=503)
+            return encoded(bybit_metadata(base="BTC", cursor="primary-next"))
+        if "cursor=" in endpoint:
+            if peer_fails:
+                raise PublicTransportError("server_error", status=503)
+            assert endpoint == peer + path + "&cursor=peer%2Fnext"
+            return peer_last
+        assert endpoint == peer + path
+        return peer_first
+
+    monkeypatch.setattr("src.workstation.transport.fetch_public", fetch)
+    snapshot = asyncio.run(adapter.discover())
+    linear = [item for item in snapshot.instruments if item.api_family == "v5-linear"]
+    assert len(requests) == 5
+    if peer_fails:
+        assert linear == []
+        assert adapter.discovery_evidence[1][:2] == ("v5-linear", "unavailable")
+        assert len(adapter.discovery_snapshots) == 1
+    else:
+        assert {item.native_symbol for item in linear} == {"ETHUSDT", "SOLUSDT"}
+        sources = (peer + path, peer + path + "&cursor=peer%2Fnext")
+        assert {item.metadata_source for item in linear} == set(sources)
+        complete = adapter.discovery_snapshots[1]
+        assert complete.source == ";".join(sources)
+        assert (
+            complete.payload_hash == sha256(peer_first + b"\n" + peer_last).hexdigest()
+        )
+        assert adapter.discovery_evidence[1] == (
+            "v5-linear",
+            "available",
+            complete.source,
+        )
+    assert any(item.api_family == "v5-spot" for item in snapshot.instruments)
+
+
+@pytest.mark.parametrize("family", ["v5-spot", "v5-linear"])
+@pytest.mark.parametrize(
+    "failure",
+    ["json", "missing_rows", "missing_increment", "wrong_category", "partial"],
+)
+def test_bybit_authoritative_payload_failure_never_tries_peer(
+    monkeypatch, family, failure
+):
+    adapter = BybitAdapter()
+    adapter.MAX_METADATA_PAGES = 2
+    requests = []
+    failed_linear = family == "v5-linear"
+
+    async def fetch(request):
+        endpoint = request.endpoint_id
+        requests.append(endpoint)
+        linear = "category=linear" in endpoint
+        payload = bybit_metadata(perpetual=linear)
+        if linear != failed_linear:
+            return encoded(payload)
+        if failure == "json":
+            return b'{"result":'
+        if failure == "missing_rows":
+            del payload["result"]["list"]
+        elif failure == "missing_increment":
+            del payload["result"]["list"][0]["priceFilter"]["tickSize"]
+        elif failure == "wrong_category":
+            payload["result"]["category"] = "spot" if linear else "linear"
+        elif failure == "partial":
+            payload["result"]["nextPageCursor"] = "loop"
+        return encoded(payload)
+
+    monkeypatch.setattr("src.workstation.transport.fetch_public", fetch)
+    snapshot = asyncio.run(adapter.discover())
+    assert all(item.api_family != family for item in snapshot.instruments)
+    assert all(url.startswith(adapter.rest_host + "/") for url in requests)
+    assert len(requests) <= 3
+    assert dict((name, state) for name, state, _ in adapter.discovery_evidence)[
+        family
+    ] == ("unavailable")
+
+
+@pytest.mark.parametrize("status", [403, 451, 429, 503])
+def test_transport_origin_circuit_retains_cause_status_and_request_provenance(status):
+    import httpx
+
+    from src.workstation.adapters.base import TransportRequest
+    from src.workstation.transport import fetch_public
+
+    async def scenario():
+        calls = []
+
+        def respond(request):
+            calls.append(str(request.url))
+            return httpx.Response(status, headers={"Retry-After": "121"})
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+            failures = []
+            for category in ("spot", "linear"):
+                endpoint = f"https://api.bytick.com/v5/market/instruments-info?category={category}"
+                with pytest.raises(PublicTransportError) as failure:
+                    await fetch_public(
+                        TransportRequest("GET", endpoint), client=client, attempts=1
+                    )
+                failures.append(failure.value)
+                assert failure.value.status == status
+                assert failure.value.endpoint_id == endpoint
+                assert failure.value.peer_retryable is (status == 503)
+            assert len(calls) == 1
+            assert failures[1].reason == (
+                "blocked" if status in (403, 451) else "circuit_open"
+            )
+
+    asyncio.run(scenario())
+
+
+def test_bybit_missing_linear_cursor_cannot_claim_family_complete(monkeypatch):
+    adapter = BybitAdapter()
+    requests = []
+
+    async def fetch(request):
+        requests.append(request.endpoint_id)
+        payload = bybit_metadata(perpetual="category=linear" in request.endpoint_id)
+        del payload["result"]["nextPageCursor"]
+        return encoded(payload)
+
+    monkeypatch.setattr("src.workstation.transport.fetch_public", fetch)
+    snapshot = asyncio.run(adapter.discover())
+    assert {item.api_family for item in snapshot.instruments} == {"v5-spot"}
+    assert adapter.discovery_evidence[1][:2] == ("v5-linear", "unavailable")
+    assert len(requests) == 2
+    assert all(endpoint.startswith(adapter.rest_host + "/") for endpoint in requests)
+
+
+@pytest.mark.parametrize(
+    "failure_reason,status", [("network_error", None), ("server_error", 503)]
+)
+def test_bybit_service_circuit_can_use_documented_peer(
+    monkeypatch, failure_reason, status
+):
+    adapter = BybitAdapter()
+    requests = []
+
+    async def fetch(request):
+        requests.append(request.endpoint_id)
+        if request.endpoint_id.startswith(adapter.rest_host + "/"):
+            raise PublicTransportError(
+                "circuit_open", status=status, failure_reason=failure_reason
+            )
+        return encoded(bybit_metadata())
+
+    monkeypatch.setattr("src.workstation.transport.fetch_public", fetch)
+    snapshot = asyncio.run(adapter.discover_family("v5-linear"))
+    assert len(requests) == 2
+    assert snapshot.source == requests[1]
+    assert snapshot.source.startswith("https://api.bybit.com/")
+    assert snapshot.instruments[0].metadata_status == "verified"
+
+
+def test_binance_usdm_denial_keeps_fapi_provenance_without_alternate(monkeypatch):
+    adapter = BinanceGlobalAdapter()
+    requests = []
+    endpoint = "https://fapi.binance.com/fapi/v1/exchangeInfo"
+
+    async def fetch(request):
+        requests.append(request.endpoint_id)
+        if request.endpoint_id == endpoint:
+            raise PublicTransportError(
+                "blocked", status=451, endpoint_id=request.endpoint_id
+            )
+        return encoded(binance_metadata(perpetual=False))
+
+    monkeypatch.setattr("src.workstation.transport.fetch_public", fetch)
+    snapshot = asyncio.run(adapter.discover())
+    assert set(requests) == {
+        endpoint,
+        "https://data-api.binance.vision/api/v3/exchangeInfo",
+    }
+    assert len(requests) == 2
+    assert {item.api_family for item in snapshot.instruments} == {"spot-v3"}
+    family, state, detail = adapter.discovery_evidence[1]
+    assert (family, state) == ("usdm-v1", "blocked")
+    assert endpoint in detail and "HTTP 451" in detail

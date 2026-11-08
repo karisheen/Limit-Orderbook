@@ -145,6 +145,17 @@ class CostRequest(SessionAction):
 class CandleRequest(SessionAction):
     interval: str = Field(min_length=1, max_length=8, pattern=r"^[1-9][0-9]*[mhdwM]$")
     limit: int = Field(default=300, ge=1, le=500)
+    source: Literal["session_trades", "venue_ohlcv"] = "session_trades"
+    instrument_ids: list[str] = Field(default_factory=list, max_length=16)
+
+    @field_validator("instrument_ids")
+    @classmethod
+    def valid_candle_cohort(cls, values):
+        if any(not 1 <= len(value) <= 256 for value in values):
+            raise ValueError("invalid candle instrument identity")
+        if len(values) != len(set(values)):
+            raise ValueError("duplicate candle instrument identity")
+        return values
 
 
 class VisualizationRequest(SessionAction):

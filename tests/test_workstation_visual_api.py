@@ -622,6 +622,8 @@ def test_invalid_visual_inputs_are_rejected_without_cursor_movement(
 
 
 def test_candle_history_is_local_exact_and_rewind_fenced(market, monkeypatch):
+    from datetime import datetime, timezone
+
     import src.workstation.candles as candles
 
     async def forbidden(*args, **kwargs):
@@ -650,10 +652,23 @@ def test_candle_history_is_local_exact_and_rewind_fenced(market, monkeypatch):
     assert sum(Decimal(bar["volume"]) for bar in minute["candles"]) == sum(
         Decimal(bar["volume"]) for bar in hour["candles"]
     )
-    assert (
-        successful(post(client, frame, "candles", interval="1M"))["status"]
-        == "unavailable"
+    month = successful(post(client, frame, "candles", interval="1M"))
+    assert month["status"] == "ready"
+    assert sum(Decimal(bar["volume"]) for bar in month["candles"]) == sum(
+        Decimal(bar["volume"]) for bar in hour["candles"]
     )
+    for bar in month["candles"]:
+        start = datetime.fromtimestamp(
+            int(bar["start_ns"]) // 1_000_000_000, timezone.utc
+        )
+        end = datetime.fromtimestamp(int(bar["end_ns"]) // 1_000_000_000, timezone.utc)
+        assert (start.day, start.hour, start.minute, start.second) == (1, 0, 0, 0)
+        assert end == datetime(
+            start.year + (start.month == 12),
+            start.month % 12 + 1,
+            1,
+            tzinfo=timezone.utc,
+        )
     assert post(client, frame, "candles", interval="1h", limit=501).status_code == 422
     assert (
         client.post(

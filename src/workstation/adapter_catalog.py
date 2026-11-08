@@ -8,7 +8,12 @@ import time
 from .adapters.base import Adapter
 from .events import BookUpdate, RawFrame, SessionId, StreamId, SubscriptionKey, Trade
 from .ingestion import FeedCallbacks, FeedSupervisor, SupervisorConfig
-from .instruments import Instrument, InstrumentCatalog, InstrumentQuery
+from .instruments import (
+    Instrument,
+    InstrumentCatalog,
+    InstrumentQuery,
+    asset_identity_metadata_version,
+)
 from .transport import PublicTransportError, fetch_public
 
 
@@ -54,6 +59,14 @@ class VenueStatus:
         )
         return metadata == "available" and all(
             evidence.get(name) == "available" for name in ("snapshot", "trades", "ws")
+        )
+
+    @property
+    def streaming_ready(self) -> bool:
+        """Observed book and trades for the probed product, not financial readiness."""
+        return (
+            self.probed_instrument_id is not None
+            and dict(self.dependencies).get("ws") == "available"
         )
 
 
@@ -117,28 +130,40 @@ class AdapterCatalog:
         )
 
     def _apply_discovery(self, venue, adapter, snapshot):
-        """Retire absent products only in completely discovered API families."""
+        """Retire complete-family absences with captured identity-policy versions."""
         evidence = getattr(adapter, "discovery_evidence", ())
-        families = (
-            {family for family, state, _ in evidence if state == "available"}
-            if evidence
-            else {item.api_family for item in snapshot.instruments}
-        )
+        completed = [family for family, state, _ in evidence if state == "available"]
+        family_snapshots = getattr(adapter, "discovery_snapshots", None)
+        if family_snapshots is not None:
+            families = dict(zip(completed, family_snapshots, strict=True))
+        else:
+            families = {
+                family: snapshot
+                for family in (
+                    completed
+                    if evidence
+                    else {item.api_family for item in snapshot.instruments}
+                )
+            }
         present = {item.instrument_id for item in snapshot.instruments}
         missing = tuple(
             replace(
                 item,
                 status="unavailable",
-                metadata_version=(
-                    f"missing:{snapshot.payload_hash}:{snapshot.fetch_wall_ns}"
+                metadata_version=asset_identity_metadata_version(
+                    f"missing:{families[item.api_family].payload_hash}:"
+                    f"{families[item.api_family].fetch_wall_ns}",
+                    item.base,
+                    item.quote,
+                    item.settlement,
                 ),
-                metadata_asof_wall_ns=snapshot.fetch_wall_ns,
-                metadata_source=snapshot.source,
+                metadata_asof_wall_ns=families[item.api_family].fetch_wall_ns,
+                metadata_source=families[item.api_family].source,
             )
             for item in self.instruments.list(InstrumentQuery(venue=venue))
             if item.api_family in families
             and item.instrument_id not in present
-            and item.metadata_asof_wall_ns <= snapshot.fetch_wall_ns
+            and item.metadata_asof_wall_ns <= families[item.api_family].fetch_wall_ns
         )
         self.instruments.apply_metadata(
             replace(snapshot, instruments=snapshot.instruments + missing)
@@ -252,13 +277,16 @@ class AdapterCatalog:
         should be acquired instead when a collector is already running.
         """
         adapter = self.adapter(instrument.venue)
-        evidence = dict(
-            self.statuses.get(
-                instrument.venue, VenueStatus(instrument.venue)
-            ).dependencies
-        )
-        evidence["metadata:product"] = evidence.get(
-            f"metadata:{instrument.api_family}", evidence.get("metadata", "unknown")
+        previous = self.statuses.get(instrument.venue, VenueStatus(instrument.venue))
+        evidence = dict(previous.dependencies)
+        # Discovery may have upgraded this ID while the session still pins a
+        # non-financial streaming candidate. Family access cannot upgrade that pin.
+        evidence["metadata:product"] = (
+            evidence.get(
+                f"metadata:{instrument.api_family}", evidence.get("metadata", "unknown")
+            )
+            if instrument.metadata_status == "verified"
+            else instrument.metadata_status
         )
         book_key = self.canonical_key(
             SubscriptionKey.for_instrument(instrument), instrument
@@ -344,10 +372,15 @@ class AdapterCatalog:
             for task in tasks:
                 task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
+        evidence["ws:book"] = "available" if ready_book.is_set() else "unavailable"
+        evidence["ws:trades"] = "available" if ready_trade.is_set() else "unavailable"
         status = VenueStatus(
             instrument.venue,
             "degraded",
-            "product_dependency_probe",
+            (
+                "product_dependency_probe; "
+                + previous.detail.removeprefix("product_dependency_probe; ")
+            )[:4096],
             tuple(sorted(evidence.items())),
             time.time_ns(),
             str(instrument.instrument_id),

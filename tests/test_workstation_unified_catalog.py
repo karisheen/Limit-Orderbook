@@ -13,6 +13,8 @@ from src.workstation.adapter_catalog import AdapterCatalog, VenueStatus
 from src.workstation.adapters.base import TransportRequest
 from src.workstation.events import BookUpdate, SubscriptionKey, Trade
 from src.workstation.instruments import (
+    ASSET_IDENTITY_POLICY_REVISION,
+    AssetId,
     MetadataSnapshot,
     OrderConstraints,
     synthetic_instrument,
@@ -259,10 +261,20 @@ def test_cancelled_family_discovery_cleans_up_without_publishing(monkeypatch, ve
 
 
 @pytest.mark.parametrize("family,usable", [("spot-v3", True), ("usdm-v1", False)])
+@pytest.mark.parametrize("metadata_verified", [False, True])
+@pytest.mark.parametrize("received", ["both", "book", "trades"])
 def test_product_probe_uses_selected_family_without_erasing_partial_evidence(
-    monkeypatch, family, usable
+    monkeypatch, family, usable, metadata_verified, received
 ):
     instrument = synthetic_instrument(venue="binance-global", api_family=family)
+    if not metadata_verified:
+        instrument = next(
+            item
+            for item in streaming_snapshot().instruments
+            if item.venue == "binance-global"
+            and item.api_family == family
+            and item.native_symbol == "BTCUSDT"
+        )
     trade = Trade("fixture", "fixture", Decimal("10"), Decimal("1"))
 
     class FixtureAdapter:
@@ -280,6 +292,8 @@ def test_product_probe_uses_selected_family_without_erasing_partial_evidence(
             self.key, self.callbacks = key, callbacks
 
         async def run(self):
+            if received not in ("both", self.key.channel):
+                await asyncio.Event().wait()
             if self.key.channel == "book":
                 self.callbacks.book(
                     SimpleNamespace(
@@ -304,23 +318,33 @@ def test_product_probe_uses_selected_family_without_erasing_partial_evidence(
     catalog.statuses["binance-global"] = VenueStatus(
         "binance-global",
         "degraded",
-        "metadata_partial",
+        "metadata_partial; usdm-v1: blocked: HTTP 451 https://fapi.binance.com",
         (
             ("metadata", "partial"),
             ("metadata:spot-v3", "available"),
             ("metadata:usdm-v1", "blocked"),
         ),
     )
-    status = asyncio.run(catalog.probe(instrument, timeout=1))
-    assert status.fully_usable is usable
-    assert status.state == ("available" if usable else "degraded")
+    status = asyncio.run(catalog.probe(instrument, timeout=0.01))
+    financially_ready = usable and metadata_verified and received == "both"
+    assert status.fully_usable is financially_ready
+    assert status.streaming_ready is (received == "both")
+    assert status.state == ("available" if financially_ready else "degraded")
     assert status.probed_instrument_id == str(instrument.instrument_id)
     assert dict(status.dependencies)["metadata"] == "partial"
     assert dict(status.dependencies)["metadata:usdm-v1"] == "blocked"
     assert dict(status.dependencies)["metadata:product"] == (
-        "available" if usable else "blocked"
+        ("available" if usable else "blocked")
+        if metadata_verified
+        else "streaming_only"
     )
     assert replace(status, probed_instrument_id=None).fully_usable is False
+    assert not replace(status, probed_instrument_id=None).streaming_ready
+    assert "HTTP 451 https://fapi.binance.com" in status.detail
+    for channel in ("book", "trades"):
+        assert dict(status.dependencies)[f"ws:{channel}"] == (
+            "available" if received in ("both", channel) else "unavailable"
+        )
 
 
 @pytest.mark.parametrize(
@@ -555,3 +579,178 @@ def test_empty_authoritative_families_are_not_repopulated(monkeypatch, seed_firs
     assert not any(
         item.streamable for item in catalog.instruments.list() if item.venue == "bybit"
     )
+
+
+@pytest.mark.parametrize("complete_family", ["v5-spot", "v5-linear"])
+@pytest.mark.parametrize("failure", ["blocked", "malformed", "service"])
+def test_complete_family_retirement_does_not_touch_failed_family(
+    monkeypatch, complete_family, failure
+):
+    catalog = AdapterCatalog()
+    original = catalog.seed_streaming()
+    adapter = catalog.adapter("bybit")
+    source = f"https://api.bytick.com/v5/market/instruments-info?category={complete_family[3:]}"
+    failed_family = next(
+        name for name in adapter.metadata_families if name != complete_family
+    )
+
+    async def discover_family(family):
+        if family == complete_family:
+            return MetadataSnapshot(source, 10, "complete-empty", ())
+        if failure == "blocked":
+            raise PublicTransportError("blocked", status=451)
+        if failure == "service":
+            raise PublicTransportError("server_error", status=503)
+        raise ValueError("incomplete metadata pagination")
+
+    monkeypatch.setattr(adapter, "discover_family", discover_family)
+    catalog.statuses = {"bybit": catalog.statuses["bybit"]}
+    (status,) = asyncio.run(catalog.discover())
+    for pinned in original:
+        current = catalog.instruments.get(pinned.instrument_id)
+        assert (
+            catalog.instruments.get(pinned.instrument_id, pinned.metadata_version)
+            is pinned
+        )
+        if (pinned.venue, pinned.api_family) == ("bybit", complete_family):
+            assert current.status == "unavailable"
+            assert current.metadata_asof_wall_ns == 10
+            assert current.metadata_source == source
+            assert current.tick_size is None and current.lot_size is None
+            assert pinned.streamable and not current.streamable
+        else:
+            assert current is pinned
+    evidence = dict(status.dependencies)
+    assert evidence[f"metadata:{complete_family}"] == "available"
+    assert evidence[f"metadata:{failed_family}"] == (
+        "blocked" if failure == "blocked" else "unavailable"
+    )
+    assert not status.streaming_ready and not status.fully_usable
+    assert "ws" not in evidence
+
+
+def test_retirement_uses_own_family_time_hash_and_origin_not_aggregate(monkeypatch):
+    catalog = AdapterCatalog()
+    candidates = streaming_snapshot().instruments
+    pinned = []
+    for family, symbol, asof in (
+        ("v5-spot", "BTCUSDT", 5),
+        ("v5-spot", "ETHUSDT", 20),
+        ("v5-linear", "BTCUSDT", 20),
+    ):
+        candidate = next(
+            item
+            for item in candidates
+            if (item.venue, item.api_family, item.native_symbol)
+            == ("bybit", family, symbol)
+        )
+        pinned.append(
+            replace(
+                candidate,
+                status="active",
+                metadata_status="verified",
+                metadata_version=f"verified:{family}:{asof}",
+                metadata_asof_wall_ns=asof,
+                metadata_source="fixture:previous-complete",
+                tick_size=Decimal("0.25"),
+                lot_size=Decimal("0.005"),
+                constraints=OrderConstraints(),
+            )
+        )
+    catalog.instruments.apply_metadata(
+        MetadataSnapshot("fixture:previous-complete", 20, "previous", tuple(pinned))
+    )
+    adapter = catalog.adapter("bybit")
+    spot = MetadataSnapshot(
+        "https://api.bytick.com/v5/market/instruments-info?category=spot",
+        10,
+        "spot-empty",
+        (),
+    )
+    linear = MetadataSnapshot(
+        "https://api.bybit.com/v5/market/instruments-info?category=linear&limit=1000",
+        30,
+        "linear-empty",
+        (),
+    )
+
+    async def discover_family(family):
+        return spot if family == "v5-spot" else linear
+
+    monkeypatch.setattr(adapter, "discover_family", discover_family)
+    catalog.statuses = {"bybit": catalog.statuses["bybit"]}
+    asyncio.run(catalog.discover())
+    old_spot, newer_spot, old_linear = pinned
+    assert catalog.instruments.get(newer_spot.instrument_id) is newer_spot
+    for original, family_snapshot in ((old_spot, spot), (old_linear, linear)):
+        retired = catalog.instruments.get(original.instrument_id)
+        assert retired.status == "unavailable"
+        assert retired.metadata_asof_wall_ns == family_snapshot.fetch_wall_ns
+        assert retired.metadata_source == family_snapshot.source
+        assert retired.metadata_version == (
+            f"missing:{family_snapshot.payload_hash}:{family_snapshot.fetch_wall_ns}"
+        )
+        assert (
+            catalog.instruments.get(original.instrument_id, original.metadata_version)
+            is original
+        )
+    assert adapter.discovery_snapshots == (spot, linear)
+
+
+def test_retirement_versions_preserve_captured_asset_identity_policy():
+    source = "https://api.bybit.com/v5/market/instruments-info?category=spot"
+    snapshot = MetadataSnapshot(source, 30, "same-raw-empty-family", ())
+    adapter = SimpleNamespace(
+        discovery_evidence=(("v5-spot", "available", source),),
+        discovery_snapshots=(snapshot,),
+    )
+    canonical = synthetic_instrument(
+        venue="bybit",
+        api_family="v5-spot",
+        base="BNB",
+        quote="USDT",
+        metadata_version=f"captured:{ASSET_IDENTITY_POLICY_REVISION}",
+        metadata_asof_wall_ns=10,
+    )
+    scoped = replace(
+        canonical,
+        base=replace(canonical.base, asset_id=AssetId("bybit:BNB")),
+        metadata_version="captured",
+    )
+    retired = []
+    for original in (scoped, canonical):
+        catalog = AdapterCatalog()
+        catalog.instruments.apply_metadata(
+            MetadataSnapshot("fixture:captured", 10, "captured-raw", (original,))
+        )
+        catalog._apply_discovery("bybit", adapter, snapshot)
+        current = catalog.instruments.get(original.instrument_id)
+        retired.append(current)
+        assert current == replace(
+            original,
+            status="unavailable",
+            metadata_version=current.metadata_version,
+            metadata_asof_wall_ns=snapshot.fetch_wall_ns,
+            metadata_source=source,
+        )
+        assert (
+            catalog.instruments.get(original.instrument_id, original.metadata_version)
+            is original
+        )
+        # Repeated retirement is idempotent; captured versions remain immutable.
+        catalog._apply_discovery("bybit", adapter, snapshot)
+        assert catalog.instruments.get(current.instrument_id) == current
+        with pytest.raises(ValueError, match="metadata version is immutable"):
+            catalog.instruments.apply_metadata(
+                replace(
+                    snapshot,
+                    instruments=(replace(current, tick_size=Decimal("0.5")),),
+                )
+            )
+    legacy_version = f"missing:{snapshot.payload_hash}:{snapshot.fetch_wall_ns}"
+    assert retired[0].metadata_version == legacy_version
+    assert retired[1].metadata_version == (
+        f"{legacy_version}:{ASSET_IDENTITY_POLICY_REVISION}"
+    )
+    assert retired[0].base.asset_id == "bybit:BNB"
+    assert retired[1].base.asset_id == "BNB"

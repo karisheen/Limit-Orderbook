@@ -24,6 +24,7 @@ from .costs import (
     _valuation_reason,
 )
 from .events import Control, EventEnvelopeRef, Gap, SubscriptionKey
+from .instruments import native_order_constraints
 from .precision import (
     DECIMAL_CONTEXT,
     DERIVED_DECIMAL_POLICY,
@@ -1591,7 +1592,7 @@ def proposal_risk(instrument, now, request, generation):
             and not instrument.contract_specification_source
         ):
             reasons.append("unknown_contract_specification")
-        constraints = instrument.constraints
+        constraints = native_order_constraints(instrument)
         if constraints.size_rule != "fixed_lot" or instrument.lot_size is None:
             reasons.append("unsupported_size_rule")
         if (

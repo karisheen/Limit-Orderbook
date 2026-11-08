@@ -5,7 +5,7 @@ import { useTerminal } from '../useTerminal';
 import type { TerminalController } from '../useTerminal';
 import { useWorkspacePreferences } from '../workspace';
 import type { WorkspacePreferences, WorkspaceState } from '../workspace';
-import { retainConfirmedCatalog } from './nativeWorkspace';
+import { financialInstrumentsForSelection, retainConfirmedCatalog } from './nativeWorkspace';
 import type { ConfirmedCatalog } from './nativeWorkspace';
 
 interface NativeContextValue {
@@ -14,6 +14,7 @@ interface NativeContextValue {
   updatePreferences: (patch: Partial<WorkspacePreferences>) => void;
   instrument: Instrument | undefined;
   instruments: Instrument[];
+  financialInstruments: Instrument[];
   connected: boolean;
   selectInstrument: (id: string) => Promise<void>;
   selectSource: (source: Source) => void;
@@ -35,6 +36,8 @@ export function NativeProvider({ children }: { children: ReactNode }) {
   useEffect(() => { confirmedCatalog.current = metadata; }, [metadata]);
   const instruments = metadata?.instruments ?? emptyInstruments;
   const instrument = metadata?.selected;
+  const selectedId = frame?.selection.instrument_id;
+  const financialInstruments = useMemo(() => financialInstrumentsForSelection(instruments, selectedId, instrument), [instruments, selectedId, instrument]);
   const connected = terminal.connection === 'Connected';
   const usable = connected && !!frame && !['seeking', 'unavailable', 'error', 'loading'].includes(frame.status);
   const fence = frame ? `${frame.session_id}:${frame.generation}:${frame.source.id}:${frame.selection.instrument_id}` : '';
@@ -89,9 +92,9 @@ export function NativeProvider({ children }: { children: ReactNode }) {
       secondary: { ...previous.secondary, paused: false, range: null, followSpanNs: null, follow: true },
     }));
   }, [fence, sourceId, sourceMode, resetViews, setPreferences]);
-  const value = useMemo(() => ({ terminal, preferences, updatePreferences, instrument, instruments, connected,
+  const value = useMemo(() => ({ terminal, preferences, updatePreferences, instrument, instruments, financialInstruments, connected,
     selectInstrument, selectSource, workspace, fence, usable }),
-  [terminal, preferences, updatePreferences, instrument, instruments, connected, selectInstrument, selectSource, workspace, fence, usable]);
+  [terminal, preferences, updatePreferences, instrument, instruments, financialInstruments, connected, selectInstrument, selectSource, workspace, fence, usable]);
   return <NativeContext.Provider value={value}>{children}</NativeContext.Provider>;
 }
 

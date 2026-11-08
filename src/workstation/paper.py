@@ -1,4 +1,4 @@
-"""Durable spot IOC simulation, deliberately not an exchange or margin engine.
+"""Durable spot IOC and explicitly modeled isolated perpetual simulation.
 
 Reservations are per (native instrument, side, price). Healthy observed decreases
 retire consumed quantity down to the new displayed size; only an observed increase
@@ -16,6 +16,7 @@ and P&L from commands and the delivered prefix. Archives preserve live audit
 evidence after shutdown, not permission to resume against another source clock.
 """
 
+from bisect import bisect_right
 from dataclasses import dataclass, field, fields, is_dataclass, replace
 from decimal import Decimal, ROUND_FLOOR, localcontext
 from pathlib import Path
@@ -28,11 +29,12 @@ from .costs import (
     ConsumedLevel,
     FeeSchedule,
     InventoryBalance,
+    _amounts,
     _validate_price,
     walk_book,
 )
 from .events import EventEnvelopeRef, SubscriptionKey
-from .instruments import AssetId, Instrument, InstrumentId
+from .instruments import AssetId, Instrument, InstrumentId, native_order_constraints
 from .precision import (
     DECIMAL_CONTEXT,
     DERIVED_DECIMAL_POLICY,
@@ -44,6 +46,18 @@ from .precision import (
 from .quality import ClockReading, EligibilityPolicy, evaluate
 from .recording import RecordedBatch, StreamSpec
 from .wire import dumps, loads
+from .perpetual import (
+    PaperRiskModel,
+    PaperFundingModel,
+    PaperPerpetualPosition,
+    PaperFundingPayment,
+    PaperFundingCursor,
+    PaperLiquidation,
+    MAX_PERPETUAL_RECORDS,
+    economics_reason,
+    settlement_value,
+    pnl,
+)
 
 PAPER_SCHEMA_VERSION = 2
 MAX_COMMANDS = 10_000
@@ -54,6 +68,16 @@ MAX_DELAYED_BOOK_BYTES = 16 * 1024 * 1024
 MAX_RESERVED_PRICES = 100_000
 MAX_FILL_LEVELS = 100_000
 ZERO = Decimal("0")
+SPOT_ASSUMPTIONS: tuple[str, ...] = (
+    "spot_only",
+    "immediate_or_cancel",
+    "no_market_impact",
+    "no_passive_fills",
+    "conservative_per_price_reservations",
+    "average_cost_basis",
+    "initial_inventory_basis_unknown",
+    "marks_are_gross_best_bid_not_liquidation_proceeds",
+)
 
 
 class PaperError(ValueError):
@@ -79,9 +103,16 @@ class PaperConfig:
     decision_latency_ns: int = 0
     order_latency_ns: int = 0
     policy: EligibilityPolicy = field(default_factory=EligibilityPolicy)
+    risk_models: tuple[PaperRiskModel, ...] = ()
+    funding_models: tuple[PaperFundingModel, ...] = ()
 
     def __post_init__(self):
-        for name, kind in (("balances", InventoryBalance), ("fees", PaperFee)):
+        for name, kind in (
+            ("balances", InventoryBalance),
+            ("fees", PaperFee),
+            ("risk_models", PaperRiskModel),
+            ("funding_models", PaperFundingModel),
+        ):
             values = tuple(getattr(self, name))
             if len(values) > MAX_INPUTS or any(not isinstance(v, kind) for v in values):
                 raise ValueError("invalid bounded paper configuration")
@@ -90,6 +121,9 @@ class PaperConfig:
             raise ValueError("duplicate venue/asset balance")
         if len({f.instrument_id for f in self.fees}) != len(self.fees):
             raise ValueError("duplicate instrument fees")
+        for models in (self.risk_models, self.funding_models):
+            if len({m.instrument_id for m in models}) != len(models):
+                raise ValueError("duplicate instrument model")
         for value in (
             self.feed_latency_ns,
             self.decision_latency_ns,
@@ -108,9 +142,12 @@ class PaperOrderRequest:
     quantity: Decimal
     order_type: str = "market"
     limit_price: Decimal | None = None
+    reduce_only: bool = False
 
     def __post_init__(self):
         object.__setattr__(self, "instrument_id", InstrumentId(self.instrument_id))
+        if type(self.reduce_only) is not bool:
+            raise ValueError("reduce_only must be boolean")
         choice(self.side, ("buy", "sell"), "side")
         choice(self.order_type, ("market", "limit"), "order type")
         object.__setattr__(self, "quantity", decimal(self.quantity, positive=True))
@@ -212,16 +249,10 @@ class PaperSnapshot:
     fills: tuple[PaperFill, ...]
     positions: tuple[PaperPosition, ...]
     reasons: tuple[str, ...]
-    assumptions: tuple[str, ...] = (
-        "spot_only",
-        "immediate_or_cancel",
-        "no_market_impact",
-        "no_passive_fills",
-        "conservative_per_price_reservations",
-        "average_cost_basis",
-        "initial_inventory_basis_unknown",
-        "marks_are_gross_best_bid_not_liquidation_proceeds",
-    )
+    assumptions: tuple[str, ...] = SPOT_ASSUMPTIONS
+    perpetual_positions: tuple[PaperPerpetualPosition, ...] = ()
+    funding_payments: tuple[PaperFundingPayment, ...] = ()
+    liquidations: tuple[PaperLiquidation, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -257,6 +288,11 @@ class PaperCheckpoint:
     positions: tuple[PaperPosition, ...]
     instruments: tuple[Instrument, ...]
     clock_mismatch: bool
+    perpetual_positions: tuple[PaperPerpetualPosition, ...] = ()
+    funding_payments: tuple[PaperFundingPayment, ...] = ()
+    funding_cursors: tuple[PaperFundingCursor, ...] = ()
+    liquidations: tuple[PaperLiquidation, ...] = ()
+    frozen_reason: str | None = None
 
 
 def _metadata_retained_bytes(value) -> int:
@@ -538,6 +574,7 @@ class PaperEngine:
             )
         self._rebuild_metadata_versions()
         self._clock_mismatch = False
+        self._frozen_reason: str | None = None
         self._archive_dirty = False
         self._at: ClockReading | None = None
         self._delivery = 0
@@ -555,6 +592,7 @@ class PaperEngine:
         self._fills: list[PaperFill] = []
         self._fill_level_count = 0
         self._positions: dict[tuple[str, AssetId], PaperPosition] = {}
+        self._reset_perpetual()
 
     def _rebuild_metadata_versions(self) -> None:
         # Bound retained versions to durable command/run evidence and current
@@ -616,12 +654,38 @@ class PaperEngine:
         for book in baseline:
             self._schedule(book, now)
 
+    @property
+    def frozen_reason(self) -> str | None:
+        """Constant-time observer/candidate guard; no snapshot allocation."""
+        return self._frozen_reason
+
+    def freeze(self, reason: str = "funding_catchup_limit") -> None:
+        """Retain the last valid prefix while the owner continues non-paper data."""
+        if reason != "funding_catchup_limit":
+            raise ValueError("unsupported paper freeze reason")
+        self._frozen_reason = reason
+
     def configure(
-        self, config: PaperConfig, *, now: ClockReading, delivery_index: int
+        self,
+        config: PaperConfig,
+        *,
+        now: ClockReading,
+        delivery_index: int,
+        books: tuple[Book, ...] | None = None,
     ) -> str:
         if not isinstance(config, PaperConfig) or not isinstance(now, ClockReading):
             raise ValueError("invalid paper configuration or clock")
-        self._cursor_guard(now, delivery_index)
+        if self._frozen_reason is not None:
+            if books is None:
+                raise PaperError("frozen_run_requires_current_books")
+            if nonnegative_int(delivery_index) < self._delivery:
+                raise PaperError("cursor_delivery_mismatch")
+        else:
+            self._cursor_guard(now, delivery_index)
+        if books is not None and (
+            len(books) > MAX_INPUTS or any(not isinstance(book, Book) for book in books)
+        ):
+            raise ValueError("invalid current paper baseline")
         now = self._command_clock(now)
         run = PaperRun(
             uuid4().hex,
@@ -634,7 +698,7 @@ class PaperEngine:
             tuple(self._metadata.values()),
         )
         self.store._create(run)
-        books = tuple(self._source_books.values())
+        books = tuple(self._source_books.values()) if books is None else tuple(books)
         self._run, self._commands = run, ()
         self.reset()
         self._delivery, self._at = delivery_index, now
@@ -683,6 +747,8 @@ class PaperEngine:
             raise PaperError("cursor_clock_mismatch")
 
     def _mutation_guard(self, now: ClockReading, delivery: int) -> None:
+        if self._frozen_reason is not None:
+            raise PaperError(self._frozen_reason)
         self._cursor_guard(now, delivery)
         if self._run is None or not self._activated:
             raise PaperError("run_not_active_at_cursor")
@@ -706,7 +772,11 @@ class PaperEngine:
             raise PaperError("unknown_instrument")
         if instrument.metadata_status != "verified":
             raise PaperError("instrument_metadata_unverified")
-        if (
+        if instrument.market_type == "perpetual":
+            reasons = self._perpetual_inputs(instrument, now)
+            if reasons:
+                raise PaperError(reasons[0])
+        elif (
             instrument.market_type != "spot"
             or instrument.quantity_unit != "base"
             or instrument.inverse
@@ -717,10 +787,12 @@ class PaperEngine:
             )
         ):
             raise PaperError("unsupported_perpetual_or_contract_economics")
+        if instrument.market_type == "spot" and request.reduce_only:
+            raise PaperError("reduce_only_requires_perpetual")
         instrument.validate_quantity(request.quantity)
         if request.limit_price is not None:
             _validate_price(instrument, request.limit_price)
-        bounds = instrument.constraints
+        bounds = native_order_constraints(instrument)
         if (bounds.min_base is not None and request.quantity < bounds.min_base) or any(
             request.quantity > maximum
             for maximum in (
@@ -763,6 +835,7 @@ class PaperEngine:
     def _record(self, command: PaperCommand) -> None:
         # No projection mutation before the transaction wins its revision compare.
         assert self._run is not None  # Only guarded mutations record commands.
+        self._funding_capacity_guard(command.at)
         self.store._append(self._run, command)
         self._run = replace(self._run, revision=command.sequence)
         self._commands += (command,)
@@ -827,6 +900,7 @@ class PaperEngine:
     def initialize_books(self, books: tuple[Book, ...], now: ClockReading) -> None:
         if self._at is not None:
             raise PaperError("baseline_already_initialized")
+        self._funding_capacity_guard(now, command_cutoff=self._delivery)
         self._at = now
         self._activate(now, self._delivery)
         for book in books:
@@ -849,6 +923,7 @@ class PaperEngine:
                 now = replace(
                     now, wall_ns=source.wall_ns + now.mono_ns - source.mono_ns
                 )
+        self._funding_capacity_guard(now, command_cutoff=batch.delivery_index)
         self._replay_commands(batch.delivery_index - 1)
         if (
             self._at is not None
@@ -858,6 +933,7 @@ class PaperEngine:
             # A live query can advance the owner beyond a queued receive stamp.
             # The newly delivered book was not available at that earlier stamp.
             now = self._at
+        self._funding_capacity_guard(now)
         # Arrivals strictly before this delivery see only the previous observations.
         self._advance(now, inclusive=False)
         self._delivery = batch.delivery_index
@@ -883,6 +959,7 @@ class PaperEngine:
             > MAX_INPUTS
         ):
             raise PaperError("stream_metadata_limit")
+        self._funding_capacity_guard(now)
         self._advance(now, inclusive=False)
         self._streams = tuple(streams)
         self._metadata.update(
@@ -1000,6 +1077,7 @@ class PaperEngine:
                 )
 
     def _advance(self, now: ClockReading, *, inclusive: bool = True) -> None:
+        self._funding_capacity_guard(now, inclusive=inclusive)
         if (
             self._run is not None
             and self._activated
@@ -1036,21 +1114,47 @@ class PaperEngine:
             next_order = min(
                 orders, key=lambda item: item.arrival_at.mono_ns, default=None
             )
+            funding = self._next_funding()
+            if (
+                funding is not None
+                and due(funding[0])
+                and (
+                    book_item is None
+                    or funding[0].mono_ns < book_item.available_at.mono_ns
+                )
+                and (
+                    next_order is None
+                    or funding[0].mono_ns <= next_order.arrival_at.mono_ns
+                )
+            ):
+                self._settle_funding_at(funding[0])
+                self._perpetual_risk(funding[0])
+                continue
             if book_item is None and next_order is None:
                 break
             if book_item is not None and (
                 next_order is None
                 or book_item.available_at.mono_ns <= next_order.arrival_at.mono_ns
             ):
-                self._delayed.remove(book_item)
-                self._delayed_bytes -= _book_retained_bytes(book_item.book)
-                if book_item.book.key in self._active:
-                    self._observe(book_item.book, book_item.available_at)
+                # Publish all boundary observations for marks, then charge held
+                # exposure before either protective closes or arriving orders.
+                for item in observations:
+                    if item.available_at.mono_ns != book_item.available_at.mono_ns:
+                        continue
+                    self._delayed.remove(item)
+                    self._delayed_bytes -= _book_retained_bytes(item.book)
+                    if item.book.key in self._active:
+                        self._observe(item.book, item.available_at)
+                self._settle_funding_at(book_item.available_at)
+                self._perpetual_risk(book_item.available_at)
             else:
                 assert next_order is not None
                 with localcontext(DECIMAL_CONTEXT):
                     self._execute(next_order)
+                    self._perpetual_risk(next_order.arrival_at)
         self._at = now
+        if inclusive:
+            self._perpetual_risk(now)
 
     def _finish(
         self, order: PaperOrder, reasons: tuple[str, ...], quantity: Decimal = ZERO
@@ -1102,6 +1206,9 @@ class PaperEngine:
             return
         if instrument.metadata_status != "verified":
             self._finish(order, ("instrument_metadata_unverified",))
+            return
+        if instrument.market_type == "perpetual":
+            self._execute_perpetual(order, book, instrument)
             return
         if (
             instrument.market_type != "spot"
@@ -1336,7 +1443,9 @@ class PaperEngine:
         )
 
     def snapshot(self, now: ClockReading | None) -> PaperSnapshot:
-        reasons = []
+        reasons: list[str] = []
+        if self._frozen_reason is not None:
+            reasons.extend(("paper_frozen", self._frozen_reason))
         if self._run is None:
             reasons.append("not_configured")
         elif self.store._revision(self._run.run_id) != self._run.revision:
@@ -1345,7 +1454,7 @@ class PaperEngine:
             reasons.append("run_not_active_at_cursor")
         if self._applied < len(self._commands):
             reasons.append("future_commands_fork_required")
-        at = now or self._at
+        at = self._at if self._frozen_reason is not None else now or self._at
         if self._run is not None and (
             self._clock_mismatch
             or at is not None
@@ -1420,6 +1529,23 @@ class PaperEngine:
             tuple(self._fills),
             tuple(positions),
             tuple(reasons),
+            assumptions=(
+                "spot_ioc_and_isolated_one_way_perpetual",
+                "immediate_or_cancel",
+                "no_market_impact",
+                "no_passive_fills",
+                "conservative_per_price_reservations",
+                "initial_inventory_basis_unknown",
+                "user_modeled_risk_not_venue_tiers",
+                "explicit_modeled_funding",
+                "eligible_executable_side_book_proxy_not_exchange_mark",
+                "isolated_shortfall_not_socialized",
+            )
+            if self._run and self._run.config.risk_models
+            else SPOT_ASSUMPTIONS,
+            perpetual_positions=self._perpetual_snapshot(at, tuple(reasons)),
+            funding_payments=tuple(self._funding_payments),
+            liquidations=tuple(self._liquidations),
         )
 
     def checkpoint(self) -> bytes:
@@ -1442,6 +1568,14 @@ class PaperEngine:
                 tuple(self._positions.values()),
                 tuple(self._metadata.values()),
                 self._clock_mismatch,
+                tuple(self._perpetual_positions.values()),
+                tuple(self._funding_payments),
+                tuple(
+                    PaperFundingCursor(iid, through)
+                    for iid, through in self._funding_cursors.items()
+                ),
+                tuple(self._liquidations),
+                self._frozen_reason,
             )
         )
 
@@ -1486,3 +1620,764 @@ class PaperEngine:
         self._positions = {
             (item.venue, item.asset_id): item for item in value.positions
         }
+        self._restore_perpetual(value)
+        self._frozen_reason = value.frozen_reason
+
+    def _reset_perpetual(self) -> None:
+        self._perpetual_positions: dict[
+            tuple[str, InstrumentId], PaperPerpetualPosition
+        ] = {}
+        self._funding_payments: list[PaperFundingPayment] = []
+        self._funding_cursors: dict[InstrumentId, int] = {}
+        self._liquidations: list[PaperLiquidation] = []
+        self._liquidation_last: dict[
+            InstrumentId,
+            tuple[
+                PaperPerpetualPosition,
+                tuple[Level, ...],
+                tuple[PaperReservation, ...],
+                tuple[str, ...],
+            ],
+        ] = {}
+
+    def _perpetual_snapshot(
+        self, at: ClockReading | None, global_reasons: tuple[str, ...]
+    ) -> tuple[PaperPerpetualPosition, ...]:
+        positions = []
+        with localcontext(DECIMAL_CONTEXT):
+            for position in self._perpetual_positions.values():
+                marked = (
+                    self._mark_perpetual(position, at) if at is not None else position
+                )
+                why = list(marked.reasons)
+                if (
+                    len(self._funding_payments) >= MAX_PERPETUAL_RECORDS
+                    and position.quantity
+                ):
+                    why.append("funding_record_capacity_exhausted")
+                if global_reasons:
+                    why.extend(global_reasons)
+                    marked = replace(
+                        marked,
+                        mark_price=None,
+                        unrealized_pnl=None,
+                        equity=None,
+                        maintenance_margin=None,
+                        shortfall=None,
+                    )
+                if position.liquidating:
+                    why.append("protective_liquidation_residual")
+                if position.debt:
+                    why.append("isolated_liquidation_debt")
+                positions.append(replace(marked, reasons=tuple(dict.fromkeys(why))))
+        return tuple(positions)
+
+    def _restore_perpetual(self, value: PaperCheckpoint) -> None:
+        self._perpetual_positions = {
+            (p.venue, p.instrument_id): p for p in value.perpetual_positions
+        }
+        self._funding_payments = list(value.funding_payments)
+        self._funding_cursors = {
+            c.instrument_id: c.through_wall_ns for c in value.funding_cursors
+        }
+        self._liquidations = list(value.liquidations)
+        # Rebuild the attempt cache from the checkpoint's post-attempt state.
+        self._liquidation_last.clear()
+        if value.at is not None:
+            attempted = {r.instrument_id for r in value.liquidations}
+            for position in self._perpetual_positions.values():
+                if position.liquidating and position.instrument_id in attempted:
+                    self._liquidation_last[position.instrument_id] = (
+                        self._liquidation_state(position, value.at)
+                    )
+
+    def _risk_model(self, iid: InstrumentId) -> PaperRiskModel | None:
+        assert self._run is not None
+        return next(
+            (m for m in self._run.config.risk_models if m.instrument_id == iid), None
+        )
+
+    def _funding_model(self, iid: InstrumentId) -> PaperFundingModel | None:
+        assert self._run is not None
+        return next(
+            (m for m in self._run.config.funding_models if m.instrument_id == iid), None
+        )
+
+    def _perpetual_inputs(
+        self, instrument: Instrument, at: ClockReading
+    ) -> tuple[str, ...]:
+        assert self._run is not None
+        reason = economics_reason(instrument)
+        if reason:
+            return (reason,)
+        risk, funding = (
+            self._risk_model(instrument.instrument_id),
+            self._funding_model(instrument.instrument_id),
+        )
+        if risk is None:
+            return ("missing_perpetual_risk_model",)
+        if funding is None:
+            return ("missing_explicit_funding_model",)
+        if at.wall_ns is None:
+            return ("model_date_clock_unavailable",)
+        if funding.mode != "none" and self._run.created_at.wall_ns is None:
+            return ("funding_source_clock_anchor_unavailable",)
+        if max(risk.asof_wall_ns, funding.asof_wall_ns) > at.wall_ns:
+            return ("model_date_in_future",)
+        return ()
+
+    def _perpetual_book(
+        self, instrument: Instrument, at: ClockReading
+    ) -> tuple[Book | None, tuple[str, ...]]:
+        assert self._run is not None
+        books = [
+            b
+            for k, b in self._books.items()
+            if k in self._active and b.instrument_id == instrument.instrument_id
+        ]
+        if len(books) != 1:
+            return None, (
+                "instrument_not_observed"
+                if not books
+                else "ambiguous_book_subscription",
+            )
+        book = books[0]
+        observed = self._metadata_versions.get(
+            (book.instrument_id, book.metadata_version)
+        )
+        if observed != instrument:
+            return None, ("position_metadata_changed",)
+        gate = evaluate(book, instrument, "paper_fill", at, self._run.config.policy)
+        return (book, ()) if gate.eligible else (None, gate.reasons)
+
+    def _mark_perpetual(
+        self, position: PaperPerpetualPosition, at: ClockReading
+    ) -> PaperPerpetualPosition:
+        if not position.quantity:
+            return replace(
+                position,
+                unrealized_pnl=ZERO,
+                equity=ZERO,
+                maintenance_margin=ZERO,
+                shortfall=position.debt,
+                mark_price=None,
+            )
+        book, reasons = self._perpetual_book(position.instrument, at)
+        if book is None or self._clock_mismatch:
+            return replace(
+                position,
+                mark_price=None,
+                unrealized_pnl=None,
+                equity=None,
+                maintenance_margin=None,
+                shortfall=None,
+                reasons=tuple(
+                    dict.fromkeys(
+                        (
+                            *position.reasons,
+                            *(reasons or ("run_source_clock_mismatch",)),
+                        )
+                    )
+                ),
+            )
+        levels = book.bids if position.quantity > 0 else book.asks
+        if not levels:
+            return replace(
+                position,
+                mark_price=None,
+                unrealized_pnl=None,
+                equity=None,
+                maintenance_margin=None,
+                shortfall=None,
+                reasons=(*position.reasons, "no_mark_depth"),
+            )
+        mark = levels[0].price
+        profit = pnl(position, abs(position.quantity), mark)
+        equity = position.isolated_collateral + profit
+        risk = self._risk_model(position.instrument_id)
+        assert risk is not None  # Opening exposure requires an explicit model.
+        maintenance = (
+            settlement_value(position.instrument, position.quantity, mark)
+            * risk.maintenance_margin_rate
+        )
+        return replace(
+            position,
+            mark_price=mark,
+            unrealized_pnl=profit,
+            equity=equity,
+            maintenance_margin=maintenance,
+            shortfall=max(ZERO, -equity) + position.debt,
+        )
+
+    def _funding_capacity_guard(
+        self,
+        now: ClockReading,
+        *,
+        inclusive: bool = True,
+        command_cutoff: int | None = None,
+    ) -> None:
+        """Bound catch-up before projection mutation; never discard due payments."""
+        if self._frozen_reason is not None:
+            raise PaperError(self._frozen_reason)
+        if self._run is None or self._clock_mismatch:
+            return
+        origin = self._run.created_at
+        if origin.wall_ns is None or now.clock_id != origin.clock_id:
+            return
+        target = origin.wall_ns + now.mono_ns - origin.mono_ns - (0 if inclusive else 1)
+        if command_cutoff is not None:
+            for index in range(self._applied, len(self._commands)):
+                command = self._commands[index]
+                if command.delivery_index > command_cutoff:
+                    break
+                if command.at.clock_id == origin.clock_id:
+                    target = max(
+                        target, origin.wall_ns + command.at.mono_ns - origin.mono_ns
+                    )
+        pending: dict[InstrumentId, int] = {}
+        for order in self._orders.values():
+            if (
+                order.status == "pending"
+                and order.arrival_at.clock_id == origin.clock_id
+            ):
+                wall = origin.wall_ns + order.arrival_at.mono_ns - origin.mono_ns
+                if wall <= target:
+                    iid = order.request.instrument_id
+                    pending[iid] = min(pending.get(iid, wall), wall)
+        if command_cutoff is not None:
+            latency = (
+                self._run.config.decision_latency_ns + self._run.config.order_latency_ns
+            )
+            for index in range(self._applied, len(self._commands)):
+                command = self._commands[index]
+                if command.delivery_index > command_cutoff:
+                    break
+                if (
+                    command.request is not None
+                    and command.at.clock_id == origin.clock_id
+                ):
+                    wall = (
+                        origin.wall_ns + command.at.mono_ns + latency - origin.mono_ns
+                    )
+                    if wall <= target:
+                        iid = command.request.instrument_id
+                        pending[iid] = min(pending.get(iid, wall), wall)
+        active = {
+            p.instrument_id for p in self._perpetual_positions.values() if p.quantity
+        }
+        capacity = MAX_PERPETUAL_RECORDS - len(self._funding_payments)
+        for model in self._run.config.funding_models:
+            if model.instrument_id in active:
+                through = self._funding_cursors.get(model.instrument_id, origin.wall_ns)
+            elif model.instrument_id in pending:
+                through = pending[model.instrument_id]
+            else:
+                continue
+            if model.mode == "periodic":
+                assert model.first_wall_ns is not None
+                assert model.interval_ns is not None
+                first = (
+                    model.first_wall_ns
+                    + max(0, (through - model.first_wall_ns) // model.interval_ns + 1)
+                    * model.interval_ns
+                )
+                count = max(0, (target - first) // model.interval_ns + 1)
+            elif model.mode == "events":
+                count = max(
+                    0,
+                    bisect_right(model.events, target, key=lambda e: e.wall_ns)
+                    - bisect_right(model.events, through, key=lambda e: e.wall_ns),
+                )
+            else:
+                count = 0
+            capacity -= count
+            if capacity < 0:
+                raise PaperError("funding_catchup_limit")
+
+    def _next_funding(
+        self,
+    ) -> tuple[ClockReading, PaperFundingModel, Decimal] | None:
+        if (
+            self._run is None
+            or not self._activated
+            or self._clock_mismatch
+            or self._run.created_at.wall_ns is None
+        ):
+            return None
+        if len(self._funding_payments) >= MAX_PERPETUAL_RECORDS:
+            return None
+        candidates = []
+        positions = {p.instrument_id: p for p in self._perpetual_positions.values()}
+        for model in self._run.config.funding_models:
+            position = positions.get(model.instrument_id)
+            if position is None or not position.quantity:
+                continue
+            through = self._funding_cursors.get(
+                model.instrument_id, self._run.created_at.wall_ns
+            )
+            if model.mode == "periodic":
+                assert model.first_wall_ns is not None
+                assert model.interval_ns is not None
+                assert model.rate is not None
+                wall = (
+                    model.first_wall_ns
+                    + max(0, (through - model.first_wall_ns) // model.interval_ns + 1)
+                    * model.interval_ns
+                )
+                rate = model.rate
+            elif model.mode == "events":
+                index = bisect_right(model.events, through, key=lambda e: e.wall_ns)
+                if index == len(model.events):
+                    continue
+                event = model.events[index]
+                wall, rate = event.wall_ns, event.rate
+            else:
+                continue
+            origin = self._run.created_at
+            assert origin.wall_ns is not None
+            at = ClockReading(
+                origin.clock_id, origin.mono_ns + wall - origin.wall_ns, wall
+            )
+            candidates.append((at, model, rate))
+        return min(
+            candidates, key=lambda x: (x[0].mono_ns, x[1].instrument_id), default=None
+        )
+
+    def _settle_funding_at(self, at: ClockReading) -> None:
+        while (funding := self._next_funding()) is not None:
+            if funding[0].clock_id != at.clock_id or funding[0].mono_ns != at.mono_ns:
+                return
+            self._apply_funding(*funding)
+
+    def _apply_funding(
+        self, at: ClockReading, model: PaperFundingModel, rate: Decimal
+    ) -> None:
+        assert at.wall_ns is not None
+        with localcontext(DECIMAL_CONTEXT):
+            key, position = next(
+                (k, p)
+                for k, p in self._perpetual_positions.items()
+                if p.instrument_id == model.instrument_id
+            )
+            marked = self._mark_perpetual(position, at)
+            amount: Decimal | None = None
+            reasons: tuple[str, ...] = ()
+            if marked.mark_price is None:
+                reasons = ("funding_mark_unavailable_payment_unresolved",)
+            else:
+                amount = (
+                    settlement_value(
+                        position.instrument, position.quantity, marked.mark_price
+                    )
+                    * rate
+                    * (1 if position.quantity > 0 else -1)
+                )
+                position = replace(
+                    position,
+                    isolated_collateral=position.isolated_collateral - amount,
+                    funding_paid=position.funding_paid + amount,
+                )
+            self._perpetual_positions[key] = replace(
+                position, reasons=tuple(dict.fromkeys((*position.reasons, *reasons)))
+            )
+            self._funding_payments.append(
+                PaperFundingPayment(
+                    position.instrument_id,
+                    position.settlement_asset_id,
+                    at,
+                    rate,
+                    position.quantity,
+                    marked.mark_price,
+                    amount,
+                    model.provenance,
+                    reasons,
+                )
+            )
+            self._funding_cursors[model.instrument_id] = at.wall_ns
+            self._archive_dirty = True
+
+    def _perpetual_risk(self, at: ClockReading) -> None:
+        if self._run is None or not self._activated or self._clock_mismatch:
+            return
+        with localcontext(DECIMAL_CONTEXT):
+            for key, position in tuple(self._perpetual_positions.items()):
+                if not position.quantity:
+                    continue
+                marked = self._mark_perpetual(position, at)
+                breach = (
+                    marked.equity is not None
+                    and marked.maintenance_margin is not None
+                    and marked.equity <= marked.maintenance_margin
+                )
+                if not breach and not position.liquidating:
+                    continue
+                position = replace(position, liquidating=True)
+                self._perpetual_positions[key] = position
+                self._archive_dirty = True
+                if len(self._liquidations) >= MAX_PERPETUAL_RECORDS:
+                    self._perpetual_positions[key] = replace(
+                        position,
+                        reasons=tuple(
+                            dict.fromkeys(
+                                (*position.reasons, "liquidation_record_limit")
+                            )
+                        ),
+                    )
+                    continue
+                if self._liquidation_last.get(position.instrument_id) == (
+                    self._liquidation_state(position, at)
+                ):
+                    continue
+                request = PaperOrderRequest(
+                    position.instrument_id,
+                    "sell" if position.quantity > 0 else "buy",
+                    abs(position.quantity),
+                    reduce_only=True,
+                )
+                order = PaperOrder(
+                    self._run.run_id + ":liquidation:" + str(len(self._liquidations)),
+                    self._run.run_id,
+                    request,
+                    at,
+                    self._delivery,
+                    at,
+                    "pending",
+                )
+                book, reasons = self._perpetual_book(position.instrument, at)
+                if book is not None:
+                    quantity, fee, reasons, fill_id = self._execute_perpetual(
+                        order, book, position.instrument, protective=True
+                    )
+                else:
+                    quantity, fee, fill_id = ZERO, ZERO, None
+                after = self._perpetual_positions[key]
+                record = PaperLiquidation(
+                    position.instrument_id,
+                    position.settlement_asset_id,
+                    at,
+                    abs(position.quantity),
+                    quantity,
+                    abs(after.quantity),
+                    fee,
+                    after.debt,
+                    reasons,
+                    fill_id,
+                )
+                self._liquidations.append(record)
+                # Dedup against post-fill money and remaining native evidence,
+                # not the pre-fill request or its exhaustion reason.
+                self._liquidation_last[position.instrument_id] = (
+                    self._liquidation_state(after, at)
+                )
+
+    def _liquidation_state(
+        self, position: PaperPerpetualPosition, at: ClockReading
+    ) -> tuple[
+        PaperPerpetualPosition,
+        tuple[Level, ...],
+        tuple[PaperReservation, ...],
+        tuple[str, ...],
+    ]:
+        book, reasons = self._perpetual_book(position.instrument, at)
+        side = "sell" if position.quantity > 0 else "buy"
+        levels = () if book is None else book.bids if side == "sell" else book.asks
+        reservations = tuple(
+            reservation
+            for (iid, reserved_side, _), reservation in self._reservations.items()
+            if iid == position.instrument_id and reserved_side == side
+        )
+        return position, levels, reservations, reasons
+
+    def _execute_perpetual(
+        self,
+        order: PaperOrder,
+        book: Book,
+        instrument: Instrument,
+        *,
+        protective: bool = False,
+    ) -> tuple[Decimal, Decimal, tuple[str, ...], str | None]:
+        assert self._run is not None
+
+        request, at = order.request, order.arrival_at
+
+        def finish(
+            reasons: tuple[str, ...],
+            quantity: Decimal = ZERO,
+            fee: Decimal = ZERO,
+            fill_id: str | None = None,
+        ) -> tuple[Decimal, Decimal, tuple[str, ...], str | None]:
+            if not protective:
+                self._finish(order, reasons, quantity)
+            return quantity, fee, reasons, fill_id
+
+        reasons = self._perpetual_inputs(instrument, at)
+        if reasons:
+            return finish(reasons)
+        gate = evaluate(book, instrument, "paper_fill", at, self._run.config.policy)
+        if not gate.eligible:
+            return finish(gate.reasons)
+        risk = self._risk_model(instrument.instrument_id)
+        assert risk is not None and instrument.settlement is not None
+        settlement = instrument.settlement.asset_id
+        fees = next(
+            (
+                f.schedule
+                for f in self._run.config.fees
+                if f.instrument_id == instrument.instrument_id
+            ),
+            FeeSchedule(),
+        )
+        if fees.rate is None:
+            return finish(("unknown_fees",))
+        assert fees.asof_wall_ns is not None
+        if at.wall_ns is None or fees.asof_wall_ns > at.wall_ns:
+            return finish(
+                (
+                    "fee_date_clock_unavailable"
+                    if at.wall_ns is None
+                    else "fee_date_in_future",
+                )
+            )
+        if fees.asset_id not in (None, settlement):
+            return finish(("unsupported_perpetual_fee_asset",))
+        key = (instrument.venue, instrument.instrument_id)
+        position = self._perpetual_positions.get(
+            key,
+            PaperPerpetualPosition(
+                instrument.venue, instrument.instrument_id, settlement, instrument
+            ),
+        )
+        if position.instrument != instrument:
+            return finish(("position_metadata_changed",))
+        balance_key = (instrument.venue, settlement)
+        free = self._balances.get(balance_key, ZERO)
+        sign = 1 if request.side == "buy" else -1
+        lot = instrument.lot_size
+        assert lot is not None  # The supported native size rule is fixed_lot.
+        levels = book.asks if sign > 0 else book.bids
+        consumed = []
+        total = notional = fee_total = penalty_total = ZERO
+        remaining = request.quantity
+        constraints = native_order_constraints(instrument)
+        if (
+            constraints.min_notional is not None or constraints.max_notional is not None
+        ) and constraints.min_notional_currency != instrument.quote.asset_id:
+            return finish(("unknown_notional_constraint_currency",))
+        maxima = [
+            v
+            for v in (
+                constraints.max_base,
+                constraints.max_market_base
+                if request.order_type == "market"
+                else constraints.max_limit_base,
+            )
+            if v is not None
+        ]
+        if maxima:
+            remaining = min(remaining, min(maxima))
+        why = []
+        for level in levels:
+            if request.limit_price is not None and (
+                level.price > request.limit_price
+                if sign > 0
+                else level.price < request.limit_price
+            ):
+                why.append("limit_price_reached")
+                break
+            try:
+                _validate_price(instrument, level.price)
+                instrument.validate_quantity(level.quantity)
+            except ValueError:
+                return finish(("invalid_native_level",))
+            old = self._reservations.get(
+                (instrument.instrument_id, request.side, level.price)
+            )
+            take = min(
+                remaining, max(ZERO, level.quantity - (old.consumed if old else ZERO))
+            )
+            _, unit_quote = _amounts(instrument, level.price, Decimal(1))
+            if constraints.max_notional is not None:
+                take = min(
+                    take, max(ZERO, constraints.max_notional - notional) / unit_quote
+                )
+            take = (take / lot).to_integral_value(rounding=ROUND_FLOOR) * lot
+            if take <= 0:
+                continue
+            closing = (
+                min(take, abs(position.quantity))
+                if position.quantity * sign < 0
+                else ZERO
+            )
+            opening = take - closing
+            unit = settlement_value(instrument, Decimal(1), level.price)
+            if closing:
+                fraction = closing / abs(position.quantity)
+                realized = pnl(position, closing, level.price)
+                fee = unit * closing * fees.rate
+                penalty = (
+                    unit * closing * risk.liquidation_fee_rate if protective else ZERO
+                )
+                collateral = position.isolated_collateral + realized - fee - penalty
+                released_margin = position.initial_margin * fraction
+                flat = closing == abs(position.quantity)
+                funded_share = (
+                    position.isolated_collateral * fraction + realized - fee - penalty
+                )
+                released = (
+                    max(ZERO, collateral)
+                    if flat
+                    else min(max(ZERO, collateral), max(ZERO, funded_share))
+                )
+                debt = max(ZERO, -collateral) if flat else ZERO
+                free += released
+                position = replace(
+                    position,
+                    quantity=position.quantity + sign * closing,
+                    entry_price=None if flat else position.entry_price,
+                    initial_margin=ZERO
+                    if flat
+                    else position.initial_margin - released_margin,
+                    isolated_collateral=ZERO if flat else collateral - released,
+                    realized_pnl=position.realized_pnl + realized,
+                    fees_paid=position.fees_paid + fee,
+                    liquidation_fees_paid=position.liquidation_fees_paid + penalty,
+                    debt=position.debt + debt,
+                    liquidating=position.liquidating and not flat,
+                )
+                fee_total += fee
+                penalty_total += penalty
+            if opening:
+                marked = self._mark_perpetual(position, at)
+                if request.reduce_only or protective:
+                    why.append("reduce_only_clamped")
+                    opening = ZERO
+                elif (
+                    position.debt
+                    or position.liquidating
+                    or position.reasons
+                    or (
+                        position.quantity
+                        and (
+                            marked.equity is None
+                            or marked.maintenance_margin is None
+                            or marked.equity <= marked.maintenance_margin
+                        )
+                    )
+                    or any(
+                        p.debt or p.liquidating or p.reasons
+                        for p in self._perpetual_positions.values()
+                        if p.venue == instrument.venue
+                        and p.settlement_asset_id == settlement
+                    )
+                ):
+                    why.append("isolated_risk_frozen")
+                    opening = ZERO
+                elif len(self._funding_payments) >= MAX_PERPETUAL_RECORDS:
+                    why.append("funding_record_limit")
+                    opening = ZERO
+                else:
+                    unit_cost = unit * (1 / risk.leverage + fees.rate)
+                    cap = (free / unit_cost / lot).to_integral_value(
+                        rounding=ROUND_FLOOR
+                    ) * lot
+                    if opening > cap:
+                        why.append("insufficient_free_collateral")
+                    opening = min(opening, cap)
+                if opening:
+                    margin, fee = (
+                        unit * opening / risk.leverage,
+                        unit * opening * fees.rate,
+                    )
+                    old_size = abs(position.quantity)
+                    size = old_size + opening
+                    if not old_size:
+                        entry = level.price
+                    elif instrument.inverse:
+                        assert position.entry_price is not None
+                        entry = size / (
+                            old_size / position.entry_price + opening / level.price
+                        )
+                    else:
+                        assert position.entry_price is not None
+                        entry = (
+                            old_size * position.entry_price + opening * level.price
+                        ) / size
+                    free -= margin + fee
+                    position = replace(
+                        position,
+                        quantity=position.quantity + sign * opening,
+                        entry_price=entry,
+                        initial_margin=position.initial_margin + margin,
+                        isolated_collateral=position.isolated_collateral + margin,
+                        fees_paid=position.fees_paid + fee,
+                    )
+                    fee_total += fee
+            taken = closing + opening
+            if taken:
+                base, quote = _amounts(instrument, level.price, taken)
+                consumed.append(ConsumedLevel(level.price, taken, base, quote))
+                total += taken
+                notional += quote
+                remaining -= taken
+            if remaining <= 0:
+                break
+        if not total:
+            return finish(tuple(dict.fromkeys(why)) or ("no_unreserved_depth",))
+        if (constraints.min_base is not None and total < constraints.min_base) or (
+            constraints.min_notional is not None and notional < constraints.min_notional
+        ):
+            return finish(("below_order_minimum",))
+        new_prices = sum(
+            (instrument.instrument_id, request.side, c.price) not in self._reservations
+            for c in consumed
+        )
+        if len(self._reservations) + new_prices > MAX_RESERVED_PRICES:
+            return finish(("reservation_price_limit",))
+        if self._fill_level_count + len(consumed) > MAX_FILL_LEVELS:
+            return finish(("fill_evidence_limit",))
+        # Commit only after all native constraints and bounded evidence pass.
+        self._balances[balance_key] = free
+        previous = self._perpetual_positions.get(key)
+        self._perpetual_positions[key] = position
+        if previous is None or not previous.quantity:
+            assert at.wall_ns is not None
+            self._funding_cursors[instrument.instrument_id] = at.wall_ns
+        self._fill_level_count += len(consumed)
+        for c in consumed:
+            rkey = (instrument.instrument_id, request.side, c.price)
+            old = self._reservations.get(rkey)
+            if old is None:
+                displayed = next(
+                    level.quantity for level in levels if level.price == c.price
+                )
+                old = PaperReservation(book.key, request.side, c.price, displayed, ZERO)
+            self._reservations[rkey] = replace(
+                old, consumed=old.consumed + c.native_quantity
+            )
+        fill_id = order.order_id + ":fill"
+        self._fills.append(
+            PaperFill(
+                fill_id,
+                order.run_id,
+                order.order_id,
+                instrument.instrument_id,
+                instrument.venue,
+                request.side,
+                at,
+                self._delivery,
+                total,
+                notional,
+                instrument.quote.asset_id,
+                fee_total,
+                settlement,
+                fees,
+                tuple(consumed),
+                book.asof,
+                book.key,
+                book.revision,
+            )
+        )
+        self._archive_dirty = True
+        if total < request.quantity and not why:
+            why.append("known_depth_exhausted")
+        return finish(tuple(dict.fromkeys(why)), total, penalty_total, fill_id)

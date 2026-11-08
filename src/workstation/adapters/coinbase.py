@@ -18,12 +18,13 @@ from ..events import (
     Trade,
 )
 from ..instruments import (
-    AssetId,
     AssetIdentity,
     Instrument,
     InstrumentId,
     MetadataSnapshot,
     OrderConstraints,
+    asset_identity_metadata_version,
+    canonical_asset_id,
 )
 from ..precision import decimal, exact_json_loads, nonnegative_int, text
 from ..quality import Capabilities
@@ -36,15 +37,11 @@ from .base import (
     parse_rfc3339_ns,
 )
 
-_CANONICAL_ASSETS = frozenset(
-    "BTC ETH SOL XRP DOGE ADA LTC LINK AVAX DOT USD USDT USDC".split()
-)
-
 
 def _asset(ticker: str) -> AssetIdentity:
     text(ticker)
     return AssetIdentity(
-        AssetId(ticker if ticker in _CANONICAL_ASSETS else f"coinbase:{ticker}"),
+        canonical_asset_id("coinbase", ticker),
         ticker,
         native_token_id=ticker,
     )
@@ -155,7 +152,7 @@ class CoinbaseAdapter:
             instruments.append(
                 Instrument(
                     InstrumentId(f"{self.venue}:{self.api_family}:spot:{symbol}"),
-                    f"{digest}:{now}",
+                    asset_identity_metadata_version(f"{digest}:{now}", base, quote),
                     self.venue,
                     self.api_family,
                     symbol,

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Instrument, Source } from './api.ts';
 import type { ManagedRecording } from './workflow-api.ts';
-import { ownedSessionRecording, paneForView, retainConfirmedCatalog, toggleBookView, viewForPane } from './integration/nativeWorkspace.ts';
+import { financialInstrumentsForSelection, ownedSessionRecording, paneForView, retainConfirmedCatalog, toggleBookView, viewForPane } from './integration/nativeWorkspace.ts';
 
 const source: Source = { id: 'live', mode: 'live', label: 'Live', status: 'ready', synthetic: false, recording: false, duration_ns: null, streams: 2, reasons: [] };
 const frame = { session_id: 'session-1', generation: '1', source, selection: { instrument_id: 'venue/BTC-USDT', metadata_status: 'verified' as const, metadata_version: '1' } };
@@ -47,6 +47,54 @@ test('successful catalog refresh replaces old metadata and authoritative removal
   assert.deepEqual(removed?.instruments, []);
   assert.equal(removed?.selected, undefined);
   assert.equal(retainConfirmedCatalog(removed, frame, [instrument], 'catalog unavailable'), removed);
+});
+
+test('financial selection retains pinned precision while discovery advances independently', () => {
+  const pinned = { ...instrument };
+  const newer = { ...instrument, metadata_version: '2', tick_size: '0.1', lot_size: '0.001' };
+  const before = { ...instrument, instrument_id: 'before/BTC-USDT', venue: 'before' };
+  const after = { ...instrument, instrument_id: 'after/BTC-USDT', venue: 'after' };
+  const discovery = [before, newer, after];
+  const original = structuredClone(discovery);
+
+  const financial = financialInstrumentsForSelection(discovery, pinned.instrument_id, pinned);
+  assert.deepEqual(financial, [before, pinned, after]);
+  assert.equal(financial[0], before);
+  assert.equal(financial[1], pinned);
+  assert.equal(financial[2], after);
+  assert.equal(financial[1].metadata_version, '1');
+  assert.equal(financial[1].tick_size, '0.01');
+  assert.equal(financial[1].lot_size, '0.00001');
+  assert.equal(discovery[1], newer);
+  assert.deepEqual(discovery, original);
+});
+
+test('financial selection fails closed without a matching pin and preserves other choices', () => {
+  const newer = { ...instrument, metadata_version: '2', tick_size: '0.1' };
+  const other = { ...instrument, instrument_id: 'other/BTC-USDT', venue: 'other' };
+  const discovery = [newer, other];
+  const original = structuredClone(discovery);
+  for (const pin of [undefined, other]) {
+    const financial = financialInstrumentsForSelection(discovery, instrument.instrument_id, pin);
+    assert.deepEqual(financial, [other]);
+    assert.equal(financial[0], other);
+    assert.deepEqual(discovery, original);
+  }
+});
+
+test('financial selection appends an absent pinned descriptor without changing discovery', () => {
+  const other = { ...instrument, instrument_id: 'other/BTC-USDT', venue: 'other' };
+  const discovery = [other];
+  const original = structuredClone(discovery);
+  const financial = financialInstrumentsForSelection(discovery, instrument.instrument_id, instrument);
+  assert.deepEqual(financial, [other, instrument]);
+  assert.equal(financial[0], other);
+  assert.equal(financial[1], instrument);
+  assert.deepEqual(discovery, original);
+  assert.deepEqual(financialInstrumentsForSelection([], instrument.instrument_id, instrument), [instrument]);
+  for (const selectedId of [null, undefined]) {
+    assert.equal(financialInstrumentsForSelection(discovery, selectedId, instrument), discovery);
+  }
 });
 
 test('every mobile pane selects its owning chart mode and preserves Flow and Tape selection', () => {

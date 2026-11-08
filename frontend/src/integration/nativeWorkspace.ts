@@ -22,6 +22,15 @@ export function retainConfirmedCatalog(previous: ConfirmedCatalog | null, frame:
     ? previous : { scope, instruments, selected };
 }
 
+// Discovery stays current, but financial labels must match the selected stream.
+// Missing pinned metadata removes that choice rather than borrowing newer precision.
+export function financialInstrumentsForSelection(instruments: Instrument[], selectedId: string | null | undefined, selected: Instrument | undefined): Instrument[] {
+  if (!selectedId) return instruments;
+  if (!selected || selected.instrument_id !== selectedId) return instruments.filter(instrument => instrument.instrument_id !== selectedId);
+  if (!instruments.some(instrument => instrument.instrument_id === selectedId)) return [...instruments, selected];
+  return instruments.map(instrument => instrument.instrument_id === selectedId ? selected : instrument);
+}
+
 // An owned capture remains active until Stop releases its session, even on error.
 export function ownedSessionRecording(recordings: readonly ManagedRecording[], sessionId: string | null | undefined): ManagedRecording | undefined {
   if (sessionId == null) return undefined;

@@ -4,10 +4,11 @@ import { errorMessage } from './api';
 import type { AlertEvidenceResponse, AlertEvaluation, AlertKind, AlertRuleInput, AlertsResponse, ContextResponse, ResearchReport, ResearchResponse, WorkflowPanelProps } from './workflow-api';
 import { Details, Empty, Panel, Reasons, Value } from './WorkflowUI';
 import { venueLabel } from './format';
+import { metadataVerified } from './instrument-metadata';
 import './signal-panels.css';
 
 function panelScope({ frame }: WorkflowPanelProps) {
-  return JSON.stringify([frame?.session_id, frame?.generation, frame?.source.id, frame?.selection.instrument_id]);
+  return JSON.stringify([frame?.session_id, frame?.generation, frame?.source.id, frame?.selection.instrument_id, frame?.selection.metadata_status, frame?.selection.metadata_version]);
 }
 
 // One completion-paced read or explicit action at a time. No mutation is retried.
@@ -131,13 +132,16 @@ export function AlertsPanel(props: WorkflowPanelProps) {
   const [evidence, setEvidence] = useState<{ scope: string; title: string; value: AlertEvidenceResponse } | null>(null);
   const edit = (key: keyof typeof fields) => (value: string) => setFields(current => ({ ...current, [key]: value }));
   const disabled = !query.enabled || query.pending;
-  const selected = props.instruments.find(item => item.instrument_id === props.frame?.selection.instrument_id);
+  const selected = props.instruments.find(item => item.instrument_id === props.frame?.selection.instrument_id
+    && item.metadata_version === props.frame.selection.metadata_version && item.metadata_status === props.frame.selection.metadata_status);
+  const netCostAvailable = metadataVerified(props.frame) && !!selected;
   const unit = query.data?.kinds.find(item => item.kind === kind)?.unit;
   useEffect(() => { setEvidence(null); setSell(''); }, [query.scope]);
   useEffect(() => { if (!query.enabled) setEvidence(null); }, [query.enabled]);
 
   const create = async (event: FormEvent) => {
     event.preventDefault();
+    if (disabled || !unit || kind === 'net_cost' && !netCostAvailable) return;
     const body: AlertRuleInput = {
       instrument_id: props.frame?.selection.instrument_id ?? undefined, kind, direction,
       threshold: fields.threshold, rearm_threshold: fields.rearm, window_ns: fields.window, cooldown_ns: fields.cooldown,
@@ -168,7 +172,7 @@ export function AlertsPanel(props: WorkflowPanelProps) {
     <details className="signal-disclosure"><summary>Create alert rule — all seven native kinds</summary>
       <form onSubmit={event => { void create(event); }}>
         <fieldset disabled={disabled || !unit} className="signal-form"><legend>Rule for {selected?.native_symbol ?? 'selected instrument'}</legend>
-          <p className="signal-full caption">Native identity: {selected?.instrument_id ?? 'unavailable'} · threshold/rearm unit: {unit ?? 'unavailable until native kinds are loaded'}. All decimal and nanosecond values are sent as exact text.</p>
+          <p className="signal-full caption">Native identity: {props.frame?.selection.instrument_id ?? 'unavailable'} · threshold/rearm unit: {unit ?? 'unavailable until native kinds are loaded'}. All decimal and nanosecond values are sent as exact text.</p>
           <p className="signal-full caption">Event OFI and persistent displayed liquidity require a positive window equal to the native analytics window; all other kinds require 0. Rearm must be below the trigger for “above”, or above it for “below”. Unsupported windows and depth bands remain explicitly unavailable.</p>
           <div className="signal-full"><Details title="Current native rolling windows and persistence provenance" value={props.frame?.analytics?.metrics.filter(metric => metric.name === 'event_ofi' || metric.name === 'displayed_persistence').map(metric => ({ name: metric.name, window: metric.window, eligibility: metric.eligibility, formula_version: metric.formula_version, config_hash: metric.config_hash })) ?? null} /></div>
           <Field title="Alert kind"><select value={kind} onChange={event => setKind(event.target.value as AlertKind)}>{alertKinds.map(item => <option key={item} value={item}>{kindName(item)}</option>)}</select></Field>
@@ -183,6 +187,7 @@ export function AlertsPanel(props: WorkflowPanelProps) {
           </>}
           {kind === 'net_cost' && <>
             <p className="signal-full caption">Selected instrument is the buy leg. Supply both dated fee assumptions, size, latency stress and rebalance quote cost explicitly; zero is an explicit assumption, not a default.</p>
+            {!netCostAvailable && <p className="signal-full caption warning" role="status">Net-cost rules require verified session-pinned instrument metadata. Other alert kinds and retained alert evidence remain available.</p>}
             <Field title="Sell native instrument"><select required value={sell} onChange={event => setSell(event.target.value)}><option value="">Choose sell leg</option>{props.instruments.map(item => <option key={item.instrument_id} value={item.instrument_id}>{item.instrument_id}</option>)}</select></Field>
             <TextField title="Base quantity" value={fields.quantity} change={edit('quantity')} />
             <TextField title="Buy fee (bps)" value={fields.buyFee} change={edit('buyFee')} />
@@ -194,7 +199,7 @@ export function AlertsPanel(props: WorkflowPanelProps) {
             <TextField title="Latency stress (bps)" value={fields.latency} change={edit('latency')} />
             <TextField title="Rebalance cost (buy quote units)" value={fields.rebalance} change={edit('rebalance')} />
           </>}
-          <button type="submit" className="primary">Create local rule</button>
+          <button type="submit" className="primary" disabled={kind === 'net_cost' && !netCostAvailable}>Create local rule</button>
         </fieldset>
       </form>
     </details>
@@ -231,6 +236,7 @@ export function ContextPanel(props: WorkflowPanelProps & { selectInstrument: (id
   };
   return <Panel title="Native reference context" className="signal-panel" extra={<button disabled={disabled} onClick={query.refresh}>Refresh context</button>}>
     <p className="caption">AllMids, marks and oracles are non-executable references, not order prices. No USD/USDT/USDC equivalence is assumed. Reference basis is not an executable spread or profit claim.</p>
+    <p className="caption">Native context coverage is Hyperliquid-only: AllMids and asset-context observations must be supplied by this source or capture. Other venues do not gain context from their book or tape; missing observations remain unavailable.</p>
     <QueryStatus {...query} />{selectionError && <p className="error" role="alert">{selectionError}</p>}
     {snapshot && <>
       <p className="caption">Source {query.data?.source_identity} · delivery {query.data?.delivery_index} · now {snapshot.now?.mono_ns ?? 'unavailable'} ns.</p>
@@ -278,8 +284,8 @@ export function ResearchPanel(props: WorkflowPanelProps) {
   const disabled = !query.enabled || query.pending;
   const data = query.data;
   return <Panel title="Offline research history" className="signal-panel" extra={<button disabled={disabled} onClick={query.refresh}>Refresh research</button>}>
-    <p className="caption">Read-only actual attempt history and immutable reports. Research execution is offline CLI only; this panel starts no jobs, orders or browser-side financial calculations. Latest 100 attempts are requested; the API does not expose an older-attempt page.</p>
-    <details className="signal-disclosure"><summary>Run real offline research</summary><p className="caption">Demo uses explicitly synthetic native data:</p><code className="signal-command">python -m src.workstation.cli research run --demo --duration 900 --state-dir data/workstation-state</code><p className="caption">For a real capture, replace <code>--demo --duration 900</code> with <code>--capture PATH</code>. Optional <code>--config PATH</code> supplies explicit assumptions. Refresh this history after running the CLI.</p></details>
+    <p className="caption">Browser access is read-only: actual attempt history and immutable reports. Research execution is offline CLI only; this panel starts no jobs, orders or browser-side financial calculations. Latest 100 attempts are requested; the API does not expose an older-attempt page.</p>
+    <details className="signal-disclosure"><summary>Offline CLI commands — run outside the browser</summary><p className="caption">Demo uses explicitly synthetic native data:</p><code className="signal-command">python -m src.workstation.cli research run --demo --duration 900 --state-dir data/workstation-state</code><p className="caption">For a real capture, replace <code>--demo --duration 900</code> with <code>--capture PATH</code>. Optional <code>--config PATH</code> supplies explicit assumptions. Refresh this history after running the CLI.</p></details>
     <QueryStatus {...query} />
     {data && <>
       {data.attempts.length === 0 ? <Empty>No persisted research attempts. Failed and running attempts appear here too when present.</Empty> : <TableScroll title="All retained research attempts"><table><thead><tr><th scope="col">Attempt / status</th><th scope="col">Source / timestamps</th><th scope="col">Failure / provenance</th><th scope="col">Report</th></tr></thead><tbody>{data.attempts.map(attempt => <tr key={attempt.attempt_id}><th scope="row">{attempt.attempt_id}<small>{attempt.status}</small></th><td>{attempt.source}<small>Started wall ns: {attempt.started_wall_ns}</small><small>Finished wall ns: {attempt.finished_wall_ns ?? 'not finished'}</small></td><td>{attempt.failure ?? 'No failure recorded'}<Details title="Attempt status, exact hashes and timestamps" value={attempt} /></td><td><button disabled={disabled || chosen?.id === attempt.attempt_id} onClick={() => setSelection({ scope, id: attempt.attempt_id, offset: 0 })}>{chosen?.id === attempt.attempt_id ? 'Selected attempt' : 'Inspect attempt'}</button></td></tr>)}</tbody></table></TableScroll>}
