@@ -2,10 +2,17 @@ name: Offline checks
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions:
   contents: read
+
+# A newer commit replaces obsolete work on the same PR or main branch, never
+# checks for a different PR. Feature branches are checked by pull_request.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   offline:
