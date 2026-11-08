@@ -135,6 +135,54 @@ rejection path was exercised with a temporary unformatted file (exit 1 before
 pytest). The temporary probe was removed; the existing formatter gate remains
 the regression protection rather than a test that inspects source formatting.
 
+### GitHub CI and protected main
+
+The **Offline checks** workflow runs for pull requests and pushes to `main`.
+Feature-branch pushes do not start a duplicate run; open a pull request to get
+the required remote check. A newer commit cancels obsolete work for the same
+pull request or main branch, while different pull requests have separate
+concurrency groups. Tests, quality gates, browser workflows, read-only token
+permissions, and the 15-minute job timeout remain in place. There is no automatic
+deployment.
+
+The active **Protect main** repository ruleset requires:
+
+- A pull request rather than a direct push.
+- The `offline` status check from the **GitHub Actions** integration, with the
+  branch up to date before merging. Keep this job name stable; renaming it also
+  requires updating the ruleset.
+- Resolution of review conversations.
+- No branch deletion or non-fast-forward updates (force pushes).
+
+There are no configured bypass actors, including administrators. Required
+approvals are zero so a solo maintainer can merge their own pull request after
+checks pass; this is not a mandatory independent-review policy. Administrators
+can still explicitly change repository rules through GitHub settings.
+
+Normal contribution flow:
+
+```sh
+git switch -c descriptive-branch-name
+# Make and commit the intended changes.
+git push -u origin HEAD
+gh pr create --base main
+gh pr checks --required --watch
+gh pr merge --squash
+```
+
+The policy source is [`.github/main-ruleset.json`](../.github/main-ruleset.json).
+Committing that file does not apply GitHub settings automatically. An authorized
+administrator can update the existing ruleset explicitly:
+
+```sh
+gh api --method PUT repos/karisheen/Limit-Orderbook/rulesets/26781442 \
+  --input .github/main-ruleset.json
+gh api repos/karisheen/Limit-Orderbook/rules/branches/main
+```
+
+Use the effective-rules response to verify enforcement. The local pre-push hook
+is supplementary; bypassing it does not bypass the server-side merge rules.
+
 
 ## Frontend and legacy UI
 
