@@ -7,7 +7,7 @@ export function AssetLogo({ symbol, size = 20 }: { symbol: string; size?: number
   if (asset?.logo) {
     return <img className="asset-logo" src={`/coins/${base.toLowerCase()}.svg`} alt="" width={size} height={size} />;
   }
-  // Monogram fallback (FX pairs and coins without a bundled logo).
+  // Monogram fallback for assets without a bundled logo.
   const color = asset?.color ?? "var(--bg-active)";
   return (
     <span

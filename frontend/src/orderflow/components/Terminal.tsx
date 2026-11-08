@@ -18,6 +18,7 @@ import VolatilityPanel from "@/components/VolatilityPanel";
 import GlobalTooltip from "@/components/GlobalTooltip";
 import StatusBar from "@/components/StatusBar";
 import type { PanelVisibility } from "@/lib/types/market";
+import { NativeControls, NativeChartArea, NativeTools } from "../../integration/NativePanels";
 
 // ─── Terminal shell ──────────────────────────────────────────────
 //  ┌ top bar ─────────────────────────────────────────────┐
@@ -73,12 +74,13 @@ function SessionTerminal() {
     <div className="terminal">
       <GlobalTooltip />
       <TopBar />
+      <NativeControls />
       <MarketStatsBar />
 
       <div className="workspace">
         <div className="workspace-main">
           <div className="chart-area">
-            <FootprintChart />
+            <NativeChartArea footprint={<FootprintChart />} />
           </div>
           {studies.length > 0 && (
             <div className="studies-dock" style={{ height: dockHeight }}>
@@ -124,6 +126,7 @@ function SessionTerminal() {
         )}
       </div>
 
+      <NativeTools />
       <StatusBar />
     </div>
   );
@@ -141,14 +144,26 @@ function ResizeHandle({
   onResize: (delta: number) => void;
 }) {
   const start = React.useRef(0);
+  const cleanup = React.useRef<(() => void) | null>(null);
+  useEffect(() => () => cleanup.current?.(), []);
   const vertical = direction === "top" || direction === "bottom";
   return (
     <span
       className={`resize-handle resize-handle-${direction}`}
       role="separator"
       aria-orientation={vertical ? "horizontal" : "vertical"}
+      aria-label={vertical ? "Resize panel height" : "Resize sidebar width"}
+      tabIndex={0}
+      onKeyDown={(event) => {
+        const decrement = vertical ? "ArrowUp" : "ArrowLeft";
+        const increment = vertical ? "ArrowDown" : "ArrowRight";
+        if (event.key !== decrement && event.key !== increment) return;
+        event.preventDefault();
+        onResize((event.key === decrement ? -1 : 1) * (event.shiftKey ? 40 : 10));
+      }}
       onPointerDown={(event) => {
         event.preventDefault();
+        cleanup.current?.();
         start.current = vertical ? event.clientY : event.clientX;
         const move = (moveEvent: PointerEvent) => {
           const current = vertical ? moveEvent.clientY : moveEvent.clientX;
@@ -161,12 +176,18 @@ function ResizeHandle({
         const stop = () => {
           window.removeEventListener("pointermove", move);
           window.removeEventListener("pointerup", stop);
+          window.removeEventListener("pointercancel", stop);
+          window.removeEventListener("blur", stop);
+          cleanup.current = null;
           document.body.classList.remove("is-resizing", "is-resizing-row");
         };
         document.body.classList.add("is-resizing");
         if (vertical) document.body.classList.add("is-resizing-row");
         window.addEventListener("pointermove", move);
         window.addEventListener("pointerup", stop, { once: true });
+        window.addEventListener("pointercancel", stop, { once: true });
+        window.addEventListener("blur", stop, { once: true });
+        cleanup.current = stop;
       }}
     />
   );

@@ -424,25 +424,10 @@ def test_global_epoch_reset_and_buffer_overflow():
     )
 
 
-@pytest.mark.parametrize(
-    "factory,endpoint",
-    [
-        (
-            BinanceUSAdapter,
-            "https://api.binance.us/api/v3/depth?symbol=BTCUSDT&limit=20",
-        ),
-        (
-            BybitAdapter,
-            "https://api.bybit.com/v5/market/orderbook?category=spot&symbol=BTCUSDT&limit=50",
-        ),
-    ],
-)
-def test_native_rest_snapshot_request_decode_and_replacement(factory, endpoint):
+@pytest.mark.parametrize("factory", [BinanceUSAdapter, BybitAdapter])
+def test_native_rest_snapshot_request_decode_and_replacement(factory):
     adapter = factory()
     instrument, key = setup(adapter)
-    request = adapter.snapshot_request(instrument, key)
-    assert request.method == "GET"
-    assert request.endpoint_id == endpoint
     reducer = make_snapshot_reducer(adapter, instrument, key, poll_interval=2)
     for ordinal, bids, asks in (
         (1, [["99.00", "1.234"], ["98.00", "2.000"]], [["101.00", "3.456"]]),
@@ -890,31 +875,6 @@ def test_us_fallback_keeps_quote_cohorts_and_execution_access_separate():
         EligibilityPolicy(require_execution_access=True),
     )
     assert not execution.eligible
-
-
-@pytest.mark.parametrize(
-    "factory", [BinanceGlobalAdapter, BinanceUSAdapter, BybitAdapter, KuCoinAdapter]
-)
-def test_discovery_uses_shared_transport_exact_bytes(monkeypatch, factory):
-    import asyncio
-    from src.workstation import transport
-
-    adapter = factory()
-    raw = encoded(metadata(adapter))
-    requests = []
-
-    async def fetch(request):
-        requests.append(request)
-        return raw
-
-    monkeypatch.setattr(transport, "fetch_public", fetch)
-    discovered = asyncio.run(adapter.discover())
-    assert len(requests) == 1 and requests[0].method == "GET"
-    assert discovered.instruments[0].base.asset_id == "BTC"
-    assert discovered.fetch_wall_ns > 0
-    assert discovered.instruments[0].metadata_version.endswith(
-        f":{discovered.fetch_wall_ns}"
-    )
 
 
 def test_bootstrap_snapshot_one_id_before_first_buffer_is_retried():

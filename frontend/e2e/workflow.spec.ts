@@ -45,8 +45,6 @@ async function body<T>(pending: Promise<Response>): Promise<T> {
 }
 
 async function panel(page: Page, name: 'Alerts' | 'Context' | 'Paper' | 'Journal' | 'Research') {
-  const drawer = page.getByRole('button', { name: 'Costs / analytics', exact: true });
-  if (await drawer.getAttribute('aria-pressed') !== 'true') await drawer.click();
   await page.getByRole('tablist', { name: 'Research pane', exact: true }).getByRole('tab', { name, exact: true }).click();
   const pane = page.getByRole('tabpanel', { name, exact: true });
   await expect(pane).toBeVisible();
@@ -56,25 +54,29 @@ async function panel(page: Page, name: 'Alerts' | 'Context' | 'Paper' | 'Journal
 async function openDemo(page: Page) {
   const created = nextResponse(page, 'sessions');
   const catalogResponse = page.waitForResponse(response => response.url().endsWith('/api/v1/instruments') && response.request().method() === 'GET');
-  await page.goto('/?workspace=native');
+  await page.goto('/');
   let frame = await body<Frame>(created);
   const catalog = await body<Catalog>(catalogResponse);
   expect(frame.source.mode).toBe('demo');
   expect(frame.source.synthetic).toBe(true);
   await expect(page.locator('.status')).toContainText('Connected');
   await expect(page.locator('.source-banner')).toContainText('SYNTHETIC DEMO');
-  await page.getByRole('button', { name: 'Costs / analytics', exact: true }).click();
   for (const name of ['Alerts', 'Context', 'Paper', 'Journal', 'Research']) {
     await expect(page.getByRole('tablist', { name: 'Research pane', exact: true }).getByRole('tab', { name, exact: true })).toBeVisible();
   }
   const instrument = catalog.instruments.find(item => item.venue === 'binance-global' && item.market_type === 'spot' && item.base.ticker === 'ETH');
   if (!instrument) throw new Error('Native synthetic demo must expose its ETH spot instrument');
+  const watchlist = page.locator('.native-controls summary').filter({ hasText: /^Watchlist$/ });
+  if (await watchlist.locator('..').getAttribute('open') === null) await watchlist.click();
   await page.getByLabel('Search instruments').fill('ETH');
   const selected = nextResponse(page, 'subscriptions', input => input.instrument_id === instrument.instrument_id);
   await page.getByTitle(instrument.instrument_id, { exact: true }).click();
   frame = await body<Frame>(selected);
   expect(frame.selection.instrument_id).toBe(instrument.instrument_id);
   await expect(page.getByTitle(instrument.instrument_id, { exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(watchlist.locator('..')).not.toHaveAttribute('open', '');
+  await expect(watchlist).toBeFocused();
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Native book & tape', exact: true }).click();
   expect(frame.book?.instrument_id).toBe(instrument.instrument_id);
   expect(BigInt(frame.replay!.cursor.delivery_index)).toBeGreaterThan(0n);
   return { frame, instrument };

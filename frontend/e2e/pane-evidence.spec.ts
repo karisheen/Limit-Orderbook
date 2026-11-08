@@ -14,6 +14,7 @@ async function painted(pane: Locator, pending: Promise<Response>) {
   const response = await pending;
   const view = await body<VisualGrid>(Promise.resolve(response));
   const chart = pane.getByTestId('market-charts');
+  await pane.locator('.m4-chart-plot').scrollIntoViewIfNeeded();
   await expect(chart).toHaveAttribute('data-painted-view-id', view.view_id);
   await expect(chart).toHaveAttribute('data-start-ns', view.start_ns);
   await expect(chart).toHaveAttribute('data-end-ns', view.end_ns);
@@ -50,27 +51,33 @@ async function replay(page: Page, action: 'play' | 'pause' | 'step') {
 }
 
 async function openAdvancedDemo(page: Page) {
-  let latest: Frame | null = null;
-  page.on('websocket', socket => socket.on('framereceived', event => {
-    const message = JSON.parse(event.payload.toString()) as Frame;
-    if (message.type === 'frame') latest = message;
-  }));
   const catalogResponse = await page.request.get('/api/v1/instruments');
   expect(catalogResponse.ok()).toBe(true);
   const catalog = await catalogResponse.json() as Catalog;
   const demo = catalog.sources.find(source => source.mode === 'demo' && source.status === 'ready');
   if (!demo) throw new Error('The native catalog must expose the explicitly synthetic demo');
+  const created = page.waitForResponse(response => response.url().endsWith('/api/v1/sessions')
+    && response.request().method() === 'POST');
   await page.goto(`/?source=${encodeURIComponent(demo.id)}`);
   await expect(page.locator('.status')).toContainText(/\bConnected$/i);
-  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Order flow', exact: true }).click();
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Liquidity & flow', exact: true }).click();
+  await primary(page).locator('.m4-chart-plot').scrollIntoViewIfNeeded();
   await expect(primary(page).getByTestId('market-charts')).toHaveAttribute('data-painted-view-id', /.+/);
-  const speed = page.waitForResponse(response => response.url().endsWith('/api/v1/replay')
-    && response.request().postDataJSON().action === 'speed');
-  await page.getByLabel('Replay speed').selectOption('8');
-  await body<Frame>(speed);
-  await replay(page, 'play');
-  await expect.poll(() => BigInt(latest?.book?.asof.receive_mono_ns ?? '0') > 45_000_000_000n).toBe(true);
-  return replay(page, 'pause');
+  const initial = await body<Frame>(created);
+  if (!initial.replay) throw new Error('The native demo must provide a replay cursor');
+  const middle = (BigInt(initial.replay.total_deliveries) / 2n).toString();
+  const seek = page.waitForResponse(response => response.url().endsWith('/api/v1/replay')
+    && response.request().postDataJSON().action === 'seek'
+    && response.request().postDataJSON().delivery_index === middle);
+  await page.getByLabel('Seek delivery').fill(middle);
+  await page.getByRole('button', { name: 'Seek', exact: true }).click();
+  const frame = await body<Frame>(seek);
+  await expect(page.locator('.cursor')).toContainText(`${middle} /`);
+  expect(frame.status).toBe('paused');
+  expect(BigInt(frame.book!.asof.receive_mono_ns)).toBeGreaterThan(45_000_000_000n);
+  expect(BigInt(frame.replay!.cursor.delivery_index)).toBeLessThan(BigInt(frame.replay!.total_deliveries));
+  await painted(primary(page), visualization(page, input => input.generation === frame.generation));
+  return frame;
 }
 
 test('nondefault follow uses the evaluation frontier and frozen pan and zoom keep their requested bounds', async ({ page }) => {
@@ -189,7 +196,8 @@ test('optional time linking aligns to its actor without coupling cursors, price 
   const liquidityZoom = visualization(page, matchesZoom);
   const flowZoom = visualization(page, matchesZoom, 32);
   await flow.locator('.m4-chart-plot').press('+');
-  const [linkedLiquidity, linkedFlow] = await Promise.all([painted(liquidity, liquidityZoom), painted(flow, flowZoom)]);
+  const linkedLiquidity = await painted(liquidity, liquidityZoom);
+  const linkedFlow = await painted(flow, flowZoom);
   expect(linkedLiquidity.view.start_ns).toBe(linkedFlow.view.start_ns);
   expect(linkedLiquidity.view.end_ns).toBe(linkedFlow.view.end_ns);
   for (const [result, previous] of [[linkedLiquidity, aligned], [linkedFlow, actor]] as const) {

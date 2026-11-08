@@ -55,7 +55,6 @@ export default function VolumeZScorePanel() {
   const flowBars = useSessionStore((s) => s.flowBars);
   const liveBar = useSessionStore((s) => s.liveBar);
   const crosshairTime = useSessionStore((s) => s.crosshairTime);
-  const marketType = useSessionStore((s) => s.marketType);
   const [resolution, setResolution] = useState<Resolution>(5);
   const [window, setWindow] = useState<Window>(20);
   const [view, setView] = useState<View>("z");
@@ -194,9 +193,7 @@ export default function VolumeZScorePanel() {
         `Baseline σ: ${formatCompact(pt.std ?? 0, 3)}`,
         `Reading: ${label}`,
         "",
-        marketType === "forex"
-          ? `What this means: Compares provider volume or unit-tick proxy with the previous ${window} bars. This measures FX feed activity, not centralized executed volume.`
-          : `What this means: Compares this bar's traded volume with the previous ${window} bars. It measures participation, not price volatility.`,
+        `What this means: Compares this bar's traded volume with the previous ${window} bars. It measures participation, not price volatility.`,
       ].join("\n"),
       e
     );
@@ -207,12 +204,12 @@ export default function VolumeZScorePanel() {
   const visible = series.slice(-200).filter((pt) => pt.z !== null);
   const spikes = visible.filter((pt) => (pt.z ?? 0) >= 2).length;
   const maxZ = visible.reduce((m, pt) => Math.max(m, pt.z ?? -Infinity), -Infinity);
-  const unit = marketType === "forex" ? "ticks" : "vol";
+  const unit = "vol";
 
   return (
     <Panel
       title="Volume Z-Score" icon={<Icon.Bars />}
-      subtitle={`${marketType === "forex" ? "tick volume" : "volume"} vs prior ${window} × ${resolution === 60 ? "1m" : `${resolution}s`}`}
+      subtitle={`volume vs prior ${window} × ${resolution === 60 ? "1m" : `${resolution}s`}`}
       value={
         <span className={`tone-${zTone(lastZ)}`}>
           {lastZ === null ? "—" : `${lastZ >= 0 ? "+" : ""}${lastZ.toFixed(2)}σ`}

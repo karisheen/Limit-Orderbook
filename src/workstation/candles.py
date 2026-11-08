@@ -14,6 +14,7 @@ from urllib.parse import quote, urlencode
 
 from .adapters.base import TransportRequest
 from .adapters.binance import BinanceGlobalAdapter, BinanceUSAdapter
+from .adapters.bybit import BybitAdapter
 from .instruments import Instrument
 from .precision import (
     DECIMAL_CONTEXT,
@@ -235,7 +236,7 @@ def native_request(
             "since": request_start(now_ns, interval, limit) // SECOND,
         }
     elif venue == "bybit":
-        endpoint = "https://api.bybit.com/v5/market/kline"
+        endpoint = f"{BybitAdapter.rest_host}/v5/market/kline"
         params = {
             "category": "spot",
             "symbol": symbol,

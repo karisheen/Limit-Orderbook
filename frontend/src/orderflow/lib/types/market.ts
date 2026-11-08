@@ -4,43 +4,34 @@
 // SHARED MARKET TYPES — Normalized across all exchanges
 // ============================================================
 
-export type Venue =
-  | "binance-futures"
-  | "binance-spot"
-  | "bybit-futures"
-  | "bybit-spot"
-  | "okx-futures"
-  | "okx-spot"
-  | "bitget-futures"
-  | "bitget-spot"
-  | "hyperliquid"
-  | "deribit"
-  | "coinbase-spot"
-  | "finnhub-forex";
+import type { NativeMarketBook, NativeMarketTrade } from "../../../api";
+
+/** Native venue identifiers; never browser-adapter aliases. */
+export type Venue = string;
 export type VenueSelection = Venue | "all-perps" | "all-spot";
 
-export type MarketType = "spot" | "perpetual" | "forex";
-export type TradeSide = "buy" | "sell";
+export type MarketType = "spot" | "perpetual";
+export type TradeSide = "buy" | "sell" | "unknown";
 export type ConnectionStatus = "connecting" | "live" | "offline" | "error" | "stale";
 
 export type Timeframe = "1m" | "5m" | "15m" | "30m" | "1h" | "4h";
 
 // ----------------------------------------------------------
-// Normalized Trade (from exchange adapter)
+// Numeric plotting projection of native evidence
 // ----------------------------------------------------------
 export interface NormalizedTrade {
   id: string;
   venue: Venue;
   symbol: string;
-  timestamp: number; // exchange timestamp (ms)
+  timestamp: number; // native receive clock projected to milliseconds
   localTimestamp: number; // local receive timestamp (ms)
   price: number;
   quantity: number; // base asset quantity
-  quoteVolume: number; // price * quantity
+  quoteVolume: number | null; // native quote notional, unavailable when unvalued
   side: TradeSide;
   marketType: MarketType;
   sequence?: number;
-  dataBasis?: "fx-proxy"; // Tick-rule flow, not observed aggressor executions.
+  native?: NativeMarketTrade;
 }
 
 // ----------------------------------------------------------
@@ -60,7 +51,7 @@ export interface NormalizedOrderBook {
   bids: OrderBookLevel[]; // sorted descending
   asks: OrderBookLevel[]; // sorted ascending
   sequence?: number;
-  dataBasis?: "fx-proxy"; // Synthetic indicative quote/depth, not observed liquidity.
+  native?: NativeMarketBook;
 }
 
 export interface HeatmapSettings {
@@ -212,7 +203,7 @@ export interface SessionStats {
   vwapStd: number;
   sumPQ: number;
   sumP2Q: number;
-  lastTradeLagMs: number;
+  lastTradeLagMs: number | null;
 }
 
 // ----------------------------------------------------------
@@ -260,23 +251,6 @@ export interface PanelVisibility {
   depthOfMarket: boolean;
 }
 
-// ----------------------------------------------------------
-// WebSocket Server Message Types (server → client)
-// ----------------------------------------------------------
-export type WSMessageType =
-  | "trade"
-  | "orderbook"
-  | "footprint_update"
-  | "footprint_candle"
-  | "connection_status"
-  | "obi"
-  | "volume_profile";
-
-export interface WSMessage<T = unknown> {
-  type: WSMessageType;
-  data: T;
-  timestamp: number;
-}
 
 // ----------------------------------------------------------
 // Market Ticker

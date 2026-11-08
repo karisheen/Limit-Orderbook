@@ -82,7 +82,6 @@ export default function FootprintChart() {
   const symbol = useSessionStore((s) => s.symbol);
   const timeframe = useSessionStore((s) => s.timeframe);
   const venue = useSessionStore((s) => s.venue);
-  const marketType = useSessionStore((s) => s.marketType);
   const ind = useUIStore((s) => s.indicators);
   const setCrosshair = useSessionStore((s) => s.setCrosshair);
   const mode = useUIStore((s) => s.footprintMode);
@@ -345,8 +344,7 @@ export default function FootprintChart() {
         ctx.textAlign = "left";
         SUMMARY_ROWS.forEach((label, i) => {
           ctx.fillStyle = p.textMuted;
-          const text = marketType === "forex" ? (label === "Volume" ? "Tick vol" : label === "Trades" ? "Ticks" : label) : label;
-          ctx.fillText(text.toUpperCase(), plotR + 8, plotB + i * SUMMARY_ROW_H + SUMMARY_ROW_H / 2 + 1);
+          ctx.fillText(label.toUpperCase(), plotR + 8, plotB + i * SUMMARY_ROW_H + SUMMARY_ROW_H / 2 + 1);
         });
       }
 
@@ -416,7 +414,7 @@ export default function FootprintChart() {
       ctx.textAlign = "center";
       ctx.fillText(`TICK ${formatPriceValue(tick, priceDecimals(tick))}`, plotR + AXIS_W / 2, HEADER_H / 2 + 1);
     },
-    [allCandles, tickSize, volumeProfile, session, ticker, mode, showProfile, showHeatmap, ind, decimals, marketType]
+    [allCandles, tickSize, volumeProfile, session, ticker, mode, showProfile, showHeatmap, ind, decimals]
   );
 
   const { containerRef, canvasRef, redraw } = useCanvas(draw);
@@ -490,12 +488,11 @@ export default function FootprintChart() {
           `High: ${formatPriceValue(candle.high, decimals)}`,
           `Low: ${formatPriceValue(candle.low, decimals)}`,
           `Close: ${formatPriceValue(candle.close, decimals)}`,
-          `${marketType === "forex" ? "Tick-volume proxy" : "Volume"}: ${formatCompact(candle.volume, 2)}`,
+          `Volume: ${formatCompact(candle.volume, 2)}`,
           `Delta: ${formatSigned(candle.delta, 2)} (${candle.volume ? ((candle.delta / candle.volume) * 100).toFixed(1) : "0"}%)`,
           `CVD: ${formatSigned(candle.cumulativeDelta, 2)}`,
-          `${marketType === "forex" ? "Ticks" : "Trades"}: ${candle.tradeCount.toLocaleString()}`,
+          `Trades: ${candle.tradeCount.toLocaleString()}`,
           ...(venues.length > 1 ? ["", ...venues] : []),
-          ...(marketType === "forex" ? ["What this means: Tick-rule direction and provider volume or unit-tick proxy, not centralized executed volume or L2 liquidity."] : []),
         ].join("\n"),
         e
       );
@@ -510,14 +507,13 @@ export default function FootprintChart() {
     showTooltip(
       `${formatPriceValue(price, decimals)} · ${formatHM(candle.openTime)}`,
       [
-        `${marketType === "forex" ? "Sell-rule ticks" : "Sell (bid)"}: ${formatCompact(level.bidVolume, 3)}`,
-        `${marketType === "forex" ? "Buy-rule ticks" : "Buy (ask)"}: ${formatCompact(level.askVolume, 3)}`,
+        `Sell (bid): ${formatCompact(level.bidVolume, 3)}`,
+        `Buy (ask): ${formatCompact(level.askVolume, 3)}`,
         `Total: ${formatCompact(level.totalVolume, 3)} (${share.toFixed(1)}% of candle)`,
         `Delta: ${formatSigned(level.delta, 3)}`,
-        `${marketType === "forex" ? "Ticks" : "Trades"}: ${level.buyTrades} buy / ${level.sellTrades} sell`,
+        `Trades: ${level.buyTrades} buy / ${level.sellTrades} sell`,
         `Largest print: ${formatCompact(level.maxTradeSize, 3)}`,
         `Imbalance: ${(() => { const dir = imbalanceOf(level, ind.imbalanceRatio); return dir ? `${dir} ≥ ${ind.imbalanceRatio}×` : "none"; })()}`,
-        ...(marketType === "forex" ? ["What this means: Tick-rule direction and provider volume or unit-tick proxy, not centralized executed volume or L2 liquidity."] : []),
       ].join("\n"),
       e
     );
@@ -532,7 +528,7 @@ export default function FootprintChart() {
   };
 
   const tf = timeframe.toUpperCase();
-  const venueLabel = marketType === "forex" ? "FX quote proxy · tick volume · no L2" : VENUE_LABEL[venue] ?? venue;
+  const venueLabel = VENUE_LABEL[venue] ?? venue;
 
   return (
     <Panel
@@ -554,7 +550,7 @@ export default function FootprintChart() {
           <Button
             className={`chip ${showHeatmap ? "is-active" : ""}`}
             onClick={() => setHeatmapVisible("tradedVolume", !showHeatmap)}
-            title={marketType === "forex" ? "Tick-volume proxy by price; provider volume or unit ticks, not executed volume or resting liquidity" : "Traded-volume heatmap by price (executed volume, not resting liquidity)"}
+            title="Traded-volume heatmap by price (executed volume, not resting liquidity)"
           >
             Heatmap
           </Button>
@@ -593,8 +589,8 @@ export default function FootprintChart() {
         {allCandles.length === 0 && (
           <div className="canvas-overlay">
             <div className="spinner" />
-            <strong>{marketType === "forex" ? "Waiting for FX ticks" : "Waiting for trades"}</strong>
-            <span>{marketType === "forex" ? "Tick-rule direction · provider volume or unit-tick proxy" : "Building the footprint from the live stream…"}</span>
+            <strong>Waiting for trades</strong>
+            <span>Building the footprint from the native session…</span>
           </div>
         )}
       </div>

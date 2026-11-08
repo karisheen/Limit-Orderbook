@@ -21,15 +21,17 @@ function useNow(intervalMs = 1000) {
 export default function StatusBar() {
   const connections = useSessionStore((s) => s.connections);
   const selectedVenues = useSessionStore((s) => s.selectedVenues);
-  const marketType = useSessionStore((s) => s.marketType);
+  const displayStatus = useSessionStore((s) => s.displayStatus);
   const session = useSessionStore((s) => s.session);
   const candles = useSessionStore((s) => s.candles.length);
   const now = useNow();
 
-  const venues = marketType === "forex" ? (["finnhub-forex"] as const) : selectedVenues;
+  const venues = selectedVenues.length ? selectedVenues : Object.keys(connections);
   const live = venues.filter((v) => connections[v]?.status === "live").length;
   const lag = session?.lastTradeLagMs ?? null;
   const lagTone = lag === null ? "" : lag < 250 ? "tone-buy" : lag < 1000 ? "tone-warn" : "tone-sell";
+  const lagLabel = displayStatus.lagObservation === "recorded" ? "Recorded lag" :
+    displayStatus.lagObservation === "synthetic" ? "Synthetic lag" : "Feed lag";
 
   return (
     <footer className="statusbar">
@@ -52,17 +54,20 @@ export default function StatusBar() {
         })}
         {venues.length > 1 && <>
           <strong>{live}/{venues.length} live</strong>
-          <span title="Venue USD, USDT and USDC prices are combined without FX conversion; use Workbench for exact venue/quote analysis.">Indicative aggregate · no FX conversion</span>
+          <span title="Prices in different quote assets are combined without conversion. Use Native book & tape for exact primary-instrument inspection.">Indicative aggregate · quotes retained</span>
         </>}
-        {marketType === "forex" && (
-          <span className="tone-warn" title="Finnhub price ticks: tick-rule direction, provider volume or unit-tick fallback; no centralized executions, bid/ask quotes or L2 depth">
-            FX quote proxy · tick volume · no L2
-          </span>
-        )}
+        <details className="display-status">
+          <summary className={displayStatus.gap || displayStatus.reasons.length ? "tone-warn" : ""}>Coverage{displayStatus.gap ? " · gap" : ""}</summary>
+          <div className="display-status-content">
+            <strong>Primary: {displayStatus.primaryInstrumentId ?? "not selected"}</strong>
+            <span>{displayStatus.instrumentIds.length} instruments · {displayStatus.unknownSideTrades} unknown-side prints · {displayStatus.historyTrades} history prints</span>
+            {displayStatus.reasons.map((reason) => <span key={reason}>{reason}</span>)}
+          </div>
+        </details>
       </div>
       <div className="statusbar-meta">
-        <span title="Exchange timestamp to local receive time for the latest print (includes clock skew)">
-          Feed lag <b className={lagTone}>{lag === null ? "—" : `${lag.toFixed(0)} ms`}</b>
+        <span title="Native exchange-to-receive wall-clock difference for the latest ordered print; includes clock skew. Missing or negative differences are unavailable. Recorded lag describes capture-time receipt, not replay delivery.">
+          {lagLabel} <b className={lagTone}>{lag === null ? "—" : `${lag.toFixed(0)} ms`}</b>
         </span>
         <span>Session <b>{session && now ? formatDuration(now - session.startTime) : "—"}</b></span>
         <span>Candles <b>{candles + (session ? 1 : 0)}</b></span>

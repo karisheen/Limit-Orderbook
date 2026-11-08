@@ -36,11 +36,13 @@ from .analytics import AnalyticsEngine, AnalyticsSnapshot
 from .book import Book
 from .candles import CandleService, session_candles
 from .context import ContextEngine
+from .capture_service import CaptureService
 from .demo import demo_source
 from .demo_memory import MemoryReplaySource
 from .events import ClientId, EventEnvelope, Gap, StreamId, SubscriptionKey
 from .instruments import Instrument
 from .journal import JournalStore
+from .market_presentation import market_data
 from .paper import PaperEngine, PaperStore
 from .precision import DERIVED_DECIMAL_POLICY, canonical_decimal, decimal
 from .quality import ClockReading, EligibilityPolicy, evaluate
@@ -292,34 +294,47 @@ def _paper_presentation(snapshot, request):
 def _live_cohort(
     instrument: Instrument, instruments: tuple[Instrument, ...]
 ) -> tuple[Instrument, ...]:
-    """Fill the existing cohort bound fairly, not by catalog venue ordering."""
-    venues: dict[str, list[Instrument]] = {}
+    """Select one native product per venue/market for indicative display only.
+
+    Exact quote identities and the canonical USD/USDT/USDC display family are
+    eligible; this does not assert financial equivalence or perform conversion.
+    The exact primary leads, even when absent from the catalog. Selected-market
+    groups take priority at the bound, never extra quotes from the same group.
+    """
+    quote_rank = {"USDT": 0, "USDC": 1, "USD": 2}
+    primary_quote = instrument.quote.asset_id
+    primary_group = (instrument.venue, instrument.market_type)
+    peers: dict[tuple[str, str], tuple[tuple[bool, int, str], Instrument]] = {}
     for item in instruments:
+        group = (item.venue, item.market_type)
+        quote = item.quote.asset_id
         if (
-            item.base.asset_id == instrument.base.asset_id
-            and item.instrument_id != instrument.instrument_id
-            and item.status == "active"
-        ):
-            venues.setdefault(item.venue, []).append(item)
-    for peers in venues.values():
-        peers.sort(
-            key=lambda item: (
-                item.market_type != instrument.market_type,
-                item.quote.asset_id != instrument.quote.asset_id,
-                item.instrument_id,
+            group == primary_group
+            or item.instrument_id == instrument.instrument_id
+            or item.base.asset_id != instrument.base.asset_id
+            or item.status != "active"
+            or not (
+                quote == primary_quote
+                or (primary_quote in quote_rank and quote in quote_rank)
             )
+        ):
+            continue
+        rank = (
+            quote != primary_quote,
+            quote_rank.get(quote, len(quote_rank)),
+            item.instrument_id,
         )
-    ordered_venues = sorted(
-        venues, key=lambda venue: (venue == instrument.venue, venue)
+        if group not in peers or rank < peers[group][0]:
+            peers[group] = (rank, item)
+    groups = sorted(
+        peers,
+        key=lambda group: (
+            group[1] != instrument.market_type,
+            group[0],
+            group[1],
+        ),
     )
-    cohort = [instrument]
-    for offset in range(15):
-        for venue in ordered_venues:
-            if offset < len(venues[venue]):
-                cohort.append(venues[venue][offset])
-                if len(cohort) == 16:
-                    return tuple(cohort)
-    return tuple(cohort)
+    return (instrument, *(peers[group][1] for group in groups[:15]))
 
 
 class RuntimeFailure(Exception):
@@ -379,6 +394,7 @@ class ClientSession:
         self.history_sizes: deque[int] = deque()
         self.history_bytes = 0
         self.history_floor = 1
+        self.history_floor_event = -1
         self.play_task: asyncio.Task[None] | None = None
         self.live_task: asyncio.Task[None] | None = None
         self.live_queue: asyncio.Queue[LiveDelivery] = asyncio.Queue(maxsize=256)
@@ -622,6 +638,7 @@ class ClientSession:
         self.history_sizes.clear()
         self.history_bytes = 0
         self.history_floor = self.delivery + 1
+        self.history_floor_event = -1
 
     def choose(self, instrument_id: str) -> None:
         books = [
@@ -968,7 +985,9 @@ class ClientSession:
         while self.history and (
             len(self.history) >= 4096 or self.history_bytes + size > 8 * 1024 * 1024
         ):
-            self.history_floor = self.history.popleft().delivery_index + 1
+            removed = self.history.popleft()
+            self.history_floor = removed.delivery_index + 1
+            self.history_floor_event = len(removed.events) - 1
             self.history_bytes -= self.history_sizes.popleft()
         if size <= 8 * 1024 * 1024:
             self.history.append(batch)
@@ -976,6 +995,7 @@ class ClientSession:
             self.history_bytes += size
         else:
             self.history_floor = self.delivery + 1
+            self.history_floor_event = len(events) - 1
 
     def _take_live_batch(
         self, first: LiveDelivery, limit: int = 32
@@ -1690,6 +1710,7 @@ class ClientSession:
         if self.closed:
             return
         self.closed = True
+        await self.runtime.captures.close_session(self.id)
         if self.unsubscribe:
             self.unsubscribe()
             self.unsubscribe = None
@@ -1766,6 +1787,7 @@ class TerminalRuntime:
         self.source_instruments: dict[str, tuple[Instrument, ...]] = {}
         self._catalog_cache: tuple[object, bytes] | None = None
         self.closed = False
+        self.captures = CaptureService(self)
 
     def _research_query(self, request):
         from .research import ResearchStore
@@ -1862,6 +1884,7 @@ class TerminalRuntime:
         return source.copy()
 
     async def start(self) -> None:
+        await self.captures.load()
         metadata = await self._catalog_work(demo_source)
         self.demo_id = metadata.session_id
         self.sources[self.demo_id] = {
@@ -1960,6 +1983,11 @@ class TerminalRuntime:
                 if self.registry is None:
                     self.registry = SubscriptionRegistry()
                     await self.registry.catalog.discover()
+                self.sources["live"]["reasons"] = [
+                    f"{status.venue}: {status.state}: {status.detail}"
+                    for status in self.registry.catalog.statuses.values()
+                    if status.state != "available"
+                ]
                 instruments = self.registry.catalog.instruments.list()
                 self.source_instruments["live"] = instruments
                 for instrument in instruments:
@@ -1969,7 +1997,10 @@ class TerminalRuntime:
                 self.sources["live"]["status"] = "ready"
             except Exception as exc:
                 self.sources["live"].update(
-                    {"status": "unavailable", "reasons": [str(exc)]}
+                    {
+                        "status": "unavailable",
+                        "reasons": [*self.sources["live"]["reasons"], str(exc)],
+                    }
                 )
 
     async def create(
@@ -2192,6 +2223,42 @@ class TerminalRuntime:
             await self.registry.release_client(ClientId(session.id))
             raise
 
+    async def market_data(self, request):
+        session = self.get(request.session_id)
+        session.check(request.generation)
+        async with session.activity(), session.actions, session.lock:
+            session.check(request.generation)
+            return await session.work(market_data, session, request)
+
+    async def recording_action(self, request, *, stop=False):
+        session = self.get(request.session_id)
+        # Lifecycle actions pin the selection/generation through attachment and
+        # cancellation joining. Capture only reads that frozen selection; it
+        # does not access the worker-owned observers. Never hold their lock over
+        # recorder disk work or collector reconnect/drain: live delivery must
+        # continue throughout both capture boundaries.
+        async with session.activity(), session.actions:
+            if stop:
+                # A failed live feed must still be stoppable and durable.
+                if session.closed or str(session.generation) != request.generation:
+                    raise RuntimeFailure(409, "obsolete session generation")
+            else:
+                session.check(request.generation)
+            operation = (
+                self.captures.stop(session, request.id)
+                if stop
+                else self.captures.start(session, request.scope)
+            )
+            task = asyncio.create_task(operation)
+            try:
+                result = await asyncio.shield(task)
+            except asyncio.CancelledError:
+                await task
+                raise
+            if str(session.generation) != request.generation:
+                raise RuntimeFailure(409, "obsolete session generation")
+            return result
+
     async def candles(self, request):
         session = self.get(request.session_id)
         session.check(request.generation)
@@ -2334,6 +2401,7 @@ class TerminalRuntime:
         await asyncio.gather(
             *(self.remove(session_id) for session_id in tuple(self.sessions))
         )
+        await self.captures.close()
         if self.registry is not None and self.owns_registry:
             await self.registry.close()
         self.catalog_executor.shutdown(wait=True, cancel_futures=True)

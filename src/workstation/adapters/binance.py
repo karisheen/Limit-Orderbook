@@ -1,5 +1,6 @@
-"""Distinct Binance spot protocols and shared strict spot-field parsing helpers."""
+"""Binance spot and USD-M perpetual protocols with strict exact-value parsing."""
 
+import asyncio
 from dataclasses import replace
 from hashlib import sha256
 import json
@@ -94,7 +95,55 @@ def metadata_snapshot(source, raw, fetched, instruments):
     )
 
 
-def validate_key(instrument, key, venue, api_family):
+async def discover_metadata_families(adapter, *, timeout=30):
+    """Publish complete families only; retain exact failure evidence separately.
+
+    Each family has an independent deadline. A blocked or malformed derivative
+    catalog must not erase valid spot specifications (or vice versa).
+    """
+    from ..transport import PublicTransportError
+
+    adapter.discovery_evidence = ()
+
+    async def one(family):
+        try:
+            async with asyncio.timeout(timeout):
+                snapshot = await adapter.discover_family(family)
+            return snapshot, (family, "available", snapshot.source), None
+        except Exception as exc:
+            state = (
+                exc.reason
+                if isinstance(exc, PublicTransportError)
+                and exc.reason in ("blocked", "unsupported")
+                else "unavailable"
+            )
+            detail = (
+                "metadata_timeout"
+                if isinstance(exc, TimeoutError)
+                else f"{type(exc).__name__}: {exc}"[:4096]
+            )
+            if isinstance(exc, PublicTransportError) and exc.status is not None:
+                detail += f" (HTTP {exc.status})"
+            return None, (family, state, detail), exc
+
+    results = await asyncio.gather(
+        *(one(family) for family in adapter.metadata_families)
+    )
+    adapter.discovery_evidence = tuple(result[1] for result in results)
+    snapshots = [snapshot for snapshot, _, _ in results if snapshot is not None]
+    if not snapshots:
+        raise next(error for _, _, error in results if error is not None)
+    if len(snapshots) == 1:
+        return snapshots[0]
+    return metadata_snapshot(
+        ";".join(snapshot.source for snapshot in snapshots),
+        "\n".join(snapshot.payload_hash for snapshot in snapshots).encode(),
+        max(snapshot.fetch_wall_ns for snapshot in snapshots),
+        (instrument for snapshot in snapshots for instrument in snapshot.instruments),
+    )
+
+
+def validate_key(instrument, key, venue, api_family, *, market_type="spot"):
     if (instrument.venue, instrument.api_family, instrument.instrument_id) != (
         key.venue,
         key.api_family,
@@ -102,7 +151,7 @@ def validate_key(instrument, key, venue, api_family):
     ) or (key.venue, key.api_family) != (venue, api_family):
         raise ValueError("wrong_subscription")
     if (
-        instrument.market_type != "spot"
+        instrument.market_type != market_type
         or key.channel not in ("book", "trades")
         or key.aggregation
     ):
@@ -641,6 +690,65 @@ class BinanceGlobalAdapter(_BinanceAdapter):
     venue = "binance-global"
     rest_host = "https://data-api.binance.vision"
     stream_host = "wss://data-stream.binance.vision:443"
+    metadata_families = ("spot-v3", "usdm-v1")
+    discovery_evidence: tuple[tuple[str, str, str], ...] = ()
+
+    def parse_metadata(
+        self, raw: bytes, *, fetch_wall_ns: int = 0, api_family: str = "spot-v3"
+    ) -> MetadataSnapshot:
+        if api_family == _USDM.api_family:
+            return _USDM.parse_metadata(raw, fetch_wall_ns=fetch_wall_ns)
+        if api_family != self.api_family:
+            raise ValueError("unsupported metadata API family")
+        return super().parse_metadata(raw, fetch_wall_ns=fetch_wall_ns)
+
+    async def discover(self) -> MetadataSnapshot:
+        return await self.discover_metadata()
+
+    async def discover_metadata(self, *, timeout=30) -> MetadataSnapshot:
+        return await discover_metadata_families(self, timeout=timeout)
+
+    async def discover_family(self, family) -> MetadataSnapshot:
+        from ..transport import fetch_public
+
+        if family == self.api_family:
+            endpoint = f"{self.rest_host}/api/v3/exchangeInfo"
+        elif family == _USDM.api_family:
+            endpoint = f"{_USDM.rest_host}/fapi/v1/exchangeInfo"
+        else:
+            raise ValueError("unsupported metadata API family")
+        raw = await fetch_public(TransportRequest("GET", endpoint))
+        return self.parse_metadata(raw, fetch_wall_ns=time_ns(), api_family=family)
+
+    def capabilities(self, instrument, key):
+        if instrument.api_family == _USDM.api_family:
+            return _USDM.capabilities(instrument, key)
+        return super().capabilities(instrument, key)
+
+    def ws_endpoint(self, instrument, key):
+        if instrument.api_family == _USDM.api_family:
+            return _USDM.ws_endpoint(instrument, key)
+        return super().ws_endpoint(instrument, key)
+
+    def subscription_requests(self, instrument, key):
+        if instrument.api_family == _USDM.api_family:
+            return _USDM.subscription_requests(instrument, key)
+        return super().subscription_requests(instrument, key)
+
+    def snapshot_request(self, instrument, key):
+        if instrument.api_family == _USDM.api_family:
+            return _USDM.snapshot_request(instrument, key)
+        return super().snapshot_request(instrument, key)
+
+    def decode(self, frame, instrument, key):
+        if instrument.api_family == _USDM.api_family:
+            return _USDM.decode(frame, instrument, key)
+        return super().decode(frame, instrument, key)
+
+    def new_reducer(self, instrument, key):
+        if instrument.api_family == _USDM.api_family:
+            return _USDM.new_reducer(instrument, key)
+        return super().new_reducer(instrument, key)
 
 
 class BinanceUSAdapter(_BinanceAdapter):
@@ -648,3 +756,219 @@ class BinanceUSAdapter(_BinanceAdapter):
     rest_host = "https://api.binance.us"
     stream_host = "wss://stream.binance.us:9443"
     partial = True
+
+
+class _BinanceUSDMAdapter(_BinanceAdapter):
+    """USD-M top-N snapshots, not a diff-depth reconstruction or exact flow."""
+
+    venue = "binance-global"
+    api_family = "usdm-v1"
+    rest_host = "https://fapi.binance.com"
+    stream_host = "wss://fstream.binance.com"
+    partial = True
+
+    def parse_metadata(self, raw: bytes, *, fetch_wall_ns: int = 0) -> MetadataSnapshot:
+        data = object_field(exact_json_loads(raw))
+        if "code" in data:
+            raise ValueError(f"metadata endpoint error: {data['code']}")
+        source = f"{self.rest_host}/fapi/v1/exchangeInfo"
+        version = f"{sha256(raw).hexdigest()}:{fetch_wall_ns}"
+        instruments = []
+        for value in array_field(data["symbols"]):
+            row = object_field(value)
+            if row["contractType"] != "PERPETUAL" or row["quoteAsset"] != "USDT":
+                continue
+            if row["marginAsset"] != "USDT":
+                raise ValueError("unexpected USD-M settlement asset")
+            filters = {}
+            for value in array_field(row["filters"]):
+                item = object_field(value)
+                name = text(item["filterType"])
+                if name in filters:
+                    raise ValueError("duplicate metadata filter")
+                filters[name] = item
+            price, lot = filters["PRICE_FILTER"], filters["LOT_SIZE"]
+            market_lot = filters.get("MARKET_LOT_SIZE", {})
+            notional = filters.get("MIN_NOTIONAL", {})
+            symbol = text(row["symbol"])
+            currency = asset_identity(self.venue, row["quoteAsset"])
+            base = asset_identity(self.venue, row["baseAsset"])
+            instruments.append(
+                Instrument(
+                    InstrumentId(f"{self.venue}:{self.api_family}:perpetual:{symbol}"),
+                    version,
+                    self.venue,
+                    self.api_family,
+                    symbol,
+                    base,
+                    currency,
+                    decimal(price["tickSize"], positive=True),
+                    decimal(lot["stepSize"], positive=True),
+                    settlement=asset_identity(self.venue, row["marginAsset"]),
+                    market_type="perpetual",
+                    quantity_unit="base",
+                    contract_multiplier=decimal("1"),
+                    contract_value_currency=base.asset_id,
+                    settlement_conversion="none",
+                    contract_specification_source=source,
+                    constraints=OrderConstraints(
+                        min_base=optional_decimal(lot, "minQty"),
+                        max_limit_base=optional_decimal(lot, "maxQty"),
+                        max_market_base=optional_decimal(market_lot, "maxQty"),
+                        min_notional=optional_decimal(notional, "notional"),
+                        min_notional_currency=currency.asset_id,
+                    ),
+                    status={
+                        "TRADING": "active",
+                        "PENDING_TRADING": "unavailable",
+                        "PRE_SETTLE": "suspended",
+                        "SETTLING": "suspended",
+                        "CLOSE": "delisted",
+                        "DELIVERING": "suspended",
+                        "DELIVERED": "delisted",
+                    }.get(text(row["status"]), "unknown"),
+                    metadata_asof_wall_ns=fetch_wall_ns,
+                    metadata_source=source,
+                )
+            )
+        return metadata_snapshot(source, raw, fetch_wall_ns, instruments)
+
+    def _validate(self, instrument, key):
+        validate_key(
+            instrument, key, self.venue, self.api_family, market_type="perpetual"
+        )
+        if key.channel == "book" and key.depth not in (5, 10, 20):
+            raise ValueError("unsupported USD-M partial depth")
+
+    def _stream(self, instrument, key):
+        suffix = "aggTrade" if key.channel == "trades" else f"depth{key.depth}@100ms"
+        return f"{instrument.native_symbol.lower()}@{suffix}"
+
+    def ws_endpoint(self, instrument, key):
+        self._validate(instrument, key)
+        route = "market" if key.channel == "trades" else "public"
+        return f"{self.stream_host}/{route}/stream"
+
+    def snapshot_request(self, instrument, key):
+        self._validate(instrument, key)
+        symbol = quote(instrument.native_symbol, safe="")
+        path = (
+            f"aggTrades?symbol={symbol}&limit=1000"
+            if key.channel == "trades"
+            else f"depth?symbol={symbol}&limit={key.depth}"
+        )
+        return TransportRequest("GET", f"{self.rest_host}/fapi/v1/{path}")
+
+    def decode(self, frame, instrument, key):
+        try:
+            self._validate(instrument, key)
+            data = exact_json_loads(frame.payload)
+            rest = (
+                frame.endpoint_id == self.snapshot_request(instrument, key).endpoint_id
+            )
+            if frame.transport != ("rest" if rest else "ws"):
+                raise ValueError("wrong_transport")
+            if not rest and frame.endpoint_id != self.ws_endpoint(instrument, key):
+                raise ValueError("wrong_endpoint")
+            if rest and key.channel == "trades":
+                return DecodeResult(
+                    tuple(
+                        self._trade(object_field(row), instrument, history=True)
+                        for row in array_field(data)
+                    )
+                )
+            data = object_field(data)
+            if "code" in data:
+                raise ValueError(f"endpoint_error:{data['code']}")
+            if not rest:
+                if "result" in data:
+                    if data["result"] is not None or data.get("id") != 1:
+                        raise ValueError("invalid subscription acknowledgement")
+                    return DecodeResult(controls=(Control("ack"),))
+                if data.get("stream") == "!serverShutdown":
+                    return DecodeResult(
+                        controls=(Control("disconnect", "server_shutdown"),)
+                    )
+                if data.get("stream") != self._stream(instrument, key):
+                    raise ValueError("wrong_stream")
+                data = object_field(data["data"])
+                if data.get("s") != instrument.native_symbol:
+                    raise ValueError("wrong_symbol")
+                if "st" in data and integer_field(data["st"]) != 1:
+                    raise ValueError("wrong_contract_family")
+            if key.channel == "trades":
+                if data.get("e") != "aggTrade":
+                    raise ValueError("wrong_trade_schema")
+                return DecodeResult((self._trade(data, instrument),))
+            if rest:
+                update_id = integer_field(data["lastUpdateId"])
+                changes = level_changes(data["bids"], data["asks"], instrument)
+            else:
+                if data.get("e") != "depthUpdate":
+                    raise ValueError("wrong_depth_schema")
+                first, update_id = integer_field(data["U"]), integer_field(data["u"])
+                if first > update_id:
+                    raise ValueError("inverted_update_range")
+                integer_field(data["pu"])
+                changes = level_changes(data["b"], data["a"], instrument)
+            if any(
+                sum(change.side == side for change in changes) > key.depth
+                for side in ("bid", "ask")
+            ):
+                raise ValueError("snapshot_depth_exceeded")
+            timestamp = data.get("T", data.get("E"))
+            return DecodeResult(
+                (
+                    DecodedEvent(
+                        BookUpdate("snapshot", changes, key.depth),
+                        SequenceInfo(
+                            f"{instrument.instrument_id}:depth", last=str(update_id)
+                        ),
+                        exchange_event_wall_ns=integer_field(timestamp) * 1_000_000
+                        if timestamp is not None
+                        else None,
+                        exchange_time_kind=("transaction" if "T" in data else "event")
+                        if timestamp is not None
+                        else None,
+                    ),
+                )
+            )
+        except (ValueError, KeyError, TypeError, ArithmeticError) as exc:
+            return decode_failure(frame, exc)
+
+    def _trade(self, row, instrument, *, history=False):
+        trade_id = str(integer_field(row["a"]))
+        if integer_field(row["f"]) > integer_field(row["l"]):
+            raise ValueError("inverted_trade_range")
+        maker = row.get("m")
+        if maker is not None and type(maker) is not bool:
+            raise ValueError("invalid maker flag")
+        price = decimal(row["p"], positive=True)
+        size = decimal(row["q"], positive=True)
+        instrument.validate_price(price)
+        instrument.validate_quantity(size)
+        return DecodedEvent(
+            Trade(
+                trade_id,
+                f"{instrument.instrument_id}:aggTrade:{trade_id}",
+                price,
+                size,
+                taker_side="unknown" if maker is None else "sell" if maker else "buy",
+                side_provenance="unknown" if maker is None else "buyer_is_maker",
+                is_subscription_history=history,
+            ),
+            exchange_event_wall_ns=integer_field(row["T"]) * 1_000_000,
+            exchange_time_kind="trade",
+        )
+
+    def new_reducer(self, instrument, key):
+        return BookReducer(
+            instrument,
+            key,
+            capabilities=self.capabilities(instrument, key),
+            strategy_id="binance-usdm-partial-v1",
+            adapter_revision="binance-usdm-v1",
+        )
+
+
+_USDM = _BinanceUSDMAdapter()

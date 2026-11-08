@@ -13,7 +13,7 @@ export function aggregateBooks(
   if (books.size === 0) return null;
   const bidMap = new Map<number, number>();
   const askMap = new Map<number, number>();
-  const venues = [...books.keys()];
+  const venues = [...new Set([...books.values()].map(book => book.venue))];
   for (const book of books.values()) {
     for (const level of book.bids) bidMap.set(level.price, (bidMap.get(level.price) ?? 0) + level.size);
     for (const level of book.asks) askMap.set(level.price, (askMap.get(level.price) ?? 0) + level.size);

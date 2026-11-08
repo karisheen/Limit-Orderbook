@@ -20,6 +20,9 @@ ADAPTER_CLASSES = {
     "bybit": ("bybit", "BybitAdapter"),
     "kucoin": ("kucoin", "KuCoinAdapter"),
     "hyperliquid": ("hyperliquid", "HyperliquidAdapter"),
+    "okx": ("okx", "OKXAdapter"),
+    "bitget": ("bitget", "BitgetAdapter"),
+    "deribit": ("deribit", "DeribitAdapter"),
 }
 
 
@@ -44,10 +47,45 @@ class VenueStatus:
     @property
     def fully_usable(self) -> bool:
         evidence = dict(self.dependencies)
-        return all(
-            evidence.get(name) == "available"
-            for name in ("metadata", "snapshot", "trades", "ws")
+        metadata = (
+            evidence.get("metadata:product", evidence.get("metadata"))
+            if self.probed_instrument_id is not None
+            else evidence.get("metadata")
         )
+        return metadata == "available" and all(
+            evidence.get(name) == "available" for name in ("snapshot", "trades", "ws")
+        )
+
+
+def metadata_status(
+    venue: str,
+    adapter: Adapter | None,
+    *,
+    state: str = "available",
+    detail: str = "metadata_only",
+) -> VenueStatus:
+    """Keep family access evidence distinct from transport/product readiness."""
+    families = getattr(adapter, "discovery_evidence", ())
+    dependencies: tuple[tuple[str, str], ...] = (("metadata", state),)
+    if families:
+        states = {status for _, status, _ in families}
+        if states == {"available"}:
+            state = "available"
+        elif "available" in states:
+            state = "degraded"
+            detail = "metadata_partial"
+        else:
+            state = next(iter(states)) if len(states) == 1 else "unavailable"
+            detail = "metadata_unavailable"
+        metadata_state = "partial" if state == "degraded" else state
+        dependencies = (("metadata", metadata_state),) + tuple(
+            (f"metadata:{family}", status) for family, status, _ in families
+        )
+        if states != {"available"}:
+            detail += "; " + "; ".join(
+                f"{family}: {status}: {reason}" for family, status, reason in families
+            )
+    return VenueStatus(venue, state, detail[:4096], dependencies, time.time_ns())
 
 
 class AdapterCatalog:
@@ -80,26 +118,40 @@ class AdapterCatalog:
             "bybit": 50,
             "kucoin": 20,
             "hyperliquid": 20,
+            "okx": 5,
+            "bitget": 5,
+            "deribit": 20,
         }
         depth = depths.get(key.venue)
+        if key.venue == "binance-global" and key.api_family == "usdm-v1":
+            depth = 20
         if key.venue == "hyperliquid" and dict(key.aggregation).get("fast") == "true":
             depth = 5
         return replace(key, depth=depth) if depth is not None else key
 
     async def discover(
-        self, *, probe_dependencies: bool = False
+        self, *, probe_dependencies: bool = False, metadata_timeout: float = 30
     ) -> tuple[VenueStatus, ...]:
+        """Publish real metadata within independent venue/family time budgets.
+
+        Family-aware adapters retain reachable complete families when another
+        family fails or times out. Product probes remain separate evidence.
+        """
+
         async def one(venue: str):
+            adapter = None
+            metadata_received = False
             try:
-                snapshot = await self.adapter(venue).discover()
+                adapter = self.adapter(venue)
+                discover_metadata = getattr(adapter, "discover_metadata", None)
+                if discover_metadata is None:
+                    async with asyncio.timeout(metadata_timeout):
+                        snapshot = await adapter.discover()
+                else:
+                    snapshot = await discover_metadata(timeout=metadata_timeout)
+                metadata_received = True
                 self.instruments.apply_metadata(snapshot)
-                self.statuses[venue] = VenueStatus(
-                    venue,
-                    "available",
-                    "metadata_only",
-                    (("metadata", "available"),),
-                    time.time_ns(),
-                )
+                self.statuses[venue] = metadata_status(venue, adapter)
                 if probe_dependencies and venue in ("binance-global", "binance-us"):
                     products = self.instruments.list(
                         InstrumentQuery(venue=venue, status="active")
@@ -123,12 +175,13 @@ class AdapterCatalog:
                 state = (
                     reason if reason in ("blocked", "unsupported") else "unavailable"
                 )
-                self.statuses[venue] = VenueStatus(
+                self.statuses[venue] = metadata_status(
                     venue,
-                    state,
-                    str(exc)[:4096],
-                    (("metadata", state),),
-                    time.time_ns(),
+                    None if metadata_received else adapter,
+                    state=state,
+                    detail="metadata_timeout"
+                    if isinstance(exc, TimeoutError)
+                    else str(exc)[:4096],
                 )
 
         await asyncio.gather(*(one(venue) for venue in self.statuses))
@@ -148,6 +201,9 @@ class AdapterCatalog:
             self.statuses.get(
                 instrument.venue, VenueStatus(instrument.venue)
             ).dependencies
+        )
+        evidence["metadata:product"] = evidence.get(
+            f"metadata:{instrument.api_family}", evidence.get("metadata", "unknown")
         )
         book_key = self.canonical_key(SubscriptionKey.for_instrument(instrument))
         trade_key = SubscriptionKey.for_instrument(instrument, channel="trades")
@@ -233,17 +289,14 @@ class AdapterCatalog:
             await asyncio.gather(*tasks, return_exceptions=True)
         status = VenueStatus(
             instrument.venue,
-            "available"
-            if all(
-                evidence.get(k) == "available"
-                for k in ("metadata", "snapshot", "trades", "ws")
-            )
-            else "degraded",
+            "degraded",
             "product_dependency_probe",
             tuple(sorted(evidence.items())),
             time.time_ns(),
             str(instrument.instrument_id),
         )
+        if status.fully_usable:
+            status = replace(status, state="available")
         self.statuses[instrument.venue] = status
         return status
 

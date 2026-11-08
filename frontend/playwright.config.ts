@@ -1,4 +1,5 @@
 import { defineConfig } from '@playwright/test';
+import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
   testDir: './e2e',
@@ -8,7 +9,7 @@ export default defineConfig({
   timeout: 45_000,
   expect: { timeout: 15_000 },
   reporter: 'list',
-  outputDir: './test-results',
+  outputDir: fileURLToPath(new URL('./test-results/', import.meta.url)),
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:8000',
     browserName: 'chromium',

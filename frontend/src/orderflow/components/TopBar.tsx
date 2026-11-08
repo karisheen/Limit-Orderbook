@@ -1,15 +1,14 @@
 // Adapted from zadescoxp/order-flow-screener (Apache-2.0), revision 2b451b5. Modified for Limit Orderbook: Vite integration, strict typing and local workspace.
 
 import { useSessionStore } from "@/lib/session/SessionContext";
-import type { PanelVisibility, Timeframe, ToolProfile, Venue, VenueSelection } from "@/lib/types/market";
-import { FOREX_SYMBOLS } from "@/lib/config/venues";
+import type { PanelVisibility, Timeframe, ToolProfile, VenueSelection } from "@/lib/types/market";
 import { THEME_OPTIONS, type Theme } from "@/lib/theme";
-import { venueSupports } from "@/lib/adapters/capabilities";
-import { CRYPTO_ASSETS, CRYPTO_SYMBOLS } from "@/lib/config/instruments";
+import { displayCohort, displayMarketType, displaySymbol, displayVenue, sameNativeMarket } from "@/lib/config/instruments";
+import { useNativeTerminal } from "../../integration/NativeContext";
+import type { Instrument } from "../../api";
 import { AssetLogo, VenueLogo } from "@/components/AssetLogo";
 import { Picker, type PickerOption } from "@/components/ui/Picker";
 import { useUIStore } from "@/lib/store/uiStore";
-import { GitHubIcon, REPO_URL, Wordmark } from "@/components/Logo";
 import { Icon } from "@/components/ui/Icons";
 import { Menu, MenuCheckbox, MenuSection, Segmented, Select } from "@/components/ui/Primitives";
 
@@ -22,17 +21,6 @@ const PROFILES: { value: ToolProfile; label: string; title: string }[] = [
   { value: "liquidity", label: "Liquidity", title: "Order book, depth, imbalance and traded-volume heatmap" },
   { value: "volatility", label: "Volatility", title: "Realized volatility, volume z-score and tape" },
 ];
-const VENUES: Record<"perpetual" | "spot", { value: Venue; label: string }[]> = {
-  perpetual: [
-    { value: "binance-futures", label: "Binance" }, { value: "bybit-futures", label: "Bybit" },
-    { value: "okx-futures", label: "OKX" }, { value: "hyperliquid", label: "Hyperliquid" },
-    { value: "bitget-futures", label: "Bitget" }, { value: "deribit", label: "Deribit" },
-  ],
-  spot: [
-    { value: "binance-spot", label: "Binance" }, { value: "coinbase-spot", label: "Coinbase" },
-    { value: "okx-spot", label: "OKX" }, { value: "bybit-spot", label: "Bybit" }, { value: "bitget-spot", label: "Bitget" },
-  ],
-};
 const PANEL_ITEMS: { key: keyof PanelVisibility; label: string; hint: string; group: "Chart" | "Studies" | "Sidebar" }[] = [
   { key: "volumeProfile", label: "Session profile", hint: "Volume by price beside the footprint", group: "Chart" },
   { key: "heatmap", label: "Traded-volume heatmap", hint: "Executed volume by price", group: "Chart" },
@@ -46,6 +34,7 @@ const PANEL_ITEMS: { key: keyof PanelVisibility; label: string; hint: string; gr
 ];
 
 export default function TopBar() {
+  const { instruments, instrument, selectInstrument } = useNativeTerminal();
   const symbol = useSessionStore((s) => s.symbol);
   const venue = useSessionStore((s) => s.venue);
   const marketType = useSessionStore((s) => s.marketType);
@@ -62,78 +51,87 @@ export default function TopBar() {
   const setToolProfile = useUIStore((s) => s.setToolProfile);
   const setPanelVisible = useUIStore((s) => s.setPanelVisible);
 
-  const isForex = marketType === "forex";
-  const instrumentOptions: PickerOption<string>[] = isForex
-    ? FOREX_SYMBOLS.map((pair) => ({ value: pair, label: pair, sub: "Spot FX", icon: <AssetLogo symbol={pair} size={22} /> }))
-    : CRYPTO_ASSETS.map((asset) => {
-        const value = `${asset.base}USDT`;
-        return {
-          value,
-          label: value,
-          sub: asset.name,
-          keywords: asset.base,
-          icon: <AssetLogo symbol={value} size={22} />,
-        };
-      });
-  const venueOptions = marketType === "perpetual" || marketType === "spot" ? VENUES[marketType] : [];
+  const available = instruments.filter((item) => displayMarketType(item) === marketType);
+  const symbols = [...new Map(available.map((item) => [displaySymbol(item), item])).entries()];
+  const instrumentOptions: PickerOption<string>[] = symbols.map(([value, item]) => ({
+    value,
+    label: value,
+    sub: item.base.ticker,
+    keywords: `${item.base.ticker} ${item.quote.ticker}`,
+    icon: <AssetLogo symbol={value} size={22} />,
+  }));
   const aggregateValue: VenueSelection = marketType === "perpetual" ? "all-perps" : "all-spot";
+  const primary = instrument && displayMarketType(instrument) === marketType
+    ? instrument : available.find((item) => displaySymbol(item) === symbol);
+  const cohort = primary ? available.filter((item) => sameNativeMarket(item, primary)) : [];
+  const aggregateCohort = primary ? displayCohort(available, primary) : [];
+  const venues = [...new Set(cohort.map(displayVenue))];
+  const aggregate = venue === "all-perps" || venue === "all-spot";
 
-  const aggregateFor = (sym: string) =>
-    venueOptions.filter((v) => venueSupports(v.value, sym, marketType)).map((v) => v.value);
+  const activate = (next: Instrument, nextVenue: VenueSelection) => {
+    setMarketType(displayMarketType(next));
+    setSymbol(displaySymbol(next));
+    setVenue(nextVenue);
+    if (nextVenue === "all-perps" || nextVenue === "all-spot") {
+      setSelectedVenues([...new Set(displayCohort(instruments, next).map(displayVenue))]);
+    }
+    selectInstrument(next.instrument_id);
+  };
 
   const chooseSymbol = (next: string) => {
-    setSymbol(next);
-    if (isForex) return;
-    if (venue === aggregateValue) setSelectedVenues(aggregateFor(next));
-    else if (!venueSupports(venue as Venue, next, marketType)) {
-      // The current exchange doesn't list this coin: fall back to the first one that does.
-      const fallback = venueOptions.find((v) => venueSupports(v.value, next, marketType));
-      if (fallback) setVenue(fallback.value);
-    }
+    const matches = available.filter((item) => displaySymbol(item) === next);
+    const selected = matches.find((item) => displayVenue(item) === (instrument ? displayVenue(instrument) : venue)) ?? matches[0];
+    if (selected) activate(selected, aggregate ? aggregateValue : displayVenue(selected));
   };
 
   const venuePickerOptions: PickerOption<VenueSelection>[] = [
     {
       value: aggregateValue,
       label: marketType === "perpetual" ? "All perps" : "All spot",
-      sub: `Aggregated · ${aggregateFor(symbol).length} venues`,
+      sub: `Indicative aggregate · ${aggregateCohort.length} venues · eligible quotes only`,
       icon: <VenueLogo venue={aggregateValue} size={20} />,
+      disabled: !primary,
     },
-    ...venueOptions.map((v) => ({
-      value: v.value as VenueSelection,
-      label: v.label,
-      sub: venueSupports(v.value, symbol, marketType) ? (marketType === "perpetual" ? "Perpetual" : "Spot") : `No ${symbol} market`,
-      disabled: !venueSupports(v.value, symbol, marketType),
-      icon: <VenueLogo venue={v.value} size={20} />,
+    ...venues.map((value) => ({
+      value,
+      label: value,
+      sub: marketType === "perpetual" ? "Perpetual" : "Spot",
+      icon: <VenueLogo venue={value} size={20} />,
     })),
   ];
 
   const chooseVenue = (next: VenueSelection) => {
-    setVenue(next);
     if (next === aggregateValue) {
-      setSelectedVenues(aggregateFor(symbol));
+      if (primary) activate(primary, next);
+      return;
     }
+    const matches = cohort.filter((item) => displayVenue(item) === next);
+    const selected = matches.find((item) => item.instrument_id === primary?.instrument_id)
+      ?? matches.find((item) => item.quote.asset_id === primary?.quote.asset_id)
+      ?? matches.find((item) => displaySymbol(item) === symbol) ?? matches[0];
+    if (selected) activate(selected, next);
+  };
+
+  const chooseMarket = (next: "spot" | "perpetual") => {
+    if (next === marketType) return;
+    const matches = instruments.filter((item) => displayMarketType(item) === next);
+    const sameBase = matches.filter((item) => item.base.asset_id === instrument?.base.asset_id);
+    const selected = sameBase.find((item) => displayVenue(item) === instrument?.venue && item.quote.asset_id === instrument?.quote.asset_id)
+      ?? sameBase.find((item) => displayVenue(item) === instrument?.venue) ?? sameBase[0] ?? matches[0];
+    if (selected) activate(selected, aggregate ? (next === "spot" ? "all-spot" : "all-perps") : displayVenue(selected));
   };
 
   return (
     <header className="topbar">
-      <a className="brand" href="/" aria-label="orderbook home">
-        <Wordmark size={28} />
-      </a>
+      <span className="brand" aria-label="Limit Orderbook">Limit Orderbook</span>
 
       <div className="topbar-group">
         <Segmented
           value={marketType}
-          onChange={(next) => {
-            if (next === marketType) return;
-            setMarketType(next);
-            if (next === "forex") setSymbol("EUR/USD");
-            else if (isForex || !CRYPTO_SYMBOLS.includes(symbol)) setSymbol("BTCUSDT");
-          }}
+          onChange={chooseMarket}
           options={[
-            { value: "perpetual", label: "Perp", title: "Crypto perpetual futures" },
-            { value: "spot", label: "Spot", title: "Crypto spot" },
-            { value: "forex", label: "FX", title: "Foreign exchange" },
+            { value: "perpetual", label: "Perp", title: "Crypto perpetual futures", disabled: !instruments.some((item) => displayMarketType(item) === "perpetual") },
+            { value: "spot", label: "Spot", title: "Crypto spot", disabled: !instruments.some((item) => displayMarketType(item) === "spot") },
           ]}
           ariaLabel="Market"
         />
@@ -149,7 +147,6 @@ export default function TopBar() {
           ariaLabel="Instrument"
           width={300}
         />
-        {!isForex && (
           <Picker
             value={venue}
             options={venuePickerOptions}
@@ -157,7 +154,6 @@ export default function TopBar() {
             ariaLabel="Venue"
             width={260}
           />
-        )}
       </div>
 
       <div className="topbar-group">
@@ -188,25 +184,6 @@ export default function TopBar() {
         </Select>
       </div>
 
-      <a
-        className="ui-button workbench-button"
-        href="/?workspace=native"
-        aria-label="Workbench — native replay, paper trading and research"
-        title="Native replay, paper trading and research"
-      >
-        Workbench
-      </a>
-      <a
-        className="ui-button contribute-button is-primary"
-        href={REPO_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        title="View the source, open issues and send pull requests on GitHub"
-      >
-        <GitHubIcon size={15} />
-        Contribute
-      </a>
-      <span className="topbar-break" aria-hidden />
     </header>
   );
 }

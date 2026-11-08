@@ -13,15 +13,15 @@ test('a silent open socket loses current status and recovers with a new session'
     server.onMessage(message => { if (!suppress) client.send(message); });
   });
   const initialCreated = page.waitForResponse(response => response.url().endsWith('/api/v1/sessions') && response.request().method() === 'POST');
-  await page.goto('/?workspace=native');
+  await page.goto('/');
   const initial = await (await initialCreated).json() as Frame;
   await expect(page.locator('.status')).toContainText('Connected');
-  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Order flow', exact: true }).click();
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Liquidity & flow', exact: true }).click();
   await expect(page.locator('.ladder tbody tr').first()).toBeVisible();
   const chart = page.getByTestId('chart-pane-heatmap').getByTestId('market-charts');
   await expect(chart).toHaveAttribute('data-painted-view-id', /.+/);
   const initialViewId = await chart.getAttribute('data-painted-view-id');
-  await page.getByRole('button', { name: 'Costs / analytics', exact: true }).click();
+  await page.getByRole('tablist', { name: 'Research pane', exact: true }).getByRole('tab', { name: 'Costs & proposed risk', exact: true }).click();
   const estimate = page.getByTestId('estimate');
   await expect(estimate).toBeEnabled();
   const incident = page.getByTestId('terminal-incident');
@@ -74,9 +74,10 @@ test('setup retries survive repeated HTTP failure without a manual reconnect', a
     if (failures < 3) { failures++; await route.abort('connectionfailed'); }
     else await route.continue();
   });
-  await page.goto('/?workspace=native');
+  await page.goto('/');
   await expect(page.locator('.status')).toContainText('Connected', { timeout: 20_000 });
   expect(failures).toBe(3);
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Native book & tape', exact: true }).click();
   await expect(page.locator('.ladder tbody tr').first()).toBeVisible();
 });
 
@@ -93,7 +94,7 @@ test('a replaced session does not inherit an obsolete mutation lock', async ({ p
     // The old request is intentionally aborted when the document replaces its session.
     await route.fulfill({ response }).catch(() => undefined);
   });
-  await page.goto('/?workspace=native');
+  await page.goto('/');
   await expect(page.locator('.status')).toContainText('Connected');
   await page.getByTestId('replay-step').click();
   await responseCaptured;
@@ -121,7 +122,7 @@ test('catalog readiness refreshes without replacing the active session', async (
     await route.fulfill({ response, json: catalog });
   });
   const created = page.waitForResponse(response => response.url().endsWith('/api/v1/sessions') && response.request().method() === 'POST');
-  await page.goto('/?workspace=native');
+  await page.goto('/');
   const frame = await (await created).json() as Frame;
   await expect(page.locator('.status')).toContainText('Connected');
   const source = page.getByLabel('Data source').locator(`option[value="${frame.source.id}"]`);
@@ -152,7 +153,7 @@ test('receive-to-paint ACK includes frame decode time', async ({ page }) => {
       server.send(message);
     });
   });
-  await page.goto('/?workspace=native');
+  await page.goto('/');
   await expect.poll(() => measured).not.toBeNull();
   expect(measured).toBeGreaterThanOrEqual(80);
 });
@@ -183,7 +184,7 @@ test('a real canvas render failure clears displayed freshness and cannot acknowl
   if (!demo) throw new Error('Actual native catalog must expose a ready synthetic demo source');
   await page.goto(`/?source=${encodeURIComponent(demo.id)}`);
   await expect(page.locator('.status')).toContainText('Connected');
-  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Order flow', exact: true }).click();
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Liquidity & flow', exact: true }).click();
   const pane = page.getByTestId('chart-pane-heatmap');
   const chart = pane.getByTestId('market-charts');
   const freshness = pane.getByTestId('chart-freshness');

@@ -223,7 +223,10 @@ export function MarketCharts(props: MarketChartsProps): ReactNode {
       if (element.hasPointerCapture(event.pointerId)) element.releasePointerCapture(event.pointerId);
     };
     const pointerCancel = () => { drag = null; delete element.dataset.dragging; };
-    const pointerLeave = () => {
+    const pointerLeave = (event: PointerEvent) => {
+      if (event.relatedTarget instanceof Node && element.contains(event.relatedTarget)) return;
+      // Clear before React's delegated pointer-enter publishes another pane's
+      // cursor. Native pointerleave fires after that publication and erases it.
       if (!drag) { cancelAnimationFrame(cursorFrame); cursorFrame = 0; latest.current.onCrosshair(null); }
     };
     const wheel = (event: WheelEvent) => {
@@ -259,7 +262,7 @@ export function MarketCharts(props: MarketChartsProps): ReactNode {
     element.addEventListener('pointerup', pointerUp);
     element.addEventListener('pointercancel', pointerCancel);
     element.addEventListener('lostpointercapture', pointerCancel);
-    element.addEventListener('pointerleave', pointerLeave);
+    element.addEventListener('pointerout', pointerLeave);
     element.addEventListener('wheel', wheel, { passive: false });
     element.addEventListener('keydown', keyboard);
     return () => {
@@ -268,7 +271,7 @@ export function MarketCharts(props: MarketChartsProps): ReactNode {
       pointerCancel();
       element.removeEventListener('pointermove', pointerMove); element.removeEventListener('pointerdown', pointerDown);
       element.removeEventListener('pointerup', pointerUp); element.removeEventListener('pointercancel', pointerCancel);
-      element.removeEventListener('lostpointercapture', pointerCancel); element.removeEventListener('pointerleave', pointerLeave);
+      element.removeEventListener('lostpointercapture', pointerCancel); element.removeEventListener('pointerout', pointerLeave);
       element.removeEventListener('wheel', wheel); element.removeEventListener('keydown', keyboard);
     };
   }, [props.interactionScope]);

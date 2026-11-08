@@ -9,7 +9,28 @@ interface Presentation { frame: Frame; receivedAt: number; acknowledge: boolean 
 interface SessionScope { active: boolean; connected: boolean; sessionId: string | null; sourceId: string | null }
 interface Mutation { scope: SessionScope; controller: AbortController; deferred: Presentation | null }
 
-export function useTerminal(initialPreferences: Pick<WorkspacePreferences, 'source' | 'sourceExplicit' | 'instrument'>) {
+export interface TerminalController {
+  catalog: Catalog | null;
+  catalogError: string | null;
+  preferenceNotice: string | null;
+  frame: Frame | null;
+  connection: string;
+  error: string | null;
+  busy: boolean;
+  reconnect: () => void;
+  select: (instrumentId: string) => Promise<void>;
+  replay: (action: ReplayAction, payload?: Record<string, unknown>) => Promise<void>;
+  resumePaper: (runId: string, signal: AbortSignal) => Promise<Frame>;
+  workflow: <T extends object>(path: string, input: object, signal: AbortSignal, onReceive?: (receivedAtMs: number) => void, owner?: string | AbortSignal) => Promise<T>;
+  source: (mode: Mode, sourceId: string) => void;
+  costs: (input: CostInput, signal: AbortSignal) => Promise<Costs>;
+  visualization: (input: VisualizationInput, signal: AbortSignal, onReceive?: (receivedAtMs: number) => void) => Promise<VisualGrid>;
+  acknowledgeVisualization: (viewId: string, paintMs: number, signal: AbortSignal) => Promise<VisualizationAck>;
+  ladder: (input: LadderInput, signal: AbortSignal) => Promise<GroupedLadder>;
+  proposalRisk: (input: ProposalRiskInput, signal: AbortSignal) => Promise<ProposalRisk>;
+}
+
+export function useTerminal(initialPreferences: Pick<WorkspacePreferences, 'source' | 'sourceExplicit' | 'instrument'>): TerminalController {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [presentation, setPresentation] = useState<Presentation | null>(null);
   const [catalogError, setCatalogError] = useState<string | null>(null);

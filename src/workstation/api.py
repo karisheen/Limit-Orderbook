@@ -31,6 +31,26 @@ class SessionAction(StrictInput):
     generation: str = Field(max_length=20, pattern=r"^[0-9]+$")
 
 
+class MarketDataRequest(SessionAction):
+    after_delivery: str = Field(default="0", max_length=24, pattern=r"^[0-9]+$")
+    after_event: int = Field(default=-1, ge=-1, le=10**9)
+    limit: int = Field(default=1000, ge=1, le=2000)
+
+    @model_validator(mode="after")
+    def initial_cursor(self):
+        if int(self.after_delivery) == 0 and self.after_event != -1:
+            raise ValueError("initial market cursor event must be -1")
+        return self
+
+
+class RecordingStart(SessionAction):
+    scope: Literal["instrument", "cohort"] = "instrument"
+
+
+class RecordingStop(SessionAction):
+    id: str = Field(min_length=32, max_length=32, pattern=r"^[a-f0-9]{32}$")
+
+
 class SelectInstrument(SessionAction):
     instrument_id: str = Field(min_length=1, max_length=512)
 
@@ -542,6 +562,22 @@ def create_app(
                 request.speed,
                 request.delivery_index,
             )
+
+    @app.post("/api/v1/market-data")
+    async def market_data(request: MarketDataRequest):
+        return await runtime.market_data(request)
+
+    @app.get("/api/v1/recordings")
+    async def recordings():
+        return runtime.captures.listing()
+
+    @app.post("/api/v1/recordings/start")
+    async def start_recording(request: RecordingStart):
+        return await runtime.recording_action(request)
+
+    @app.post("/api/v1/recordings/stop")
+    async def stop_recording(request: RecordingStop):
+        return await runtime.recording_action(request, stop=True)
 
     @app.get("/api/v1/history")
     async def history(

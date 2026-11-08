@@ -24,7 +24,6 @@ import type {
   MarketTicker,
 } from "@/lib/types/market";
 import { RingBuffer } from "@/lib/session/RingBuffer";
-import { isForexVenue } from "@/lib/config/venues";
 
 export type OrderBookMode = "single" | "aggregated" | "compact";
 
@@ -47,7 +46,17 @@ export interface TerminalSettings {
 // ----------------------------------------------------------
 // Market Data State
 // ----------------------------------------------------------
+export interface DisplayStatus {
+  reasons: string[];
+  primaryInstrumentId: string | null;
+  instrumentIds: string[];
+  gap: boolean;
+  unknownSideTrades: number;
+  historyTrades: number;
+  lagObservation: "live" | "recorded" | "synthetic" | "unknown";
+}
 export interface MarketDataState {
+  displayStatus: DisplayStatus;
   candles: FootprintCandle[];
   currentCandle: FootprintCandle | null;
   volumeProfile: VolumeProfile | null;
@@ -84,6 +93,8 @@ export interface TerminalActions {
   applyMarketDataBatch: (batch: MarketDataBatch) => void;
   setCrosshair: (time: number | null, price: number | null) => void;
   resetMarketData: () => void;
+  resetTradeStudies: () => void;
+  resetDepthHistory: () => void;
 }
 
 export type TerminalStore = TerminalSettings & MarketDataState & TerminalActions;
@@ -107,10 +118,10 @@ const MAX_CANDLES = 500;
 const MAX_OBI_POINTS = 600;
 
 const INITIAL_SETTINGS: TerminalSettings = {
-  symbol: "BTCUSDT",
-  venue: "bybit-futures",
-  selectedVenues: ["bybit-futures"],
-  marketType: "perpetual",
+  symbol: "",
+  venue: "",
+  selectedVenues: [],
+  marketType: "spot",
   timeframe: "5m",
   tickSize: 10,
   imbalanceThreshold: 3,
@@ -120,6 +131,10 @@ const INITIAL_SETTINGS: TerminalSettings = {
 };
 
 const INITIAL_MARKET: MarketDataState = {
+  displayStatus: {
+    reasons: [], primaryInstrumentId: null, instrumentIds: [],
+    gap: false, unknownSideTrades: 0, historyTrades: 0, lagObservation: "unknown",
+  },
   candles: [],
   currentCandle: null,
   volumeProfile: null,
@@ -147,7 +162,7 @@ export const createTerminalStore = () => {
       ...INITIAL_SETTINGS,
       ...INITIAL_MARKET,
 
-      setSymbol: (symbol) => set({ symbol, ...INITIAL_MARKET }),
+      setSymbol: (symbol) => set({ symbol }),
 
       setVenue: (venue) =>
         set((s) => ({
@@ -155,36 +170,13 @@ export const createTerminalStore = () => {
           selectedVenues:
             venue === "all-perps" || venue === "all-spot" ? s.selectedVenues : [venue],
           orderBookMode: venue === "all-perps" || venue === "all-spot" ? "aggregated" : "single",
-          ...INITIAL_MARKET,
         })),
 
-      setSelectedVenues: (selectedVenues) => set({ selectedVenues, ...INITIAL_MARKET }),
+      setSelectedVenues: (selectedVenues) => set({ selectedVenues }),
 
-      setMarketType: (marketType) =>
-        set((s) => {
-          const isValidVenue =
-            marketType === "forex"
-              ? isForexVenue(s.venue as Venue)
-              : marketType === "perpetual"
-                ? s.venue.includes("futures") || s.venue === "hyperliquid" || s.venue === "deribit" || s.venue === "all-perps"
-                : s.venue.includes("spot");
-          const newVenue = isValidVenue
-            ? s.venue
-            : marketType === "forex"
-              ? "finnhub-forex"
-              : marketType === "perpetual"
-                ? "bybit-futures"
-                : "bybit-spot";
-          return {
-            marketType,
-            venue: newVenue as VenueSelection,
-            selectedVenues: isValidVenue ? s.selectedVenues : [newVenue as Venue],
-            orderBookMode: isValidVenue ? s.orderBookMode : "single",
-            ...INITIAL_MARKET,
-          };
-        }),
+      setMarketType: (marketType) => set({ marketType }),
 
-      setTimeframe: (timeframe) => set({ timeframe, ...INITIAL_MARKET }),
+      setTimeframe: (timeframe) => set({ timeframe }),
 
       setTickSize: (tickSize) => set({ tickSize }),
 
@@ -208,28 +200,38 @@ export const createTerminalStore = () => {
           for (const trade of batch.trades) recentTradeBuffer.push(trade);
           return {
             recentTrades: batch.trades.length ? recentTradeBuffer.newestFirst() : s.recentTrades,
-            orderBook: batch.orderBook ?? s.orderBook,
-            aggregatedBook: batch.aggregatedBook ?? s.aggregatedBook,
-            currentCandle: batch.candle ?? s.currentCandle,
-            volumeProfile: batch.volumeProfile ?? s.volumeProfile,
-            ticker: batch.ticker ?? s.ticker,
-            currentOBI: batch.obi?.value ?? s.currentOBI,
-            obiHistory: batch.obi ? [...s.obiHistory, batch.obi].slice(-MAX_OBI_POINTS) : s.obiHistory,
+            orderBook: batch.orderBook,
+            aggregatedBook: batch.aggregatedBook,
+            currentCandle: batch.candle,
+            volumeProfile: batch.volumeProfile,
+            ticker: batch.ticker,
+            currentOBI: batch.obi?.value ?? (batch.aggregatedBook ? s.currentOBI : 0),
+            obiHistory: batch.obi && (s.obiHistory.at(-1)?.timestamp !== batch.obi.timestamp ||
+              s.obiHistory.at(-1)?.bidVolume !== batch.obi.bidVolume ||
+              s.obiHistory.at(-1)?.askVolume !== batch.obi.askVolume)
+              ? [...s.obiHistory, batch.obi].slice(-MAX_OBI_POINTS) : s.obiHistory,
             flowBars: batch.flowBars.length
               ? [...s.flowBars, ...batch.flowBars].slice(-MAX_FLOW_BARS)
               : s.flowBars,
-            liveBar: batch.liveBar ?? s.liveBar,
-            session: batch.session ?? s.session,
-            connections: batch.connections.length
-              ? {
-                  ...s.connections,
-                  ...Object.fromEntries(batch.connections.map((c) => [c.venue, c])),
-                }
-              : s.connections,
+            liveBar: batch.liveBar,
+            session: batch.session,
+            connections: Object.fromEntries(batch.connections.map((c) => [c.venue, c])),
           };
         }),
 
       setCrosshair: (crosshairTime, crosshairPrice) => set({ crosshairTime, crosshairPrice }),
+
+      // Trade discontinuities and display controls do not erase independent depth evidence.
+      resetTradeStudies: () => {
+        recentTradeBuffer.clear();
+        set((s) => ({
+          candles: [], currentCandle: null, volumeProfile: null, recentTrades: [],
+          flowBars: [], liveBar: null, session: null, ticker: null,
+          displayStatus: { ...s.displayStatus, unknownSideTrades: 0, historyTrades: 0 },
+        }));
+      },
+
+      resetDepthHistory: () => set({ orderBook: null, aggregatedBook: null, obiHistory: [], currentOBI: 0, connections: {} }),
 
       resetMarketData: () => {
         recentTradeBuffer.clear();

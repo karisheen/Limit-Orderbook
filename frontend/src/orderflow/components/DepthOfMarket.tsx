@@ -32,7 +32,6 @@ export default function DepthOfMarket() {
   const selectedVenues = useSessionStore((s) => s.selectedVenues);
   const crosshairPrice = useSessionStore((s) => s.crosshairPrice);
   const tickSize = useSessionStore((s) => s.tickSize);
-  const marketType = useSessionStore((s) => s.marketType);
   const book = selectedVenues.length > 1 ? aggregatedBook ?? orderBook : orderBook ?? aggregatedBook;
   const geometryRef = useRef<{ min: number; max: number; plotR: number } | null>(null);
 
@@ -50,7 +49,7 @@ export default function DepthOfMarket() {
       const plotB = H - STUDY_TIME_H;
       geometryRef.current = null;
       if (!book || !book.bids.length || !book.asks.length || !mid) {
-        drawEmpty(ctx, W, H, marketType === "forex" ? "Waiting for synthetic FX quote proxy…" : "Waiting for order book…", p);
+        drawEmpty(ctx, W, H, "Waiting for order book…", p);
         return;
       }
       const bids = cumulative(book.bids);
@@ -126,7 +125,7 @@ export default function DepthOfMarket() {
       }
       geometryRef.current = { min, max, plotR };
     },
-    [book, mid, crosshairPrice, decimals, marketType]
+    [book, mid, crosshairPrice, decimals]
   );
 
   const { containerRef, canvasRef } = useCanvas(draw);
@@ -148,9 +147,7 @@ export default function DepthOfMarket() {
         `Distance from mid: ${distance.toFixed(1)} bp`,
         `Cumulative ${isBid ? "bids" : "asks"}: ${formatCompact(size, 3)}`,
         "",
-        marketType === "forex"
-          ? "What this means: Synthetic spread and sizes modeled from price ticks, not observed bid/ask quotes or resting L2 liquidity."
-          : `What this means: Size that must trade to push price ${isBid ? "down" : "up"} to this level.`,
+        `What this means: Size that must trade to push price ${isBid ? "down" : "up"} to this level.`,
       ].join("\n"),
       e
     );
@@ -166,7 +163,7 @@ export default function DepthOfMarket() {
   return (
     <Panel
       title="Market Depth" icon={<Icon.Depth />}
-      subtitle={marketType === "forex" ? "SYNTHETIC PROXY · not L2 liquidity" : source}
+      subtitle={source}
       footer={
         <div className="study-stats">
           <Stat label="±10 bp bid" value={formatCompact(d10b)} tone="buy" />
