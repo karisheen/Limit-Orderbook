@@ -17,6 +17,8 @@ export interface DepthLadderProps {
   onFreeze: () => void;
   crosshair: string | null;
   onPrice: (price: string | null) => void;
+  pinned: string | null;
+  onPin: (price: string | null) => void;
   priceStep: string;
   onPriceStep: (step: string) => void;
   unit: 'base' | 'quote';
@@ -31,7 +33,7 @@ function AlignedValue({ value, places }: { value: string; places: number }) {
   return <span className="dom-aligned"><span className="number" title={value}>{value}</span><span className="dom-decimal-padding" aria-hidden="true">{decimalPadding(value, places)}</span></span>;
 }
 
-export function DepthLadder({ data, loading, error, frozen, viewPaused, rows, onRows, onFreeze, crosshair, onPrice, priceStep, onPriceStep, unit, onUnit, cumulative, onCumulative, sourceMode, extra }: DepthLadderProps) {
+export function DepthLadder({ data, loading, error, frozen, viewPaused, rows, onRows, onFreeze, crosshair, onPrice, pinned, onPin, priceStep, onPriceStep, unit, onUnit, cumulative, onCumulative, sourceMode, extra }: DepthLadderProps) {
   const scroll = useRef<HTMLDivElement>(null);
   const middle = useRef<HTMLTableRowElement>(null);
   const table = useRef<HTMLTableElement>(null);
@@ -169,12 +171,12 @@ export function DepthLadder({ data, loading, error, frozen, viewPaused, rows, on
     const nativeBest = row.side === 'bid' ? summary?.best_bid : summary?.best_ask;
     const change = !held && !diagnostic && previous.current?.identity === identity ? highlights.get(key) : undefined;
     return <tr key={key} data-side={row.side} data-price={row.price} tabIndex={0}
-      className={`${row.side}${best ? ' dom-best' : ''}${crosshair === row.price ? ' crosshair-row' : ''}${change ? ` dom-${change}` : ''}`}
+      className={`${row.side}${best ? ' dom-best' : ''}${crosshair === row.price ? ' crosshair-row' : ''}${pinned === row.price ? ' dom-pinned' : ''}${change ? ` dom-${change}` : ''}`}
       onPointerEnter={() => onPrice(row.price)} onPointerLeave={() => onPrice(null)}
       onFocus={event => { focusedRow.current = event.currentTarget; onPrice(row.price); }}
       onBlur={event => { if (event.relatedTarget) focusedRow.current = null; onPrice(null); }}>
       <td title={best ? `Bucket containing native best ${row.side}: ${nativeBest}` : undefined}>{row.side}{best && <span className="dom-best-marker" aria-label={`native best ${row.side} bucket`}> •</span>}</td>
-      <td><AlignedValue value={row.price} places={precision.price} /></td>
+      <td><button type="button" className="dom-pin" aria-label={`Pin DOM price ${row.price}`} aria-pressed={pinned === row.price} title={pinned === row.price ? 'Pinned price · activate to release, or press Escape' : 'Pin this exact price across linked views'} onClick={() => onPin(pinned === row.price ? null : row.price)}><AlignedValue value={row.price} places={precision.price} /></button></td>
       <td className="dom-quantity" style={{ '--depth-width': `${(width ?? 0) * 100}%` } as CSSProperties}>
         {width !== null && <span className="dom-depth-bar" aria-hidden="true" />}
         <AlignedValue value={quantity} places={precision.quantity} />

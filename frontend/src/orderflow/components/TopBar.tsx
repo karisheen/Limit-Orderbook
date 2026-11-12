@@ -9,6 +9,7 @@ import { useNativeTerminal } from "../../integration/NativeContext";
 import type { Instrument } from "../../api";
 import { venueLabel } from "../../format";
 import { selectableInstrument } from "../../instrument-metadata";
+import { INTERVAL_GROUPS } from "../../candle-model";
 import { AssetLogo, VenueLogo } from "@/components/AssetLogo";
 import { Picker, type PickerOption } from "@/components/ui/Picker";
 import { useUIStore } from "@/lib/store/uiStore";
@@ -37,16 +38,15 @@ const PANEL_ITEMS: { key: keyof PanelVisibility; label: string; hint: string; gr
 ];
 
 export default function TopBar() {
-  const { terminal, connected, instruments, instrument, selectInstrument } = useNativeTerminal();
+  const { terminal, connected, instruments, instrument, selectInstrument, preferences, updatePreferences } = useNativeTerminal();
   const symbol = useSessionStore((s) => s.symbol);
   const venue = useSessionStore((s) => s.venue);
   const marketType = useSessionStore((s) => s.marketType);
-  const timeframe = useSessionStore((s) => s.timeframe);
+  const timeframe = preferences.candleInterval;
   const setSymbol = useSessionStore((s) => s.setSymbol);
   const setVenue = useSessionStore((s) => s.setVenue);
   const setSelectedVenues = useSessionStore((s) => s.setSelectedVenues);
   const setMarketType = useSessionStore((s) => s.setMarketType);
-  const setTimeframe = useSessionStore((s) => s.setTimeframe);
   const theme = useUIStore((s) => s.theme);
   const setTheme = useUIStore((s) => s.setTheme);
   const panels = useUIStore((s) => s.panels);
@@ -184,7 +184,12 @@ export default function TopBar() {
       </div>
 
       <div className="topbar-group">
-        <Segmented accent value={timeframe} onChange={setTimeframe} options={TIMEFRAMES} ariaLabel="Candle interval" />
+        <Segmented accent value={timeframe} onChange={(candleInterval) => updatePreferences({ candleInterval })} options={TIMEFRAMES} ariaLabel="Candle interval" />
+        <Select className="interval-select" value={timeframe} onChange={(event) => updatePreferences({ candleInterval: event.target.value })} aria-label="All candle intervals">
+          {INTERVAL_GROUPS.map((group) => <optgroup key={group.label} label={group.label}>
+            {group.values.map((interval) => <option key={interval} value={interval}>{interval}</option>)}
+          </optgroup>)}
+        </Select>
       </div>
 
       <div className="topbar-spacer" />
@@ -200,7 +205,9 @@ export default function TopBar() {
                   checked={panels[item.key]}
                   onChange={(checked) => setPanelVisible(item.key, checked)}
                   label={item.label}
-                  hint={item.hint}
+                  hint={preferences.nativeView === "book" && (item.key === "orderBook" || item.key === "timeSales")
+                    ? `${item.hint} · restored on chart views; native inspection is active`
+                    : item.hint}
                 />
               ))}
             </MenuSection>

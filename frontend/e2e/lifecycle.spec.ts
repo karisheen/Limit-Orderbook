@@ -16,8 +16,9 @@ test('a silent open socket loses current status and recovers with a new session'
   await page.goto('/');
   const initial = await (await initialCreated).json() as Frame;
   await expect(page.locator('.status')).toContainText('Connected');
-  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Liquidity & flow', exact: true }).click();
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Native book & tape', exact: true }).click();
   await expect(page.locator('.ladder tbody tr').first()).toBeVisible();
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Liquidity & flow', exact: true }).click();
   const chart = page.getByTestId('chart-pane-heatmap').getByTestId('market-charts');
   await expect(chart).toHaveAttribute('data-painted-view-id', /.+/);
   const initialViewId = await chart.getAttribute('data-painted-view-id');
@@ -41,7 +42,6 @@ test('a silent open socket loses current status and recovers with a new session'
   await expect(estimate).toBeDisabled({ timeout: 8000 });
   await expect(page.locator('.ladder tbody tr')).toHaveCount(0);
   await expect(chart).toHaveAttribute('data-painted-view-id', '');
-  await expect(page.locator('.source-readiness')).toHaveText('Unavailable');
   await expect(incident).toHaveCount(1);
   await expect(incident).toHaveAttribute('data-incident', /^(terminal|transport)$/);
   await expect(incident.getByRole('button', { name: 'Reconnect', exact: true })).toBeEnabled();
@@ -54,7 +54,6 @@ test('a silent open socket loses current status and recovers with a new session'
   expect(replacement.selection.instrument_id).toBe(initial.selection.instrument_id);
   await expect(page.locator('.status')).toContainText('Connected');
   expect(socketCount).toBeGreaterThan(1);
-  await expect(page.locator('.ladder tbody tr').first()).toBeVisible();
   await expect(estimate).toBeEnabled();
   const visualization = await replacementView;
   expect(visualization.ok()).toBe(true);
@@ -66,6 +65,8 @@ test('a silent open socket loses current status and recovers with a new session'
   await expect(page.getByTestId('chart-pane-heatmap').getByTestId('chart-freshness')).toHaveAttribute('data-view-id', recovered.view_id);
   await expect(diagnostics.locator('.telemetry')).toContainText(replacement.session_id.slice(0, 8));
   await expect(incident).not.toHaveAttribute('data-incident', /^(terminal|transport)$/);
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Native book & tape', exact: true }).click();
+  await expect(page.locator('.ladder tbody tr').first()).toBeVisible();
 });
 
 test('setup retries survive repeated HTTP failure without a manual reconnect', async ({ page }) => {

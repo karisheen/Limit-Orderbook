@@ -28,19 +28,33 @@ export interface OrderFlowConfig {
   absorptionPriceThreshold: number; // max price movement to flag absorption
 }
 
-const TIMEFRAME_MS: Record<Timeframe, number> = {
+const TIMEFRAME_MS: Record<Exclude<Timeframe, "1M">, number> = {
   "1m": 60_000,
+  "3m": 180_000,
   "5m": 300_000,
   "15m": 900_000,
   "30m": 1_800_000,
   "1h": 3_600_000,
+  "2h": 7_200_000,
   "4h": 14_400_000,
+  "6h": 21_600_000,
+  "8h": 28_800_000,
+  "12h": 43_200_000,
+  "1d": 86_400_000,
+  "3d": 259_200_000,
+  "1w": 604_800_000,
 };
 
 // ----------------------------------------------------------
 // Helpers
 // ----------------------------------------------------------
 export function getCandleOpenTime(timestamp: number, timeframe: Timeframe): number {
+  if (timeframe === "1M") {
+    const date = new Date(timestamp);
+    date.setUTCDate(1);
+    date.setUTCHours(0, 0, 0, 0);
+    return date.getTime();
+  }
   const ms = TIMEFRAME_MS[timeframe];
   return Math.floor(timestamp / ms) * ms;
 }
@@ -87,10 +101,12 @@ export function createEmptyCandle(
   openTime: number,
   timeframe: Timeframe
 ): FootprintCandle {
-  const ms = TIMEFRAME_MS[timeframe];
+  const next = new Date(openTime);
+  if (timeframe === "1M") next.setUTCMonth(next.getUTCMonth() + 1);
+  const closeTime = timeframe === "1M" ? next.getTime() - 1 : openTime + TIMEFRAME_MS[timeframe] - 1;
   return {
     openTime,
-    closeTime: openTime + ms - 1,
+    closeTime,
     open: 0,
     high: -Infinity,
     low: Infinity,

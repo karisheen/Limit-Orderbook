@@ -56,9 +56,11 @@ The top bar exposes **Instrument**, **Venue**, **Market** (**Perp / Spot**),
 from the active native source catalog, including initial streaming-only crypto
 candidates while official metadata loads. Venue labels are friendly (**Binance**,
 **Bybit**); native IDs remain unchanged. Venue selection includes native venues and
-**All perps / All spot** aggregates. Aggregate inputs
-are the selected base asset's same-market cohort; the native primary instrument
-remains explicit for exact workflows.
+**All perps / All spot** aggregates. Aggregate inputs are the actual native
+display cohort for the selected base asset and market type, not a guess from
+the newest catalog. Price Action and footprint/studies share that cohort and
+the persisted **Candle interval**. The exact primary remains the financial
+order target even when aggregate display is selected.
 
 **Indicative aggregate · N venues · quotes retained** means a display aggregate,
 not normalized execution prices. USD/USDT/USDC prices may be combined without
@@ -83,8 +85,11 @@ background. A **Streaming-only metadata** notice means tick, lot and order limit
 are unknown—not that delivered market data is synthetic. Charts, studies and
 recording/replay can work; exact costs, comparison, proposed risk and paper orders
 remain disabled until the session's pinned metadata is verified.
-Valid books/trades still determine freshness. REST metadata restrictions do not
-prove WebSocket unavailability, and source readiness does not certify every feed.
+Catalog candidates, observed native books, retained ordered prints and verified
+financial metadata are distinct signals. Trade readiness uses retained
+non-history prints, not book presence or only the recent tape window.
+REST metadata restrictions do not prove WebSocket unavailability, and source
+readiness does not certify every feed.
 **Source & instrument details** retains metadata warnings. If newer verified
 metadata becomes available, close other sessions and stop recordings holding that
 instrument, then reconnect/reselect; existing shared streams keep their old version.
@@ -106,8 +111,10 @@ width; **Live** or double-click restores following. The footprint heatmap shows
 executed volume, not resting liquidity.
 
 Book grouping, primary/consolidated depth, tape size filters and study
-resolution/window controls are local to their panels. CVD, volume z-score,
-depth/imbalance and realized volatility use delivered native observations.
+resolution/window controls are local to their panels. Primary-book mode reports
+a missing primary; it never silently substitutes a consolidated book.
+CVD (including its display variants), volume z-score, depth/imbalance and
+realized volatility use delivered native observations.
 Insufficient windows remain warming; unknown aggressors contribute total volume
 but zero directional delta, never silently sells. The status strip exposes
 coverage reasons, unknown-side and history-trade counts. Subscription-history
@@ -115,12 +122,15 @@ prints retain provenance on the tape but are excluded from ordered studies;
 they are not evidence of continuous observed live flow.
 
 Session/generation/source/instrument boundaries clear obsolete presentation
-history. Display interval, tick/indicator and venue changes recompute retained
-trade inputs without restarting the native session. Trade-study rebuilds retain
-independent depth/imbalance history; changing the depth cohort resets that
-history separately. Busy workflow mutations pause polling without clearing
-same-owner caches or the delivery cursor. Bounded coverage is not full exchange
-history, and unavailable data is never filled with invented trades.
+history. Price Action, footprint and interval-based studies share **1m, 3m, 5m,
+15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M**. Fixed buckets floor
+against the Unix UTC epoch, including Thursday-aligned weeks; `1M` runs from
+one UTC month start to the next. Interval, tick/indicator and venue changes
+recompute retained trade inputs without restarting the native session.
+Trade-study rebuilds retain independent depth/imbalance history; changing the
+depth cohort resets that history separately. Busy workflow mutations pause
+polling without clearing same-owner caches or the delivery cursor. Bounded
+coverage is not full exchange history; missing prints are never invented.
 
 The display bridge reads `/api/v1/market-data`, polling about every 150 ms when
 caught up and draining bounded pages sequentially when `has_more` is set.
@@ -129,11 +139,15 @@ and additive continuity boundaries are consumed in canonical cursor order.
 A trade-stream gap/reset or per-trade source-identity change removes that
 stream's obsolete trades and restarts its studies, not unrelated stream evidence
 or valid depth. Ordinary heartbeats and book-only controls do not reset trade
-continuity. A cursor-retention gap clears obsolete trade history across streams;
-missing prints are not filled. The browser retains the latest 100,000 exact
-cohort trades for display recomputation and discloses truncation. Native live
-retention is separately bounded to 4096 batches / 8 MiB, so this is not a
-full-history guarantee.
+continuity. Authoritative global and per-stream retention floors prune obsolete
+prints even when a caught-up page reports no cursor gap; unrelated retained
+streams survive. The browser retains at most 100,000 exact cohort trades and
+discloses truncation, but cannot extend the server's available history. Native
+admitted history is capped at 10,000 trades / 8 MiB; live raw delivery retention
+is separately bounded to 4096 batches / 8 MiB and can retire trades earlier.
+The source's projected `display_frontier_ns`, not browser wall time, closes an
+existing bucket after its boundary even without another print. This creates no
+empty buckets and does not prove complete trade coverage.
 
 Books expose up to 100 levels per side, with native quality/eligibility and
 omission counts. Base quantities and quote notionals come from native contract
@@ -234,23 +248,37 @@ feed applications. Native charts and exact inspectors retain native units,
 quality reasons, provenance and bounded history.
 First load opens **Footprint**; an explicitly saved chart-view choice is retained.
 Native views preserve usable plot heights and scroll when the available screen
-is too short; the default footprint layout is unchanged. Closing **DOM / tape**
-returns to the remembered Price or Liquidity view. Bring a chart into view to
-resume its rendering and receive-to-paint acknowledgments.
+is too short; the default footprint layout is unchanged. Normal chart views use
+one reference-style book/tape sidebar. Selecting **Native book & tape** replaces
+that sidebar with exact inspection; Price Action has no duplicate embedded
+book/tape, and there is no secondary DOM/tape sidecar toggle. Returning to a
+chart restores the normal surface. Bring a chart into view to resume rendering
+and receive-to-paint acknowledgments.
 
 ### Price action
 
-Historical candles use the native `/candles` API independently of live book
-updates. Quick controls offer **1m / 5m / 15m / 1h / 4h / 1d**; **More** groups
-additional supported intervals. Unsupported choices are disabled, not
-approximated; **1M** is a calendar month. One candle represents the chosen
-duration, not one incoming event.
+The native `/candles` API defaults to **session trades** in live, demo and replay,
+for spot and perpetuals. Current bars need no venue REST response. It uses the
+actual selected cohort, primary-first, and labels primary versus aggregate scope.
+Aggregate quotes remain indicative without conversion and never become fills.
+Quick controls and **More** edit the same persisted interval as the top bar and
+footprint; all 15 intervals above are supported for native session trades.
 
-Live history is one bounded venue OHLCV page, up to 300 bars where supported;
-panning does not fetch unlimited older history. Demo/replay aggregates only
-retained, already-delivered trades with explicit partial coverage. A short demo
-cannot supply days of hourly history. Gaps remain gaps; zero-volume filler
-candles are not invented.
+Trades carry exact `display_time_ns`: a source-owned receive-wall anchor plus
+the matching receive-monotonic delta. Integer nanoseconds are floored before
+bounded display conversion; exchange timestamps and browser time do not select
+buckets. Native delivery order determines open/close within a bucket. Replay
+cannot expose future prints, and source/generation/cohort/interval changes
+discard obsolete responses.
+
+Retained already-delivered prints form bounded, explicitly partial coverage.
+Unknown base sizes and subscription-history prints are excluded with reasons.
+A short demo cannot supply days of hourly history; no missing/zero-volume filler
+bars are invented. A time-closed bar is not a completeness certificate.
+**Venue history** (`venue_ohlcv`) is an explicit separate primary-only source,
+exchange-UTC aligned where supported. It is not stitched into session candles
+or substituted for a cohort aggregate. Its single bounded page is up to 300
+requested bars in this UI; panning does not fetch unlimited older history.
 
 Drag to pan, scroll or **+/−** to zoom, **Fit** for returned history and **Latest**
 for the recent window. Hover/focus and **←/→** inspect exact OHLC/base volume;
@@ -260,6 +288,18 @@ and usable. Failed refreshes label retained same-owner candles stale; missing
 history or unsupported queries remain explicit. Fetched/checked times are not
 exchange freshness, and a closed time bucket does not certify complete history.
 See [native candle contracts](VISUALIZATION.md#historical-price-candles).
+
+**OI & funding** adds open-interest and funding panes under volume on the same
+time axis, so positioning can be read against each price move. It is on by
+default for a perpetual and opt-in for spot, where the related perpetual is
+shown and labeled as such. The readout follows the inspection cursor: exact
+open interest and its change inside the bucket, the exact funding fraction per
+interval and an approximate annualization. Values are venue-reported context
+observed by this session (Hyperliquid today), not executable prices and not the
+funding model used by Paper. Unobserved intervals stay empty; the toggle is
+disabled for Venue history. With the panes on, the plot needs at least 320 px:
+use **Expand** or collapse the workflow drawer on short windows. See
+[positioning panes](VISUALIZATION.md#open-interest-and-funding-beside-price).
 
 ### Liquidity & flow
 
@@ -294,6 +334,13 @@ book cannot expand the workspace or prevent manual scrolling.
 **Freeze DOM** holds its snapshot without freezing collection or tape.
 **Scope & provenance** exposes retained/subscribed depth and native reasons.
 Invalid or unavailable evidence is not a zero-sized book.
+
+Hovering or focusing a row is a transient cursor. Activating a row's price
+(click, Enter or Space) pins that exact price: with the DOM **Cursor** link on,
+the pin stays on linked charts after leaving the row and after switching to
+**Liquidity & flow**, which is how a ladder price is carried to charts now that
+book and charts are separate workspaces. Activate it again or press **Esc** to
+release; a source, generation or selection change clears it.
 
 **Time & sales** shows receive UTC, exact price, unit-bearing size and side.
 **More** contains **Rows** and **Side** filters; these do not change collection.
@@ -362,36 +409,88 @@ facts. “Funding cost” in conversion evidence means the cost to acquire a
 reference amount, not perpetual funding P&L. Basis excludes trading fees,
 funding P&L, inventory and account access; it is not executable arbitrage.
 
-### Spot IOC paper workflow
+### Paper workflow: spot and isolated perpetuals
 
-1. Select a supported spot/base-quantity instrument and expand **Explicit new
-   run / fork — starting funds, sourced fees and latency**.
-2. Enter venue/asset balances and provenance using native asset IDs, dated/sourced
-   instrument fee schedules and fee asset IDs. Feed, decision and order latency
-   nanoseconds require explicit values, including zero.
-3. Confirm intent and **Create new paper run** or **Create explicit fork**.
+1. Select an exact native instrument with verified session-pinned financial
+   metadata. The backend capability/reasons determine supported economics and
+   native order constraints; a chart or newer discovery descriptor does not
+   authorize paper orders.
+2. Expand **Explicit new run / fork — starting funds, sourced fees and latency**.
+   Enter exact venue/asset balances with provenance, dated instrument fee
+   schedules and fee asset IDs. Feed, decision and order latency nanoseconds
+   require explicit values, including zero. Perpetual funds must be in the
+   native settlement collateral asset, not a display quote or spot inventory.
+3. For perpetuals, supply per-instrument leverage (1–1000), maintenance-margin
+   rate below `1 / leverage`, and liquidation-penalty rate below 1, each model
+   with provenance/as-of wall nanoseconds. Rates are fractions, not fee bps.
+   Choose an explicit funding model: none, a signed periodic rate with
+   interval/first boundary, or up to 10,000 strictly chronological dated events.
+   Signed funding-rate magnitude must be below 1; boundaries cannot predate the
+   model. No-funding is a disclosed assumption; missing funding is not zero.
+   These are user models, not exchange risk tiers or automatic Context funding.
+4. Confirm intent and **Create new paper run** or **Create explicit fork**.
    A fork records its parent but starts from entered funds, not copied accounting.
-4. Submit exact base quantity as **Market IOC** or **Marketable limit IOC**.
-   In paused replay, advance source time to reach pending arrival; browser time
-   does not advance fills. Inspect orders, balances, positions, fees, clocks and
-   consumed levels. Pending orders can be cancelled.
-5. **Open read-only archived audit** is separate from active accounting.
-   **Resume this run at cursor** requires matching demo/replay sources and
-   confirms success with a new-generation native snapshot. Live archives cannot
-   resume under a new owner.
+5. Submit **Market IOC** or **Marketable limit IOC** in exact native quantity:
+   spot base units or the perpetual's declared base/contract units. Buy opens
+   long or closes short; sell opens short or closes long. An opposite order
+   closes first before an eligible opening remainder. **Reduce only — never
+   increase or flip exposure** forbids additional risk. **Prepare full reduce-only
+   close** fills the opposite side and exact position quantity into the form;
+   **Submit simulated order** remains explicit. Insufficient depth/collateral or
+   native constraints can leave residual exposure, cap or reject fills.
+6. In paused replay, advance source time to pending arrival; browser time does
+   not advance fills or funding. Inspect orders, balances, perpetual positions,
+   fees, funding, liquidation records, clocks and consumed levels. Pending orders
+   can be cancelled.
 
 Feed delay gates usable books; decision plus order delay fixes arrival. Funds
-are contested at arrival. Native depth, constraints, quality and known dated
-fees govern fills. Partial IOC remainder cancels; nonmarketable limits do not
-rest. Consumed depth requires observed replenishment, not an unchanged snapshot,
-revision or instrument switch. No passive fills, derivative economics,
-borrowing or market impact is modeled, even when a perpetual chart is available.
+are contested at arrival. Native depth, order constraints, quality and dated
+fees govern fills. IOC remainders cancel; nonmarketable limits do not rest.
+Consumed depth requires observed replenishment, not an unchanged snapshot,
+revision or instrument switch. No passive fills, borrowing or market impact is
+modeled. Spot initial-inventory cost basis stays unknown; gross bid marks are
+not liquidation proceeds.
 
-Initial inventory cost basis remains unknown and affected P&L unavailable.
-Marks are gross best bid, not liquidation proceeds. Rewind before creation
-leaves intent only; further mutations require an explicit fork. The run list is
-bounded to 100 without pagination/omitted counts; known older IDs remain
-addressable through the API.
+#### Perpetual accounting and protective liquidation
+
+Positions are one-way and isolated per exact venue/instrument. Free settlement
+collateral, initial margin, isolated collateral, realized/unrealized P&L,
+trading fees, funding, liquidation fees and debt are separate exact values.
+Linear contracts use native base exposure (including any contract multiplier);
+inverse quote-face contracts settle reciprocal-price P&L in the base asset.
+Verified native payout rules such as Hyperliquid's documented settlement
+denomination are not a USD/USDT/USDC conversion assumption. Unknown contract
+economics remain unsupported.
+
+Funding applies once at deterministic source-time boundaries against isolated
+collateral. Positive payment amounts debit it; negative amounts credit it, and
+unresolved amounts stay unknown. Longs mark to an eligible executable bid and
+shorts to an ask: these are conservative **book proxies**, not exchange marks.
+Missing/stale marks remain unavailable. Maintenance breaches trigger protective
+IOC closure through remaining observed depth, sharing consumed-depth reservations
+with orders. Trading fees and liquidation penalties remain separate. Partial or
+missing depth cannot invent full closure, clear residual exposure or erase debt;
+breach/shortfall remains visible and new risk is blocked.
+
+#### Freeze, archive, replay and resume
+
+A bounded funding catch-up/record limit can freeze paper at its last valid
+accounting prefix while charts continue. Inspect the frozen reason and last
+accounting delivery; later market progress is not later accounting. Frozen paper
+rejects further observer/time/order mutation rather than skipping obligations.
+Explicit reset/seek reconstructs replay; explicit configuration starts a new run
+at the current source with current books. There is no automatic thaw.
+
+**Open read-only archived audit** is separate from active accounting. Retaining
+`--state-dir` preserves run assumptions, commands and accounting across process
+restart. **Resume this run at cursor** reconstructs a matching demo/replay prefix
+before a new-generation cutover; live archives cannot resume under a new owner.
+Frozen/incomplete candidates cannot replace the active ledger. Historical
+prefixes can be resumed, but future recorded commands fence new mutations until
+an explicit fork. Rewind before creation leaves intent only, not an active run.
+Funding/liquidation lists expose bounded windows with totals/omissions; archived
+accounting retains full historical records. The run list is bounded to 100
+without pagination/omitted counts; known older IDs remain addressable by API.
 
 ### Journal and read-only research
 

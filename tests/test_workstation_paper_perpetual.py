@@ -724,6 +724,108 @@ def test_periodic_catchup_preflight_is_bounded_and_atomic(tmp_path):
     store.close()
 
 
+@pytest.mark.parametrize("mode", ("none", "events"))
+def test_full_funding_history_allows_exhausted_or_disabled_schedule(
+    tmp_path, monkeypatch, mode
+):
+    from src.workstation import paper
+
+    i = instrument()
+    _, _, batch = observation(i)
+    wall = batch.events[0].receive_wall_ns
+    model = PaperFundingModel(
+        i.instrument_id,
+        mode,
+        "explicit bounded funding schedule",
+        1,
+        events=(PaperFundingEvent(wall + 100, D(".001")),) if mode == "events" else (),
+    )
+    monkeypatch.setattr(paper, "MAX_PERPETUAL_RECORDS", 1 if mode == "events" else 0)
+    store, engine, _, _, at = setup(tmp_path, cfg=config(i, funding=model))
+    assert submit(engine, i, at).filled_quantity == 1
+    end = replace(at, mono_ns=at.mono_ns + 100, wall_ns=wall + 100)
+    engine.advance_time(end)
+    paid = engine.snapshot(end).funding_payments
+    assert len(paid) == (1 if mode == "events" else 0)
+    if paid:
+        assert paid[0].amount == D(".099")
+    # At the exact final boundary, increasing, closing and reopening exposure
+    # still produce complete recorded fills without needing any funding record.
+    assert submit(engine, i, end).filled_quantity == 1
+    assert position(engine, end).quantity == 2
+    assert submit(engine, i, end, "2", "sell", reduce_only=True).filled_quantity == 2
+    assert submit(engine, i, end, side="sell").filled_quantity == 1
+    later = replace(end, mono_ns=end.mono_ns + 100, wall_ns=end.wall_ns + 100)
+    engine.advance_time(later)
+    snapshot = engine.snapshot(later)
+    assert snapshot.funding_payments == paid
+    assert position(engine, later).quantity == -1
+    assert len(snapshot.fills) == 4
+    assert free(engine, later) == D("988.1") - (D(".099") if paid else 0)
+    assert store.archived_snapshot(snapshot.run.run_id).funding_payments == paid
+    store.close()
+
+
+@pytest.mark.parametrize("mode", ("periodic", "events"))
+def test_full_funding_history_retains_paid_prefix_before_next_payment(
+    tmp_path, monkeypatch, mode
+):
+    from src.workstation import paper
+
+    i = instrument()
+    _, _, batch = observation(i)
+    wall = batch.events[0].receive_wall_ns
+    model = (
+        PaperFundingModel(
+            i.instrument_id,
+            mode,
+            "bounded periodic funding",
+            1,
+            D(".001"),
+            100,
+            wall + 100,
+        )
+        if mode == "periodic"
+        else PaperFundingModel(
+            i.instrument_id,
+            mode,
+            "bounded dated funding",
+            1,
+            events=(
+                PaperFundingEvent(wall + 100, D(".001")),
+                PaperFundingEvent(wall + 200, D(".001")),
+            ),
+        )
+    )
+    monkeypatch.setattr(paper, "MAX_PERPETUAL_RECORDS", 1)
+    store, engine, _, _, at = setup(tmp_path, cfg=config(i, funding=model))
+    submit(engine, i, at)
+    end = replace(at, mono_ns=at.mono_ns + 100, wall_ns=wall + 100)
+    engine.advance_time(end)
+    before_order = engine.snapshot(end)
+    rejected = submit(engine, i, end)
+    assert rejected.filled_quantity == 0
+    assert "funding_record_limit" in rejected.reasons
+    snapshot = engine.snapshot(end)
+    assert snapshot.balances == before_order.balances
+    assert snapshot.perpetual_positions == before_order.perpetual_positions
+    assert snapshot.fills == before_order.fills
+    assert snapshot.funding_payments == before_order.funding_payments
+    assert len(snapshot.funding_payments) == 1
+    checkpoint = engine.checkpoint()
+    archive = store.archived_snapshot(snapshot.run.run_id)
+    due = replace(end, mono_ns=end.mono_ns + 100, wall_ns=end.wall_ns + 100)
+    with pytest.raises(PaperError, match="funding_catchup_limit"):
+        engine.advance_time(due)
+    assert engine.checkpoint() == checkpoint
+    assert store.archived_snapshot(snapshot.run.run_id) == archive
+    with pytest.raises(PaperError, match="funding_catchup_limit"):
+        submit(engine, i, due, side="sell", reduce_only=True)
+    assert engine.checkpoint() == checkpoint
+    assert store.archived_snapshot(snapshot.run.run_id) == archive
+    store.close()
+
+
 @pytest.mark.parametrize("side,bid,ask", [("buy", "80", "81"), ("sell", "124", "125")])
 def test_inverse_protective_liquidation_retains_base_settled_debt(
     tmp_path, side, bid, ask

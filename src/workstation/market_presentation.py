@@ -5,6 +5,10 @@ The page limit counts both; one fan-out boundary group remains atomic even when
 it exceeds that limit. Consumers merge the arrays by cursor and compare each
 trade's source_identity per stream to detect native source-epoch transitions.
 The response gap flag only describes cursor retention loss, not stream health.
+Retention floors retire inclusive cursors independently of the requested page;
+even a caught-up consumer must prune its cache against each response's floors.
+The display frontier is the admitted source receive-clock projection, independent
+of page position and trade availability; request/browser wall time is not a clock.
 """
 
 from collections import OrderedDict, deque
@@ -166,6 +170,7 @@ class AdmittedTradeHistory:
         trades: deque[AdmittedTrade] = deque()
         sizes: deque[int] = deque()
         admitted: dict[TradeCursor, AdmittedTrade] = {}
+        stream_floor_map = dict(stream_floors)
         previous = floor
         for event, base, stamp, delivery, index, size in rows:
             item = AdmittedTrade(event, base, stamp, delivery, index)
@@ -177,6 +182,7 @@ class AdmittedTradeHistory:
                 or spec.key != event.key
                 or not isinstance(event.payload, Trade)
                 or not previous < cursor
+                or cursor <= stream_floor_map.get(str(event.stream_id), (0, -1))
                 or not 1 <= delivery <= highwater
                 or index < 0
                 or stamp < 0
@@ -200,7 +206,30 @@ class AdmittedTradeHistory:
         self.reasons, self.truncated = set(reasons), truncated
         self.floor_cursor = floor
         self.stream_sources = dict(sources)
-        self.stream_floors = dict(stream_floors)
+        self.stream_floors = stream_floor_map
+
+    def prune_through(self, delivery: int, event_index: int) -> None:
+        """Retire an inclusive source prefix without changing the source clock.
+
+        Live owners call this after trimming raw deliveries. The floor advances
+        even across non-trade events, so future pages cannot promise that prefix.
+        Repeated/older floors are no-ops; rewind uses reset/restore instead.
+        """
+        if not 0 <= delivery <= self.highwater or event_index < -1:
+            raise ValueError("invalid admitted trade retention cursor")
+        cursor = (delivery, event_index)
+        if cursor <= self.floor_cursor:
+            return
+        while self.trades:
+            item = self.trades[0]
+            key = (item.delivery, item.event_index)
+            if key > cursor:
+                break
+            self.trades.popleft()
+            self.admitted.pop(key)
+            self.bytes -= self.sizes.popleft()
+        self.floor_cursor = cursor
+        self.truncated = True
 
     def _clear_streams(self, streams: tuple[str, ...], cursor: TradeCursor) -> None:
         targets = set(streams)
@@ -264,7 +293,7 @@ class AdmittedTradeHistory:
                         ("source_epoch_changed", "session_discontinuities")
                     )
                     self._clear_streams(
-                        (str(event.stream_id),), (batch.delivery_index, index)
+                        (str(event.stream_id),), (batch.delivery_index, index - 1)
                     )
                 self.stream_sources[event.stream_id] = identity
                 scope = (event.session_id, event.clock_id)
@@ -334,7 +363,7 @@ class AdmittedTradeHistory:
                     self.bytes += size
                     self.admitted[(batch.delivery_index, index)] = item
                 else:
-                    self.truncated = True
+                    self.prune_through(batch.delivery_index, index)
 
 
 def market_data(session, request):
@@ -561,12 +590,24 @@ def market_data(session, request):
         "cursor": cursor,
         "highwater": str(highwater),
         "gap": gap,
+        "retention": {
+            "floor": {"delivery": str(floor_cursor[0]), "event": floor_cursor[1]},
+            "stream_floors": {
+                stream: {"delivery": str(position[0]), "event": position[1]}
+                for stream, position in session.trade_history.stream_floors.items()
+            },
+        },
         "has_more": has_more,
         "books": books,
         "instruments": dto(tuple(instruments.values())),
         "trades": trades,
         "boundaries": boundaries,
         "now": dto(now),
+        "display_frontier_ns": (
+            str(frontier)
+            if (frontier := session.trade_history.now_ns) is not None
+            else None
+        ),
         "source_identity": session.source_identity,
         "time_basis": "receive_utc",
         "display_time_reasons": sorted(session.trade_history.reasons),

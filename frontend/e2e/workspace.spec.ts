@@ -67,6 +67,12 @@ async function openDisclosure(details: Locator) {
   if (await details.getAttribute('open') === null) await details.locator(':scope > summary').click();
 }
 
+async function openMarketView(page: Page, name: 'Liquidity & flow' | 'Native book & tape') {
+  const tab = page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name, exact: true });
+  if (await tab.getAttribute('aria-selected') !== 'true') await tab.click();
+  await expect(name === 'Liquidity & flow' ? primary(page) : page.locator('[data-pane="dom"]')).toBeVisible();
+}
+
 async function openDemo(page: Page) {
   let latest: Frame | null = null;
   page.on('websocket', socket => {
@@ -91,15 +97,10 @@ async function openDemo(page: Page) {
   expect(frame.replay).not.toBeNull();
   await expect(page.locator('.status')).toContainText(/\bConnected$/i);
   await expect(page.locator('.source-banner')).toContainText('SYNTHETIC DEMO');
-  // Exact native panes share the root reference shell and its single session.
-  const charts = page.getByRole('tablist', { name: 'Chart workspace', exact: true });
-  await charts.getByRole('tab', { name: 'Liquidity & flow', exact: true }).click();
-  await expect(primary(page)).toBeVisible();
+  // Exact charts and book/tape use explicit workspaces in the same session.
+  await openMarketView(page, 'Liquidity & flow');
   await primary(page).locator('.m4-chart-plot').scrollIntoViewIfNeeded();
-  if ((page.viewportSize()?.width ?? 1280) > 965) {
-    await expect(secondary(page)).toBeVisible();
-    await expect(page.getByTestId('grouped-ladder').locator('tbody tr').first()).toBeVisible();
-  }
+  if ((page.viewportSize()?.width ?? 1280) > 965) await expect(secondary(page)).toBeVisible();
   return { frame, catalog, latestFrame: () => latest ?? frame };
 }
 
@@ -111,6 +112,7 @@ async function ladderEvidence(page: Page): Promise<GroupedLadder> {
   await openDisclosure(settings);
   await openDisclosure(settings.locator('.dom-scope'));
   await openDisclosure(settings.locator('.evidence'));
+  await expect(settings.locator('.evidence pre')).toContainText('"generation"');
   const value = await evidence<GroupedLadder>(settings.locator('.evidence pre'));
   await settings.locator(':scope > summary').click();
   return value;
@@ -298,7 +300,6 @@ test('exact instrument selection, grouped cumulative depth and pinned time range
   const frame = await seekDemo(page, selected);
   expect(BigInt(frame.book!.asof.receive_mono_ns)).toBeGreaterThan(35_000_000_000n);
   await openChartSettings(page);
-  await openDisclosure(page.locator('.dom-settings'));
   const initial = await body<VisualGrid>(nextResponse(page, 'visualization', request => request.generation === frame.generation));
   expect(initial.instrument_id).toBe(frame.selection.instrument_id);
   expect(initial.step_options.length).toBeGreaterThan(0);
@@ -306,6 +307,7 @@ test('exact instrument selection, grouped cumulative depth and pinned time range
   const regrouped = nextResponse(page, 'visualization', request => request.price_step === step);
   await primary(page).getByLabel('Price aggregation').selectOption(step);
   const grid = await body<VisualGrid>(regrouped);
+  await openMarketView(page, 'Native book & tape');
   const ungrouped = await ladderEvidence(page);
   expect(ungrouped.step).toBe(catalog.instruments.find(item => item.instrument_id === frame.selection.instrument_id)!.tick_size);
   await openDisclosure(page.locator('.dom-settings'));
@@ -319,6 +321,8 @@ test('exact instrument selection, grouped cumulative depth and pinned time range
   expect(ladder.instrument_id).toBe(frame.selection.instrument_id);
   expect(ladder.rows.length).toBeGreaterThan(0);
   await assertLadder(page, ladder);
+  await openMarketView(page, 'Liquidity & flow');
+  await openChartSettings(page);
 
   const bucketResponse = nextResponse(page, 'visualization', request => request.bucket_ns === '5000000000');
   await primary(page).getByLabel('Time bucket').selectOption('5000000000');
@@ -390,7 +394,13 @@ test('exact instrument selection, grouped cumulative depth and pinned time range
   await plot.press('Escape');
   await openChartInspector(page);
   await openDisclosure(primary(page).locator('.chart-pane-diagnostics'));
-  await page.getByTestId('grouped-ladder').locator('tbody tr').first().hover();
+  await openMarketView(page, 'Native book & tape');
+  const row = page.getByTestId('grouped-ladder').locator('tbody tr[data-side]').first();
+  const price = await row.getAttribute('data-price');
+  await row.getByRole('button', { name: `Pin DOM price ${price}`, exact: true }).click();
+  await openMarketView(page, 'Liquidity & flow');
+  await openChartInspector(page);
+  await openDisclosure(primary(page).locator('.chart-pane-diagnostics'));
   const linked = await primary(page).locator('.linked-readout').textContent();
   const linkedTime = BigInt(/source monotonic ns (\d+)/.exec(linked ?? '')![1]!);
   expect(linkedTime).toBeGreaterThanOrEqual(BigInt(following.start_ns));
@@ -405,12 +415,16 @@ test('linked DOM price outside the chart viewport never selects a different pric
   const panned = nextResponse(page, 'visualization', request => request.price_offset_rows === 128);
   for (let index = 0; index < 16; index++) await primary(page).getByRole('button', { name: 'Pan prices higher', exact: true }).click();
   const grid = await body<VisualGrid>(panned);
+  await primary(page).locator('.m4-chart-readout summary').first().click();
+  await openMarketView(page, 'Native book & tape');
   const bid = page.getByTestId('grouped-ladder').locator('tr.bid').first();
-  const price = await bid.locator('td').nth(1).locator('.number').getAttribute('title');
+  const price = await bid.getAttribute('data-price');
   expect(price).not.toBeNull();
   expect(grid.prices).not.toContain(price);
-  await primary(page).locator('.m4-chart-readout summary').first().click();
-  await bid.hover();
+  await bid.getByRole('button', { name: `Pin DOM price ${price}`, exact: true }).press('Enter');
+  await openMarketView(page, 'Liquidity & flow');
+  await openChartInspector(page);
+  await openDisclosure(primary(page).locator('.m4-chart-readout'));
   await expect(primary(page).getByRole('tooltip')).toContainText(price!);
   await expect(primary(page).getByRole('combobox', { name: 'Exact visible price row', exact: true })).toHaveValue('');
   await expect(primary(page).locator('.m4-chart-readout table').first().locator('tbody tr')).toHaveCount(0);
@@ -420,15 +434,16 @@ test('independent chart and DOM freezes hold evidence while replay continues', a
   const { latestFrame } = await openDemo(page);
   await body<VisualGrid>(nextResponse(page, 'visualization'));
   await primary(page).getByTestId('view-freeze').click();
-  await page.getByTestId('dom-freeze').click();
-  await expect(primary(page).getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'true');
-  const frozenDOM = await ladderEvidence(page);
   const chart = primary(page).getByTestId('market-charts');
   await expect(chart).toBeVisible();
   const frozenView = await chart.getAttribute('data-view-id');
   expect(frozenView).toBeTruthy();
   await expect(chart).toHaveAttribute('data-painted-view-id', frozenView!);
   const frozenPixels = await primary(page).getByTestId('liquidity-canvas').screenshot();
+  await openMarketView(page, 'Native book & tape');
+  await expect(page.getByTestId('grouped-ladder').locator('tbody tr').first()).toBeVisible();
+  await page.getByTestId('dom-freeze').click();
+  const frozenDOM = await ladderEvidence(page);
   const before = await page.locator('.cursor').textContent();
   await replay(page, 'play');
   await expect(page.getByTestId('replay-pause')).toBeEnabled();
@@ -440,8 +455,9 @@ test('independent chart and DOM freezes hold evidence while replay continues', a
     > BigInt(frozenDOM.asof!.receive_mono_ns) + 2_000_000_000n).toBe(true);
   const paused = await replay(page, 'pause');
   expect(paused.status).toBe('paused');
-  await expect(primary(page).getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'true');
   expect(await ladderEvidence(page)).toEqual(frozenDOM);
+  await openMarketView(page, 'Liquidity & flow');
+  await expect(primary(page).getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'true');
   await expect(chart).toHaveAttribute('data-view-id', frozenView!);
   await expect(chart).toHaveAttribute('data-painted-view-id', frozenView!);
   expect(await primary(page).getByTestId('liquidity-canvas').screenshot()).toEqual(frozenPixels);
@@ -456,10 +472,13 @@ test('independent chart and DOM freezes hold evidence while replay continues', a
 test('DOM-only freeze keeps exact cumulative snapshot while chart receives advancing replay evidence', async ({ page }) => {
   const { latestFrame } = await openDemo(page);
   const initialGrid = await body<VisualGrid>(nextResponse(page, 'visualization'));
+  await openMarketView(page, 'Native book & tape');
+  await expect(page.getByTestId('grouped-ladder').locator('tbody tr').first()).toBeVisible();
   await page.getByTestId('dom-freeze').click();
   await expect(page.getByTestId('dom-freeze')).toHaveAttribute('aria-pressed', 'true');
   const frozen = await ladderEvidence(page);
   const text = await page.getByTestId('grouped-ladder').textContent();
+  await openMarketView(page, 'Liquidity & flow');
   await replay(page, 'play');
   let advanced = initialGrid;
   await expect.poll(async () => {
@@ -470,9 +489,10 @@ test('DOM-only freeze keeps exact cumulative snapshot while chart receives advan
   await expect.poll(() => latestFrame().book?.asof.receive_mono_ns).not.toBe(frozen.asof!.receive_mono_ns);
   const paused = await replay(page, 'pause');
   expect(advanced.instrument_id).toBe(frozen.instrument_id);
+  await expect(primary(page).getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'false');
+  await openMarketView(page, 'Native book & tape');
   expect(await ladderEvidence(page)).toEqual(frozen);
   await expect(page.getByTestId('grouped-ladder')).toHaveText(text ?? '');
-  await expect(primary(page).getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'false');
   const unfrozen = nextResponse(page, 'ladder');
   await page.getByTestId('dom-freeze').click();
   const current = await body<GroupedLadder>(unfrozen);
@@ -497,19 +517,22 @@ test('independent chart settings and saved resized workspace survive reload with
   await page.locator('.workspace-configuration > summary').click();
   await openPane(page, 'Costs & proposed risk');
   const separators = [
-    ['DOM width', 'ArrowLeft'], ['Chart split', 'ArrowUp'], ['DOM and tape split', 'ArrowUp'],
-    ['Research pane height', 'ArrowUp'],
+    ['Chart split', 'ArrowUp'], ['DOM and tape split', 'ArrowUp'], ['Research pane height', 'ArrowUp'],
   ] as const;
   const dimensions: [string, string][] = [];
   for (const [name, key] of separators) {
+    await openMarketView(page, name === 'DOM and tape split' ? 'Native book & tape' : 'Liquidity & flow');
     const divider = page.getByRole('separator', { name, exact: true });
     const before = await divider.getAttribute('aria-valuenow');
     await divider.press(key);
     await expect(divider).not.toHaveAttribute('aria-valuenow', before!);
     dimensions.push([name, (await divider.getAttribute('aria-valuenow'))!]);
   }
+  await openMarketView(page, 'Native book & tape');
   await openDisclosure(page.locator('.dom-settings'));
   await page.getByLabel('Ladder rows').selectOption('25');
+  await page.locator('.dom-settings > summary').click();
+  await openMarketView(page, 'Liquidity & flow');
   await openChartSettings(page);
   await openChartSettings(page, secondary(page));
   await primary(page).getByLabel('Time bucket').selectOption('5000000000');
@@ -529,11 +552,14 @@ test('independent chart settings and saved resized workspace survive reload with
   await page.getByRole('button', { name: 'Save workspace', exact: true }).click();
   await page.getByLabel('Workspace preset').selectOption('ladder');
   await page.locator('.workspace-configuration > summary').click();
+  await openMarketView(page, 'Liquidity & flow');
+  await openChartSettings(page);
   await primary(page).getByLabel('Chart range').selectOption('30');
   await openDisclosure(page.locator('.workspace-configuration'));
   await page.getByRole('button', { name: 'Load workspace', exact: true }).click();
   await expect(page.getByLabel('Workspace preset')).toHaveValue('analysis');
   await page.locator('.workspace-configuration > summary').click();
+  await openChartSettings(page);
   await expect(primary(page).getByLabel('Chart range')).toHaveValue('60');
   const saved = await page.evaluate(() => Object.values(localStorage).join('\n'));
   expect(saved).not.toContain(first.session_id);
@@ -559,12 +585,16 @@ test('independent chart settings and saved resized workspace survive reload with
   await expect(modes).toHaveValue('footprint');
   await expect(secondary(page).getByLabel('Chart mode', { exact: true })).toHaveValue('candles');
   for (const [name, value] of dimensions) {
+    await openMarketView(page, name === 'DOM and tape split' ? 'Native book & tape' : 'Liquidity & flow');
     await expect(page.getByRole('separator', { name, exact: true })).toHaveAttribute('aria-valuenow', value);
   }
+  await openMarketView(page, 'Native book & tape');
   await openDisclosure(page.locator('.dom-settings'));
+  await expect(page.getByLabel('Ladder rows')).toHaveValue('25');
+  await page.locator('.dom-settings > summary').click();
+  await openMarketView(page, 'Liquidity & flow');
   await openChartSettings(page);
   await openChartSettings(page, secondary(page));
-  await expect(page.getByLabel('Ladder rows')).toHaveValue('25');
   await expect(primary(page).getByLabel('Time bucket')).toHaveValue('5000000000');
   await expect(primary(page).getByLabel('Chart range')).toHaveValue('60');
   await expect(primary(page).getByLabel('Trades', { exact: true })).not.toBeChecked();
@@ -614,7 +644,7 @@ for (const width of [1440, 1280]) {
     const initial = await body<VisualGrid>(nextResponse(page, 'visualization'));
     await primary(page).locator('.m4-chart-plot').scrollIntoViewIfNeeded();
     await expect(primary(page).getByTestId('market-charts')).toHaveAttribute('data-painted-view-id', /.+/);
-    const selectors = ['.terminal > .workspace', '.workspace-main', '.chart-area', '.terminal > .workspace > .sidebar', '[data-testid="chart-pane-heatmap"]', '[data-testid="chart-pane-flow"]', '[data-pane="dom"]', '[data-pane="tape"]', '.native-tools-content'];
+    const selectors = ['.terminal > .workspace', '.workspace-main', '.chart-area', '.terminal > .workspace > .sidebar', '[data-testid="chart-pane-heatmap"]', '[data-testid="chart-pane-flow"]', '.native-tools-content'];
     const baseline = await Promise.all(selectors.map(selector => contentBounds(page.locator(selector))));
     expect(baseline.every(box => box !== null && box.width > 0 && box.height > 0)).toBe(true);
     await replay(page, 'play');
@@ -631,6 +661,23 @@ for (const width of [1440, 1280]) {
       }
     }
     expect(BigInt(latest.now_ns)).toBeGreaterThan(BigInt(initial.now_ns));
+    await openMarketView(page, 'Native book & tape');
+    await expect(page.getByTestId('grouped-ladder')).toBeVisible();
+    const bookSelectors = ['.terminal > .workspace', '.workspace-main', '.chart-area', '.terminal > .workspace > .sidebar', '[data-pane="dom"]', '[data-pane="tape"]', '.native-tools-content'];
+    const bookBaseline = await Promise.all(bookSelectors.map(selector => contentBounds(page.locator(selector))));
+    expect(bookBaseline.every(box => box.width > 0 && box.height > 0)).toBe(true);
+    const firstBook = await body<GroupedLadder>(nextResponse(page, 'ladder'));
+    let lastBook = firstBook;
+    for (let sample = 0; sample < 3; sample++) {
+      lastBook = await body<GroupedLadder>(nextResponse(page, 'ladder'));
+      const current = await Promise.all(bookSelectors.map(selector => contentBounds(page.locator(selector))));
+      for (let pane = 0; pane < bookSelectors.length; pane++) {
+        for (const dimension of ['x', 'y', 'width', 'height'] as const) {
+          expect(Math.abs(current[pane][dimension] - bookBaseline[pane][dimension]), `${bookSelectors[pane]} ${dimension}`).toBeLessThanOrEqual(1);
+        }
+      }
+    }
+    expect(BigInt(lastBook.asof!.receive_mono_ns)).toBeGreaterThan(BigInt(firstBook.asof!.receive_mono_ns));
     await replay(page, 'pause');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
@@ -746,17 +793,17 @@ test('corrupt and out-of-bound saved preferences recover without resurrecting se
   await page.getByLabel('Search instruments').press('Escape');
   await openPane(page, 'Costs & proposed risk');
   await openChartSettings(page);
+  await openMarketView(page, 'Native book & tape');
   await openDisclosure(page.locator('.dom-settings'));
-  const domWidth = page.getByRole('separator', { name: 'DOM width', exact: true });
-  const width = Number(await domWidth.getAttribute('aria-valuenow'));
-  expect(width).toBeGreaterThanOrEqual(Number(await domWidth.getAttribute('aria-valuemin')));
-  expect(width).toBeLessThanOrEqual(Number(await domWidth.getAttribute('aria-valuemax')));
   await expect(page.getByLabel('Ladder rows')).toHaveValue('100');
+  await expect(page.getByTestId('dom-freeze')).toHaveAttribute('aria-pressed', 'false');
+  await page.locator('.dom-settings > summary').click();
+  await openMarketView(page, 'Liquidity & flow');
+  await openChartSettings(page);
   await expect(primary(page).getByLabel('Price aggregation')).toHaveValue('');
   await expect(primary(page).getByLabel('Time bucket')).toHaveValue('1000000000');
   await expect(primary(page).getByLabel('Follow time', { exact: true })).toBeChecked();
   await expect(primary(page).getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'false');
-  await expect(page.getByTestId('dom-freeze')).toHaveAttribute('aria-pressed', 'false');
   await expect(primary(page).getByLabel('Chart mode', { exact: true })).toHaveValue('heatmap');
   await expect.poll(() => page.evaluate(key => JSON.parse(localStorage.getItem(key) ?? '{}') as Record<string, unknown>, preferenceKey))
     .toMatchObject({ leftWidth: 180, rightWidth: 500, range: null, priceOffset: 0, contrast: 1 });
@@ -786,7 +833,11 @@ test('workspace keyboard shortcuts ignore editable fields and act outside them',
   await primary(page).getByLabel('Follow time', { exact: true }).uncheck();
   await primary(page).getByLabel('Chart mode', { exact: true }).selectOption('cvd');
   await primary(page).getByTestId('view-freeze').click();
+  await openMarketView(page, 'Native book & tape');
+  await expect(page.getByTestId('grouped-ladder')).toBeVisible();
   await page.getByTestId('dom-freeze').click();
+  await openMarketView(page, 'Liquidity & flow');
+  await openChartSettings(page);
   for (const name of ['Search instruments', 'Order size']) {
     if (name === 'Search instruments') await openPane(page, 'Watchlist');
     const input = page.getByLabel(name, { exact: true });
@@ -795,7 +846,7 @@ test('workspace keyboard shortcuts ignore editable fields and act outside them',
     await expect(input).toHaveValue('r f F d / 123456');
     await expect(input).toBeFocused();
     await expect(primary(page).getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.getByTestId('dom-freeze')).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(() => page.evaluate(key => JSON.parse(localStorage.getItem(key)!).domFrozen, preferenceKey)).toBe(true);
     await expect(primary(page).getByLabel('Follow time', { exact: true })).not.toBeChecked();
     await expect(primary(page).getByLabel('Chart mode', { exact: true })).toHaveValue('cvd');
     if (name === 'Search instruments') await input.press('Escape');
@@ -809,7 +860,7 @@ test('workspace keyboard shortcuts ignore editable fields and act outside them',
   await page.keyboard.press('Space');
   await expect(primary(page).getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'false');
   await page.keyboard.press('d');
-  await expect(page.getByTestId('dom-freeze')).toHaveAttribute('aria-pressed', 'false');
+  await expect.poll(() => page.evaluate(key => JSON.parse(localStorage.getItem(key)!).domFrozen, preferenceKey)).toBe(false);
   await page.keyboard.press('2');
   await expect(primary(page).getByLabel('Chart mode', { exact: true })).toHaveValue('candles');
   await page.keyboard.press('r');
@@ -818,6 +869,8 @@ test('workspace keyboard shortcuts ignore editable fields and act outside them',
   await expect(primary(page).getByLabel('Follow time', { exact: true })).toBeChecked();
   await expect(page.getByTestId('replay-play')).toBeEnabled();
   await expect(page.getByTestId('replay-pause')).toBeDisabled();
+  await openMarketView(page, 'Native book & tape');
+  await expect(page.getByTestId('dom-freeze')).toHaveAttribute('aria-pressed', 'false');
 });
 
 test('compact charts pin quality while overlays preserve plot geometry and footprint detail', async ({ page }) => {
@@ -1033,6 +1086,7 @@ for (const width of [320, 390]) {
     await selectEther(page, catalog);
     await expect(page.locator('.native-watchlist [aria-pressed="true"]')).toContainText('ETH');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await tabs.getByRole('tab', { name: 'Liquidity', exact: true }).click();
     const sidebar = page.locator('.terminal > .workspace > .sidebar');
     await sidebar.scrollIntoViewIfNeeded();
     await expect(sidebar).toBeInViewport();
@@ -1045,10 +1099,14 @@ for (const width of [320, 390]) {
     await page.setViewportSize({ width: 1280, height: 900 });
     await expect(tabs).toBeHidden();
     await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Liquidity & flow', exact: true }).click();
-    for (const id of ['heatmap', 'flow', 'dom', 'tape']) await expect(page.locator(`#market-panel-${id}`)).toBeVisible();
+    for (const id of ['heatmap', 'flow']) await expect(page.locator(`#market-panel-${id}`)).toBeVisible();
+    for (const id of ['dom', 'tape']) await expect(page.locator(`#market-panel-${id}`)).toBeHidden();
     await expect(secondary(page).getByLabel('Chart mode', { exact: true })).toHaveValue('candles');
     await expect(secondary(page).getByLabel('Time bucket', { exact: true })).toHaveValue('10000000000');
     await expect(page.getByRole('separator', { name: 'Chart split', exact: true })).toBeVisible();
+    await openMarketView(page, 'Native book & tape');
+    for (const id of ['dom', 'tape']) await expect(page.locator(`#market-panel-${id}`)).toBeVisible();
+    for (const id of ['heatmap', 'flow']) await expect(page.locator(`#market-panel-${id}`)).toBeHidden();
   });
 }
 
@@ -1122,7 +1180,7 @@ test('narrow active panes keep loading, empty, stale and disconnected evidence v
     await context.setOffline(true);
     await page.getByRole('button', { name: 'Reconnect terminal', exact: true }).click();
     await expect(page.locator('.status')).not.toContainText(/\bConnected$/i);
-    await expect(page.locator('.source-readiness')).toContainText('Unavailable');
+    await expect(page.locator('.source-readiness')).toHaveClass(/\bwarning\b/);
     for (const [id, name] of [['heatmap', 'Liquidity'], ['flow', 'Flow'], ['dom', 'Book'], ['tape', 'Tape']] as const) {
       await tabs.getByRole('tab', { name, exact: true }).click();
       const pane = page.locator(`#market-panel-${id}`);
@@ -1140,8 +1198,11 @@ test('narrow active panes keep loading, empty, stale and disconnected evidence v
   }
 });
 
-test('hidden documents and collapsed DOM panes stop queries without pausing replay', async ({ page }) => {
+test('hidden documents and inactive native book panes stop queries without pausing replay', async ({ page }) => {
   const { latestFrame } = await openDemo(page);
+  await openMarketView(page, 'Native book & tape');
+  await expect(page.getByTestId('grouped-ladder').locator('tbody tr').first()).toBeVisible();
+  await openMarketView(page, 'Liquidity & flow');
   await replay(page, 'play');
   const initial = await body<VisualGrid>(nextResponse(page, 'visualization'));
   const queries: string[] = [];
@@ -1151,8 +1212,7 @@ test('hidden documents and collapsed DOM panes stop queries without pausing repl
   };
   page.on('request', observe);
   try {
-    await page.getByRole('button', { name: 'DOM / tape', exact: true }).click();
-    await expect(page.locator('.book-tape')).toBeHidden();
+    await expect(page.locator('[data-pane="dom"]')).toBeHidden();
     queries.length = 0;
     // A bounded negative observation spans three nominal ladder polling periods.
     await page.waitForTimeout(2300);
@@ -1177,7 +1237,7 @@ test('hidden documents and collapsed DOM panes stop queries without pausing repl
     // Replay progress is proven above; hold one book for the exact row comparison.
     await replay(page, 'pause');
     const reopened = nextResponse(page, 'ladder');
-    await page.getByRole('button', { name: 'DOM / tape', exact: true }).click();
+    await openMarketView(page, 'Native book & tape');
     await assertLadder(page, await body<GroupedLadder>(reopened));
   } finally {
     page.off('request', observe);
@@ -1207,13 +1267,14 @@ test('chart aggregation and freeze are independent native queries', async ({ pag
   await expect(secondary(page).getByLabel('Time bucket')).toHaveValue('5000000000');
   await primary(page).getByTestId('view-freeze').click();
   const heldView = await primary(page).getByTestId('market-charts').getAttribute('data-view-id');
+  await openMarketView(page, 'Native book & tape');
+  await expect(page.getByTestId('grouped-ladder')).toBeVisible();
   const heldDOM = await ladderEvidence(page);
+  await openMarketView(page, 'Liquidity & flow');
   await replay(page, 'play');
   const advancing = await body<VisualGrid>(nextResponse(page, 'visualization',
     request => request.bucket_ns === '5000000000', 32));
   await expect.poll(() => BigInt(latestFrame().book?.asof.receive_mono_ns ?? '0') > BigInt(liquidity.now_ns)).toBe(true);
-  await expect.poll(async () => (await ladderEvidence(page)).asof?.receive_mono_ns)
-    .not.toBe(heldDOM.asof?.receive_mono_ns);
   const later = await body<VisualGrid>(nextResponse(page, 'visualization',
     request => request.bucket_ns === '5000000000', 32));
   expect(BigInt(later.now_ns)).toBeGreaterThan(BigInt(advancing.now_ns));
@@ -1221,12 +1282,16 @@ test('chart aggregation and freeze are independent native queries', async ({ pag
   await expect(secondary(page).getByTestId('market-charts')).toHaveAttribute('data-painted-view-id', later.view_id);
   await expect(primary(page).getByTestId('market-charts')).toHaveAttribute('data-view-id', heldView!);
   await expect(primary(page).getByTestId('market-charts')).toHaveAttribute('data-painted-view-id', heldView!);
-  await expect(page.getByTestId('dom-freeze')).toHaveAttribute('aria-pressed', 'false');
   await replay(page, 'pause');
+  await openMarketView(page, 'Native book & tape');
+  await expect.poll(async () => (await ladderEvidence(page)).asof?.receive_mono_ns)
+    .not.toBe(heldDOM.asof?.receive_mono_ns);
+  await expect(page.getByTestId('dom-freeze')).toHaveAttribute('aria-pressed', 'false');
 });
 
 test('native book settings dismiss before a toolbar popover takes focus', async ({ page }) => {
   await openDemo(page);
+  await openMarketView(page, 'Native book & tape');
   const settings = page.locator('.dom-settings');
   await openDisclosure(settings);
   await expect(settings).toHaveAttribute('open', '');
@@ -1242,6 +1307,7 @@ test('cursor links propagate exact DOM prices only to opted-in chart panes', asy
   await secondary(page).locator('.m4-chart-plot').scrollIntoViewIfNeeded();
   await expect(secondary(page).getByTestId('market-charts')).toHaveAttribute('data-painted-view-id', /.+/);
   // The native startup book has one bid and one ask, not two bid levels.
+  await openMarketView(page, 'Native book & tape');
   const bid = page.getByTestId('grouped-ladder').locator('tr.bid').first();
   const ask = page.getByTestId('grouped-ladder').locator('tr.ask').first();
   const firstPrice = await bid.getAttribute('data-price');
@@ -1249,19 +1315,26 @@ test('cursor links propagate exact DOM prices only to opted-in chart panes', asy
   expect(firstPrice).toBeTruthy();
   expect(nextPrice).toBeTruthy();
   expect(nextPrice).not.toBe(firstPrice);
-  await primary(page).locator('.m4-chart-plot').hover();
-  await bid.hover();
+  await bid.getByRole('button', { name: `Pin DOM price ${firstPrice}`, exact: true }).click();
+  await openMarketView(page, 'Liquidity & flow');
   for (const pane of [primary(page), secondary(page)]) {
     await expect(pane.getByRole('tooltip')).toContainText(firstPrice!);
   }
   await secondary(page).getByRole('button', { name: 'Link Order flow cursor', exact: true }).click();
   await expect(secondary(page).getByRole('button', { name: 'Link Order flow cursor', exact: true })).toHaveAttribute('aria-pressed', 'false');
-  await ask.hover();
+  await openMarketView(page, 'Native book & tape');
+  await ask.getByRole('button', { name: `Pin DOM price ${nextPrice}`, exact: true }).press('Enter');
+  await openMarketView(page, 'Liquidity & flow');
   await expect(primary(page).getByRole('tooltip')).toContainText(nextPrice!);
   await expect(secondary(page).getByRole('tooltip')).toHaveCount(0);
   await secondary(page).getByRole('button', { name: 'Link Order flow cursor', exact: true }).click();
-  await bid.hover();
+  await openMarketView(page, 'Native book & tape');
+  await bid.getByRole('button', { name: `Pin DOM price ${firstPrice}`, exact: true }).press('Space');
+  await openMarketView(page, 'Liquidity & flow');
   await expect(secondary(page).getByRole('tooltip')).toContainText(firstPrice!);
+  await primary(page).locator('.m4-chart-plot').focus();
+  await page.keyboard.press('Escape');
+  for (const pane of [primary(page), secondary(page)]) await expect(pane.getByRole('tooltip')).toHaveCount(0);
 });
 
 test('keyboard maximize and Escape restore panes without replacing native views', async ({ page }) => {
@@ -1282,18 +1355,25 @@ test('keyboard maximize and Escape restore panes without replacing native views'
   await page.keyboard.press('Escape');
   await expect(workspace).toHaveAttribute('data-maximized', '');
   await expect(secondary(page)).toBeVisible();
-  await expect(page.locator('[data-pane="dom"]')).toBeVisible();
+  await expect(page.locator('[data-pane="dom"]')).toBeHidden();
   await expect(chart).toHaveAttribute('data-painted-view-id', before!);
   const restored = await contentBounds(primary(page));
   for (const dimension of ['x', 'y', 'width', 'height'] as const) {
     expect(Math.abs(restored![dimension] - original![dimension])).toBeLessThanOrEqual(1);
   }
+  await openMarketView(page, 'Native book & tape');
   await page.getByRole('button', { name: 'Maximize DOM', exact: true }).press('Enter');
   await expect(workspace).toHaveAttribute('data-maximized', 'dom');
   await page.getByRole('button', { name: 'Restore DOM', exact: true }).press('Enter');
   await expect(workspace).toHaveAttribute('data-maximized', '');
+  await expect(page.locator('[data-pane="dom"]')).toBeVisible();
+  await expect(page.locator('[data-pane="tape"]')).toBeVisible();
+  await page.getByRole('button', { name: 'Maximize DOM', exact: true }).press('Enter');
+  await openMarketView(page, 'Liquidity & flow');
+  await expect(workspace).toHaveAttribute('data-maximized', '');
   await expect(primary(page)).toBeVisible();
   await expect(secondary(page)).toBeVisible();
+  await expect(chart).toHaveAttribute('data-painted-view-id', before!);
 });
 
 test('overlapping native chart queries and paint acknowledgments complete for both panes', async ({ page }) => {
@@ -1350,6 +1430,8 @@ test('both frozen chart panes replace native evidence after replay reset and rec
   await expect(secondary(page).getByTestId('market-charts')).toHaveAttribute('data-painted-view-id', /.+/);
   await primary(page).getByTestId('view-freeze').click();
   await secondary(page).getByTestId('view-freeze').click();
+  await openMarketView(page, 'Native book & tape');
+  await expect(page.getByTestId('grouped-ladder')).toBeVisible();
   await page.getByTestId('dom-freeze').click();
   await expect(page.locator('.tape-panel tbody tr').first()).toBeVisible();
   await page.getByRole('button', { name: 'Freeze tape', exact: true }).click();
@@ -1364,6 +1446,7 @@ test('both frozen chart panes replace native evidence after replay reset and rec
   expect(reset.book).toBeNull();
   expect(reset.analytics).toBeNull();
   expect(reset.replay?.cursor.delivery_index).toBe('0');
+  await openMarketView(page, 'Liquidity & flow');
   const resetViews = await Promise.all([body<VisualGrid>(liquidityReset), body<VisualGrid>(flowReset)]);
   for (const [index, pane] of [primary(page), secondary(page)].entries()) {
     const view = resetViews[index];
@@ -1377,6 +1460,7 @@ test('both frozen chart panes replace native evidence after replay reset and rec
     expect(view.footprints).toEqual([]);
     await expect(pane.locator('.m4-chart-empty')).toBeVisible();
   }
+  await openMarketView(page, 'Native book & tape');
   const ladder = await body<GroupedLadder>(domReset);
   expect(ladder.generation).toBe(reset.generation);
   await assertLadder(page, ladder);
@@ -1390,6 +1474,7 @@ test('both frozen chart panes replace native evidence after replay reset and rec
   const replacement = await body<Frame>(replacementResponse);
   expect(replacement.session_id).not.toBe(first.session_id);
   expect(replacement.selection).toEqual(reset.selection);
+  await openMarketView(page, 'Liquidity & flow');
   const replacementViews = await Promise.all([body<VisualGrid>(liquidityReconnect), body<VisualGrid>(flowReconnect)]);
   for (const [index, pane] of [primary(page), secondary(page)].entries()) {
     const view = replacementViews[index];
@@ -1399,6 +1484,7 @@ test('both frozen chart panes replace native evidence after replay reset and rec
     await pane.locator('.m4-chart-plot').scrollIntoViewIfNeeded();
     await expect(pane.getByTestId('market-charts')).toHaveAttribute('data-painted-view-id', view.view_id);
   }
+  await openMarketView(page, 'Native book & tape');
   const reconnectedDOM = await body<GroupedLadder>(domReconnect);
   expect(reconnectedDOM.generation).toBe(replacement.generation);
   expect(reconnectedDOM.instrument_id).toBe(replacement.selection.instrument_id);

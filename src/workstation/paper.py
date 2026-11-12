@@ -672,6 +672,7 @@ class PaperEngine:
         now: ClockReading,
         delivery_index: int,
         books: tuple[Book, ...] | None = None,
+        streams: tuple[StreamSpec, ...] | None = None,
     ) -> str:
         if not isinstance(config, PaperConfig) or not isinstance(now, ClockReading):
             raise ValueError("invalid paper configuration or clock")
@@ -686,6 +687,18 @@ class PaperEngine:
             len(books) > MAX_INPUTS or any(not isinstance(book, Book) for book in books)
         ):
             raise ValueError("invalid current paper baseline")
+        if streams is not None and (
+            len(streams) > MAX_INPUTS
+            or any(not isinstance(stream, StreamSpec) for stream in streams)
+        ):
+            raise ValueError("invalid current paper streams")
+        metadata = (
+            self._metadata
+            if streams is None
+            else {
+                stream.instrument.instrument_id: stream.instrument for stream in streams
+            }
+        )
         now = self._command_clock(now)
         run = PaperRun(
             uuid4().hex,
@@ -695,9 +708,15 @@ class PaperEngine:
             delivery_index,
             0,
             self._run.run_id if self._run else None,
-            tuple(self._metadata.values()),
+            tuple(metadata.values()),
         )
         self.store._create(run)
+        if streams is not None:
+            self._streams = tuple(streams)
+            self._initial_metadata = dict(metadata)
+            self._active = {
+                stream.key for stream in streams if stream.key.channel == "book"
+            }
         books = tuple(self._source_books.values()) if books is None else tuple(books)
         self._run, self._commands = run, ()
         self.reset()
@@ -2118,6 +2137,20 @@ class PaperEngine:
             return finish(gate.reasons)
         risk = self._risk_model(instrument.instrument_id)
         assert risk is not None and instrument.settlement is not None
+        funding = self._funding_model(instrument.instrument_id)
+        assert funding is not None and at.wall_ns is not None
+        # A full audit history fences only exposure that can need another record.
+        # The catch-up guard still rejects due overflow before any ledger mutation.
+        funding_record_required = len(
+            self._funding_payments
+        ) >= MAX_PERPETUAL_RECORDS and (
+            funding.mode == "periodic"
+            or (
+                funding.mode == "events"
+                and bool(funding.events)
+                and funding.events[-1].wall_ns > at.wall_ns
+            )
+        )
         settlement = instrument.settlement.asset_id
         fees = next(
             (
@@ -2272,7 +2305,7 @@ class PaperEngine:
                 ):
                     why.append("isolated_risk_frozen")
                     opening = ZERO
-                elif len(self._funding_payments) >= MAX_PERPETUAL_RECORDS:
+                elif funding_record_required:
                     why.append("funding_record_limit")
                     opening = ZERO
                 else:

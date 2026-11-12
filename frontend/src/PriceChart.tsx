@@ -3,28 +3,48 @@ import type { KeyboardEvent, PointerEvent, ReactNode } from 'react';
 import type { Frame, Instrument } from './api';
 import { useCandleHistory } from './candle-api';
 import { candleAtTime, candleDate, candlePriceScale, candleRange, candleTimeTicks, followCandleRange, fractionAt, INTERVAL_GROUPS, panCandles, QUICK_INTERVALS, timeAtFraction, zoomCandles } from './candle-model';
-import type { CandleRange, PriceCandle } from './candle-model';
+import type { CandleRange, CandleSource, PriceCandle } from './candle-model';
+import { venueLabel } from './format';
+import { usePositioningHistory } from './positioning-api';
+import { annualizedFundingPercent, fundingIntervalLabel } from './positioning-model';
+import type { PositioningBar } from './positioning-model';
 import './price-chart.css';
 
 export interface PriceChartProps {
   frame: Frame | null; instrument?: Instrument; connected: boolean; active: boolean;
   interval: string; onIntervalChange: (interval: string) => void;
+  instrumentIds: readonly string[]; cohortReady: boolean;
   maximized: boolean; onMaximize: () => void;
 }
 interface Viewport { identity: string; range: CandleRange; follow: boolean; latestEnd: bigint }
 interface Cursor { identity: string; time: string; y: number | null }
 const EMPTY_CANDLES: PriceCandle[] = [];
+const EMPTY_POSITIONING: PositioningBar[] = [];
 const UP = '#40d5b1';
 const DOWN = '#f37888';
+// Positioning uses its own hues: funding sign is who pays, not price direction.
+const INTEREST = '#77cce9';
+const FUNDING_POSITIVE = '#e0b05c';
+const FUNDING_NEGATIVE = '#8f9cf4';
 const LEFT = 14;
 const RIGHT = 106;
 const TOP = 24;
 const BOTTOM = 30;
 
-export function PriceChart({ frame, instrument, connected, active, interval, onIntervalChange, maximized, onMaximize }: PriceChartProps): ReactNode {
-  const query = useCandleHistory(frame, interval, active, connected);
+export function PriceChart({ frame, instrument, connected, active, interval, instrumentIds, cohortReady, onIntervalChange, maximized, onMaximize }: PriceChartProps): ReactNode {
+  const [source, setSource] = useState<CandleSource>('session_trades');
+  const query = useCandleHistory(frame, interval, active, connected, instrumentIds, cohortReady, source);
   const data = query.data;
   const candles = data?.candles ?? EMPTY_CANDLES;
+  // Observed positioning lives on the receive-time axis; it is never drawn against exchange-time venue history.
+  const [positioningChoice, setPositioningChoice] = useState<boolean | null>(null);
+  const showPositioning = source === 'session_trades' && (positioningChoice ?? instrument?.market_type === 'perpetual');
+  const positioning = usePositioningHistory(frame, interval, showPositioning && query.usable && !query.paused,
+    data?.source === 'session_trades' ? data.source_identity : null);
+  const positioningSeries = positioning.data?.series.find(series => series.relation === 'selected') ?? positioning.data?.series[0];
+  const positioningBars = positioningSeries?.bars ?? EMPTY_POSITIONING;
+  // A source-level break has no per-bar boundary; do not imply continuity anywhere in that history.
+  const connectPositioning = !positioning.data?.reasons.includes('context_discontinuities');
   const canvas = useRef<HTMLCanvasElement>(null);
   const plot = useRef<HTMLDivElement>(null);
   const menu = useRef<HTMLDivElement>(null);
@@ -46,15 +66,27 @@ export function PriceChart({ frame, instrument, connected, active, interval, onI
   const visible = useMemo(() => rangeStart === undefined || rangeEnd === undefined ? EMPTY_CANDLES
     : candles.filter(c => BigInt(c.end_ns) > rangeStart && BigInt(c.start_ns) < rangeEnd), [candles, rangeStart, rangeEnd]);
   const priceScale = useMemo(() => candlePriceScale(visible), [visible]);
+  const visiblePositioning = useMemo(() => rangeStart === undefined || rangeEnd === undefined ? EMPTY_POSITIONING
+    : positioningBars.filter(bar => BigInt(bar.end_ns) > rangeStart && BigInt(bar.start_ns) < rangeEnd), [positioningBars, rangeStart, rangeEnd]);
+  const interestScale = useMemo(() => candlePriceScale(visiblePositioning.flatMap(bar => bar.open_interest ? [bar.open_interest] : [])), [visiblePositioning]);
+  // Funding is signed: every bar is measured from an explicit zero line.
+  const fundingScale = useMemo(() => candlePriceScale(visiblePositioning.flatMap(bar => bar.funding_rate === null ? []
+    : [{ open: '0', high: bar.funding_rate, low: bar.funding_rate, close: bar.funding_rate }])), [visiblePositioning]);
   const currentCursor = cursor?.identity === query.identity ? cursor : null;
   const selectedIndex = currentCursor ? candleAtTime(candles, BigInt(currentCursor.time)) : -1;
   const inspected = currentCursor ? candles[selectedIndex] : last;
+  const positioningTime = currentCursor ? BigInt(currentCursor.time) : last ? (BigInt(last.start_ns) + BigInt(last.end_ns)) / 2n : null;
+  const inspectedPositioning = positioningTime === null ? undefined : positioningBars[candleAtTime(positioningBars, positioningTime)];
   const plotWidth = Math.max(1, size.width - LEFT - RIGHT);
   const timeTicks = useMemo(() => rangeStart === undefined || rangeEnd === undefined ? []
     : candleTimeTicks({ start: rangeStart, end: rangeEnd }, plotWidth), [rangeStart, rangeEnd, plotWidth]);
-  const priceBottom = Math.max(TOP + 50, (size.height - BOTTOM) * 0.76);
+  const plotBottom = size.height - BOTTOM;
+  const priceBottom = Math.max(TOP + 50, plotBottom * (showPositioning ? 0.5 : 0.76));
   const volumeTop = priceBottom + 20;
-  const volumeBottom = size.height - BOTTOM;
+  const volumeBottom = showPositioning ? Math.max(volumeTop + 16, plotBottom * 0.64) : plotBottom;
+  const interestTop = volumeBottom + 20;
+  const interestBottom = Math.max(interestTop + 16, plotBottom * 0.83);
+  const fundingTop = interestBottom + 20;
   const setRange = (next: CandleRange, following = false) => setViewport({ identity: query.identity, range: next, follow: following, latestEnd });
   const fit = () => { const next = candleRange(candles); if (next) setRange(next); };
   const latest = () => {
@@ -130,7 +162,7 @@ export function PriceChart({ frame, instrument, connected, active, interval, onI
     let labelEnd = -Infinity;
     for (const tick of timeTicks) {
       const px = x(tick.time);
-      context.strokeStyle = '#17212e'; context.beginPath(); context.moveTo(px, TOP); context.lineTo(px, volumeBottom); context.stroke();
+      context.strokeStyle = '#17212e'; context.beginPath(); context.moveTo(px, TOP); context.lineTo(px, plotBottom); context.stroke();
       context.fillStyle = '#9aabc0'; context.textAlign = 'left';
       const labelWidth = context.measureText(tick.label).width;
       const labelX = Math.min(px + 3, LEFT + plotWidth - labelWidth);
@@ -142,7 +174,26 @@ export function PriceChart({ frame, instrument, connected, active, interval, onI
     context.strokeStyle = '#263143'; context.beginPath(); context.moveTo(LEFT, volumeTop - 8); context.lineTo(LEFT + plotWidth, volumeTop - 8); context.stroke();
     context.fillStyle = '#8191a7'; context.textAlign = 'left'; context.fillText('VOLUME', LEFT + 4, volumeTop + 4);
     const maxVolume = Math.max(0, ...visible.map(c => Number(c.volume)));
-    context.save(); context.beginPath(); context.rect(LEFT, TOP - 4, plotWidth, volumeBottom - TOP + 4); context.clip();
+    const level = (scale: { fraction: (text: string) => number }, top: number, bottom: number, value: string) => bottom - scale.fraction(value) * (bottom - top);
+    const hasInterest = visiblePositioning.some(bar => bar.open_interest);
+    const hasFunding = visiblePositioning.some(bar => bar.funding_rate !== null);
+    if (showPositioning) {
+      for (const [top, bottom, scale, observed, label] of [
+        [interestTop, interestBottom, interestScale, hasInterest, `OPEN INTEREST · ${hasInterest ? positioningSeries?.open_interest_unit ?? 'unit unknown' : 'not observed'}`],
+        [fundingTop, plotBottom, fundingScale, hasFunding, `FUNDING · ${fundingIntervalLabel(visiblePositioning)}`],
+      ] as const) {
+        context.strokeStyle = '#263143'; context.beginPath(); context.moveTo(LEFT, top - 8); context.lineTo(LEFT + plotWidth, top - 8); context.stroke();
+        context.fillStyle = '#8191a7'; context.textAlign = 'left'; context.fillText(label, LEFT + 4, top + 4);
+        if (!observed) continue;
+        context.fillText(scale.label(1), LEFT + plotWidth + 10, top + 14, RIGHT - 16);
+        context.fillText(scale.label(0), LEFT + plotWidth + 10, bottom, RIGHT - 16);
+      }
+      if (hasFunding) {
+        const zero = level(fundingScale, fundingTop + 14, plotBottom, '0');
+        context.strokeStyle = '#34435a'; context.beginPath(); context.moveTo(LEFT, zero + 0.5); context.lineTo(LEFT + plotWidth, zero + 0.5); context.stroke();
+      }
+    }
+    context.save(); context.beginPath(); context.rect(LEFT, TOP - 4, plotWidth, plotBottom - TOP + 4); context.clip();
     for (const candle of visible) {
       const center = x((BigInt(candle.start_ns) + BigInt(candle.end_ns)) / 2n);
       const width = Math.max(1, Math.min(36, (x(candle.end_ns) - x(candle.start_ns)) * 0.68));
@@ -159,6 +210,39 @@ export function PriceChart({ frame, instrument, connected, active, interval, onI
       context.fillRect(center - width / 2, volumeBottom - volumeHeight, width, volumeHeight);
     }
     context.globalAlpha = 1;
+    if (showPositioning) {
+      // Join touching buckets only when the source reports no unlocated continuity breaks.
+      context.strokeStyle = INTEREST; context.lineWidth = 1.5; context.beginPath();
+      let joinedEnd: string | null = null;
+      for (const bar of visiblePositioning) {
+        if (!bar.open_interest) continue;
+        const px = x((BigInt(bar.start_ns) + BigInt(bar.end_ns)) / 2n);
+        const py = level(interestScale, interestTop + 14, interestBottom, bar.open_interest.close);
+        if (connectPositioning && bar.start_ns === joinedEnd) context.lineTo(px, py); else context.moveTo(px, py);
+        joinedEnd = bar.end_ns;
+      }
+      context.stroke();
+      context.lineWidth = 1;
+      const zero = level(fundingScale, fundingTop + 14, plotBottom, '0');
+      for (const bar of visiblePositioning) {
+        const px = x((BigInt(bar.start_ns) + BigInt(bar.end_ns)) / 2n);
+        if (bar.open_interest) {
+          context.fillStyle = INTEREST; context.globalAlpha = 0.45;
+          context.beginPath(); context.moveTo(px, level(interestScale, interestTop + 14, interestBottom, bar.open_interest.high));
+          context.lineTo(px, level(interestScale, interestTop + 14, interestBottom, bar.open_interest.low)); context.stroke();
+          context.globalAlpha = bar.closed ? 1 : 0.6;
+          context.fillRect(px - 1.5, level(interestScale, interestTop + 14, interestBottom, bar.open_interest.close) - 1.5, 3, 3);
+        }
+        if (bar.funding_rate !== null) {
+          const py = level(fundingScale, fundingTop + 14, plotBottom, bar.funding_rate);
+          const width = Math.max(1, Math.min(36, (x(bar.end_ns) - x(bar.start_ns)) * 0.68));
+          context.fillStyle = bar.funding_rate.startsWith('-') ? FUNDING_NEGATIVE : FUNDING_POSITIVE;
+          context.globalAlpha = bar.closed ? 0.8 : 0.45;
+          context.fillRect(px - width / 2, Math.min(zero, py), width, Math.max(1, Math.abs(py - zero)));
+        }
+      }
+      context.globalAlpha = 1;
+    }
     context.restore();
     if (last && visible.length) {
       const py = y(last.close);
@@ -173,7 +257,7 @@ export function PriceChart({ frame, instrument, connected, active, interval, onI
       if (px >= LEFT && px <= LEFT + plotWidth) {
         const py = currentCursor.y === null ? inspected ? y(inspected.close) : priceBottom : Math.max(TOP, Math.min(priceBottom, currentCursor.y));
         context.strokeStyle = '#a5b8d1'; context.lineWidth = 1; context.setLineDash([3, 4]);
-        context.beginPath(); context.moveTo(px, TOP); context.lineTo(px, volumeBottom); context.moveTo(LEFT, py); context.lineTo(LEFT + plotWidth, py); context.stroke(); context.setLineDash([]);
+        context.beginPath(); context.moveTo(px, TOP); context.lineTo(px, plotBottom); context.moveTo(LEFT, py); context.lineTo(LEFT + plotWidth, py); context.stroke(); context.setLineDash([]);
         const label = candleDate(currentCursor.time);
         const labelWidth = context.measureText(label).width + 16;
         const labelX = Math.max(LEFT, Math.min(size.width - labelWidth, px - labelWidth / 2));
@@ -183,7 +267,8 @@ export function PriceChart({ frame, instrument, connected, active, interval, onI
         context.fillStyle = '#eef5ff'; context.fillText(priceScale.label((priceBottom - py) / (priceBottom - TOP)), LEFT + plotWidth + 7, py, RIGHT - 16);
       }
     }
-  }, [active, size, candles, visible, priceScale, timeTicks, rangeStart, rangeEnd, plotWidth, priceBottom, volumeTop, volumeBottom, last, currentCursor, inspected]);
+  }, [active, size, candles, visible, priceScale, timeTicks, rangeStart, rangeEnd, plotWidth, plotBottom, priceBottom, volumeTop, volumeBottom, last, currentCursor, inspected,
+    showPositioning, visiblePositioning, positioningSeries, connectPositioning, interestScale, fundingScale, interestTop, interestBottom, fundingTop]);
 
   const inspectPointer = (event: PointerEvent<HTMLDivElement>) => {
     if (!range) return;
@@ -214,21 +299,22 @@ export function PriceChart({ frame, instrument, connected, active, interval, onI
     else if (event.key === 'End' || event.key.toLowerCase() === 'l') { event.preventDefault(); latest(); }
     else if (event.key === 'Escape') { event.preventDefault(); setCursor(null); }
   };
-  const unsupported = data?.status === 'unavailable' && !data.supported_intervals.includes(interval);
-  const stateTitle = query.loading && !data ? 'Loading candle history' : query.error && !data ? 'Candle request failed'
-    : !query.usable && !data ? 'Waiting for market connection' : unsupported ? `${interval} is not supported by this source`
-      : data?.status === 'unavailable' ? 'Candle history unavailable' : 'No candles in available history';
-  const status = query.stale ? 'Stale snapshot' : query.paused ? 'Updates paused' : query.loading ? 'Refreshing' : data?.status === 'ready' ? '~5s refresh' : data?.status === 'unavailable' ? 'Unavailable' : data?.status === 'empty' ? 'Empty history' : 'Connecting';
-  const sourceLabel = data?.source === 'session_trades' ? 'Observed session trades · partial history' : data?.source === 'venue_ohlcv' ? 'Venue OHLCV' : 'Historical candles';
+  const stateTitle = query.blockedReason ? 'Candle source not available for this selection'
+    : query.loading && !data ? 'Loading candle history' : query.error && !data ? 'Candle request failed'
+      : !query.usable && !data ? 'Waiting for the selected native trade cohort'
+        : data?.status === 'unavailable' ? 'Candle history unavailable' : 'No candles in available history';
+  const status = query.blockedReason ? 'Selection unavailable' : query.stale ? 'Stale snapshot' : query.paused ? 'Updates paused' : query.loading ? 'Refreshing' : data?.status === 'ready' ? '~5s refresh' : data?.status === 'unavailable' ? 'Unavailable' : data?.status === 'empty' ? 'Empty history' : 'Waiting';
+  const sourceLabel = source === 'session_trades' ? 'Observed session trades · partial history' : 'Venue historical OHLCV · separate series';
+  const displayVenues = data ? data.venue_label.split(' + ').map(venueLabel).join(' + ') : '';
   const reasons = data?.reasons.map(reason => reason.replace(/_/g, ' ')).join(' · ');
   const volumeUnit = data?.volume_unit === 'base' ? instrument?.base.ticker ?? 'base' : data?.volume_unit ?? '';
   const chooseInterval = (value: string) => { onIntervalChange(value); setMenuOpen(false); menuButton.current?.focus(); };
 
   const quickInterval = QUICK_INTERVALS.some(value => value === interval);
-  return <section className={`price-chart${maximized ? ' price-chart--maximized' : ''}`} data-testid="price-chart" data-pane="price" data-interval={interval} data-presented-interval={data?.interval ?? ''} data-presented-generation={data?.generation ?? ''} hidden={!active} aria-label="Price action">
-    {maximized && <header className="price-chart__header"><div className="price-chart__heading"><h2>{instrument?.native_symbol ?? 'Market'} <span>{interval}</span></h2></div></header>}
+  return <section className={`price-chart${maximized ? ' price-chart--maximized' : ''}`} data-testid="price-chart" data-pane="price" data-interval={interval} data-source={source} data-presented-source={data?.source ?? ''} data-presented-scope={data?.scope ?? ''} data-presented-interval={data?.interval ?? ''} data-presented-generation={data?.generation ?? ''} data-positioning={!showPositioning ? 'off' : positioning.data?.status ?? (positioning.error ? 'error' : 'loading')} data-positioning-instrument={positioningSeries?.instrument_id ?? ''} hidden={!active} aria-label="Price action">
+    {maximized && <header className="price-chart__header"><div className="price-chart__heading"><h2>{data?.scope === 'aggregate' ? `${instrument?.base.ticker ?? 'Selected'} aggregate · ${displayVenues}` : instrument?.native_symbol ?? 'Market'} <span>{interval}</span></h2></div></header>}
     <div className="price-chart__toolbar">
-      <div className="price-chart__intervals" role="group" aria-label="Quick candle timeframes">{QUICK_INTERVALS.map(value => <button type="button" key={value} aria-label={`Candle interval ${value}`} aria-pressed={interval === value} aria-describedby={data && !data.supported_intervals.includes(value) ? `${helpId}-intervals` : undefined} disabled={!!data && !data.supported_intervals.includes(value)} title={data && !data.supported_intervals.includes(value) ? `${value} is not supported by this source` : undefined} className={interval === value ? 'is-selected' : ''} onClick={() => onIntervalChange(value)}>{value}</button>)}
+      <div className="price-chart__intervals" role="group" aria-label="Quick candle timeframes">{QUICK_INTERVALS.map(value => <button type="button" key={value} aria-label={`Candle interval ${value}`} aria-pressed={interval === value} className={interval === value ? 'is-selected' : ''} onClick={() => onIntervalChange(value)}>{value}</button>)}
         <div className="price-chart__menu-anchor"><button type="button" ref={menuButton} aria-label="Candle timeframe" aria-haspopup="menu" aria-expanded={menuOpen} className={quickInterval ? undefined : 'is-selected'} onClick={() => setMenuOpen(value => !value)} onKeyDown={event => { if (event.key === 'ArrowDown') { event.preventDefault(); setMenuOpen(true); } }}>{quickInterval ? 'More' : interval} <span aria-hidden="true">⌄</span></button>
           {menuOpen && <div ref={menu} className="price-chart__menu" role="menu" aria-label="Candle timeframe" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setMenuOpen(false); }} onKeyDown={event => {
             const items = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]:not(:disabled)'));
@@ -239,8 +325,15 @@ export function PriceChart({ frame, instrument, connected, active, interval, onI
               const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
               items[next]?.focus();
             }
-          }}>{INTERVAL_GROUPS.map(group => <div key={group.label} role="group" aria-label={group.label}><span className="price-chart__menu-heading">{group.label}</span><div>{group.values.map(value => <button key={value} type="button" role="menuitemradio" aria-checked={interval === value} disabled={!!data && !data.supported_intervals.includes(value)} aria-describedby={data && !data.supported_intervals.includes(value) ? `${helpId}-intervals` : undefined} tabIndex={interval === value ? 0 : -1} title={data && !data.supported_intervals.includes(value) ? 'Not supported by the current source' : value === '1M' ? 'Calendar month' : value} onClick={() => chooseInterval(value)}>{value}<span>{data && !data.supported_intervals.includes(value) ? '—' : interval === value ? '•' : ''}</span></button>)}</div></div>)}</div>}
+          }}>{INTERVAL_GROUPS.map(group => <div key={group.label} role="group" aria-label={group.label}><span className="price-chart__menu-heading">{group.label}</span><div>{group.values.map(value => <button key={value} type="button" role="menuitemradio" aria-checked={interval === value} tabIndex={interval === value ? 0 : -1} title={value === '1M' ? 'Calendar month' : value} onClick={() => chooseInterval(value)}>{value}<span>{interval === value ? '•' : ''}</span></button>)}</div></div>)}</div>}
         </div>
+      </div>
+      <div className="price-chart__view-actions" role="group" aria-label="Candle source">
+        <button type="button" aria-pressed={source === 'session_trades'} onClick={() => setSource('session_trades')}>Session trades</button>
+        <button type="button" aria-pressed={source === 'venue_ohlcv'} onClick={() => setSource('venue_ohlcv')}>Venue history</button>
+      </div>
+      <div className="price-chart__view-actions" role="group" aria-label="Perpetual positioning">
+        <button type="button" aria-pressed={showPositioning} disabled={source !== 'session_trades'} title={source === 'session_trades' ? 'Venue-reported open interest and funding observed by this session, on the same time axis as price' : 'Observed positioning uses receive time and is not drawn against exchange-time venue history'} onClick={() => setPositioningChoice(!showPositioning)}>OI &amp; funding</button>
       </div>
       <div className="price-chart__view-actions" role="group" aria-label="Candle viewport"><button type="button" onClick={fit} disabled={!candles.length}>Fit</button><button type="button" className={follow ? 'is-following' : ''} onClick={latest} disabled={!candles.length} aria-pressed={follow}>Latest</button><button type="button" onClick={() => zoom(0.8)} disabled={!candles.length} aria-label="Zoom in price chart">+</button><button type="button" onClick={() => zoom(1.25)} disabled={!candles.length} aria-label="Zoom out price chart">−</button></div>
       <div className="price-chart__header-actions"><span className={`price-chart__status${query.stale ? ' is-stale' : ''}`} role="status">{status}</span><button type="button" className="price-chart__maximize" onClick={onMaximize} aria-label={maximized ? 'Restore price chart' : 'Maximize price chart'}>{maximized ? 'Restore' : 'Expand'}</button></div>
@@ -248,24 +341,36 @@ export function PriceChart({ frame, instrument, connected, active, interval, onI
     <div className="price-chart__legend" aria-live={currentCursor?.y === null ? 'polite' : 'off'} aria-atomic="true">
       {inspected ? <><span className="price-chart__bar-time">{candleDate(inspected.start_ns, true)}</span><dl>{(['open', 'high', 'low', 'close'] as const).map(field => <div key={field}><dt>{field[0]!.toUpperCase()}</dt><dd title={inspected[field]}>{inspected[field]}</dd></div>)}<div><dt>Vol</dt><dd title={`${inspected.volume} ${volumeUnit}`}>{inspected.volume} <small>{volumeUnit}</small></dd></div></dl><span className={`price-chart__bar-state${inspected.closed ? '' : ' is-active'}`} title="Closed means the time bucket ended, not independently verified complete history">{inspected.closed ? 'Closed bar' : 'Active bar'}</span></> : <span>{currentCursor ? 'No candle at this timestamp · history gaps are preserved' : 'OHLC and volume from the selected source'}</span>}
     </div>
-    <div className="price-chart__plot" ref={plot} tabIndex={0} role="group" aria-label="Price action chart" aria-describedby={helpId} onKeyDown={keyboard} onPointerMove={inspectPointer} onPointerLeave={() => { if (!drag.current) setCursor(null); }} onPointerDown={event => {
+    {showPositioning && <dl className="price-chart__positioning" aria-label="Open interest and funding at the inspected time">
+      <div><dt>OI</dt><dd>{inspectedPositioning?.open_interest ? <>{inspectedPositioning.open_interest.close} <small>{positioningSeries?.open_interest_unit}</small> <small title="Change inside this bucket: last observation minus first">Δ {inspectedPositioning.open_interest.change}</small></> : '—'}</dd></div>
+      <div><dt>Funding</dt><dd>{inspectedPositioning?.funding_rate != null ? <>{inspectedPositioning.funding_rate}{inspectedPositioning.funding_interval_ns && <small title="Simple annualization of a variable venue-reported rate; not a forecast"> / {+(Number(inspectedPositioning.funding_interval_ns) / 3.6e12).toFixed(2)}h · ≈{annualizedFundingPercent(inspectedPositioning.funding_rate, inspectedPositioning.funding_interval_ns).toFixed(2)}% APR</small>}</> : '—'}</dd></div>
+      <div><dt>Source</dt><dd>{positioningSeries ? `${venueLabel(positioningSeries.venue)} ${positioningSeries.native_symbol} · ${positioningSeries.relation === 'selected' ? 'selected perpetual' : 'related perpetual, not the selected instrument'}` : positioning.error ?? (positioning.data ? 'No perpetual context stream for this selection' : 'Waiting for observed context')}</dd></div>
+    </dl>}
+    <div className={`price-chart__plot${showPositioning ? ' price-chart__plot--positioning' : ''}`} ref={plot} tabIndex={0} role="group" aria-label="Price action chart" aria-describedby={helpId} onKeyDown={keyboard} onPointerMove={inspectPointer} onPointerLeave={() => { if (!drag.current) setCursor(null); }} onPointerDown={event => {
       if (event.button !== 0 || !range || event.target instanceof Element && event.target.closest('button')) return;
       event.currentTarget.focus(); event.currentTarget.setPointerCapture(event.pointerId);
       drag.current = { x: event.clientX - event.currentTarget.getBoundingClientRect().left, range };
     }} onPointerUp={event => { drag.current = null; if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }} onPointerCancel={() => { drag.current = null; }} onLostPointerCapture={() => { drag.current = null; }} onDoubleClick={latest}>
       <canvas ref={canvas} aria-hidden="true" />
-      {!candles.length && <div className="price-chart__empty" role="status"><span className="price-chart__empty-mark" aria-hidden="true">{query.loading ? '···' : '—'}</span><h3>{stateTitle}</h3><p>{query.error ?? reasons ?? 'Candle history is requested independently from the order book.'}</p>{unsupported && <p>Available: {data?.supported_intervals.join(', ') || 'none'}</p>}{!query.loading && <button type="button" onClick={query.retry}>Retry candles</button>}</div>}
+      {!candles.length && <div className="price-chart__empty" role="status"><span className="price-chart__empty-mark" aria-hidden="true">{query.loading ? '···' : '—'}</span><h3>{stateTitle}</h3><p>{query.blockedReason ?? query.error ?? (reasons || 'Candles use admitted trades from the selected native cohort; no venue backfill is required.')}</p>{!query.loading && query.usable && <button type="button" onClick={query.retry}>Retry candles</button>}</div>}
       {!!candles.length && !visible.length && <div className="price-chart__empty"><h3>Outside available history</h3><p>No synthetic candles are inserted into gaps.</p><button type="button" onClick={fit}>Fit history</button></div>}
     </div>
     {query.stale && <div className="price-chart__warning" role="status"><span>{query.error ? `Refresh failed · retained candles are stale. ${query.error}` : !query.usable ? 'Market connection interrupted · retained candles are stale.' : `No successful refresh for ${query.ageSeconds}s · retained candles are stale.`}</span><button type="button" onClick={query.retry}>Retry candles</button></div>}
     <footer className="price-chart__footer">
-      <div><span className="price-chart__provenance">{sourceLabel}</span><span>{data?.time_basis === 'receive_utc' ? 'Receive time · UTC' : 'Exchange time · UTC'}</span>{data?.coverage_start_ns && data.coverage_end_ns && <span title={`${candleDate(data.coverage_start_ns, true)} — ${candleDate(data.coverage_end_ns, true)}`}>{candleDate(data.coverage_start_ns)} — {candleDate(data.coverage_end_ns)}</span>}</div>
-      {data && <div className="price-chart__receipt"><span>{data.source === 'session_trades' ? 'Queried' : 'Fetched'} {candleDate(data.fetched_at_ns, true)}</span>{query.receivedAt !== null && <span>Checked {new Date(query.receivedAt).toISOString().slice(11, 19)} UTC · {query.ageSeconds}s ago</span>}</div>}
+      <div><span className="price-chart__provenance">{sourceLabel}</span><span>{data ? `${data.scope === 'aggregate' ? 'Aggregate' : 'Primary'} · ${displayVenues} · ${data.instrument_ids.length} instrument${data.instrument_ids.length === 1 ? '' : 's'}` : 'Awaiting source coverage'}</span><span>{source === 'session_trades' ? 'Projected receive time · UTC' : 'Exchange time · UTC'}</span>{data?.coverage_start_ns && data.coverage_end_ns && <span title={`${candleDate(data.coverage_start_ns, true)} — ${candleDate(data.coverage_end_ns, true)}`}>Coverage {candleDate(data.coverage_start_ns)} — {candleDate(data.coverage_end_ns)}</span>}</div>
+      {data && <div className="price-chart__receipt"><span title={`Exact timestamp: ${data.fetched_at_ns} ns`}>{data.source === 'session_trades' ? 'Source clock' : 'Fetched'} {candleDate(data.fetched_at_ns, true)}</span>{query.receivedAt !== null && <span>Checked {new Date(query.receivedAt).toISOString().slice(11, 19)} UTC · {query.ageSeconds}s ago</span>}</div>}
       <details className="price-chart__details"><summary>Chart help &amp; provenance</summary>
         {reasons && <p className="price-chart__coverage" title={data?.reasons.join(' · ')}>{reasons}</p>}
+        {source === 'venue_ohlcv' && <p>Explicit venue history only: never merged with session trades or substituted for an aggregate. Exchange timestamps differ from projected receive timestamps.</p>}
+        {data && <p>Source {data.source_identity} · {frame?.source.mode} · session {data.session_id} · generation {data.generation}. {data.partial ? 'Partial observed coverage; closed bars are not a completeness guarantee.' : 'Coverage is limited to the returned history window.'}</p>}
+        {data && <p>Selected instruments: {data.instrument_ids.join(', ')}. Quote assets: {data.quote_asset_ids.join(', ')}.{data.quote_asset_ids.length > 1 && ' Cross-quote aggregate is indicative only; no currency conversion and no financial use.'}</p>}
+        {!!data?.missing_instrument_ids?.length && <p>Missing observed trade history: {data.missing_instrument_ids.join(', ')}.</p>}
+        {data?.bucket_alignment && <p>Bucket alignment: {data.bucket_alignment.replace(/_/g, ' ')}.</p>}
+        {data?.retention && <p>Session retention: {data.retention.retained_trades} / {data.retention.max_trades} trades; {data.retention.retained_bytes} / {data.retention.max_bytes} bytes. {data.retention.truncated ? 'Older history has been retired; bars may contain only retained trades.' : 'Bounded observed history, not complete venue history.'}</p>}
+        {data?.highwater !== undefined && <p>Source delivery highwater: {data.highwater}.</p>}
+        {showPositioning && positioning.data && <p>Open interest and funding: venue-reported context observed by this session, bucketed on the candle receive-time axis; not executable prices, exchange guarantees or paper funding inputs. Unobserved intervals stay empty.{positioningSeries && ` Retained ${positioningSeries.retention.retained_minutes} / ${positioningSeries.retention.max_minutes} one-minute observations; open-interest unit is ${positioningSeries.open_interest_unit_provenance.replace(/_/g, ' ')}.`} {positioning.data.reasons.map(reason => reason.replace(/_/g, ' ')).join(' · ')}.</p>}
         <p id={helpId} className="price-chart__help">Drag to pan · scroll to zoom · ← → inspect · Shift + ← → pan · + / − zoom · F fit · L latest · Esc clear</p>
       </details>
-      <span id={`${helpId}-intervals`} className="price-chart__sr-only">This interval is not supported by the current source. Choose an enabled timeframe; disabled intervals cannot be requested.</span>
     </footer>
   </section>;
 }

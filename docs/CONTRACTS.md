@@ -16,10 +16,11 @@ The exact instrument/event/quality/book/wire contracts, venue adapters, transpor
 | `transport.py` | Bounded public HTTP response bytes, per-origin retry/rate/circuit policy |
 | `analytics.py`, `costs.py`, `visuals.py` | Metrics, depth walks, costs/cohort/conversion policy and bounded visual history |
 | `recording.py`, `replay.py` | Capture, manifests, recovery, deterministic clock/order |
-| `market_presentation.py` | Owner-completed cohort books/trades, ordered trade-stream boundaries, exact valuation and exclusive display cursors |
+| `market_presentation.py`, `candles.py` | Bounded admitted-trade history, projected source clock, cohort books/trades/candles, retention and delivery cursors; explicit separate venue OHLCV |
 | `capture_service.py` | Session-owned managed capture lifecycle, bounds and restart discovery |
 | `alerts.py`, `context.py` | Quality-gated local alert evidence and non-executable references |
-| `paper.py`, `journal.py` | Spot IOC simulation, durable command/accounting archive and manual rationale |
+| `positioning.py` | Bounded minute history of observed perpetual open interest/funding on the admitted candle clock |
+| `paper.py`, `perpetual.py`, `journal.py` | Spot IOC and modeled isolated perpetual accounting, durable command/archive state and manual rationale |
 | `research.py` | Causal offline experiments, durable attempts/evidence/all trial outcomes |
 | `api.py`, `runtime.py`, `wire.py` | Versioned routes, owned sessions/consumers, input/origin limits and exact codecs |
 
@@ -421,6 +422,27 @@ Trade records additionally carry `instrument_id`, delivery/event `cursor` and
 `source_identity:{session_id,segment_id,clock_id,connection_epoch}` (all strings),
 preserving original event reference, aggressor provenance and subscription-history
 flag. They are not individually eligibility-certified.
+`display_time_ns` additionally carries the exact source receive-clock projection.
+Its origin is the first receive monotonic/wall pair for `(session_id,clock_id)`;
+the timestamp is `origin_wall + receive_mono - origin_mono`. Wall-clock
+corrections do not reanchor already admitted trades. Incomparable source clocks
+cannot share history. `display_frontier_ns` is the same projection of the source
+monotonic frontier (nullable without an origin), not the last trade or page
+cursor. It can close existing buckets on a clock-only delivery without synthetic
+empty bars. Late admitted prints can revise a time-closed bucket. Convert to
+plotting milliseconds by exact integer division before Number conversion and
+reject unsafe plotting ranges, rather than rounding epoch nanoseconds.
+
+`AdmittedTradeHistory` retains at most 10,000 rows / 8 MiB of accounted trade
+representation, independently of live raw history. Live raw-prefix trimming
+also calls `prune_through(delivery,event_index)` so candles cannot outlive
+obtainable market-feed rows. Every market response carries
+`retention:{floor:{delivery,event},stream_floors:{[stream_id]:{delivery,event}}}`.
+These floors are inclusive retirements; consumers prune through them even when
+`gap:false`, including on empty/caught-up pages. Global rollover preserves
+still-retained rows; stream retirement preserves unaffected peers and depth.
+`source_identity`, `time_basis:"receive_utc"` and `display_time_reasons` expose
+the owning source and clock limitations.
 
 The additive `boundaries` array carries `{instrument_id,stream_id,cursor,asof,
 kind,reason}` for cohort trade-stream gaps, resets, disconnects, source changes
@@ -448,6 +470,44 @@ Replay labels this **Recorded lag** (capture-time receipt, not playback latency)
 demo labels it **Synthetic lag**. Display floats/studies cannot become financial
 inputs. Full request and response contracts are in
 [API](API.md#native-market-data-delivery).
+
+### Unified native candle contract
+
+Strict `CandleRequest` selects `source:"session_trades"` by default in every
+mode, optionally explicit `venue_ohlcv`. Its optional bounded `instrument_ids`
+is primary-only when empty; an explicit cohort must contain the primary,
+have no duplicates and belong to active pinned same-base/same-market streams.
+At most 16 IDs are accepted; canonical output is primary first, then sorted peers.
+Aggregate `instrument_ids`, `scope`, `venue_label` and `quote_asset_ids` describe
+the actual requested cohort, not a single-venue label. Cross-quote aggregation
+is indicative, with no conversion or financial use.
+
+Native admitted trades drive both Price Action and Footprint/studies at the
+same selected cohort/global interval. The fifteen intervals are
+`1m,3m,5m,15m,30m,1h,2h,4h,6h,8h,12h,1d,3d,1w,1M`.
+Fixed buckets floor projected UTC nanoseconds against Unix epoch (including
+Thursday-origin weeks); calendar months run UTC first-to-next-first.
+Delivery order determines open/close; unknown base sizes, subscription history,
+unadmitted/future/unrelated-clock prints cannot supply volume. No empty candles
+are invented. `closed` is only the source frontier passing exclusive `end_ns`,
+not a completeness guarantee.
+
+Native results expose source/session/generation, `highwater`, exact decimal
+OHLC/base volume, `bucket_alignment`, `missing_instrument_ids`, and
+`retention:{max_trades,max_bytes,retained_trades,retained_bytes,truncated}`.
+They always report partial retained-session coverage; first/last contributing
+trade times of returned bars define coverage, not bucket edges. Boundaries,
+source/clock changes, retention and seek reconstruction fence obsolete data.
+Frontend source/generation/cohort/interval changes fence obsolete responses.
+
+Venue OHLCV is an explicitly separate primary-only exchange-UTC query, not
+startup input, a replay-prefix substitute or automatic fallback. Exact native
+family/market/interval support and access failures stay visible; provider bucket
+alignment may differ from native epoch flooring. Binance spot/USD-M and Bybit
+spot/linear select their own real native families, not a spot substitution.
+All fields, bounds and optional-history limitations are in
+[API](API.md#unified-native-candles-and-explicit-venue-history).
+
 
 ### Managed capture lifecycle
 
@@ -547,22 +607,74 @@ required to acquire the reference amount; it is not perpetual funding P&L.
 Cost scope is explicit FX spread/conversion fees only, excluding trading fees,
 funding P&L, inventory, borrow/margin or a realizable arbitrage trade.
 
+### Observed positioning history
+
+`PositioningHistory(streams, clock)` is a replay observer over perpetual
+`context` streams (at most 16). `ContextEngine` keeps only the latest
+observation; this keeps a bounded series. It runs immediately after
+`AdmittedTradeHistory` in the observer order and requires that history to have
+consumed the same delivery, because the trade history's first receive pair per
+source clock is the single projection origin for candles, tape and positioning.
+
+Each admitted `AssetContext` carrying open interest or funding folds into a
+`PositioningBar` keyed by the UTC minute of its projected receive time:
+open-interest open/high/low/close, last funding rate with its interval, last
+mark/oracle, first/last observation time and sample count. At most 10,080
+minutes are retained per stream; eviction sets `truncated`. A funding interval
+is stored only with a funding rate. Out-of-order minutes are rejected with
+`nonadvancing_context_clock`, an unprojectable event with
+`unprojectable_context_clock`.
+
+Gap/reset/disconnect/source-change/rejection controls after a first observation
+add `context_discontinuities` but retain observed bars. A different
+`(session_id, clock_id)` clears all bars; a changed open-interest unit clears
+that stream. `reset`, `checkpoint` and `restore` follow the observer protocol;
+restore rejects another stream set, unordered or misaligned minutes, invalid
+envelopes and unitless open interest.
+
+`positioning_series` aggregates minutes with `session_bucket`, the same function
+as session candles, for every stream whose canonical base asset matches the
+selection. It adds no value that was not observed and reports the admitted
+clock's own discontinuity reasons. It does not feed paper accounting:
+`PaperFundingModel` remains an explicit user assumption.
+
 ### Paper funds, fees, time and consumed liquidity
 
-`PaperEngine` implements **spot-only market/marketable-limit IOC** over the shared
-native depth walker. A `PaperConfig` explicitly records venue/asset balances,
-instrument fee schedules, eligibility policy and separate feed, decision and
-order latency nanoseconds. Feed delay gates book availability, including initial
-baseline; decision plus order delay fixes arrival. Pending commands compete for
-funds at arrival, not at submission. No borrowing, margin, cross-venue transfer,
-perpetual funding, passive queue priority or market impact is modeled.
+`PaperEngine` implements spot and supported isolated one-way perpetual
+market/marketable-limit IOC using exact native books and consumed-depth evidence.
+`PaperConfig` contains `balances:tuple[InventoryBalance,...]`,
+`fees:tuple[PaperFee,...]`, `feed_latency_ns`, `decision_latency_ns`,
+`order_latency_ns`, `policy:EligibilityPolicy`,
+`risk_models:tuple[PaperRiskModel,...]` and
+`funding_models:tuple[PaperFundingModel,...]`. Core collections are bounded to
+256 each (HTTP 64); balances are unique by venue/asset and each fee/model list
+by instrument. Latencies are nonnegative and at most one day. Feed delay gates
+book availability, including the initial baseline; decision plus order delay
+fixes arrival. Pending commands compete for funds at arrival, not submission.
+No cross-margin, cross-venue transfer, spot borrowing, passive queue priority
+or market impact is modeled.
 
-Fill eligibility includes exact product constraints, quality, available balance,
-fee denomination/date and known observed depth. Unknown fees, future-dated fees,
-missing arrival wall clock or third-token fee assumptions are unavailable.
-Partial fills retain filled quantity and explicitly cancel the IOC remainder;
-unmarketable/unfunded orders do not become resting orders. Pending cancellation
-is a recorded command, not an exchange message.
+`PaperOrderRequest(instrument_id,side,quantity,order_type="market",
+limit_price=None,reduce_only=False)` retains native quantity units. Fill
+eligibility includes exact product constraints, verified metadata, source clock,
+quality, available collateral, dated known fees and observed unconsumed depth.
+Unknown/future-dated fees or missing arrival wall time exclude fills. Spot fees
+use base/quote; perpetual fees use settlement, never an unmodeled third token.
+Partial fills cancel the IOC remainder; pending cancellation is a durable
+command, not an exchange message.
+
+The active API `capability` describes only the exact pinned primary's
+`instrument_id,metadata_version,market_type,quantity_unit,settlement_asset_id,
+supported,reasons,native_order_constraints`. Support is intrinsic economics,
+not book readiness, model completeness, collateral or venue execution access.
+Clients fence both ID/version and must not substitute latest discovery metadata.
+`native_order_constraints(instrument)` supplies the financial interpretation of
+`OrderConstraints`: `min_base,max_base,max_limit_base,max_market_base` are native
+quantity sizes despite their historical names; `min_notional,max_notional` keep
+`min_notional_currency`, with `price_rule,size_rule` explicit. Null is unknown.
+Only tightly identified historical OKX `okx-v1` SWAP descriptors have their
+erroneously contract-value-scaled size limits reversed by this helper; raw
+captured descriptors, hashes, as-of and metadata versions are unchanged.
 
 Reservations are keyed by native instrument, side and price and survive
 unsubscription. Healthy displayed decreases retire consumed quantity down to
@@ -571,11 +683,107 @@ inside observed coverage followed by reappearance is replenishment; disappearanc
 outside truncated coverage is not. Heartbeats, unchanged snapshots, revision
 changes and cohort replacement do not create reusable liquidity.
 
-Balances, orders, fills and positions retain exact Decimal amounts, native
-assets/venues, source clocks/deliveries and book key/revision/as-of. Fees are
-applied in supported native base or quote. Position accounting is average-cost;
-initial inventory basis is unknown, so affected basis/P&L remains null. Marks
-are gross best bid, not fee-adjusted liquidation proceeds or guaranteed fills.
+Spot balances, orders, fills and positions retain exact native assets/venues,
+source clocks/deliveries and book key/revision/as-of. Spot accounting remains
+average-cost; initial inventory basis is unknown, so affected basis/P&L is null.
+Spot marks are gross best bid, not guaranteed liquidation proceeds.
+
+#### Supported perpetual economics and isolated accounting
+
+Supported verified contracts need interpretable native valuation and fixed-lot
+sizes. Ordinary linear contracts settle in quote; inverse quote-face contracts
+settle in base with `settlement_conversion="none"`. Default-namespace Hyperliquid
+linear `quanto_no_fx` contracts are supported only with the recognized official
+contract-specification provenance: the documented native payout denomination is
+used, not an invented USDT/USDC FX parity. Unknown/builder economics and unsupported
+settlement remain rejected. Native notional is not available cash or margin.
+
+Positions are keyed by exact `(venue,instrument_id)` and retain their captured
+`Instrument`. Free balances are keyed `(venue,settlement_asset_id)`, separate from
+spot base inventory. Signed native quantity is one-way: buys open longs or close
+shorts; sells do the converse. Opposite orders close before any eligible opening
+remainder. `reduce_only` clamps to existing exposure and cannot increase or flip
+it. Opening size is capped to free collateral for initial margin plus fees,
+rounded down to native lots and still subject to native order/depth bounds.
+
+For native signed quantity `q`, multiplier `m`, entry `E`, exit/mark `P`:
+
+- Linear exposure is `q*m`; gross P&L is `q*m*(P-E)` and entry margin is
+  `abs(q)*m*E/leverage`. Additional fills use quantity-weighted entry.
+- Inverse face is `q*m`; gross base-settled P&L is
+  `q*m*(1/E-1/P)` and entry margin is `abs(q)*m/(E*leverage)`.
+  Additional fills use harmonic entry.
+
+All arithmetic uses the declared Decimal context, not plotting floats.
+Opening removes margin plus trading fees from free settlement collateral.
+Closing releases proportional original `initial_margin`, realizes gross P&L
+and charges fees/any protective penalty against isolated collateral; only the
+available funded share returns to free collateral. A flat negative remainder
+is retained as `debt`, not debited from another position or silently wiped.
+`isolated_collateral`, `initial_margin`, cumulative gross `realized_pnl`,
+`fees_paid`, `funding_paid` and `liquidation_fees_paid` remain distinct.
+
+`PaperRiskModel(instrument_id,leverage,maintenance_margin_rate,
+liquidation_fee_rate,provenance,asof_wall_ns)` is an explicit dated assumption:
+leverage 1–1000, nonnegative maintenance below `1/leverage`, penalty below one.
+It is not a venue risk-tier schedule. Missing/future models or unavailable model
+date clocks reject exposure. An eligible executable-side book supplies the
+adverse proxy mark (long bid/short ask), explicitly
+`eligible_executable_side_book_proxy_not_exchange_mark`.
+`unrealized_pnl` uses that mark; `equity = isolated_collateral + unrealized_pnl`;
+maintenance is marked settlement value times the modeled maintenance rate.
+Missing/stale/incompatible marks leave values null with reasons, not zero.
+
+Equity at or below maintenance triggers protective reduce-only IOC through real
+remaining eligible depth, with ordinary trading fees and a separate modeled
+liquidation penalty. User orders and protective fills share consumed-depth
+reservations. Partial/missing depth does not invent closure: `liquidating`,
+remaining quantity, shortfall/debt and reasons remain visible. Risk cannot
+increase for a troubled position or another position sharing its venue and
+settlement asset while debt/liquidation/unresolved reasons persist. The bounded
+10,000 liquidation-record capacity leaves risk frozen with
+`liquidation_record_limit`, not an invented settlement.
+
+#### Funding, clocks and bounded freeze
+
+`PaperFundingModel(instrument_id,mode,provenance,asof_wall_ns,rate=None,
+interval_ns=None,first_wall_ns=None,events=())` is explicit:
+`none` declares no funding; `periodic` requires signed rate, positive interval
+and first boundary; `events` contains chronological
+`PaperFundingEvent(wall_ns,rate)` records. Periodic inputs and events cannot be
+mixed. Rates have magnitude below one; boundaries cannot predate the model.
+Missing funding is unavailable, never implicit zero.
+
+Funding uses the run's same-clock wall/monotonic anchor to schedule deterministic
+boundaries, not browser/request time or an unrelated process clock. When a replay
+frontier omits wall time, command dates project already received same-clock
+evidence; no today's-wall-time substitution is allowed. Per-instrument
+`PaperFundingCursor.through_wall_ns` prevents duplicate settlement across
+checkpoint/restore; full reset reconstructs from commands and delivered history.
+At a boundary, payment is marked settlement value times signed funding rate
+times position direction. Positive `amount` debits isolated collateral;
+negative credits it. A missing eligible mark records null amount and
+`funding_mark_unavailable_payment_unresolved`, not zero payment or guessed mark.
+
+Due catch-up is preflighted against the 10,000 funding-record bound **before**
+monetary projection mutation. Overflow raises `funding_catchup_limit`; runtime
+and replay catch that specific error, freeze only paper, and continue non-paper
+observations. Frozen snapshots retain the last valid accounting delivery/clock,
+with `paper_frozen` and the cause; queries do not advance them. Orders, time and
+observer mutation cannot silently skip funding. Checkpoints preserve
+`frozen_reason`. At capacity, `none` and exhausted finite schedules remain usable;
+only exposure needing further funding records is fenced.
+
+`PaperSnapshot` adds `perpetual_positions`, `funding_payments`, `liquidations`
+alongside spot positions, balances, orders, fills, reasons and assumptions.
+`PaperPerpetualPosition`, `PaperFundingPayment` and `PaperLiquidation` retain
+the exact fields listed in [API](API.md#paper-and-journal-semantics), with
+settlement units and nullable unresolved valuation. Liquidation `fill_id` links
+ordinary fee evidence; its `fee_amount` is only the protective penalty.
+HTTP independently slices newest orders/fills/payments/liquidations before
+serialization (default 20, maximum 100 each), reporting every limit/total/omitted
+count. Each fill carries at most 20 consumed levels plus omissions. Full bounded
+accounting remains durable; presentation truncation does not erase it.
 
 ### Durable state, archive, resume and manual provenance
 
@@ -586,14 +794,42 @@ records preserve exact values. The embedded runtime without a state directory
 instead uses temporary storage. These databases supplement immutable recording
 files, not replace them.
 
-Paper stores durable run configuration/metadata and ordered commands, plus a
-separately queried transition archive. Archives preserve historical accounting,
-including live audit evidence after shutdown. They are not active replay state.
-New clients do not auto-adopt old runs. Explicit replay/demo resume validates
-source identity, rebuilds a candidate at the current prefix, publishes before
-cutover, pauses playback and increments generation. Failed staging leaves the
-active projection untouched. Reset reconstructs balances/reservations/fills/P&L
-from commands and delivered history; archive rows never supply future state.
+Paper persists full run configuration/captured metadata, ordered commands and
+the latest genuine transition archive per run. Archive queries are read-only
+historical accounting (`archived_not_live_projection`); advancing genuine
+transitions may replace the stored latest snapshot, but rewinds, failed resume,
+fresh child configuration and later chart frontiers cannot rewrite that historical
+accounting into an earlier/invented state. Stale command revisions are disclosed
+as `archive_command_revision_superseded`. No archive seeds active replay state.
+
+Explicit configuration always creates a new run, linked by `parent_run_id`
+when replacing one, with supplied new funds/models rather than inherited
+accounting. Runtime passes **current** streams, pinned descriptors, books,
+source clock and delivery, including after a cohort switch or funding freeze.
+A frozen engine requires current books and a non-backward delivery. Reset clears
+the freeze for genuine reconstruction, not automatic continuation after skipped
+input. Old commands and historical accounting remain separate.
+
+New clients do not auto-adopt runs. Replay/demo resume checks native source
+identity and independently rebuilds a candidate through the current cursor.
+`future_commands_fork_required` is a **mutation fence, not incomplete accounting**:
+a valid historical prefix can resume, while order/cancel commands stay blocked
+until the source catches up or configuration creates a fresh child.
+Frozen, unconfigured, inactive, stale-revision, wrong-clock or delivery-incomplete
+candidates reject atomically with `paper_resume_incomplete_accounting_prefix`.
+Failed staging/durable publication leaves the active projection unchanged.
+Successful cutover pauses playback and increments generation. Archives do not
+supply future fills; pending future commands prevent backward archive publication.
+
+Tagged durable wire stays strict. Only exact recognized pre-perpetual shapes
+receive defaults: `PaperConfig` missing both model collections;
+`PaperOrderRequest` missing `reduce_only`; `PaperSnapshot` missing all three
+perpetual collections; `PaperCheckpoint` missing `perpetual_positions`,
+`funding_payments`, `funding_cursors`, `liquidations`, `frozen_reason`.
+Partially migrated shapes, other missing fields, unknown fields and numeric
+decimal fields still fail. Native Instrument identity compatibility remains
+separate. SQLite accepts schema versions 0/1/2 and retains version 2; derived
+accounting/checkpoint values round-trip under `DERIVED_DECIMAL_POLICY`.
 
 Recording identity includes session ID and immutable manifest hash; demo
 identity hashes its source descriptor. Live identity includes clock and client

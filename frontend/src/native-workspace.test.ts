@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Instrument, Source } from './api.ts';
 import type { ManagedRecording } from './workflow-api.ts';
-import { financialInstrumentsForSelection, ownedSessionRecording, paneForView, retainConfirmedCatalog, toggleBookView, viewForPane } from './integration/nativeWorkspace.ts';
+import { financialInstrumentsForSelection, ownedSessionRecording, paneForView, retainConfirmedCatalog, viewForPane } from './integration/nativeWorkspace.ts';
 
 const source: Source = { id: 'live', mode: 'live', label: 'Live', status: 'ready', synthetic: false, recording: false, duration_ns: null, streams: 2, reasons: [] };
 const frame = { session_id: 'session-1', generation: '1', source, selection: { instrument_id: 'venue/BTC-USDT', metadata_status: 'verified' as const, metadata_version: '1' } };
@@ -104,34 +104,6 @@ test('every mobile pane selects its owning chart mode and preserves Flow and Tap
   assert.equal(paneForView('price', 'tape'), 'price');
   assert.equal(paneForView('orderflow', 'dom'), 'heatmap');
   assert.equal(paneForView('book', 'price'), 'dom');
-});
-
-test('DOM and tape toggle exits Book coherently rather than hiding content under a selected Book tab', () => {
-  for (const narrow of [false, true]) {
-    for (const desktopView of ['price', 'orderflow'] as const) {
-      assert.deepEqual(toggleBookView('book', true, narrow, desktopView), { nativeView: desktopView, rightOpen: false });
-    }
-  }
-  assert.deepEqual(toggleBookView('price', false, false, 'price'), { nativeView: 'price', rightOpen: true });
-  assert.deepEqual(toggleBookView('orderflow', true, false, 'orderflow'), { nativeView: 'orderflow', rightOpen: false });
-  for (const rightOpen of [false, true]) {
-    assert.deepEqual(toggleBookView('price', rightOpen, true, 'price'), { nativeView: 'book', rightOpen: true });
-    assert.deepEqual(toggleBookView('orderflow', rightOpen, true, 'orderflow'), { nativeView: 'book', rightOpen: true });
-  }
-});
-
-test('closing Book or Tape selects a visible primary pane in the remembered chart workspace', () => {
-  for (const previousPane of ['dom', 'tape'] as const) {
-    for (const narrow of [false, true]) {
-      for (const desktopView of ['price', 'orderflow'] as const) {
-        const next = toggleBookView(viewForPane(previousPane), true, narrow, desktopView);
-        const selected = paneForView(next.nativeView!, previousPane);
-        assert.equal(selected, desktopView === 'price' ? 'price' : 'heatmap');
-        assert.equal(viewForPane(selected), next.nativeView);
-        assert.equal(next.rightOpen, false);
-      }
-    }
-  }
 });
 
 const capture: ManagedRecording = {

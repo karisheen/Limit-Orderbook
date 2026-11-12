@@ -12,8 +12,9 @@ Binance BTC/USDT public-market replay showing footprint modes, CVD and volume
 bars, depth, replay candles, native liquidity, book/tape and exact cost estimates.
 A larger highlighted pointer, subtle halo and short click pulses make the
 interactions easy to follow; these overlays exist only in the recording.
-The animated preview links to the full video. This is not an all-provider
-correctness, latency, sustained-capacity or trading-readiness claim.
+The animated preview links to the full video. This bounded spot replay demo is
+not proof of perpetual workflows, all-provider correctness, latency,
+sustained capacity or trading readiness.
 
 ## Terminal features
 
@@ -21,14 +22,16 @@ correctness, latency, sustained-capacity or trading-readiness claim.
   and draggable panel borders.
 - **Bid × Ask / Delta / Volume** footprints; session profile, executed-volume
   heatmap, VWAP deviation bands, POC/value area and stacked imbalances.
-- Raw/grouped books, primary or consolidated depth, size-filtered tape, CVD,
+- One reference-style book/tape surface with explicit native exact inspection;
+  raw/grouped books, primary or consolidated depth, size-filtered tape, CVD,
   volume z-score, depth/imbalance and realized-volatility studies.
 - Spot/perpetual market selection, searchable instruments, venue selection and
   indicative cross-venue aggregates, all supplied by the native backend.
 - **Footprint / Price action / Liquidity & flow / Native book & tape** chart
   tabs, exact book/print inspection and source/quality diagnostics.
 - Exact costs and proposed-risk scenarios, core analytics, alerts/evidence,
-  Hyperliquid context, spot IOC paper accounting, journal and read-only research.
+  Hyperliquid context, spot IOC and isolated perpetual paper accounting,
+  journal and read-only research.
 - Source switching, replay controls, managed recording and browser-local
   workspace preferences in the same terminal—not a separate application.
 
@@ -49,8 +52,9 @@ The source catalog determines available instruments. Discovery, live books,
 trades and historical candles have provider-specific coverage and quality;
 listing an adapter does not certify every symbol, region or channel. Public
 endpoints may rate-limit, restrict access or change protocols. Derivative
-contract units and settlement remain explicit; perpetual display support does
-not enable derivative paper execution. See [feed validation](docs/FEED_VALIDATION.md)
+contract units and settlement remain explicit; perpetual paper support requires
+verified pinned financial metadata and explicit risk/funding assumptions. See
+[feed validation](docs/FEED_VALIDATION.md)
 for historical observations, not blanket qualification of this release.
 Discovery excludes Bybit linear TradFi classifications and Bitget RWA futures;
 native crypto contract metadata remains explicit.
@@ -59,7 +63,8 @@ The live terminal starts Binance and Bybit subscriptions from a bundled crypto
 candidate catalog without waiting for REST metadata. Official spot/perpetual
 metadata loads independently; REST restrictions do not imply WebSocket failure.
 Candidates are explicitly **streaming-only**, not confirmed listings: tick, lot
-and order limits remain unknown, and actual valid messages establish feed health.
+and order limits remain unknown. Catalog candidates, observed books, retained
+ordered prints and verified financial metadata are separate readiness signals.
 Display studies and recording/replay remain available; exact costs, comparison,
 proposed risk and paper orders require verified session-pinned metadata.
 Successful discovery enriches future streams without rewriting existing captures.
@@ -112,16 +117,33 @@ See [terminal controls](docs/TERMINAL.md), [development](docs/DEVELOPMENT.md),
 
 ## Charts, recording and replay
 
-The order-flow footprint and studies use delivered native events. Native candle
-history is a bounded provider OHLCV page where supported; demo/replay candles
-use only already-delivered retained trades and label partial coverage. A candle
-represents its selected duration, not one incoming event. Changing a display
-interval does not create a new financial session or change replay speed.
-Trade-stream continuity boundaries restart affected trade studies without
-discarding independent depth history. Busy workflow actions pause display
-polling without clearing same-owner caches. Missing timestamp evidence shows
-unavailable lag; **Recorded lag** describes capture-time receipt, not playback
-latency.
+**Price action**, the footprint and trade studies use admitted native trades in
+live, synthetic demo and replay, for spot and perpetuals. They share the actual
+selected native cohort and one persisted interval: **1m, 3m, 5m, 15m, 30m, 1h,
+2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M**. Fixed buckets use Unix-epoch UTC
+alignment (weeks start Thursday); `1M` is a UTC calendar month.
+
+Price Action uses the source's exact receive-wall anchor plus matching
+receive-monotonic delta, not browser time or exchange execution time. Retained
+history and response limits are disclosed; subscription-history prints and
+unknown base sizes do not become candle volume. No future or empty candles are
+invented. A closed bucket means its time boundary passed, not complete coverage.
+**Venue history** (`venue_ohlcv`) is an explicit, separate primary-only historical
+source where supported, never an automatic backfill or substitute for aggregate
+session bars.
+
+Normal chart views retain one reference-style book/tape sidebar. **Native book
+& tape** replaces it with exact inspection rather than opening a duplicate
+sidecar. Single-book mode never substitutes aggregate depth for a missing primary;
+all depth is bounded observed coverage. Book presence alone does not establish
+retained-print readiness.
+
+Changing the shared interval recomputes retained inputs without creating a new
+financial session or changing replay speed. Trade-stream continuity/retention
+boundaries retire affected trade evidence without discarding independent depth
+history. Busy workflow actions pause display polling without clearing same-owner
+caches. Missing timestamp evidence shows unavailable lag; **Recorded lag**
+describes capture-time receipt, not playback latency.
 
 Open **Recordings** and choose one of exactly two capture scopes:
 **Selected instrument** (`instrument`, default) captures all primary-owned
@@ -177,16 +199,28 @@ not validated strategies.
 
 Alerts have explicit units, hysteresis, cooldown and supporting native evidence;
 they are not forecasts. Hyperliquid mids, mark/oracle, funding and open interest
-are reference-only. USD, USDT and USDC remain distinct identities; missing
+are reference-only. Price Action can plot the observed open interest and funding
+history under price on the same time axis (**OI & funding**). USD, USDT and USDC remain distinct identities; missing
 quote-conversion evidence, fees, depth or eligible history stay explicit.
 
-Paper requires explicit venue/asset funds, dated fee assumptions and feed,
-decision and order latencies. Only **spot market/marketable-limit IOC** is modeled:
-partial fills cancel the remainder, consumed depth requires observed
-replenishment, and neither passive fills, derivative economics nor market impact
-is inferred. Initial inventory cost basis is unknown. Archives are read-only
-accounting evidence, not automatically active ledgers. Resume is explicit,
-source-matched and available only for demo/replay, not live histories.
+Paper requires explicit venue/asset funds, dated fees, and feed, decision and
+order latencies. Spot **market/marketable-limit IOC** remains available; supported
+native perpetuals use a one-way isolated ledger with exact settlement collateral,
+native quantities, user-sourced leverage/maintenance/liquidation-fee assumptions
+and an explicit funding model (including an explicitly chosen no-funding model).
+Buy/sell can open long/short or close opposite exposure; reduce-only cannot add
+or flip exposure. The drawer exposes margin, realized/unrealized P&L, fees,
+funding, protective liquidation, residual exposure and debt. Book-side marks are
+proxies, not exchange marks or guaranteed liquidation prices.
+
+IOC remainders cancel; consumed depth requires observed replenishment. No
+passive fills, borrowing or market impact is inferred. Spot initial-inventory
+cost basis stays unknown. A funding-accounting limit freezes paper at its last
+valid prefix without stopping charts; recovery is explicit, never a silent
+skip of funding. Archives remain read-only and survive retained-state restart.
+Resume reconstructs a matching demo/replay prefix, not a live history; changing
+historical intent requires an explicit fork with entered starting funds. See
+[paper controls and limits](docs/TERMINAL.md#paper-workflow-spot-and-isolated-perpetuals).
 
 Journals preserve authored provenance. Interrupted workflow mutations may already
 have committed: inspect native state before retrying. The client does not

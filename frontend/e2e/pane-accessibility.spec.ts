@@ -176,6 +176,7 @@ for (const width of [320, 390, 1280, 1920]) {
 
 test('Escape closes focused DOM disclosures before restoring a maximized pane', async ({ page }) => {
   await openDemo(page);
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Native book & tape', exact: true }).click();
   const workspace = page.getByTestId('workspace');
   const dom = page.locator('[data-pane="dom"]');
   const settings = dom.locator('.dom-settings');
@@ -190,7 +191,7 @@ test('Escape closes focused DOM disclosures before restoring a maximized pane', 
   await expect(workspace).toHaveAttribute('data-maximized', 'dom');
   await page.keyboard.press('Escape');
   await expect(workspace).toHaveAttribute('data-maximized', '');
-  await expect(page.getByTestId('chart-pane-heatmap')).toBeVisible();
+  await expect(page.locator('[data-pane="tape"]')).toBeVisible();
 
   await settingsSummary.click();
   const scope = settings.locator('.dom-scope');
@@ -208,10 +209,11 @@ test('Escape closes focused DOM disclosures before restoring a maximized pane', 
 });
 
 for (const width of [320, 390]) {
-  test(`market tabs support keyboard selection, pane toggles and desktop resize at ${width}px`, async ({ page }) => {
+  test(`market tabs support keyboard selection, view changes and desktop resize at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await openDemo(page);
     const tabs = page.getByRole('tablist', { name: 'Market panes', exact: true });
+    const charts = page.getByRole('tablist', { name: 'Chart workspace', exact: true });
     const liquidity = tabs.getByRole('tab', { name: 'Liquidity', exact: true });
     await liquidity.focus();
     for (const [key, name, id] of [
@@ -236,22 +238,23 @@ for (const width of [320, 390]) {
     await expect(page.getByTestId('workspace')).toHaveAttribute('data-maximized', '');
     await expect(page.getByTestId('chart-pane-flow')).toBeVisible();
     await tabs.getByRole('tab', { name: 'Book', exact: true }).click();
-    await page.getByRole('button', { name: 'DOM / tape', exact: true }).click();
+    await page.getByRole('button', { name: 'Maximize DOM', exact: true }).click();
+    await charts.getByRole('tab', { name: 'Liquidity & flow', exact: true }).click();
+    await expect(page.getByTestId('workspace')).toHaveAttribute('data-maximized', '');
     await expect(liquidity).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByTestId('chart-pane-heatmap')).toBeVisible();
     await expect(page.getByTestId('price-chart')).toBeHidden();
     await expect(page.locator('[id^="market-panel-"]:visible')).toHaveCount(1);
-    await expect(page.getByRole('button', { name: 'DOM / tape', exact: true })).toHaveAttribute('aria-pressed', 'false');
     await tabs.getByRole('tab', { name: 'Price', exact: true }).click();
     await tabs.getByRole('tab', { name: 'Book', exact: true }).click();
-    await page.getByRole('button', { name: 'DOM / tape', exact: true }).click();
+    await charts.getByRole('tab', { name: 'Price action', exact: true }).click();
     await expect(tabs.getByRole('tab', { name: 'Price', exact: true })).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByTestId('price-chart')).toBeVisible();
     await expect(page.getByTestId('chart-pane-heatmap')).toBeHidden();
     await expect(page.locator('[id^="market-panel-"]:visible')).toHaveCount(1);
     await tabs.getByRole('tab', { name: 'Flow', exact: true }).click();
     await tabs.getByRole('tab', { name: 'Tape', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'DOM / tape', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(charts.getByRole('tab', { name: 'Native book & tape', exact: true })).toHaveAttribute('aria-selected', 'true');
     await expect(page.locator('[data-pane="tape"]')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
@@ -267,10 +270,11 @@ for (const width of [320, 390]) {
     await page.setViewportSize({ width, height: 900 });
     await expect(tabs.getByRole('tab', { name: 'Tape', exact: true })).toHaveAttribute('aria-selected', 'true');
     await expect(page.locator('[data-pane="tape"]')).toBeVisible();
-    await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Liquidity & flow', exact: true }).click();
+    await charts.getByRole('tab', { name: 'Liquidity & flow', exact: true }).click();
     await expect(liquidity).toHaveAttribute('aria-selected', 'true');
     await page.setViewportSize({ width: 966, height: 900 });
-    for (const id of ['heatmap', 'flow', 'dom', 'tape']) await expect(page.locator(`#market-panel-${id}`)).toBeVisible();
+    for (const id of ['heatmap', 'flow']) await expect(page.locator(`#market-panel-${id}`)).toBeVisible();
+    for (const id of ['price', 'dom', 'tape']) await expect(page.locator(`#market-panel-${id}`)).toBeHidden();
     const split = page.getByRole('separator', { name: 'Chart split', exact: true });
     await split.press('Home');
     await expect(split).toHaveAttribute('aria-valuenow', '30');

@@ -74,14 +74,34 @@ export interface ContextResponse extends ConsumerEnvelope {
   snapshot: { instrument_id: string; now: SourceClock | null; watchlist: ReferenceObservation[];
     contexts: AssetContextObservation[]; basis: ReferenceBasis[]; reasons: string[] };
 }
+export interface PaperRiskModel {
+  instrument_id: string; leverage: string; maintenance_margin_rate: string; liquidation_fee_rate: string;
+  provenance: string; asof_wall_ns: string;
+}
+export interface PaperFundingEvent { wall_ns: string; rate: string }
+export interface PaperFundingModel {
+  instrument_id: string; mode: 'none' | 'periodic' | 'events'; provenance: string; asof_wall_ns: string;
+  rate?: string | null; interval_ns?: string | null; first_wall_ns?: string | null; events?: PaperFundingEvent[];
+}
+export interface PaperCapability {
+  instrument_id: string | null; metadata_version: string | null; market_type: string | null;
+  quantity_unit: string | null; settlement_asset_id: string | null; supported: boolean; reasons: string[];
+  native_order_constraints: {
+    min_base: string | null; max_base: string | null; min_notional: string | null; max_notional: string | null;
+    min_notional_currency: string | null; price_rule: string; size_rule: string;
+    max_limit_base: string | null; max_market_base: string | null;
+  } | null;
+}
 export interface PaperConfigurationInput {
   balances: BalanceInput[]; fees: (FeeInput & { instrument_id: string })[];
   feed_latency_ns?: string; decision_latency_ns?: string; order_latency_ns?: string;
+  risk_models?: PaperRiskModel[]; funding_models?: PaperFundingModel[];
 }
 export interface PaperConfiguration {
   balances: { venue: string; asset_id: string; available: string; provenance: string; asof: SourceClock | null }[];
   fees: { instrument_id: string; schedule: NativeFee }[];
   feed_latency_ns: string; decision_latency_ns: string; order_latency_ns: string; policy: Record<string, unknown>;
+  risk_models: PaperRiskModel[]; funding_models: PaperFundingModel[];
 }
 export interface PaperRunSummary {
   run_id: string; source_id: string; created_at: SourceClock; delivery_index: string;
@@ -92,10 +112,11 @@ export interface PaperRun extends PaperRunSummary {
 }
 export interface PaperOrderInput {
   instrument_id?: string; side: 'buy' | 'sell'; quantity: string; order_type?: 'market' | 'limit'; limit_price?: string;
+  reduce_only?: boolean;
 }
 export interface PaperOrder {
   order_id: string; run_id: string;
-  request: { instrument_id: string; side: 'buy' | 'sell'; quantity: string; order_type: 'market' | 'limit'; limit_price: string | null };
+  request: { instrument_id: string; side: 'buy' | 'sell'; quantity: string; order_type: 'market' | 'limit'; limit_price: string | null; reduce_only: boolean };
   submitted_at: SourceClock; delivery_index: string; arrival_at: SourceClock; status: string;
   filled_quantity: string; remaining_quantity: string; reasons: string[];
 }
@@ -110,13 +131,35 @@ export interface PaperPosition {
   cost_basis_quote: string | null; realized_pnl_quote: string | null; unrealized_pnl_quote: string | null;
   mark_price: string | null; reasons: string[];
 }
+export interface PaperPerpetualPosition {
+  venue: string; instrument_id: string; settlement_asset_id: string; instrument: Instrument;
+  quantity: string; entry_price: string | null; initial_margin: string; isolated_collateral: string;
+  realized_pnl: string; fees_paid: string; funding_paid: string; liquidation_fees_paid: string; debt: string;
+  unrealized_pnl: string | null; mark_price: string | null; maintenance_margin: string | null;
+  equity: string | null; shortfall: string | null; liquidating: boolean; reasons: string[]; mark_source: string;
+}
+export interface PaperFundingPayment {
+  instrument_id: string; settlement_asset_id: string; at: SourceClock; rate: string; quantity: string;
+  mark_price: string | null; amount: string | null; provenance: string; reasons: string[];
+}
+export interface PaperLiquidation {
+  instrument_id: string; settlement_asset_id: string; at: SourceClock; requested_quantity: string;
+  filled_quantity: string; remaining_quantity: string; fee_amount: string; debt: string;
+  reasons: string[]; fill_id: string | null;
+}
 export interface PaperSnapshot {
   run: PaperRun | null; delivery_index: string; at: SourceClock | null;
   balances: { venue: string; asset_id: string; available: string }[];
   orders: PaperOrder[]; fills: PaperFill[]; positions: PaperPosition[]; reasons: string[]; assumptions: string[];
-  presentation: { orders_limit: number; orders_omitted: number; fills_limit: number; fills_omitted: number; fill_levels_limit: number };
+  perpetual_positions: PaperPerpetualPosition[]; funding_payments: PaperFundingPayment[]; liquidations: PaperLiquidation[];
+  presentation: {
+    orders_limit: number; orders_total: number; orders_omitted: number;
+    fills_limit: number; fills_total: number; fills_omitted: number; fill_levels_limit: number;
+    funding_payments_limit: number; funding_payments_total: number; funding_payments_omitted: number;
+    liquidations_limit: number; liquidations_total: number; liquidations_omitted: number;
+  };
 }
-export interface PaperResponse extends ConsumerEnvelope { snapshot: PaperSnapshot }
+export interface PaperResponse extends ConsumerEnvelope { snapshot: PaperSnapshot; capability?: PaperCapability }
 export interface PaperRunsResponse extends ConsumerEnvelope { runs: PaperRunSummary[] }
 export interface PaperArchiveResponse extends PaperResponse { archived: true; archive_scope: 'historical_accounting_not_current_replay_state' }
 export interface JournalEntry {

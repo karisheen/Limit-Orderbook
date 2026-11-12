@@ -49,12 +49,3 @@ export function paneForView(view: NativeView, preferred?: MarketPane): MarketPan
   return view === 'price' ? 'price' : view === 'book' ? 'dom' : 'heatmap';
 }
 
-// Book/Tape is its own mobile view, not a hidden selection in a chart view.
-// Closing it restores the remembered Price or Orderflow workspace; paneForView
-// maps Book/Tape selection to Price or Liquidity respectively. Desktop sidecar
-// toggles retain the chart workspace, and focus reconciliation uses its visible pane.
-export function toggleBookView(view: NativeView, rightOpen: boolean, narrow: boolean, desktopView: WorkspacePreferences['desktopView']): Pick<WorkspacePreferences, 'nativeView' | 'rightOpen'> {
-  if (view === 'book') return { nativeView: desktopView, rightOpen: false };
-  if (narrow) return { nativeView: 'book', rightOpen: true };
-  return { nativeView: view, rightOpen: !rightOpen };
-}

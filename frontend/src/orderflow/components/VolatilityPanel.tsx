@@ -26,7 +26,6 @@ import { formatClock, formatPriceValue, priceDecimals } from "@/lib/format";
 import { Icon } from "@/components/ui/Icons";
 import { Panel, Segmented, Stat } from "@/components/ui/Primitives";
 import { showTooltip, hideTooltip } from "./GlobalTooltip";
-import type { Timeframe } from "@/lib/types/market";
 
 // ─── Realized Volatility ─────────────────────────────────────────
 // Rolling close-to-close realized volatility from log returns of
@@ -40,10 +39,6 @@ const WINDOWS = [
 ] as const;
 type Resolution = (typeof RESOLUTIONS)[number]["value"];
 type Window = (typeof WINDOWS)[number]["value"];
-
-const TIMEFRAME_SECONDS: Record<Timeframe, number> = {
-  "1m": 60, "5m": 300, "15m": 900, "30m": 1800, "1h": 3600, "4h": 14400,
-};
 
 function regime(percentile: number): { label: string; tone: "muted" | "accent" | "warn" | "sell" } {
   if (percentile >= 90) return { label: "Extreme", tone: "sell" };
@@ -83,7 +78,11 @@ export default function VolatilityPanel() {
   const allCandles = useMemo(() => (currentCandle ? [...candles, currentCandle] : candles), [candles, currentCandle]);
   const completed = candles.filter((c) => c.tradeCount > 0);
   const atr = averageTrueRange(completed.length ? completed : allCandles, 14);
-  const parkinson = parkinsonVolatility(completed.slice(-30), TIMEFRAME_SECONDS[timeframe], yearSeconds);
+  const parkinsonCandles = completed.slice(-30);
+  const candleSeconds = parkinsonCandles.length
+    ? parkinsonCandles.reduce((total, candle) => total + (candle.closeTime - candle.openTime + 1), 0) / parkinsonCandles.length / 1000
+    : 0;
+  const parkinson = parkinsonVolatility(parkinsonCandles, candleSeconds, yearSeconds);
   const lastPrice = allCandles[allCandles.length - 1]?.close ?? 0;
   const liveRange = currentCandle && Number.isFinite(currentCandle.high) ? currentCandle.high - currentCandle.low : null;
   const expansion = atr && liveRange !== null ? liveRange / atr : null;

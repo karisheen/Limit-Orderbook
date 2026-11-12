@@ -19,6 +19,7 @@ import GlobalTooltip from "@/components/GlobalTooltip";
 import StatusBar from "@/components/StatusBar";
 import type { PanelVisibility } from "@/lib/types/market";
 import { NativeControls, NativeChartArea, NativeTools } from "../../integration/NativePanels";
+import { useNativeTerminal } from "../../integration/NativeContext";
 
 // ─── Terminal shell ──────────────────────────────────────────────
 //  ┌ top bar ─────────────────────────────────────────────┐
@@ -47,6 +48,7 @@ function SessionTerminal() {
   useMarketData();
 
   const panels = useUIStore((s) => s.panels);
+  const { preferences } = useNativeTerminal();
   const theme = useUIStore((s) => s.theme);
   const [sidebarWidth, setSidebarWidth] = React.useState(320);
   const [dockHeight, setDockHeight] = React.useState(236);
@@ -68,7 +70,10 @@ function SessionTerminal() {
   useEffect(() => setValueAreaPct(valueAreaPct), [valueAreaPct, setValueAreaPct]);
 
   const studies = STUDIES.filter((study) => panels[study.key]);
-  const showSidebar = panels.orderBook || panels.obi || panels.timeSales;
+  const nativeInspection = preferences.nativeView === "book";
+  const showOrderBook = panels.orderBook && !nativeInspection;
+  const showTimeSales = panels.timeSales && !nativeInspection;
+  const showSidebar = showOrderBook || panels.obi || showTimeSales;
 
   return (
     <div className="terminal">
@@ -97,10 +102,10 @@ function SessionTerminal() {
         {showSidebar && (
           <aside className="sidebar" style={{ width: sidebarWidth }} ref={sidebarRef}>
             <ResizeHandle direction="left" onResize={(d) => setSidebarWidth((w) => clamp(w - d, 260, 520))} />
-            {panels.orderBook && (
-              <div className="sidebar-slot" style={{ flex: panels.timeSales ? `${bookShare} 1 0` : "1 1 0" }}>
+            {showOrderBook && (
+              <div className="sidebar-slot" style={{ flex: showTimeSales ? `${bookShare} 1 0` : "1 1 0" }}>
                 <OrderBookPanel />
-                {panels.timeSales && (
+                {showTimeSales && (
                   <ResizeHandle
                     direction="bottom"
                     onResize={(d) => {
@@ -117,8 +122,8 @@ function SessionTerminal() {
                 <ResizeHandle direction="bottom" onResize={(d) => setObiHeight((h) => clamp(h + d, 140, 340))} />
               </div>
             )}
-            {panels.timeSales && (
-              <div className="sidebar-slot" style={{ flex: panels.orderBook ? `${1 - bookShare} 1 0` : "1 1 0" }}>
+            {showTimeSales && (
+              <div className="sidebar-slot" style={{ flex: showOrderBook ? `${1 - bookShare} 1 0` : "1 1 0" }}>
                 <TimeAndSales />
               </div>
             )}

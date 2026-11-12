@@ -40,10 +40,11 @@ from .capture_service import CaptureService
 from .demo import demo_source
 from .demo_memory import MemoryReplaySource
 from .events import ClientId, EventEnvelope, Gap, StreamId, SubscriptionKey
-from .instruments import Instrument
+from .instruments import Instrument, native_order_constraints
 from .journal import JournalStore
 from .market_presentation import AdmittedTradeHistory, market_data
-from .paper import PaperEngine, PaperStore
+from .paper import PaperEngine, PaperError, PaperStore
+from .positioning import PositioningHistory, positioning_series
 from .precision import DERIVED_DECIMAL_POLICY, canonical_decimal, decimal
 from .quality import ClockReading, EligibilityPolicy, evaluate
 from .recording import RecordedBatch, RecordingReader, SessionManifest, StreamSpec
@@ -266,7 +267,8 @@ def _paper_presentation(snapshot, request):
     result = {
         field.name: dto(getattr(snapshot, field.name))
         for field in fields(snapshot)
-        if field.name not in ("run", "orders", "fills")
+        if field.name
+        not in ("run", "orders", "fills", "funding_payments", "liquidations")
     }
     result["run"] = _paper_run_presentation(snapshot.run)
     result["orders"] = dto(snapshot.orders[-request.orders_limit :])
@@ -283,11 +285,24 @@ def _paper_presentation(snapshot, request):
     result["fills"] = fills
     result["presentation"] = {
         "orders_limit": request.orders_limit,
+        "orders_total": len(snapshot.orders),
         "orders_omitted": max(0, len(snapshot.orders) - request.orders_limit),
         "fills_limit": request.fills_limit,
+        "fills_total": len(snapshot.fills),
         "fills_omitted": max(0, len(snapshot.fills) - request.fills_limit),
         "fill_levels_limit": 20,
     }
+    for name in ("funding_payments", "liquidations"):
+        records = getattr(snapshot, name)
+        limit = getattr(request, name + "_limit")
+        result[name] = dto(records[-limit:])
+        result["presentation"].update(
+            {
+                name + "_limit": limit,
+                name + "_total": len(records),
+                name + "_omitted": max(0, len(records) - limit),
+            }
+        )
     return result
 
 
@@ -381,6 +396,7 @@ class ClientSession:
         self.engine: AnalyticsEngine | None = None
         self.visuals: VisualHistory | None = None
         self.trade_history = AdmittedTradeHistory(())
+        self.positioning = PositioningHistory((), self.trade_history)
         self.context: ContextEngine | None = None
         self.alerts: AlertEngine | None = None
         self.paper: PaperEngine | None = None
@@ -521,7 +537,12 @@ class ClientSession:
     def _observers(
         self,
     ) -> tuple[
-        VisualHistory, AdmittedTradeHistory, ContextEngine, AlertEngine, PaperEngine
+        VisualHistory,
+        AdmittedTradeHistory,
+        PositioningHistory,
+        ContextEngine,
+        AlertEngine,
+        PaperEngine,
     ]:
         if (
             self.visuals is None
@@ -530,7 +551,15 @@ class ClientSession:
             or self.paper is None
         ):
             raise RuntimeError("session consumers have not been initialized")
-        return self.visuals, self.trade_history, self.context, self.alerts, self.paper
+        # Positioning projects through the trade history's clock of this delivery.
+        return (
+            self.visuals,
+            self.trade_history,
+            self.positioning,
+            self.context,
+            self.alerts,
+            self.paper,
+        )
 
     def _initialize_replay(
         self,
@@ -562,6 +591,7 @@ class ClientSession:
         self.streams = streams
         self.engine = AnalyticsEngine(streams)
         self.trade_history = AdmittedTradeHistory(streams, self.engine)
+        self.positioning = PositioningHistory(streams, self.trade_history)
         if isinstance(self.reader, RecordingReader):
             manifest_hash = sha256(
                 (self.reader.path / "manifest.json").read_bytes()
@@ -594,15 +624,20 @@ class ClientSession:
         self.status = "paused"
 
     def _retain_live_observation(self, keys: frozenset[SubscriptionKey]) -> None:
-        if self.paper is not None:
+        if self.paper is not None and self.paper.frozen_reason is None:
             # Stop observing departed books at ownership cutover, not after the
             # asynchronous collector replacement has waited for network cleanup.
             # Retained subscriptions keep their existing causal book evidence.
-            self.paper.replace_streams(
-                tuple(spec for spec in self.streams if spec.key in keys),
-                books=(),
-                now=self._command_now(),
-            )
+            try:
+                self.paper.replace_streams(
+                    tuple(spec for spec in self.streams if spec.key in keys),
+                    books=(),
+                    now=self._command_now(),
+                )
+            except PaperError as error:
+                if str(error) != "funding_catchup_limit":
+                    raise
+                self.paper.freeze(str(error))
 
     def _initialize_live(
         self,
@@ -615,6 +650,7 @@ class ClientSession:
         self.choose(instrument_id)
         self.engine = AnalyticsEngine(streams)
         self.trade_history = AdmittedTradeHistory(streams, self.engine)
+        self.positioning = PositioningHistory(streams, self.trade_history)
         self.live_books = baseline
         self.live_clock.observe_frontier(
             ClockReading(clock_id, time.monotonic_ns(), time.time_ns())
@@ -638,7 +674,13 @@ class ClientSession:
             assert self.alerts is not None
             self.context = ContextEngine(streams)
             self.alerts.replace_streams(streams, self.engine)
-            self.paper.replace_streams(streams, books=baseline, now=now)
+            if self.paper.frozen_reason is None:
+                try:
+                    self.paper.replace_streams(streams, books=baseline, now=now)
+                except PaperError as error:
+                    if str(error) != "funding_catchup_limit":
+                        raise
+                    self.paper.freeze(str(error))
         self.history.clear()
         self.history_sizes.clear()
         self.history_bytes = 0
@@ -998,7 +1040,17 @@ class ClientSession:
             current.update((book.key, book) for book in books)
             self.live_books = tuple(current.values())
         for observer in self._observers():
-            observer.on_batch(batch, self.live_books, self.live_clock)
+            if isinstance(observer, PaperEngine):
+                if observer.frozen_reason is not None:
+                    continue
+                try:
+                    observer.on_batch(batch, self.live_books, self.live_clock)
+                except PaperError as error:
+                    if str(error) != "funding_catchup_limit":
+                        raise
+                    observer.freeze(str(error))
+            else:
+                observer.on_batch(batch, self.live_books, self.live_clock)
         size = event_bytes
         while self.history and (
             len(self.history) >= 4096 or self.history_bytes + size > 8 * 1024 * 1024
@@ -1014,6 +1066,9 @@ class ClientSession:
         else:
             self.history_floor = self.delivery + 1
             self.history_floor_event = len(events) - 1
+        self.trade_history.prune_through(
+            self.history_floor - 1, self.history_floor_event
+        )
 
     def _take_live_batch(
         self, first: LiveDelivery, limit: int = 32
@@ -1537,18 +1592,86 @@ class ClientSession:
         )
         return self._consumer_result(snapshot=dto(snapshot))
 
+    def _positioning_query(self, request):
+        instrument = next(
+            (spec.instrument for spec in self.streams if spec.key == self.key), None
+        )
+        if instrument is None:
+            raise RuntimeFailure(409, "positioning source unavailable")
+        return self._consumer_result(
+            **positioning_series(
+                self.positioning, instrument, request.interval, request.limit
+            )
+        )
+
+    def _paper_capability(self):
+        from .perpetual import economics_reason
+
+        instrument = next(
+            (spec.instrument for spec in self.streams if spec.key == self.key),
+            None,
+        )
+        if instrument is None:
+            return {
+                "instrument_id": None,
+                "metadata_version": None,
+                "market_type": None,
+                "quantity_unit": None,
+                "settlement_asset_id": None,
+                "supported": False,
+                "reasons": ["no_pinned_primary"],
+                "native_order_constraints": None,
+            }
+        reasons = []
+        if instrument.metadata_status != "verified":
+            reasons.append("instrument_metadata_unverified")
+        if instrument.market_type == "perpetual":
+            reason = economics_reason(instrument)
+            if reason is not None:
+                reasons.append(reason)
+        elif (
+            instrument.market_type != "spot"
+            or instrument.quantity_unit != "base"
+            or instrument.inverse
+            or instrument.contract_multiplier != 1
+            or (
+                instrument.settlement is not None
+                and instrument.settlement.asset_id != instrument.quote.asset_id
+            )
+        ):
+            reasons.append("unsupported_perpetual_or_contract_economics")
+        return {
+            "instrument_id": str(instrument.instrument_id),
+            "metadata_version": instrument.metadata_version,
+            "market_type": instrument.market_type,
+            "quantity_unit": instrument.quantity_unit,
+            "settlement_asset_id": str(
+                (instrument.settlement or instrument.quote).asset_id
+            ),
+            "supported": not reasons,
+            "reasons": list(dict.fromkeys(reasons)),
+            "native_order_constraints": dto(native_order_constraints(instrument)),
+        }
+
     def _paper_query(self, request):
         assert self.paper is not None
         now = self._now()
-        if self.mode == "live" and now is not None:
-            self.paper.advance_time(now)
+        if self.mode == "live" and now is not None and self.paper.frozen_reason is None:
+            try:
+                self.paper.advance_time(now)
+            except PaperError as error:
+                if str(error) != "funding_catchup_limit":
+                    raise
+                self.paper.freeze(str(error))
         return self._consumer_result(
-            snapshot=_paper_presentation(self.paper.snapshot(now), request)
+            capability=self._paper_capability(),
+            snapshot=_paper_presentation(self.paper.snapshot(now), request),
         )
 
     def _paper_configure(self, request):
         from .costs import InventoryBalance
         from .paper import PaperConfig, PaperFee
+        from .perpetual import PaperFundingEvent, PaperFundingModel, PaperRiskModel
 
         assert self.paper is not None
         config = PaperConfig(
@@ -1565,12 +1688,47 @@ class ClientSession:
             fees=tuple(
                 PaperFee(item.instrument_id, _input_fees(item)) for item in request.fees
             ),
+            risk_models=tuple(
+                PaperRiskModel(
+                    item.instrument_id,
+                    decimal(item.leverage, positive=True),
+                    decimal(item.maintenance_margin_rate, nonnegative=True),
+                    decimal(item.liquidation_fee_rate, nonnegative=True),
+                    item.provenance,
+                    int(item.asof_wall_ns),
+                )
+                for item in request.risk_models
+            ),
+            funding_models=tuple(
+                PaperFundingModel(
+                    instrument_id=item.instrument_id,
+                    mode=item.mode,
+                    provenance=item.provenance,
+                    asof_wall_ns=int(item.asof_wall_ns),
+                    rate=None if item.rate is None else decimal(item.rate),
+                    interval_ns=None
+                    if item.interval_ns is None
+                    else int(item.interval_ns),
+                    first_wall_ns=None
+                    if item.first_wall_ns is None
+                    else int(item.first_wall_ns),
+                    events=tuple(
+                        PaperFundingEvent(int(event.wall_ns), decimal(event.rate))
+                        for event in item.events
+                    ),
+                )
+                for item in request.funding_models
+            ),
             feed_latency_ns=int(request.feed_latency_ns),
             decision_latency_ns=int(request.decision_latency_ns),
             order_latency_ns=int(request.order_latency_ns),
         )
         self.paper.configure(
-            config, now=self._command_now(), delivery_index=self._delivery_index()
+            config,
+            now=self._command_now(),
+            delivery_index=self._delivery_index(),
+            books=self.replay.books() if self.replay else self.live_books,
+            streams=self.streams,
         )
         return self._paper_query(request)
 
@@ -1588,6 +1746,7 @@ class ClientSession:
                 None
                 if request.limit_price is None
                 else decimal(request.limit_price, positive=True),
+                reduce_only=request.reduce_only,
             ),
             now=self._command_now(),
             delivery_index=self._delivery_index(),
@@ -1606,10 +1765,11 @@ class ClientSession:
     def _paper_runs(self, request):
         assert self.paper_store is not None
         return self._consumer_result(
+            capability=self._paper_capability(),
             runs=[
                 _paper_run_presentation(run, configuration=False)
                 for run in self.paper_store.list_runs(limit=request.limit)
-            ]
+            ],
         )
 
     def _paper_archive(self, request):
@@ -1648,10 +1808,30 @@ class ClientSession:
             staged.seek_delivery(self.replay.cursor.delivery_index)
         finally:
             staged.close()
+        self._check_paper_candidate(candidate)
         return candidate
+
+    def _check_paper_candidate(self, candidate: PaperEngine) -> None:
+        snapshot = candidate.snapshot(
+            self.replay.clock.reading if self.replay else None
+        )
+        incomplete = {
+            "paper_frozen",
+            "not_configured",
+            "stale_run_reload_required",
+            "run_not_active_at_cursor",
+            "run_source_clock_mismatch",
+        }
+        if (
+            candidate.frozen_reason is not None
+            or snapshot.delivery_index != self._delivery_index()
+            or incomplete.intersection(snapshot.reasons)
+        ):
+            raise RuntimeFailure(422, "paper_resume_incomplete_accounting_prefix")
 
     def _resume_paper(self, candidate: PaperEngine) -> None:
         assert self.replay is not None
+        self._check_paper_candidate(candidate)
         # A failed durable write leaves the previous projection untouched.
         candidate.publish_archive()
         self.paper = candidate
@@ -1751,6 +1931,7 @@ class ClientSession:
             self.reader.close()
         self.pending_views.clear()
         self.trade_history.reset()
+        self.positioning.reset()
         if self.visuals is not None:
             self.visuals.reset()
             self.visuals = None

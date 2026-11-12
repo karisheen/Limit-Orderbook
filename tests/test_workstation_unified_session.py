@@ -1,7 +1,6 @@
 """Canonical cursor and durable managed capture consumer regressions, no network."""
 
 import asyncio
-from collections import deque
 from dataclasses import replace
 from decimal import Decimal
 import json
@@ -11,6 +10,7 @@ import pytest
 
 from src.workstation.adapter_catalog import AdapterCatalog
 from src.workstation.adapters.hyperliquid import HyperliquidAdapter
+from src.workstation.analytics import AnalyticsEngine
 from src.workstation.api import (
     MarketDataRequest,
     RecordingStart,
@@ -18,9 +18,17 @@ from src.workstation.api import (
     create_app,
 )
 from src.workstation.demo_memory import MemoryReplaySource
-from src.workstation.events import AssetContext, ReferencePrice, SubscriptionKey, Trade
+from src.workstation.events import (
+    AssetContext,
+    Gap,
+    ReferencePrice,
+    SubscriptionKey,
+    Trade,
+)
 from src.workstation.ingestion import FeedSupervisor
+from src.workstation.market_presentation import AdmittedTradeHistory
 from src.workstation.recording import RecordedBatch, RecordingReader
+from src.workstation.replay import ReplaySession
 from src.workstation.runtime import ClientSession, RuntimeFailure, TerminalRuntime
 from src.workstation.subscriptions import SubscriptionRegistry
 
@@ -60,6 +68,19 @@ def replay_runtime(source, tmp_path):
     return runtime
 
 
+def admit_batch(session, events):
+    """Retain the same batch that native analytics admitted, as live delivery does."""
+    if session.engine is None:
+        session.engine = AnalyticsEngine(session.streams)
+        session.trade_history = AdmittedTradeHistory(session.streams, session.engine)
+    batch = RecordedBatch(session.delivery + 1, events)
+    session.live_clock.advance(events[0])
+    session.engine.on_batch(batch, (), session.live_clock)
+    session.trade_history.on_batch(batch, (), session.live_clock)
+    session.delivery = batch.delivery_index
+    session.history.append(batch)
+
+
 def test_market_cursor_drains_every_event_in_one_batch_and_reports_eviction(
     source, tmp_path
 ):
@@ -76,7 +97,6 @@ def test_market_cursor_drains_every_event_in_one_batch_and_reports_eviction(
             if isinstance(event.payload, Trade)
         )
         session.choose(str(event.key.instrument_id))
-        session.live_clock.advance(event)
         events = tuple(
             replace(
                 event,
@@ -87,8 +107,7 @@ def test_market_cursor_drains_every_event_in_one_batch_and_reports_eviction(
             )
             for index in range(11)
         )
-        session.history = deque([RecordedBatch(1, events)])
-        session.delivery = 1
+        admit_batch(session, events)
         try:
             cursor = None
             trades = []
@@ -111,6 +130,7 @@ def test_market_cursor_drains_every_event_in_one_batch_and_reports_eviction(
             session.history.clear()
             session.history_floor = 2
             session.history_floor_event = 10
+            session.trade_history.prune_through(1, 10)
             lost = await runtime.market_data(
                 request(session, {"delivery": "1", "event": 3})
             )
@@ -285,6 +305,47 @@ async def wait_capture(runtime, capture_id):
             await asyncio.sleep(0)
 
 
+def assert_capture_replay_parity(reader):
+    batches = tuple(reader.iter_batches())
+    trade_deliveries = [
+        batch.delivery_index
+        for batch in batches
+        if any(isinstance(event.payload, Trade) for event in batch.events)
+    ]
+    assert len(trade_deliveries) == sum(
+        spec.key.channel == "trades" for spec in reader.manifest.streams
+    )
+    last_trade = max(trade_deliveries)
+    # Capture owns the last feed leases: stopping records their shutdown gaps.
+    # Those boundaries retire the native tape, not the durable trade evidence.
+    assert {
+        event.stream_id
+        for batch in batches
+        if batch.delivery_index > last_trade
+        for event in batch.events
+        if isinstance(event.payload, Gap)
+        and event.payload.reason_code == "owner_stopped"
+    } == {spec.stream_id for spec in reader.manifest.streams}
+    for mode in ("raw", "normalized"):
+        engine = AnalyticsEngine(reader.manifest.streams)
+        history = AdmittedTradeHistory(reader.manifest.streams, engine)
+        replay = ReplaySession(reader, mode=mode, observers=(engine, history))
+        try:
+            for batch in batches:
+                assert replay.step() == (batch,)
+                for index, event in enumerate(batch.events):
+                    if isinstance(event.payload, Trade):
+                        admitted = history.admitted[(batch.delivery_index, index)]
+                        assert admitted.event == event
+                        assert admitted.base_quantity == Decimal("0.1")
+            assert replay.step() == ()
+            assert not history.admitted
+            assert "session_discontinuities" in history.reasons
+        finally:
+            replay.close()
+    return last_trade
+
+
 @pytest.mark.parametrize("scope", ["instrument", "cohort"])
 @pytest.mark.parametrize("incomplete", [False, True])
 def test_recording_lifecycle_scope_restart_and_real_replay(tmp_path, incomplete, scope):
@@ -365,15 +426,21 @@ def test_recording_lifecycle_scope_restart_and_real_replay(tmp_path, incomplete,
                     ]
                     assert any(isinstance(value, ReferencePrice) for value in payloads)
                     assert any(isinstance(value, AssetContext) for value in payloads)
+                    last_trade = assert_capture_replay_parity(reader)
                 replay = await runtime.create("replay", row["source_id"])
                 assert {spec.key for spec in replay.streams} == expected_keys
                 assert {
                     str(item.instrument_id)
                     for item in runtime.source_instruments[row["source_id"]]
                 } == set(started_row["instruments"])
-                market = await runtime.market_data(request(replay))
+                async with replay.actions:
+                    await replay.control(
+                        str(replay.generation), "seek", delivery_index=str(last_trade)
+                    )
+                market = await runtime.market_data(request(replay, limit=2000))
                 assert len(market["trades"]) == 1
                 assert market["trades"][0]["base_quantity"] == "0.1"
+                assert market["trades"][0]["trade"]["quantity"] == "0.1"
         finally:
             await runtime.close()
             await registry.close()
@@ -384,7 +451,15 @@ def test_recording_lifecycle_scope_restart_and_real_replay(tmp_path, incomplete,
             assert persisted == row
             if not incomplete:
                 replay = await restarted.create("replay", persisted["source_id"])
-                assert (await restarted.market_data(request(replay)))["trades"]
+                assert (
+                    await replay.work(assert_capture_replay_parity, replay.reader)
+                ) == last_trade
+                async with replay.actions:
+                    await replay.control(
+                        str(replay.generation), "seek", delivery_index=str(last_trade)
+                    )
+                restored = await restarted.market_data(request(replay, limit=2000))
+                assert restored["trades"] == market["trades"]
         finally:
             await restarted.close()
 
@@ -629,9 +704,7 @@ def test_market_contract_valuation_and_unknown_side_are_not_fabricated(
                 side_provenance="unknown",
             ),
         )
-        session.live_clock.advance(event)
-        session.delivery = 1
-        session.history.append(RecordedBatch(1, (event,)))
+        admit_batch(session, (event,))
         try:
             (trade,) = (await runtime.market_data(request(session)))["trades"]
             assert trade["base_quantity"] == base

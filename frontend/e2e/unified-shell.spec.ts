@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
 import type { Catalog, Frame } from '../src/api';
+import type { CandleHistory } from '../src/candle-model';
 
 // Real catalog, replay and native presentation responses only. These scenarios
 // assert that reference studies are consumers of the document's native session,
@@ -17,6 +18,7 @@ async function openDemo(page: Page) {
   expect(result.ok()).toBe(true);
   const frame = await result.json() as Frame;
   await expect(page.locator('.status')).toContainText('Connected');
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Footprint', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Footprint', exact: true })).toBeVisible();
   return { frame, catalog };
 }
@@ -55,6 +57,7 @@ test('reference study modes and native charts share one session without exchange
     await choose(footprint.getByRole('radiogroup', { name: 'Footprint cell mode', exact: true }), mode);
   }
   await choose(page.getByRole('radiogroup', { name: 'Candle interval', exact: true }), '5m');
+  await expect(footprint.locator('.panel-subtitle')).toContainText('· 5M ·');
   await footprint.getByRole('button', { name: /^Indicators/ }).click();
   const vwap = page.getByRole('menuitemcheckbox', { name: /^Session VWAP/ });
   const before = await vwap.getAttribute('aria-checked');
@@ -90,10 +93,24 @@ test('reference study modes and native charts share one session without exchange
   await expect(volatility).toHaveCount(0);
 
   const charts = page.getByRole('tablist', { name: 'Chart workspace', exact: true });
-  const candles = page.waitForResponse(response => response.url().endsWith('/api/v1/candles') && response.ok());
+  const candles = page.waitForResponse(response => response.url().endsWith('/api/v1/candles') && response.ok()
+    && response.request().postDataJSON().interval === '5m' && response.request().postDataJSON().source === 'session_trades');
   await charts.getByRole('tab', { name: 'Price action', exact: true }).click();
-  expect((await candles).request().postDataJSON().session_id).toBe(frame.session_id);
+  const candleHTTP = await candles;
+  const candleData = await candleHTTP.json() as CandleHistory;
+  expect(candleData.session_id).toBe(frame.session_id);
+  expect(candleData.generation).toBe(frame.generation);
+  expect(candleData.instrument_ids).toEqual(candleHTTP.request().postDataJSON().instrument_ids);
+  expect(candleData.instrument_ids[0]).toBe(frame.selection.instrument_id);
+  expect(candleData.time_basis).toBe('receive_utc');
   await expect(page.getByTestId('price-chart')).toBeVisible();
+  await expect(page.getByTestId('price-chart')).toHaveAttribute('data-presented-interval', '5m');
+  await expect(page.getByTestId('price-chart')).toHaveAttribute('data-presented-source', 'session_trades');
+  await page.getByRole('button', { name: 'Candle timeframe', exact: true }).click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('price-chart')).toHaveAttribute('data-presented-interval', '1M');
+  await expect(page.getByRole('combobox', { name: 'All candle intervals', exact: true })).toHaveValue('1M');
   const visualization = page.waitForResponse(response => response.url().endsWith('/api/v1/visualization') && response.ok());
   await charts.getByRole('tab', { name: 'Liquidity & flow', exact: true }).click();
   expect((await visualization).request().postDataJSON().session_id).toBe(frame.session_id);
@@ -101,6 +118,7 @@ test('reference study modes and native charts share one session without exchange
   await expect(page.getByTestId('chart-pane-heatmap').getByTestId('market-charts')).toHaveAttribute('data-painted-view-id', /.+/);
   await charts.getByRole('tab', { name: 'Footprint', exact: true }).click();
   await expect(footprint).toBeVisible();
+  await expect(footprint.locator('.panel-subtitle')).toContainText('· 1M ·');
   await expect(footprint.getByRole('radio', { name: 'Bid × Ask', exact: true })).toHaveAttribute('aria-checked', 'true');
   await page.getByRole('tablist', { name: 'Research pane', exact: true }).getByRole('tab', { name: 'Costs & proposed risk', exact: true }).click();
   await page.getByLabel('Order size', { exact: true }).fill('0.01');

@@ -1937,3 +1937,716 @@ def test_capture_disk_work_keeps_live_delivery_and_lifecycle_fence(
             await registry.close()
 
     asyncio.run(scenario())
+
+
+def _perpetual_api_configuration(
+    instrument, *, funding_clock=None, funding_interval_ns=1_000_000_000
+):
+    settlement = instrument.settlement.asset_id
+    return {
+        "balances": [
+            {
+                "venue": instrument.venue,
+                "asset_id": settlement,
+                "available": "100000",
+                "provenance": "explicit regression collateral",
+            }
+        ],
+        "fees": [
+            {
+                "instrument_id": instrument.instrument_id,
+                "fee_bps": "0",
+                "fee_provenance": "explicit regression zero trading fee",
+                "fee_date": "2020-01-01",
+                "fee_asset_id": settlement,
+            }
+        ],
+        "risk_models": [
+            {
+                "instrument_id": instrument.instrument_id,
+                "leverage": "2",
+                "maintenance_margin_rate": "0.01",
+                "liquidation_fee_rate": "0.001",
+                "provenance": "explicit regression isolated risk",
+                "asof_wall_ns": "0",
+            }
+        ],
+        "funding_models": [
+            {
+                "instrument_id": instrument.instrument_id,
+                "mode": "periodic" if funding_clock is not None else "none",
+                "provenance": "explicit regression funding model",
+                "asof_wall_ns": "0",
+                **(
+                    {
+                        "rate": "0.0001",
+                        "interval_ns": str(funding_interval_ns),
+                        "first_wall_ns": str(
+                            funding_clock.wall_ns + funding_interval_ns
+                        ),
+                    }
+                    if funding_clock is not None
+                    else {}
+                ),
+            }
+        ],
+    }
+
+
+@pytest.mark.parametrize("boundary", ("observation", "query"))
+def test_funding_freeze_isolates_live_charts_and_new_cohort_run(
+    tmp_path, monkeypatch, boundary
+):
+    from dataclasses import replace
+    from decimal import Decimal
+    from src.workstation import paper
+    from src.workstation.api import PaperConfigureRequest, PaperQuery, PaperOrderInput
+    from src.workstation.paper import PaperOrderRequest
+    from src.workstation.runtime import dto
+
+    async def scenario():
+        instruments = tuple(
+            next(
+                spec.instrument
+                for spec in demo_source().streams
+                if spec.instrument.venue == "hyperliquid"
+                and spec.instrument.base.ticker == base
+            )
+            for base in ("BTC", "ETH")
+        )
+        runtime, registry, instrument = live_runtime(tmp_path, instruments=instruments)
+        try:
+            session = await runtime.create("live", "live", instrument.instrument_id)
+            async with asyncio.timeout(5):
+                while session.delivery < 4:
+                    await asyncio.sleep(0.001)
+            identity = {"session_id": session.id, "generation": str(session.generation)}
+
+            def open_position():
+                now = session._command_now()
+                assert now.wall_ns is not None
+                # Configure and submit at one genuine source-clock reading: the
+                # 1 ns model must not accrue wall-clock setup time as funding.
+                with monkeypatch.context() as clock_patch:
+                    clock_patch.setattr(session, "_now", lambda: now)
+                    session._paper_configure(
+                        PaperConfigureRequest(
+                            **identity,
+                            **_perpetual_api_configuration(
+                                instrument, funding_clock=now, funding_interval_ns=1
+                            ),
+                        )
+                    )
+                    session.paper.submit(
+                        PaperOrderRequest(
+                            instrument.instrument_id, "buy", Decimal("0.1")
+                        ),
+                        now=now,
+                        delivery_index=session.delivery,
+                    )
+                    paid_at = replace(
+                        now, mono_ns=now.mono_ns + 1, wall_ns=now.wall_ns + 1
+                    )
+                    session.paper.advance_time(paid_at)
+                snapshot = session.paper.snapshot(None)
+                position = snapshot.perpetual_positions[0]
+                assert position.quantity == Decimal("0.1")
+                assert len(snapshot.funding_payments) == 1
+                assert snapshot.funding_payments[0].at == paid_at
+                assert snapshot.funding_payments[0].amount == Decimal("0.6")
+                assert position.funding_paid == Decimal("0.6")
+                assert position.isolated_collateral == Decimal("2999.45")
+                # Restore the real clock, then cap the valid paid prefix before
+                # the worker yields. The next due payment must freeze, not mutate.
+                monkeypatch.setattr(paper, "MAX_PERPETUAL_RECORDS", 1)
+                return snapshot.run.run_id, dto(
+                    session.paper_store.archived_snapshot(snapshot.run.run_id)
+                )
+
+            run_id, archive_before = await session.work(open_position)
+            accounting_delivery = archive_before["delivery_index"]
+            if boundary == "query":
+                queried = await session.work(
+                    session._paper_query, PaperQuery(**identity)
+                )
+                assert "paper_frozen" in queried["snapshot"]["reasons"]
+            feed = next(
+                entry.supervisor
+                for key, entry in registry._entries.items()
+                if key.instrument_id == instrument.instrument_id
+                and key.channel == "book"
+            )
+            for quantity in ("3", "4"):
+                before = session.delivery
+                feed._receive(
+                    json.dumps(
+                        {
+                            "channel": "l2Book",
+                            "data": {
+                                "coin": instrument.native_symbol,
+                                "time": 1700000000001,
+                                "levels": [
+                                    [{"px": "60000", "sz": quantity, "n": 1}],
+                                    [{"px": "60001", "sz": "2", "n": 1}],
+                                ],
+                            },
+                        }
+                    ).encode(),
+                    "ws",
+                    "wss://api.hyperliquid.xyz/ws",
+                    feed.epoch,
+                )
+                raw = feed.queue.get_nowait()
+                feed.queued_bytes -= len(raw.payload)
+                await feed._process(raw)
+                async with asyncio.timeout(5):
+                    while session.delivery <= before or session.live_inflight:
+                        await asyncio.sleep(0.001)
+                frame = await session.frame()
+                assert frame["status"] == "live"
+                assert frame["book"]["bids"][0]["quantity"] == quantity
+            queried = await session.work(session._paper_query, PaperQuery(**identity))
+            assert queried["snapshot"]["delivery_index"] == accounting_delivery
+            assert "funding_catchup_limit" in queried["snapshot"]["reasons"]
+            for field in (
+                "at",
+                "balances",
+                "orders",
+                "positions",
+                "funding_payments",
+                "liquidations",
+            ):
+                assert queried["snapshot"][field] == archive_before[field]
+            # The query adds only its bounded-presentation count to archived fills.
+            assert queried["snapshot"]["fills"] == [
+                {**fill, "consumed_levels_omitted": 0}
+                for fill in archive_before["fills"]
+            ]
+            for frozen, archived in zip(
+                queried["snapshot"]["perpetual_positions"],
+                archive_before["perpetual_positions"],
+                strict=True,
+            ):
+                for field, value in archived.items():
+                    if field in (
+                        "mark_price",
+                        "unrealized_pnl",
+                        "equity",
+                        "maintenance_margin",
+                        "shortfall",
+                    ):
+                        assert frozen[field] is None
+                    elif field == "reasons":
+                        assert "paper_frozen" in frozen[field]
+                        assert set(value).issubset(frozen[field])
+                    else:
+                        assert frozen[field] == value
+            assert (
+                await session.work(
+                    lambda: dto(session.paper_store.archived_snapshot(run_id))
+                )
+                == archive_before
+            )
+            with pytest.raises(paper.PaperError, match="funding_catchup_limit"):
+                await session.work(
+                    session._paper_order,
+                    PaperOrderInput(
+                        **identity, side="sell", quantity="0.1", reduce_only=True
+                    ),
+                )
+
+            # Frozen paper cannot prevent native selection or retain stale financial
+            # metadata/books when the user explicitly starts a new child simulation.
+            replacement = instruments[1]
+            selected = await runtime.select(
+                session, str(session.generation), replacement.instrument_id
+            )
+            assert selected["selection"]["instrument_id"] == replacement.instrument_id
+            identity["generation"] = str(session.generation)
+            async with asyncio.timeout(5):
+                while session.live_queue.qsize() or session.live_inflight:
+                    await asyncio.sleep(0.001)
+            fresh = await session.work(
+                session._paper_configure,
+                PaperConfigureRequest(
+                    **identity, **_perpetual_api_configuration(replacement)
+                ),
+            )
+            assert fresh["snapshot"]["run"]["parent_run_id"] == run_id
+            assert fresh["snapshot"]["run"]["run_id"] != run_id
+            assert "paper_frozen" not in fresh["snapshot"]["reasons"]
+            assert fresh["capability"]["instrument_id"] == replacement.instrument_id
+            opened = await session.work(
+                session._paper_order,
+                PaperOrderInput(**identity, side="buy", quantity="0.1"),
+            )
+            position = opened["snapshot"]["perpetual_positions"][0]
+            assert position["instrument_id"] == replacement.instrument_id
+            assert position["quantity"] == "0.1"
+            assert position["entry_price"] == "60001"
+            closed = await session.work(
+                session._paper_order,
+                PaperOrderInput(
+                    **identity, side="sell", quantity="0.2", reduce_only=True
+                ),
+            )
+            assert closed["snapshot"]["perpetual_positions"][0]["quantity"] == "0"
+            assert closed["snapshot"]["orders"][-1]["request"]["reduce_only"] is True
+            assert (
+                await session.work(
+                    lambda: dto(session.paper_store.archived_snapshot(run_id))
+                )
+                == archive_before
+            )
+        finally:
+            await runtime.close()
+            await registry.close()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    "reason", ("funding_catchup_limit", "unexpected_accounting_fault")
+)
+def test_paper_query_catches_only_funding_limit(tmp_path, monkeypatch, reason):
+    from src.workstation.api import PaperQuery
+    from src.workstation.paper import PaperError
+
+    async def scenario():
+        runtime, registry, instrument = live_runtime(tmp_path)
+        try:
+            session = await runtime.create("live", "live", instrument.instrument_id)
+            calls = []
+
+            def fail(now):
+                calls.append(now)
+                raise PaperError(reason)
+
+            monkeypatch.setattr(session.paper, "advance_time", fail)
+            request = PaperQuery(
+                session_id=session.id, generation=str(session.generation)
+            )
+            if reason == "funding_catchup_limit":
+                first = await session.work(session._paper_query, request)
+                second = await session.work(session._paper_query, request)
+                assert first["snapshot"] == second["snapshot"]
+                assert "paper_frozen" in second["snapshot"]["reasons"]
+                assert len(calls) == 1
+            else:
+                with pytest.raises(PaperError, match=reason):
+                    await session.work(session._paper_query, request)
+                assert session.paper.frozen_reason is None
+        finally:
+            await runtime.close()
+            await registry.close()
+
+    asyncio.run(scenario())
+
+
+def test_frozen_replay_resume_is_atomic_and_archive_survives_restart(
+    tmp_path, memory_source, monkeypatch
+):
+    from decimal import Decimal
+    from src.workstation import paper
+    from src.workstation.api import (
+        PaperConfigureRequest,
+        PaperOrderInput,
+        PaperQuery,
+        PaperRunRequest,
+    )
+    from src.workstation.runtime import dto
+
+    async def scenario():
+        instrument = next(
+            spec.instrument
+            for spec in memory_source.descriptor.streams
+            if spec.instrument.venue == "hyperliquid"
+            and spec.instrument.base.ticker == "BTC"
+        )
+        runtime = offline_runtime(memory_source, state_dir=tmp_path)
+        try:
+            session = await runtime.create(
+                "demo", instrument_id=instrument.instrument_id
+            )
+            identity = {"session_id": session.id, "generation": str(session.generation)}
+            now = await session.work(lambda: session.paper.snapshot(None).at)
+            assert now.wall_ns is not None
+            # Keep the same positive capacity during opening and reconstruction.
+            # A one-second source interval admits one real payment before overflow.
+            monkeypatch.setattr(paper, "MAX_PERPETUAL_RECORDS", 1)
+            await session.work(
+                session._paper_configure,
+                PaperConfigureRequest(
+                    **identity,
+                    **_perpetual_api_configuration(instrument, funding_clock=now),
+                ),
+            )
+            opened = await session.work(
+                session._paper_order,
+                PaperOrderInput(**identity, side="buy", quantity="0.1"),
+            )
+            assert opened["snapshot"]["perpetual_positions"][0]["quantity"] == "0.1"
+            frozen_id = opened["snapshot"]["run"]["run_id"]
+
+            def advance_until_frozen():
+                for _ in range(
+                    session.replay.cursor.delivery_index,
+                    memory_source.total_deliveries,
+                ):
+                    session.replay.step()
+                    if session.paper.frozen_reason is not None:
+                        break
+                assert session.paper.frozen_reason == "funding_catchup_limit"
+                snapshot = session.paper.snapshot(None)
+                assert len(snapshot.funding_payments) == 1
+                payment = snapshot.funding_payments[0]
+                assert payment.at.wall_ns == now.wall_ns + 1_000_000_000
+                assert payment.quantity == Decimal("0.1")
+                assert payment.rate == Decimal("0.0001")
+                assert payment.amount == (
+                    payment.quantity * payment.mark_price * payment.rate
+                )
+                position = snapshot.perpetual_positions[0]
+                original_position = opened["snapshot"]["perpetual_positions"][0]
+                assert position.quantity == Decimal(original_position["quantity"])
+                assert position.initial_margin == Decimal(
+                    original_position["initial_margin"]
+                )
+                assert position.funding_paid == payment.amount
+                assert position.isolated_collateral == (
+                    Decimal(original_position["isolated_collateral"]) - payment.amount
+                )
+                archive = dto(session.paper_store.archived_snapshot(frozen_id))
+                assert archive["balances"] == opened["snapshot"]["balances"]
+                assert archive["orders"] == opened["snapshot"]["orders"]
+                assert opened["snapshot"]["fills"] == [
+                    {**fill, "consumed_levels_omitted": 0} for fill in archive["fills"]
+                ]
+                assert archive["funding_payments"] == dto(snapshot.funding_payments)
+                assert archive["liquidations"] == []
+                frozen_delivery = snapshot.delivery_index
+                session.replay.step(3)
+                assert session.paper.snapshot(None).delivery_index == frozen_delivery
+                assert session.replay.cursor.delivery_index > frozen_delivery
+                assert dto(session.paper_store.archived_snapshot(frozen_id)) == archive
+                return archive
+
+            original_archive = await session.work(advance_until_frozen)
+            fresh = await session.work(
+                session._paper_configure,
+                PaperConfigureRequest(
+                    **identity, **_perpetual_api_configuration(instrument)
+                ),
+            )
+            child_id = fresh["snapshot"]["run"]["run_id"]
+            assert fresh["snapshot"]["run"]["parent_run_id"] == frozen_id
+            child = await session.work(
+                session._paper_order,
+                PaperOrderInput(**identity, side="sell", quantity="0.1"),
+            )
+            assert child["snapshot"]["perpetual_positions"][0]["quantity"] == "-0.1"
+            assert child["snapshot"]["funding_payments"] == []
+
+            def fingerprint():
+                return (
+                    session.paper,
+                    dto(session.paper.snapshot(None)),
+                    session.replay.cursor,
+                    session.replay.state_hash,
+                    session.generation,
+                    session.alerts.snapshot(),
+                    session.trade_history.checkpoint(),
+                )
+
+            before = await session.work(fingerprint)
+            with pytest.raises(RuntimeFailure, match="paper_resume_incomplete"):
+                await session.work(
+                    session._paper_candidate,
+                    PaperRunRequest(**identity, run_id=frozen_id),
+                )
+            assert await session.work(fingerprint) == before
+            assert (
+                await session.work(
+                    lambda: dto(session.paper_store.archived_snapshot(frozen_id))
+                )
+                == original_archive
+            )
+            target = session.replay.cursor.delivery_index
+        finally:
+            await runtime.close()
+
+        restarted = offline_runtime(memory_source, state_dir=tmp_path)
+        try:
+            session = await restarted.create(
+                "demo", instrument_id=instrument.instrument_id
+            )
+            identity = {"session_id": session.id, "generation": str(session.generation)}
+            assert (
+                await session.work(
+                    lambda: dto(session.paper_store.archived_snapshot(frozen_id))
+                )
+                == original_archive
+            )
+            await session.work(session.replay.seek_delivery, 0)
+            before = await session.work(fingerprint)
+            with pytest.raises(RuntimeFailure, match="paper_resume_incomplete"):
+                await session.work(
+                    session._paper_candidate,
+                    PaperRunRequest(**identity, run_id=child_id),
+                )
+            assert await session.work(fingerprint) == before
+            await session.work(session.replay.seek_delivery, target)
+            before = await session.work(fingerprint)
+            with pytest.raises(RuntimeFailure, match="paper_resume_incomplete"):
+                await session.work(
+                    session._paper_candidate,
+                    PaperRunRequest(**identity, run_id=frozen_id),
+                )
+            assert await session.work(fingerprint) == before
+            candidate = await session.work(
+                session._paper_candidate, PaperRunRequest(**identity, run_id=child_id)
+            )
+            await session.work(session._resume_paper, candidate)
+            identity["generation"] = str(session.generation)
+            resumed = await session.work(session._paper_query, PaperQuery(**identity))
+            assert (
+                resumed["snapshot"]["perpetual_positions"]
+                == child["snapshot"]["perpetual_positions"]
+            )
+            assert resumed["snapshot"]["balances"] == child["snapshot"]["balances"]
+            assert (
+                resumed["snapshot"]["run"]["config"]
+                == child["snapshot"]["run"]["config"]
+            )
+            assert (
+                await session.work(
+                    lambda: dto(session.paper_store.archived_snapshot(frozen_id))
+                )
+                == original_archive
+            )
+        finally:
+            await restarted.close()
+
+    asyncio.run(scenario())
+
+
+def test_replay_observer_does_not_hide_other_paper_errors(memory_source, monkeypatch):
+    from src.workstation.paper import PaperError
+
+    async def scenario():
+        runtime = offline_runtime(memory_source)
+        try:
+            session = await runtime.create("demo")
+
+            def fail(*args):
+                raise PaperError("unexpected_accounting_fault")
+
+            monkeypatch.setattr(session.paper, "on_batch", fail)
+            with pytest.raises(PaperError, match="unexpected_accounting_fault"):
+                await session.work(session.replay.step)
+            assert session.paper.frozen_reason is None
+        finally:
+            await runtime.close()
+
+    asyncio.run(scenario())
+
+
+def test_paper_capability_keeps_session_pinned_native_metadata(tmp_path):
+    from dataclasses import replace
+    from src.workstation.api import PaperQuery
+    from src.workstation.instruments import native_order_constraints
+    from src.workstation.runtime import dto
+
+    async def scenario():
+        runtime, registry, instrument = live_runtime(tmp_path)
+        try:
+            session = await runtime.create("live", "live", instrument.instrument_id)
+            request = PaperQuery(
+                session_id=session.id, generation=str(session.generation)
+            )
+            newest = replace(
+                instrument,
+                metadata_version=instrument.metadata_version + "-discovery",
+                constraints=replace(instrument.constraints, min_base=None),
+            )
+            registry.catalog.instruments.apply_metadata(
+                MetadataSnapshot("runtime-fixture", 2, "synthetic", (newest,))
+            )
+            assert registry.catalog.instruments.get(instrument.instrument_id) == newest
+            result = await session.work(session._paper_query, request)
+            assert (
+                result["capability"]["metadata_version"] == instrument.metadata_version
+            )
+            assert result["capability"]["native_order_constraints"] == dto(
+                native_order_constraints(instrument)
+            )
+            assert result["capability"]["supported"] is True
+            assert (
+                result["capability"]["settlement_asset_id"]
+                == instrument.settlement.asset_id
+            )
+        finally:
+            await runtime.close()
+            await registry.close()
+
+    asyncio.run(scenario())
+
+
+def test_historical_paper_resume_replays_future_commands_with_mutation_fence(
+    tmp_path, memory_source
+):
+    from src.workstation.api import (
+        PaperConfigureRequest,
+        PaperOrderInput,
+        PaperQuery,
+        PaperRunRequest,
+    )
+    from src.workstation.paper import PaperError
+
+    async def scenario():
+        instrument = next(
+            spec.instrument
+            for spec in memory_source.descriptor.streams
+            if spec.instrument.venue == "hyperliquid"
+            and spec.instrument.base.ticker == "BTC"
+        )
+        runtime = offline_runtime(memory_source, state_dir=tmp_path)
+        try:
+            session = await runtime.create(
+                "demo", instrument_id=instrument.instrument_id
+            )
+            identity = {"session_id": session.id, "generation": str(session.generation)}
+            await session.work(
+                session._paper_configure,
+                PaperConfigureRequest(
+                    **identity, **_perpetual_api_configuration(instrument)
+                ),
+            )
+            opened = await session.work(
+                session._paper_order,
+                PaperOrderInput(**identity, side="buy", quantity="0.1"),
+            )
+            run_id = opened["snapshot"]["run"]["run_id"]
+            prefix = session.replay.cursor.delivery_index
+            await session.work(session.replay.step)
+            closed = await session.work(
+                session._paper_order,
+                PaperOrderInput(
+                    **identity, side="sell", quantity="0.1", reduce_only=True
+                ),
+            )
+            assert closed["snapshot"]["perpetual_positions"][0]["quantity"] == "0"
+            target = session.replay.cursor.delivery_index
+            assert target > prefix
+        finally:
+            await runtime.close()
+
+        restarted = offline_runtime(memory_source, state_dir=tmp_path)
+        try:
+            session = await restarted.create(
+                "demo", instrument_id=instrument.instrument_id
+            )
+            identity = {"session_id": session.id, "generation": str(session.generation)}
+            request = PaperRunRequest(**identity, run_id=run_id)
+
+            def fingerprint():
+                return (
+                    session.paper,
+                    session.paper.checkpoint(),
+                    session.replay.cursor,
+                    session.replay.state_hash,
+                    session.generation,
+                    session.alerts.snapshot(),
+                    session.trade_history.checkpoint(),
+                    session.paper_store.archived_snapshot(run_id),
+                )
+
+            await session.work(session.replay.seek_delivery, 0)
+            before = await session.work(fingerprint)
+            with pytest.raises(RuntimeFailure, match="paper_resume_incomplete"):
+                await session.work(session._paper_candidate, request)
+            assert await session.work(fingerprint) == before
+
+            await session.work(session.replay.seek_delivery, prefix)
+            candidate = await session.work(session._paper_candidate, request)
+            # A reconstructed candidate is not valid after its owner moves ahead.
+            await session.work(session.replay.seek_delivery, target)
+            before = await session.work(fingerprint)
+            with pytest.raises(RuntimeFailure, match="paper_resume_incomplete"):
+                await session.work(session._resume_paper, candidate)
+            assert await session.work(fingerprint) == before
+
+            await session.work(session.replay.seek_delivery, prefix)
+            await session.work(session._resume_paper, candidate)
+            identity["generation"] = str(session.generation)
+            resumed = await session.work(session._paper_query, PaperQuery(**identity))
+            assert "future_commands_fork_required" in resumed["snapshot"]["reasons"]
+            assert resumed["snapshot"]["run"]["run_id"] == run_id
+            for field in ("balances", "fills", "orders"):
+                assert resumed["snapshot"][field] == opened["snapshot"][field]
+            for historical, original in zip(
+                resumed["snapshot"]["perpetual_positions"],
+                opened["snapshot"]["perpetual_positions"],
+                strict=True,
+            ):
+                for field, value in original.items():
+                    if field in (
+                        "mark_price",
+                        "unrealized_pnl",
+                        "equity",
+                        "maintenance_margin",
+                        "shortfall",
+                    ):
+                        assert historical[field] is None
+                    elif field == "reasons":
+                        assert "future_commands_fork_required" in historical[field]
+                        assert set(value).issubset(historical[field])
+                    else:
+                        assert historical[field] == value
+            before = await session.work(fingerprint)
+            with pytest.raises(PaperError, match="future_commands_fork_required"):
+                await session.work(
+                    session._paper_order,
+                    PaperOrderInput(**identity, side="sell", quantity="0.1"),
+                )
+            assert await session.work(fingerprint) == before
+
+            # Explicitly forking remains available without rewriting future history.
+            fork = await session.work(
+                session._paper_configure,
+                PaperConfigureRequest(
+                    **identity, **_perpetual_api_configuration(instrument)
+                ),
+            )
+            assert fork["snapshot"]["run"]["parent_run_id"] == run_id
+            assert fork["snapshot"]["run"]["run_id"] != run_id
+            assert not fork["snapshot"]["perpetual_positions"]
+            candidate = await session.work(
+                session._paper_candidate, PaperRunRequest(**identity, run_id=run_id)
+            )
+            await session.work(session._resume_paper, candidate)
+            identity["generation"] = str(session.generation)
+            await session.work(session.replay.seek_delivery, target)
+            replayed = await session.work(session._paper_query, PaperQuery(**identity))
+            assert (
+                "future_commands_fork_required" not in replayed["snapshot"]["reasons"]
+            )
+            for field in (
+                "balances",
+                "perpetual_positions",
+                "fills",
+                "orders",
+                "funding_payments",
+                "liquidations",
+            ):
+                assert replayed["snapshot"][field] == closed["snapshot"][field]
+            reopened = await session.work(
+                session._paper_order,
+                PaperOrderInput(**identity, side="buy", quantity="0.1"),
+            )
+            assert reopened["snapshot"]["perpetual_positions"][0]["quantity"] == "0.1"
+            assert len(reopened["snapshot"]["fills"]) == 3
+        finally:
+            await restarted.close()
+
+    asyncio.run(scenario())

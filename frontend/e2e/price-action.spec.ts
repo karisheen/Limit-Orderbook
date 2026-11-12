@@ -1,11 +1,15 @@
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import type { Catalog, Frame } from '../src/api';
+import type { CandleHistory } from '../src/candle-model';
+
+const candleIntervals = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1M'];
 
 const chart = (page: Page) => page.getByTestId('price-chart');
 const interval = (page: Page, value: string) => page.getByRole('button', { name: `Candle interval ${value}`, exact: true });
 const candleResponse = (page: Page, value: string) => page.waitForResponse(response => response.url().endsWith('/api/v1/candles')
-  && response.request().method() === 'POST' && response.request().postDataJSON().interval === value && response.ok());
+  && response.request().method() === 'POST' && response.request().postDataJSON().interval === value
+  && response.request().postDataJSON().source === 'session_trades' && response.ok());
 
 async function openObservedDemo(page: Page) {
   let latest: Frame | null = null;
@@ -30,6 +34,9 @@ async function openObservedDemo(page: Page) {
   expect(response.ok(), await response.text()).toBe(true);
   const frame = await response.json() as Frame;
   await expect.poll(() => latest?.generation).toBe(frame.generation);
+  await page.getByRole('combobox', { name: 'All candle intervals', exact: true }).selectOption('1h');
+  await expect(chart(page)).toHaveAttribute('data-presented-generation', frame.generation);
+  await expect(chart(page)).toHaveAttribute('data-presented-interval', '1h');
   return { source, frame, latest: () => latest ?? frame };
 }
 
@@ -38,9 +45,18 @@ test('hour candles, interval persistence and independent live book during replay
   await expect(interval(page, '1h')).toHaveAttribute('aria-pressed', 'true');
   const minuteResponse = candleResponse(page, '1m');
   await interval(page, '1m').click();
-  const minute = await (await minuteResponse).json();
+  const minuteHTTP = await minuteResponse;
+  const minute = await minuteHTTP.json() as CandleHistory;
   expect(minute.source).toBe('session_trades');
   expect(minute.instrument_id).toBe(session.frame.selection.instrument_id);
+  expect(minute.session_id).toBe(session.frame.session_id);
+  expect(minute.generation).toBe(session.frame.generation);
+  expect(minute.instrument_ids).toEqual(minuteHTTP.request().postDataJSON().instrument_ids);
+  expect(minute.instrument_ids[0]).toBe(session.frame.selection.instrument_id);
+  expect(minute.scope).toBe(minute.instrument_ids.length > 1 ? 'aggregate' : 'primary');
+  expect(minute.time_basis).toBe('receive_utc');
+  expect(minute.supported_intervals).toEqual(candleIntervals);
+  await expect(page.getByRole('combobox', { name: 'All candle intervals', exact: true })).toHaveValue('1m');
   expect(minute.candles.length).toBeGreaterThanOrEqual(2);
   for (const bar of minute.candles) {
     expect(BigInt(bar.start_ns) % 60_000_000_000n).toBe(0n);
@@ -52,17 +68,22 @@ test('hour candles, interval persistence and independent live book during replay
   const initialRevision = BigInt(session.latest().book?.revision ?? '0');
   const hourResponse = candleResponse(page, '1h');
   await interval(page, '1h').click();
-  const hour = await (await hourResponse).json();
+  const hour = await (await hourResponse).json() as CandleHistory;
   expect(hour.generation).toBe(session.frame.generation);
+  expect(hour.source_identity).toBe(minute.source_identity);
+  expect(hour.instrument_ids).toEqual(minute.instrument_ids);
   expect(hour.candles).toHaveLength(1);
-  expect(BigInt(hour.candles[0].start_ns) % 3_600_000_000_000n).toBe(0n);
-  expect(BigInt(hour.candles[0].end_ns) - BigInt(hour.candles[0].start_ns)).toBe(3_600_000_000_000n);
-  expect(BigInt(hour.coverage_end_ns) - BigInt(hour.coverage_start_ns)).toBeLessThan(3_600_000_000_000n);
+  expect(BigInt(hour.candles[0]!.start_ns) % 3_600_000_000_000n).toBe(0n);
+  expect(BigInt(hour.candles[0]!.end_ns) - BigInt(hour.candles[0]!.start_ns)).toBe(3_600_000_000_000n);
+  expect(hour.coverage_start_ns).not.toBeNull();
+  expect(hour.coverage_end_ns).not.toBeNull();
+  expect(BigInt(hour.coverage_end_ns!) - BigInt(hour.coverage_start_ns!)).toBeLessThan(3_600_000_000_000n);
   await expect.poll(() => BigInt(session.latest().book?.revision ?? '0')).toBeGreaterThan(initialRevision);
   expect(session.latest().session_id).toBe(session.frame.session_id);
   expect(session.latest().generation).toBe(session.frame.generation);
   expect(session.latest().status).toBe('playing');
   await page.getByRole('button', { name: 'Candle timeframe', exact: true }).click();
+  await expect(page.getByRole('menu', { name: 'Candle timeframe', exact: true }).getByRole('menuitemradio')).toHaveCount(candleIntervals.length);
   await expect(page.getByRole('menuitemradio', { name: '1h •', exact: true })).toBeFocused();
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
@@ -70,10 +91,12 @@ test('hour candles, interval persistence and independent live book during replay
   await expect(page.getByRole('button', { name: 'Candle timeframe', exact: true })).toContainText('2h');
   await interval(page, '4h').click();
   await expect(interval(page, '4h')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('combobox', { name: 'All candle intervals', exact: true })).toHaveValue('4h');
   await page.reload();
   await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Price action', exact: true }).click();
   await expect(chart(page)).toBeVisible();
   await expect(interval(page, '4h')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('combobox', { name: 'All candle intervals', exact: true })).toHaveValue('4h');
 });
 
 test('a delayed obsolete interval response cannot replace the newly selected candles', async ({ page }) => {
@@ -151,7 +174,6 @@ test('lost stream evidence marks held candles stale before replacing the session
   try {
     await expect(chart(page).locator('.price-chart__status')).toHaveText('Stale snapshot', { timeout: 8000 });
     await expect(values).toHaveText(observed);
-    await expect(page.locator('.source-readiness')).toHaveText('Unavailable');
     await page.screenshot({ path: testInfo.outputPath('disconnected.png') });
   } finally {
     suppress = false;

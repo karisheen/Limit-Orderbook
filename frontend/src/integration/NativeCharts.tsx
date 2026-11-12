@@ -6,22 +6,30 @@ import type { ChartCursor } from '../MarketCharts';
 import { Freshness } from '../Freshness';
 import { DepthLadder } from '../DepthLadder';
 import { useMarketView } from '../useMarketView';
-import { chartSettings, navigateChartTime, workspaceGeometry } from '../workspace';
+import { chartSettings, navigateChartTime } from '../workspace';
 import type { ChartTimeIntent, PaneId, WorkspacePreferences } from '../workspace';
 import { PaneActions, ResizeHandle, Tape } from './NativeWidgets';
 import { useNativeTerminal } from './NativeContext';
-import { paneForView, toggleBookView, viewForPane } from './nativeWorkspace';
+import { paneForView, viewForPane } from './nativeWorkspace';
 import type { MarketPane } from './nativeWorkspace';
+import { useSessionStore } from '../orderflow/lib/session/SessionContext';
 
 const marketPanes = [['price', 'Price'], ['heatmap', 'Liquidity'], ['flow', 'Flow'], ['dom', 'Book'], ['tape', 'Tape']] as const;
 const chartViews = [['footprint', 'Footprint'], ['price', 'Price action'], ['orderflow', 'Liquidity & flow'], ['book', 'Native book & tape']] as const;
+const noInstrumentIds: readonly string[] = [];
 
 export function NativeChartArea({ footprint }: { footprint: ReactNode }) {
   const { terminal, preferences: p, updatePreferences: update, workspace: { setPreferences }, instrument: selected, connected, usable, fence } = useNativeTerminal();
   const { frame } = terminal;
+  const displayStatus = useSessionStore(state => state.displayStatus);
+  const cohortMatches = !!selected && displayStatus.primaryInstrumentId === selected.instrument_id
+    && frame?.selection.instrument_id === selected.instrument_id;
+  const instrumentIds = cohortMatches ? displayStatus.instrumentIds : noInstrumentIds;
+  const cohortReady = !!selected && cohortMatches && instrumentIds.includes(selected.instrument_id);
   const workspaceView = p.nativeView ?? 'footprint';
-  const [maximized, setMaximized] = useState<MarketPane | null>(null);
-  const nativeView = maximized ? viewForPane(maximized) : workspaceView;
+  const [maximizedPane, setMaximized] = useState<MarketPane | null>(null);
+  const maximized = maximizedPane && viewForPane(maximizedPane) === workspaceView ? maximizedPane : null;
+  const nativeView = workspaceView;
   const [narrowPane, setNarrowPane] = useState<MarketPane>(() => paneForView(nativeView));
   const [interactionPane, setInteractionPane] = useState<MarketPane>(() => paneForView(nativeView));
   const [clockScopeRevision, setClockScopeRevision] = useState(0);
@@ -35,25 +43,26 @@ export function NativeChartArea({ footprint }: { footprint: ReactNode }) {
     window.addEventListener('resize', resized);
     return () => window.removeEventListener('resize', resized);
   }, []);
-  const geometry = workspaceGeometry(p, viewportWidth);
   const narrow = viewportWidth <= 965;
   const primaryPane = paneForView(nativeView);
   const selectedPane = paneForView(nativeView, maximized ?? narrowPane);
-  const bookOpen = nativeView === 'book' || p.rightOpen;
   const paneVisible = useCallback((pane: MarketPane) => {
     if (nativeView === 'footprint') return false;
     if (maximized) return maximized === pane;
     if (narrow) return selectedPane === pane;
     if (nativeView === 'book') return pane === 'dom' || pane === 'tape';
-    if (pane === 'dom' || pane === 'tape') return p.rightOpen;
+    if (pane === 'dom' || pane === 'tape') return false;
     return nativeView === 'price' ? pane === 'price' : pane !== 'price';
-  }, [nativeView, maximized, narrow, selectedPane, p.rightOpen]);
+  }, [nativeView, maximized, narrow, selectedPane]);
   const [cursor, setCursor] = useState<{ fence: string; value: ChartCursor | null } | null>(null);
   const [domCursor, setDomCursor] = useState<{ fence: string; price: string | null } | null>(null);
-  const crosshair = cursor?.fence === fence ? cursor.value : null;
+  // A pin is an explicit selection; hover and focus cursors stay transient above it.
+  const [domPin, setDomPin] = useState<{ fence: string; value: ChartCursor } | null>(null);
+  const pin = domPin?.fence === fence ? domPin.value : null;
+  const crosshair = (cursor?.fence === fence ? cursor.value : null) ?? (p.links.dom ? pin : null);
   const setCrosshair = useCallback((value: ChartCursor | null) => setCursor({ fence, value }), [fence]);
   useEffect(() => {
-    const clear = () => { setCursor(null); setDomCursor(null); };
+    const clear = () => { setCursor(null); setDomCursor(null); setDomPin(null); };
     window.addEventListener('terminal-clear-cursor', clear);
     return () => window.removeEventListener('terminal-clear-cursor', clear);
   }, []);
@@ -66,7 +75,7 @@ export function NativeChartArea({ footprint }: { footprint: ReactNode }) {
     ...previous, secondary: chartSettings({ ...previous.secondary, ...value }),
   })), [setPreferences]);
   const resetClockScope = useCallback(() => {
-    setCursor(null); setDomCursor(null);
+    setCursor(null); setDomCursor(null); setDomPin(null);
     setClockScopeRevision(previous => previous + 1);
     window.dispatchEvent(new Event('terminal-clear-cursor'));
     setPreferences(previous => ({ ...previous, range: null, followSpanNs: null, follow: true,
@@ -94,7 +103,7 @@ export function NativeChartArea({ footprint }: { footprint: ReactNode }) {
     if (!lastFocus.current && !requested) return;
     const container = shell.current?.querySelector<HTMLElement>(`[data-interaction-pane="${pane}"]`);
     container?.querySelector<HTMLElement>('button, [tabindex="0"], summary')?.focus();
-  }, [fence, maximized, p.leftOpen, p.rightOpen, p.bottomOpen, p.preset, p.desktopView, interactionPane, narrow, selectedPane, primaryPane, paneVisible]);
+  }, [fence, maximized, p.leftOpen, p.bottomOpen, p.preset, p.desktopView, interactionPane, narrow, selectedPane, primaryPane, paneVisible]);
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || nativeView === 'footprint') return;
@@ -135,22 +144,14 @@ export function NativeChartArea({ footprint }: { footprint: ReactNode }) {
     setNarrowPane(pane);
     setInteractionPane(pane);
     setMaximized(null);
-    update({ nativeView: viewForPane(pane), ...(pane === 'dom' || pane === 'tape' ? { rightOpen: true } : { desktopView: pane === 'price' ? 'price' : 'orderflow' }) });
+    update({ nativeView: viewForPane(pane), ...(pane === 'price' || pane === 'heatmap' || pane === 'flow' ? { desktopView: pane === 'price' ? 'price' : 'orderflow' } : {}) });
   };
   const selectView = (view: NonNullable<WorkspacePreferences['nativeView']>) => {
     setMaximized(null);
     const pane = paneForView(view);
     setNarrowPane(pane);
     setInteractionPane(pane);
-    update({ nativeView: view, ...(view === 'price' || view === 'orderflow' ? { desktopView: view } : {}), ...(view === 'book' ? { rightOpen: true } : {}) });
-  };
-  const toggleBook = () => {
-    const next = toggleBookView(nativeView, bookOpen, narrow, p.desktopView);
-    const pane = paneForView(next.nativeView ?? nativeView);
-    setMaximized(null);
-    setNarrowPane(pane);
-    setInteractionPane(pane);
-    update(next);
+    update({ nativeView: view, ...(view === 'price' || view === 'orderflow' ? { desktopView: view } : {}) });
   };
   const toggleLink = (pane: PaneId) => { setCrosshair(null); update({ links: { ...p.links, [pane]: !p.links[pane] } }); };
   const linkPrice = (price: string | null) => {
@@ -158,9 +159,13 @@ export function NativeChartArea({ footprint }: { footprint: ReactNode }) {
     const reference = views.dom.data?.asof;
     setCrosshair(price !== null && reference ? { time_ns: reference.receive_mono_ns, price } : null);
   };
+  const pinPrice = (price: string | null) => {
+    const reference = views.dom.data?.asof;
+    setDomPin(price !== null && reference ? { fence, value: { time_ns: reference.receive_mono_ns, price } } : null);
+  };
   const chartProps = { frame, instrument: selected, connected, visualization: terminal.visualization, ladder: terminal.ladder,
     acknowledgeVisualization: terminal.acknowledgeVisualization, crosshair, onCrosshair: setCrosshair, onClockScopeChange: resetClockScope, clockScopeRevision };
-  const style = { '--chart-primary-size': `${p.chartSplit}fr`, '--chart-secondary-size': `${100 - p.chartSplit}fr`, '--tape-split': `${p.tapeSplit}%`, '--right-width': `${geometry.rightWidth}px` } as CSSProperties;
+  const style = { '--chart-primary-size': `${p.chartSplit}fr`, '--chart-secondary-size': `${100 - p.chartSplit}fr`, '--tape-split': `${p.tapeSplit}%` } as CSSProperties;
   return <section ref={shell} className="native-chart-area" data-native-view={nativeView} style={style}
     onFocusCapture={event => {
       lastFocus.current = event.target as HTMLElement;
@@ -179,7 +184,6 @@ export function NativeChartArea({ footprint }: { footprint: ReactNode }) {
           const next = event.key === 'Home' ? 0 : event.key === 'End' ? chartViews.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + chartViews.length) % chartViews.length;
           const view = chartViews[next]![0]; selectView(view); document.getElementById(`native-view-${view}`)?.focus();
         }}>{name}</button>)}
-      {nativeView !== 'footprint' && <button aria-pressed={narrow ? nativeView === 'book' : bookOpen} onClick={toggleBook}>DOM / tape</button>}
     </nav>
     <div id="native-footprint" className="native-footprint" role="tabpanel" aria-labelledby="native-view-footprint" hidden={nativeView !== 'footprint'}>{footprint}</div>
     <div id="native-chart-content" className="native-chart-content native-surface" role="tabpanel" aria-labelledby={`native-view-${nativeView}`} hidden={nativeView === 'footprint'}>
@@ -196,16 +200,16 @@ export function NativeChartArea({ footprint }: { footprint: ReactNode }) {
     </nav>
       <div className="native-chart-workspace" data-testid="workspace" data-maximized={maximized ?? ''}>
       <section id="market-panel-price" className="price-workspace" role="tabpanel" aria-labelledby={narrow ? 'market-tab-price' : 'native-view-price'} data-interaction-pane="price" data-interaction-active={interactionPane === 'price'} hidden={!paneVisible('price')}>
-        <PriceChart frame={frame} instrument={selected} connected={usable} active={paneVisible('price')} interval={p.candleInterval} onIntervalChange={candleInterval => update({ candleInterval })} maximized={maximized === 'price'} onMaximize={() => toggleMaximize('price')} />
+        <PriceChart frame={frame} instrument={selected} instrumentIds={instrumentIds} cohortReady={cohortReady} connected={usable} active={paneVisible('price')} interval={p.candleInterval} onIntervalChange={candleInterval => update({ candleInterval })} maximized={maximized === 'price'} onMaximize={() => toggleMaximize('price')} />
       </section>
       <section id="orderflow-workspace" className="chart-stack native-linked-charts" role={narrow ? undefined : 'tabpanel'} aria-labelledby={narrow ? undefined : 'native-view-orderflow'} aria-label="Market visualizations" hidden={!paneVisible('heatmap') && !paneVisible('flow')}>
         <div id="market-panel-heatmap" role={narrow ? 'tabpanel' : undefined} aria-labelledby={narrow ? 'market-tab-heatmap' : undefined} className="chart-slot primary-chart" data-interaction-pane="heatmap" data-interaction-active={interactionPane === 'heatmap'} hidden={!paneVisible('heatmap')}><ChartPane {...chartProps} key={`heatmap:${fence}`} id="heatmap" title="Liquidity" preferences={p} update={update} linked={p.links.heatmap} onLinked={() => toggleLink('heatmap')} timeLinked={p.rangeLinked} onTimeChange={intent => changeChartTime('heatmap', intent)} onTimeLinked={intent => toggleTimeLink('heatmap', intent)} interactionActive={interactionPane === 'heatmap'} maximized={maximized === 'heatmap'} onMaximize={() => toggleMaximize('heatmap')} active={paneVisible('heatmap')} /></div>
         <div className="chart-splitter"><ResizeHandle axis="vertical" proportional name="Chart split" value={p.chartSplit} min={30} max={70} onChange={chartSplit => update({ chartSplit })} /></div>
         <div id="market-panel-flow" role={narrow ? 'tabpanel' : undefined} aria-labelledby={narrow ? 'market-tab-flow' : undefined} className="chart-slot secondary-chart" data-interaction-pane="flow" data-interaction-active={interactionPane === 'flow'} hidden={!paneVisible('flow')}><ChartPane {...chartProps} key={`flow:${fence}`} id="flow" title="Order flow" preferences={{ ...p, ...p.secondary }} update={updateSecondary} linked={p.links.flow} onLinked={() => toggleLink('flow')} timeLinked={p.rangeLinked} onTimeChange={intent => changeChartTime('flow', intent)} onTimeLinked={intent => toggleTimeLink('flow', intent)} interactionActive={interactionPane === 'flow'} maximized={maximized === 'flow'} onMaximize={() => toggleMaximize('flow')} active={paneVisible('flow')} /></div>
       </section>
-      <div className="right-resizer" hidden={!p.rightOpen}><ResizeHandle axis="horizontal" reverse name="DOM width" value={geometry.rightWidth} min={geometry.min} max={geometry.max} onChange={rightWidth => { if (rightWidth !== geometry.rightWidth) update({ rightWidth, rightWidthMode: 'manual' }); }} /></div><aside className="book-tape native-book-tape" hidden={!paneVisible('dom') && !paneVisible('tape')}>
+      <aside className="book-tape native-book-tape" hidden={!paneVisible('dom') && !paneVisible('tape')}>
         <section id="market-panel-dom" role={narrow ? 'tabpanel' : undefined} aria-labelledby={narrow ? 'market-tab-dom' : undefined} className="dom-pane" data-pane="dom" data-interaction-pane="dom" data-interaction-active={interactionPane === 'dom'} hidden={!paneVisible('dom')}>
-          <DepthLadder key={`${fence}:${clockScopeRevision}`} extra={<PaneActions pane="DOM" linked={p.links.dom} onLinked={() => toggleLink('dom')} maximized={maximized === 'dom'} onMaximize={() => toggleMaximize('dom')} />} data={usable ? views.dom.data : null} loading={views.dom.loading} error={!usable ? 'Stream evidence unavailable' : views.dom.error} frozen={p.domFrozen} viewPaused={false} rows={p.domRows} onRows={domRows => update({ domRows })} onFreeze={() => update({ domFrozen: !p.domFrozen })} crosshair={p.links.dom ? crosshair?.price ?? null : domCursor?.fence === fence ? domCursor.price : null} onPrice={linkPrice} priceStep={p.domPriceStep} onPriceStep={domPriceStep => update({ domPriceStep })} unit={p.domUnit} onUnit={domUnit => update({ domUnit })} cumulative={p.domCumulative} onCumulative={domCumulative => update({ domCumulative })} sourceMode={frame?.source.mode ?? 'demo'} />
+          <DepthLadder key={`${fence}:${clockScopeRevision}`} extra={<PaneActions pane="DOM" linked={p.links.dom} onLinked={() => toggleLink('dom')} maximized={maximized === 'dom'} onMaximize={() => toggleMaximize('dom')} />} data={usable ? views.dom.data : null} loading={views.dom.loading} error={!usable ? 'Stream evidence unavailable' : views.dom.error} frozen={p.domFrozen} viewPaused={false} rows={p.domRows} onRows={domRows => update({ domRows })} onFreeze={() => update({ domFrozen: !p.domFrozen })} crosshair={p.links.dom ? crosshair?.price ?? null : (domCursor?.fence === fence ? domCursor.price : null) ?? pin?.price ?? null} onPrice={linkPrice} pinned={pin?.price ?? null} onPin={pinPrice} priceStep={p.domPriceStep} onPriceStep={domPriceStep => update({ domPriceStep })} unit={p.domUnit} onUnit={domUnit => update({ domUnit })} cumulative={p.domCumulative} onCumulative={domCumulative => update({ domCumulative })} sourceMode={frame?.source.mode ?? 'demo'} />
           <Freshness frame={frame} reference={usable ? views.dom.data?.asof ?? null : null} connected={connected} label="Book" frozen={p.domFrozen} />
         </section>
         <div className="tape-splitter"><ResizeHandle axis="vertical" proportional name="DOM and tape split" value={p.tapeSplit} min={30} max={75} onChange={tapeSplit => update({ tapeSplit })} /></div>

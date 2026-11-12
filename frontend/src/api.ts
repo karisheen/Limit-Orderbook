@@ -44,13 +44,19 @@ export interface TapePrint {
 }
 
 export interface MarketDataCursor { delivery: string; event: number }
+export interface NativeMarketRetention {
+  floor: MarketDataCursor;
+  stream_floors: Record<string, MarketDataCursor>;
+}
 export interface NativeMarketTrade extends TapePrint {
   instrument_id: string;
+  display_time_ns: string;
   cursor: MarketDataCursor;
   source_identity: { session_id: string; segment_id: string; clock_id: string; connection_epoch: string };
 }
 export interface NativeMarketBoundary {
   instrument_id: string; stream_id: string; cursor: MarketDataCursor; asof: Reference;
+  display_time_ns: string | null;
   kind: 'gap' | 'reset' | 'disconnect' | 'source_change' | 'rejection';
   reason: string;
 }
@@ -64,9 +70,12 @@ export interface NativeMarketBook extends Book {
 export interface NativeMarketData {
   version: '1'; session_id: string; generation: string;
   cursor: MarketDataCursor; highwater: string; gap: boolean; has_more: boolean;
+  retention: NativeMarketRetention;
   books: NativeMarketBook[]; instruments: Instrument[]; trades: NativeMarketTrade[];
   boundaries: NativeMarketBoundary[];
   now: { clock_id: string; mono_ns: string; wall_ns: string | null } | null;
+  /** Admitted source receive-clock projection, independent of page position. */
+  display_frontier_ns: string | null;
 }
 export interface ProfileLevel { price: string; buy_base: string; sell_base: string; unknown_base: string; quote_notional: string }
 export interface DisplayEvidence { side: string; price: string; kind: string; quantity: string; start_mono_ns: string; end_mono_ns: string; references: Reference[] }
