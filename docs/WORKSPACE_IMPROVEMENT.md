@@ -1,7 +1,11 @@
 # Market-workspace improvement cycle
 
-The initial cycle below is historical. The current chart-first desktop and
-hourly-history follow-up is recorded under [Desktop price-action redesign](#desktop-price-action-redesign).
+Both the initial cycle and [desktop price-action redesign](#desktop-price-action-redesign)
+below are historical, preceding the unified terminal/perpetual integration.
+Their scope exclusions and benchmarks describe those revisions, not today's
+capability ceiling. Later work added isolated perpetual paper accounting,
+unified admitted-trade candles and synchronized observed OI/funding; see
+[current controls](TERMINAL.md) and [readiness](READINESS.md).
 
 ## Evidence and scope
 
@@ -155,7 +159,7 @@ and search first; independent Liquidity/Flow charts beside Book/Tape on desktop;
 one keyboard-selectable market pane on narrow screens; research and explicit
 paper execution below. Existing exact values, units and data-quality semantics
 remain authoritative. No decorative animation, new widget framework or copied
-branding. [Working controls](TERMINAL.md#working-controls) describes operation.
+branding. [Market and display controls](TERMINAL.md#market-and-display-controls) describes operation.
 
 | Adaptation | Rationale and bounded implementation | Tradeoff and observable criterion |
 | --- | --- | --- |
@@ -166,7 +170,7 @@ branding. [Working controls](TERMINAL.md#working-controls) describes operation.
 
 ### Paper entry and execution-feedback boundary
 
-**D — existing local capability:** [Spot IOC paper workflow](TERMINAL.md#spot-ioc-paper-workflow)
+**D — existing local capability at that revision:** [Spot IOC paper workflow](TERMINAL.md#paper-workflow-spot-and-isolated-perpetuals)
 requires exact base quantity, explicit funds, dated/sourced fees and feed/decision/
 order latency. Native arrival, depth, constraints and quality govern fills;
 partial remainder cancels. Paused replay must advance source time for arrival.
@@ -634,6 +638,12 @@ unavailable and retained candles stale instead of claiming fresh evidence.
 Restarting the local collector preserved its durable state directory; reconnect
 alone is not a capacity repair. Sustained collector performance is not solved
 by this desktop redesign.
+
+This is the desktop redesign's historical observation. The subsequent
+[live-reliability follow-through](OMP_UPGRADE_HANDOFF.md#live-reliability-follow-through)
+corrected shared queue accounting and isolated catalog, Paper and live-market
+query work, then passed the bounded live acceptance scenarios. It did not
+remove finite capacity limits or establish unlimited sustained throughput.
 
 Reproduction: build with `npm --prefix frontend run build`, launch the documented
 read-only server, open `/?source=live`, select BTCUSDT and compare 1m/1h/4h/1d and

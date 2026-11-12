@@ -32,7 +32,7 @@ Types below are Python annotations: `Decimal`, `Optional[T]`, `Tuple[T, ...]`, `
 - Arithmetic uses an explicit versioned Decimal context (precision, rounding and traps), recorded in configuration. Validation never rounds incoming book levels to fit a tick. Derived division may round only under this declared context; fee and order rounding obey instrument rules. Unknown constraints remain unknown, not permissive zeroes. Scaled-integer optimization requires a versioned scale and overflow checks.
 - Canonical wire Decimal is base-10 fixed-point text, no scientific notation or negative zero; numeric equality has one canonical form for hashes. Original lexical representation remains in raw capture and checksum inputs. JSON `null` means absent; no invented timestamp or fee. Floats are allowed only for validated plotting coordinates and measured durations, never sent back as trading inputs.
 
-Implemented precision entry points are `decimal(value: str | int | Decimal, *, positive=False, nonnegative=False, policy=DecimalPolicy())`, `validate_increment(value, increment, *, name="value")`, `scaled_decimal(value: int, scale: int)`, and `exact_json_loads(payload: bytes | str, *, max_bytes=MAX_MARKET_DATA_BYTES)`. `MAX_MARKET_DATA_BYTES=32*1024*1024` is shared by the decoder and RawFrame (supervisors must use it for WS receive bounds); a real Coinbase snapshot observed during integration was approximately 4.78 MB with 40,405 updates, exceeding the prior 4 MiB limit. Outbound request bodies retain their smaller 4 MiB cap. Defaults bound decimal text to 128 characters, 38 coefficient digits, exponent magnitude 38 and absolute magnitude `1e30`; floats/bools, nonfinite constants and duplicate JSON keys are rejected. Parsed Decimal scale is retained. `DECIMAL_CONTEXT_VERSION="decimal-v1-p80-half-even"` declares precision 80 and half-even rounding. Book lots are not order minima: `Instrument.validate_order(price, quantity)` additionally checks configured spot order constraints; contract valuation requires explicit downstream conversion.
+Implemented precision entry points are `decimal(value: str | int | Decimal, *, positive=False, nonnegative=False, policy=DecimalPolicy())`, `validate_increment(value, increment, *, name="value")`, `scaled_decimal(value: int, scale: int)`, and `exact_json_loads(payload: bytes | str, *, max_bytes=MAX_MARKET_DATA_BYTES)`. `MAX_MARKET_DATA_BYTES=32*1024*1024` is shared by the decoder and RawFrame (supervisors must use it for WS receive bounds); a real Coinbase snapshot observed during integration was approximately 4.78 MB with 40,405 updates, exceeding the prior 4 MiB limit. Outbound request bodies retain their smaller 4 MiB cap. Defaults bound decimal text to 128 characters, 38 coefficient digits, exponent magnitude 38 and absolute magnitude `1e30`; floats/bools, nonfinite constants and duplicate JSON keys are rejected. Parsed Decimal scale is retained. `DECIMAL_CONTEXT_VERSION="decimal-v1-p80-half-even"` declares precision 80 and half-even rounding. Book lots are not order minima: `Instrument.validate_order(price, quantity, *, order_type)` additionally checks native order constraints through the shared interpretation; contract exposure valuation requires explicit downstream conversion.
 
 `wire.to_wire(value, *, canonical=True)` and `wire.dumps(value, *, canonical=True) -> bytes` emit tagged records (`"$type"`), decimal/integer fields as strings, immutable arrays and base64 bytes. The outer object is `{"schema_version":1,"value":...}`. `from_wire(value, expected_type=None)` / `loads(payload, expected_type=None, *, max_bytes=268435456)` validate the allowlisted record type, every field and nested constructor; unknown/missing fields and numeric decimal fields fail. The larger bounded wire limit accommodates full-book checkpoints with state, provenance, buffered frames and base64 overhead; it does not increase the inbound market-frame limit. Default decimal text is canonical; `canonical=False` retains Decimal scale/exponent text for checksum-sensitive state. Checkpoints explicitly use this lossless mode internally. Raw bytes preserve the complete original notation. This schema is a domain codec, not the later presentation-stream schema.
 
@@ -145,10 +145,15 @@ during network cleanup/bootstrap. Retained keys keep their causal evidence, and
 run identity, balances, prior fills and alert rules survive the switch.
 
 The analytical queue remains fail-closed at 256 deliveries / 128 MiB. Each atomic
-delivery retains only its affected books, charged conservatively at 512 bytes per
-level plus fixed overhead. Event representation size is computed once and reused
-for bounded history accounting. Trade-only deliveries reuse the immutable current
-book tuple; paper skips an identical already-scheduled book object. Analytics
+delivery retains only its affected books. `_LiveBookBudget` reference-counts
+immutable object identities across queued and in-flight deliveries: each distinct
+Book costs 4,096 accounted bytes, side tuple 256 plus 8 per level reference, and
+Level 640, with counter-table allocation charged separately. Shared identities
+are counted once, not copied or discounted by an assumed delta size. Failed
+admission rolls back its reservations. Event representation size (`len(repr(selected))`)
+is computed once and reused for bounded history accounting. These are admission
+charges, not an RSS guarantee.
+Trade-only deliveries reuse the immutable current book tuple; paper skips an identical already-scheduled book object. Analytics
 indexes immutable instrument-to-trade-stream relationships instead of validating
 identifiers and scanning all streams for each lookup.
 The owner takes at most32 already-admitted deliveries per executor call, preserving
@@ -164,6 +169,12 @@ the owning book window. New immutable books invalidate depth totals; book observ
 invalidate standing evidence. Reset/restore discards both caches. Freshness, clock,
 rolling windows, trade evidence and quality eligibility are still evaluated per query.
 The caches do not change canonical checkpoints, source depth or metric formulas.
+
+### Historical reliability measurements
+
+The retained experiments below describe their own revisions and accounting
+models, not a verification of current HEAD or the newer identity-deduplicated
+queue accounting. Their commands, figures and failures remain historical evidence.
 
 `evidence/m5-lifecycle-offline-summary.json` records complete state/history parity
 before and after this service correction. `evidence/m5-lifecycle-capacity-summary.json`
@@ -241,7 +252,7 @@ new_reducer(instrument: Instrument, key: SubscriptionKey) -> BookReducer
 
 `adapters.base.TransportRequest(method, endpoint_id, body=None, headers=())` permits public `GET`, `POST`, and `WS` (outbound subscription frame) requests; body is bytes. The supervisor executes requests and captures responses. `DecodedEvent(payload, sequence=None, checksum=None, exchange_event_wall_ns=None, exchange_time_kind=None)` represents one ordered payload. `DecodeResult(events=(), controls=(), error=None)` cannot contain partial events/controls alongside an error. `DecodeError(code, raw_hash, detail)` bounds detail to 4096 characters. `decode` is synchronous/pure, with no clock/network reads. `wrap_decoded(frame, instrument, key, result, segment_id, source_mode)` returns envelopes preserving frame receive identity and zero-based event indices; it raises on a decode error. Sequence-bearing acknowledgements/heartbeats and interleaved controls must be `DecodedEvent(Control(...), sequence=...)` in `events`. The optional unsequenced `controls` tuple appends after `events`. Raw-file references and actual processing/publish timings are attached later via immutable replacement. Checksum validation uses the complete message transaction before publication.
 
-Public requests allow only caller `Accept`, `Content-Type`, and `User-Agent` headers (case-insensitive); API-key, exchange credential, cookie and proxy-authorization headers are rejected, not forwarded. Endpoints must be credential-free HTTPS (`GET`/`POST`) or WSS (`WS`), with bounded valid host/port/path/query syntax and no userinfo or fragments. Public query fields are explicitly allowlisted (`symbol`, `limit`, `pair`, `count`, `category`, `product_type`, `offset`, `cursor`, `product_id`, `streams`, `stream`). GET bodies are forbidden. POST/WS bodies must be bounded JSON objects using the existing public discovery/subscription fields and operations; nested unknown/authentication fields and private operations are rejected. Validation preserves accepted endpoint/body bytes rather than rewriting them.
+Public requests allow only caller `Accept`, `Content-Type`, and `User-Agent` headers (case-insensitive); API-key, exchange credential, cookie and proxy-authorization headers are rejected, not forwarded. Endpoints must be credential-free HTTPS (`GET`/`POST`) or WSS (`WS`), with bounded valid host/port/path/query syntax and no userinfo or fragments. Public query fields are explicitly allowlisted in `adapters/base.py:_PUBLIC_QUERY_FIELDS`, including native product selectors and candle interval/range fields; arbitrary query keys are rejected. GET bodies are forbidden. POST/WS bodies must be bounded JSON objects using the existing public discovery/subscription fields and operations; nested unknown/authentication fields and private operations are rejected. Validation preserves accepted endpoint/body bytes rather than rewriting them.
 
 `BookReducer(instrument, key, *, capabilities=Capabilities(), epoch=0, segment_id="initial", truncate_depth=False, max_levels=100000, effective_depth=None, sequence_validator=None, checksum_calculator=None, price_validator=None, candidate_validator=None, strategy_id="generic-v1", adapter_revision="core-v1", config_hash="default")` owns exact level maps and lifecycle evidence. `apply(events: tuple[EventEnvelope,...], *, synchronized=True) -> Reduction` accepts one complete source message, preserving repeated-price delta order and validating its final candidate before commit. `synchronized=False` stages a bootstrap snapshot but returns no published Book until a subsequent accepted update with `synchronized=True`. `invalidate(gap)`, `checkpoint()`, `restore(checkpoint)` and `reset(epoch, segment_id)` are the other operations. Reset clears maps/sequence/quality/protocol state and cannot regress epoch; every input must match the active subscription, metadata version, segment and epoch. `Reduction(book=None, events=(), recovery=None, changed=False)` carries accepted/checksum-annotated events and an optional diagnostic invalid Book after failure. `RecoveryRequest(reason, action="request_snapshot")` also supports `resubscribe`, `reconnect`, `stop_unsupported`. Duplicate protocol IDs produce no accepted events or book revision/healthy-observation refresh; obsolete local ordinals/epochs are rejected without mutation. Invalid candidates retain previous maps, mark quality invalid and require a new snapshot.
 
@@ -366,20 +377,44 @@ Per-event-loop/origin budgets reserve requests at 0.1-second intervals. HTTP 401
 
 `Recorder.append_raw(frame)`, `append_events(events)`, and `append_checkpoint(checkpoint, *, delivery_index=None, observer_state=b"")` offer count/byte-bounded work without producer-side serialization or disk/database I/O. `await finalize() -> SessionManifest` flushes with a deadline; failure remains explicitly incomplete. The writer owns a separate shared-code `RecordingProjection`, not an unsafe concurrent snapshot of the live reducer. `SessionManifest` records schema/config/adapter/code revisions, metadata, selected-stream scope, actual delivery order, gaps, completion state, file hashes/counts/ranges and provenance/license. Raw gzip, stream-partitioned Zstd Parquet, checkpoints and SQLite indexes are immutable after finalization. `RecordingReader` verifies provenance and physical evidence; bounded DuckDB history queries run off ingestion. Known required capture loss prevents trusted complete replay; skipped global ordinals belonging to unselected streams do not imply loss. Recovery quarantines interrupted captures, never promotes them by file existence. Exact APIs and limits: `RECORDING.md`.
 
+`RecordingReader` rejects symlink capture roots and actively written captures,
+opens its index with SQLite `mode=ro&immutable=1`, and verifies evidence by default.
+Its five independent decoded-evidence LRUs cover raw frames, Parquet groups,
+batches, checkpoint groups and auxiliary state. Each uses the manifest's
+`RecorderLimits` (defaults 8,192 entries / 32 MiB per cache), skips oversized
+entries and retains declared-file/symlink checks on cached reads. Reader close
+clears caches and closes the index and capture lock handle. These caches neither
+repair incomplete evidence nor relax replay verification.
+
 `await RecorderBinding.start(registry, recorder, keys, client_id=None)` holds recorder-owned leases independently of browser clients. Attaching to existing owners joins and restarts those same supervisors with fresh bootstrap/epoch, preserving other leases and invalidating cached books; this is not a silent mid-book capture. `await binding.stop()` joins, detaches sinks, restarts remaining browser owners and finalizes. Stream descriptors are registered before capture callbacks.
 
 `ReplaySession` exposes synchronous `pause()`, `set_speed(speed)`, `step(count=1)` and `seek(ordinal, event_index=0)`, plus asynchronous `play(speed)` and `run_to_end(speed=None)`. Cursor includes actual delivery position; seek resolves a whole source transaction. `ReplayClock.reading` uses the current recorded clock's monotonic high-water mark; `source_reading` preserves the exact last-delivered receive clocks. Stored envelopes remain unchanged. Compatible coherent checkpoint groups restore all projected streams; incompatible state follows explicit fallback/reject policy. Registered observers reset and recompute needed past when compatible observer checkpoints are unavailable, never retain future state. Raw replay uses the same decode/normalize/reduce path and strictly compares recorded delivery; scoped duplicate controls are validated local processing evidence, not permission to bypass source identity or provenance. Normalized replay bypasses only decoding. Missing history stays missing. Speed affects pacing, not order, virtual eligibility time or deterministic hashes. Exact controls and observer contract: `REPLAY.md`.
 
-`MetricResult(name: str, value: Optional[Decimal], unit: str, instrument_ids: Tuple[InstrumentId, ...], venue_ids: Tuple[str, ...], asof: EventEnvelopeRef, window_start_ordinal: Optional[Ordinal], window_end_ordinal: Ordinal, window_definition: str, quality: Quality, eligibility: Eligibility, formula_version: str, config_hash: str, input_refs: Tuple[EventEnvelopeRef, ...])` is used by analytics, alerts, comparison, API, research and paper UI. Multi-value metrics use named results, not anonymous vectors. Unavailable values have reasons. Exact-event OFI and snapshot-derived flow have different names/capabilities. Trades alone feed CVD.
+`analytics.MetricResult` carries `name`, nullable exact `value`, `unit`, singular `instrument_id` and `venue`, optional source `asof`, `window:MetricWindow`, `quality:Quality|TradeEvidence|None`, `eligibility`, `formula_version`, `config_hash`, and bounded `references`. Heuristics additionally carry `trade_evidence`, `trade_eligibility`, and `trade_references`. `MetricWindow(start_mono_ns,end_mono_ns,clock_id,definition)` uses receive-monotonic bounds, not invented ordinal windows. An ineligible metric cannot carry a number; `reasons` exposes `eligibility.reasons`. Cost, alert and paper results retain their own typed evidence rather than a fictitious universal metric schema. Exact-event OFI and snapshot-derived flow have different names/capabilities; trades alone feed CVD.
 
-`walk_book(book, side, base_quantity: Optional[Decimal], quote_budget: Optional[Decimal], constraints, fees, policy, now) -> ExecutionEstimate` accepts exactly one size input and returns requested/filled/unfilled base, quote spent/received, VWAP, best-price slippage, fee amounts/currencies, effective price, coverage and eligibility. No extrapolation beyond known depth. `compare_pair(buy_book, sell_book, feasible_base_quantity, conversion, fees, inventory_assumptions, latency_stress, now) -> PairEstimate` uses the same feasible size on both sides and explicit conversion orientation/cost. Paper orders use this shared engine at simulated arrival with an explicit liquidity-consumption model; they do not submit exchange orders.
+`walk_book(book, instrument, side, *, base_quantity=None, quote_budget=None, fees, policy, now, order_type="market", limit_price=None) -> ExecutionEstimate` accepts exactly one size input and returns requested/filled/unfilled base, native quote notional, VWAP, best-price slippage, fee amounts/currencies, effective price, coverage and eligibility. `base_quantity` is valued base exposure, not a native contract count; no depth is extrapolated. `compare_pair(buy_book, buy_instrument, sell_book, sell_instrument, *, base_quantity, buy_fees, sell_fees, policy, now, numeraire=None, fx_rates=(), inventory=(), stress=StressAssumptions()) -> PairEstimate` reconciles both legs to the same feasible base size with explicit conversion orientation/cost. Native-quantity paper orders use shared depth/cost primitives at simulated arrival with their own funded accounting and liquidity-consumption model; none of these APIs submits exchange orders. See [COSTS](COSTS.md) for native valuation and derivative comparison exclusions.
 
 Terminal JSON uses `version:'1'`, session ID and generation, exact decimal/domain-integer strings, quality and reasons. Implemented routes and bounded request/response fields are specified in [API](API.md), including alerts, context, paper, journal and read-only research queries. `/health/live` reports process liveness; `/health/ready` reports synchronized active-session eligibility, not just HTTP success. UI never reconstructs authoritative exchange books from coalesced display frames. Accessible tables retain exact values; chart floats are disposable projections.
 
+Catalog responses are encoded on the catalog worker and cached by source scope
+against the complete `(instruments,sources,preferred_source_id)` snapshot.
+The LRU holds at most 8 scopes / 64 MiB of encoded bytes; oversized responses
+remain queryable but uncached. `/api/v1/instruments` supplies a strong quoted
+SHA-256 ETag of exact response bytes and `Cache-Control: private, no-cache`.
+A matching current validator permits bodyless 304; browser validators and
+cached representations are scoped to the same request URL, never reused across
+source selections.
+
 ### Native market presentation
 
-`POST /api/v1/market-data` is an owner-serialized read of completed canonical
-deliveries, not a second exchange feed or an authoritative browser reducer.
+`POST /api/v1/market-data` reads a bounded immutable completed-prefix snapshot,
+not a second exchange feed or an authoritative browser reducer. For live mode,
+the analytical owner captures `LiveMarketView`: pinned books, retained batches,
+a copied trade-history query snapshot, source clock/frontier and generation.
+Paging and DTO projection then run on the catalog worker outside the analytical
+lock, while lifecycle ownership fences selection. Replay retains its reader-affine
+worker path. HTTP JSON response encoding for market data and session frames runs
+off-loop; this does not admit later owner mutations into a frozen response.
 Generation is checked before and under session ownership fences. The exclusive
 cursor is `(delivery:string,event:number)`, initially `('0',-1)`; `event` is a
 bounded array offset, unlike string-valued domain ordinals. It advances across
@@ -627,16 +662,24 @@ is stored only with a funding rate. Out-of-order minutes are rejected with
 
 Gap/reset/disconnect/source-change/rejection controls after a first observation
 add `context_discontinuities` but retain observed bars. A different
-`(session_id, clock_id)` clears all bars; a changed open-interest unit clears
-that stream. `reset`, `checkpoint` and `restore` follow the observer protocol;
-restore rejects another stream set, unordered or misaligned minutes, invalid
-envelopes and unitless open interest.
+`(session_id, clock_id)` on any admitted stream clears all bars even without
+a context sample; a changed open-interest unit clears that stream. A late
+out-of-order sample is rejected before its unit can clear retained history.
+`reset`, `checkpoint` and `restore` follow the observer protocol; restore rejects
+another stream set, unordered or misaligned minutes, invalid envelopes and
+unitless open interest.
 
 `positioning_series` aggregates minutes with `session_bucket`, the same function
 as session candles, for every stream whose canonical base asset matches the
-selection. It adds no value that was not observed and reports the admitted
-clock's own discontinuity reasons. It does not feed paper accounting:
-`PaperFundingModel` remains an explicit user assumption.
+selection. Each series retains its native instrument/venue and is labeled
+`selected` only for the selected ID, otherwise `related_underlying`. Current
+production history comes only from admitted Hyperliquid perpetual context,
+not venue-history backfill. Nothing is carried across missing minutes and no
+empty bars are synthesized. The result remains partial observed-session evidence,
+with source-clock/discontinuity reasons, adapter-declared OI units and funding
+fractions per stated interval; a closed bucket is not complete history.
+It does not feed paper accounting: `PaperFundingModel` remains an explicit user
+assumption, not an automatic adoption of displayed funding rates.
 
 ### Paper funds, fees, time and consumed liquidity
 
@@ -802,6 +845,14 @@ fresh child configuration and later chart frontiers cannot rewrite that historic
 accounting into an earlier/invented state. Stale command revisions are disclosed
 as `archive_command_revision_superseded`. No archive seeds active replay state.
 
+Historical run lists use a separate `PaperStore(read_only=True)` on the catalog
+worker, not the analytical owner's connection. It opens SQLite `mode=ro`,
+requires the current schema and never creates or migrates history storage.
+`list_run_summaries` validates the entire durable `PaperRun` before caching its
+small summary by SHA-256 of payload bytes, not command revision. Every query
+reads the current database command revision. This LRU is bounded to 1,000
+summaries / 8 MiB; oversized summaries stay queryable but uncached.
+
 Explicit configuration always creates a new run, linked by `parent_run_id`
 when replacing one, with supplied new funds/models rather than inherited
 accounting. Runtime passes **current** streams, pinned descriptors, books,
@@ -884,6 +935,12 @@ margin access. Turnover/drawdown remain null with
 invented. Outcomes are `insufficient_evidence`, `no_reliable_edge` or
 `unvalidated_positive_markout`. Synthetic data always yields insufficient
 evidence of edge, regardless of positive fixture results.
+
+The implemented paper ledger's leverage, isolated collateral, funding and native
+P&L do not change this research applicability boundary. Neither subsystem is a
+live strategy runner, funding-arbitrage strategy, automated market maker or
+profitability validation. Those strategies require additional causal policy and
+evaluation, not relabeling existing accounting primitives.
 
 ## Native replacement boundary
 

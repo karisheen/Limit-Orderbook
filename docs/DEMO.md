@@ -32,6 +32,16 @@ one receive clock, keeping their latest observations
 close without claiming exchange-time simultaneity. Offline generation can await
 writer capacity; live registry callbacks never block to write capture files.
 
+The current v3 source contains **14 instruments and 38 channel streams**:
+three Binance spot instruments, four Hyperliquid perpetuals plus HYPE spot,
+and six Coinbase/Kraken USD spot instruments. Each has book/trades; the five
+Hyperliquid instruments also have reference/context channels. Counts describe
+the generator contract, not live venue coverage or historical benchmark input.
+The explicit `positioning_scenario=ramp-signed-v1` configuration makes synthetic
+perpetual open interest ramp up/down and funding step through negative, zero
+and positive fractions every 30 virtual seconds. This is illustrative context,
+not observed funding payments or the Paper funding model.
+
 The fixture is original synthetic material dedicated under **CC0-1.0**. All
 prices, sizes, times, update IDs, prints, funding and open interest are invented.
 Hyperliquid metadata is pinned from public Info: the perpetual universe prefix
@@ -77,8 +87,9 @@ Generated captures are ignored local data, not committed fixtures. Session names
 include fixture version and virtual duration. Reuse requires matching fixture
 hash, stream metadata, configuration, duration, license and exact workstation
 source-tree SHA256; code revisions explicitly hash working-tree bytes rather than
-pretending uncommitted code belongs to Git HEAD. Both live and demo manifests carry
-this code provenance. Use `--root PATH` for an independent capture directory.
+pretending uncommitted code belongs to Git HEAD. Headless `record` and `demo`
+manifests carry this code provenance. Use `--root PATH` for an independent
+capture directory.
 Corrupt, incomplete or incompatible existing captures fail rather than being
 silently reused or overwritten.
 
@@ -160,10 +171,11 @@ All begun attempts, including failures and negative/insufficient results, remain
 in SQLite. `list` returns the latest bounded page (no older-history offset);
 known older IDs remain addressable by `show`. Trial pages expose all candidate
 statistics, exclusions and matched baselines; the stable report hash covers the
-complete report, not just the displayed page. The 900-second default synthetic
-run was exercised with 12,600 observations, 151,200 labels and 2,592 trials:
+complete report, not just the displayed page. A previously exercised 900-second
+synthetic run had 12,600 observations, 151,200 labels and 2,592 trials:
 `insufficient_evidence`, with unknown fees explicitly excluding net results.
-This is pipeline evidence, not evidence of a trading edge.
+These are historical pipeline measurements, not current-head validation, a
+guaranteed count for a new run, or evidence of a trading edge.
 
 
 ## Real public capture
@@ -189,6 +201,12 @@ A partial dependency probe is not a pass. Binance.US requires explicit
 Hyperliquid uses its documented public WS trade channel, not an invented REST
 trade-history endpoint. Only requested venues/products are discovered; demo
 prices are never overlaid into a live capture.
+
+The headless `record --venue` choices are currently only `binance-global`,
+`binance-us` and `hyperliquid`; the terminal's broader live catalog does not
+expand this CLI option. Adapter support does not establish access from this
+environment. A denied dependency check remains a failure, not permission to
+substitute venues or bypass regional/provider restrictions.
 
 The recorder owns registry leases independently of browser clients. Raw/event
 sinks are installed before feed acquisition, stream descriptors use the registry's
@@ -240,6 +258,12 @@ the end; omitted speed is unpaced. Replay preserves recorded source modes and
 quality separately from display mode. Speeds change wall-clock pacing, never
 economic state or receive identity. JSON decimals, timestamps, ordinals and
 large IDs are strings.
+
+CLI `--seek`/interactive `seek` use the receive **ordinal** and optional event
+index. The terminal's **Delivery → Seek** instead uses the delivery index;
+do not copy one coordinate into the other. `--seek` without `--steps` or
+`--interactive` then runs to the end. Use `--steps N` with a positive count
+to inspect a bounded post-seek prefix.
 
 Exit codes: **0** means the requested operation completed on a complete capture;
 **2** means explicit incomplete/interrupted capture (or argument usage errors from

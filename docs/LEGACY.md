@@ -4,6 +4,10 @@ Streamlit is a thin client of the same native workstation API as the React
 terminal. It does not collect exchange data, maintain a second order book,
 calculate financial metrics, rebin history, or execute orders. A **separately
 running local backend is required**. No private credentials are requested.
+This is the observation subset below, not feature parity with React's native
+candles, funding/open-interest panes or Paper/Journal/Research workflows.
+The backend's spot/perpetual paper ledger is simulation, not exchange execution;
+this client does not provide paper-order controls.
 
 ## Run
 
@@ -42,6 +46,11 @@ opaque catalog IDs; it never submits capture paths. Live source ownership,
 recording verification, source readiness and instrument metadata remain the
 backend's responsibility. Do not start a competing live collector beside a
 recorder. See [API](API.md) for server options and constraints.
+
+Venue support does not establish access from the current network. Denied
+metadata, streaming-only precision and incomplete coverage remain explicit;
+unverified metadata cannot enable financial consumers. Do not bypass provider
+restrictions or reinterpret unavailable values as zero.
 
 The sidebar links the full React terminal at the configured API origin. Its
 static frontend must be built as documented in [API](API.md); a missing React
@@ -121,6 +130,11 @@ chunks (a blocked read can add at most that operation's read timeout), cap
 decoded output at 12 MiB, and cap requests at 64 KiB. Captures exceeding these
 bounds fail explicitly rather than enabling unbounded requests.
 No automatic retries, remote fallback or fabricated market evidence is used.
+The 12 MiB response cap also applies to catalogs, not only captures/history.
+`ApiClient.catalog()` currently requests full JSON without conditional ETags;
+React's URL-scoped validator cache is not implemented in this client. A large
+live discovery union can therefore exceed this client's bound and fail visibly.
+The server's catalog cache does not waive that client-side limit.
 
 **Close this document's API session** explicitly deletes only that session.
 Source replacement deletes the previous session before creating another;

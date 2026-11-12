@@ -1,10 +1,12 @@
 # M1 headless feed validation and core benchmark
 
-These tools execute the new `src.workstation` adapters, immutable core, and real
+These tools execute the `src.workstation` adapters, immutable core, and real
 `FeedSupervisor`; they do not scrape the legacy browser or manufacture exchange
 events. Live access and throughput remain measurements, not promises. This file
 describes runnable procedures, **not a claim that the probes or soaks passed**.
-The integration owner records executed results in `docs/evidence/`.
+Historical M0/M1 evidence in `docs/evidence/` retains its original date, command,
+dataset and scope; it does not certify current head. This documentation audit
+performed no external live revalidation.
 
 ## Public-feed probe
 
@@ -56,9 +58,12 @@ the number of samples. A hard kill can leave the last periodic report marked
 
 ### Product identity and coverage
 
-The default venues are Coinbase, Kraken, Binance global, **Binance.US**, Bybit,
-KuCoin, and Hyperliquid. Binance.US is never renamed to or merged with global.
-Selection is explicit and conservative:
+This **probe CLI's** default venues remain Coinbase, Kraken, Binance global,
+**Binance.US**, Bybit, KuCoin, and Hyperliquid. Binance.US is never renamed to or
+merged with global. This is not the whole application catalog: `ADAPTER_CLASSES`
+also registers **OKX, Bitget and Deribit**, while `AdapterCatalog` excludes
+Binance.US unless explicitly enabled. This CLI cannot select those three newer
+venues, nor Binance/Bybit perpetual families. Selection is explicit and conservative:
 
 | Venue | Selected cohort | Reconstruction depth |
 | --- | --- | --- |
@@ -68,7 +73,7 @@ Selection is explicit and conservative:
 | Binance.US | BTC/ETH/SOL spot USDT | Independent partial top-20 snapshots |
 | Bybit | BTC/ETH/SOL spot USDT | 50 levels |
 | KuCoin | BTC/ETH/SOL spot USDT | Public REST top-20 snapshot/degraded mode |
-| Hyperliquid | BTC/ETH/SOL perpetual USDC | Default slow top-20 snapshots |
+| Hyperliquid | BTC/ETH/SOL default perpetual, USDT quote with independently resolved native USDC settlement | Default slow top-20 snapshots |
 
 `--include-hype` adds Hyperliquid HYPE perpetual where metadata lists it. The
 selected complete instrument record includes native identity, namespace,
@@ -78,6 +83,15 @@ a probe of every discovered spot token or DEX namespace. Multiple exact
 candidates are listed and deterministic default-namespace/identity ordering is
 used; a missing exact cohort is `unsupported`, not a silent alternate quote,
 wrapped asset, or different market type.
+
+Hyperliquid selection deliberately reads the chosen descriptor's quote rather
+than hardcoding USDC. `--include-hype` adds the default HYPE perpetual, whose
+quote is USDC; that does not change BTC/ETH/SOL denomination. USDT-to-native-USDC
+`quanto_no_fx` is a contract settlement convention, not stablecoin parity.
+This probe does not exercise fast5, references/context, OI/funding history,
+optional venue candle history, paper execution or financial risk assumptions.
+For current product/channel inventories, see [Asian adapters](ADAPTERS_ASIAN.md),
+[USD adapters](ADAPTERS_USD.md) and [Hyperliquid](ADAPTER_HYPERLIQUID.md).
 
 ### Dependency evidence and interpretation
 
@@ -106,6 +120,15 @@ last quality/coverage, diagnostic counters, reconnects, epochs, duplicate-trade
 counts, observed gap-to-valid-book recoveries, and elapsed time. The core and
 adapter determine integrity; missing venue sequence/checksum guarantees are
 visible in capabilities and are not reported as verified checks.
+
+The CLI's metadata-first dependency flow is narrower than the live catalog's
+streaming bootstrap. HTTP metadata denial does not itself prove a distinct public
+WS channel unreadable: Binance/Bybit's bundled four-family candidates can be
+attempted by the live workstation without invented listing/precision metadata.
+Candidates and acknowledgments prove nothing about actual data; only validated
+book/trade messages establish their respective observations. Their pinned
+`streaming_only` descriptors still fail metadata-dependent comparison, depth-walk
+and paper-fill gates. The probe does not exercise or certify that candidate path.
 
 A book count is a **publication count**, not necessarily a unique venue update:
 lifecycle changes may republish last-known levels. Raw/event counts are separate.
@@ -137,6 +160,16 @@ access fields are preserved, while `execution_eligibility` remains
 `unknown_not_tested`: this tool never tests trading permission, legal eligibility,
 accounts, balances, or executable orders. Successful market-data observations
 cannot change that verdict.
+
+`TransportRequest`/`validate_public_endpoint` require credential-free HTTPS/WSS,
+allowlisted public query/body/header fields and approved subscription operations.
+Shared HTTP transport rejects injected authentication/cookies/private headers and
+does not follow redirects or use environment proxy settings in its owned client.
+HTTP 401/403/451 is blocked; 404/410 is unsupported, neither retried as a successful
+alternative. Retryable 429/5xx responses honor origin-wide `Retry-After` pacing;
+an excessive delay opens the circuit instead of retrying early. No denial
+authorizes proxy use, authentication, alternate product identity or restriction
+bypass. An allowed public endpoint and a permitted trade are separate questions.
 
 The default global profile uses official data-only hosts
 `data-api.binance.vision` and `data-stream.binance.vision:443`. If an explicitly
@@ -205,6 +238,16 @@ receive-to-valid or UI budget being met. Finite achieved throughput does not
 establish a production peak sustainable rate. The prior
 `docs/evidence/m1-core-initial-benchmark.json` is a separate measured baseline;
 keep it rather than replacing earlier slower evidence with an optimized run.
+
+The [M0 access snapshot](evidence/m0-access.json) at
+2026-11-01T02:15:52Z and [Hyperliquid HTTP snapshot](evidence/m0-hyperliquid-access.json)
+at 2026-11-01T02:16:14Z measured endpoint/channel access, explicitly not synchronized
+adapter integrity. Their HTTP successes, observed frames and older benchmark
+figures remain historical evidence only. In particular, the Hyperliquid snapshot's
+recent-trade HTTP observations do not add a current adapter REST trade fallback.
+Keep the initial, optimized and full M1 benchmark records and their original
+commands/figures; do not present those reducer-only results as current end-to-end
+queue, response-serialization, UI or sustained-feed performance.
 
 ## Integration-owner checks
 

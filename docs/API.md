@@ -1,4 +1,4 @@
-# Local terminal API (M3–M5, version 1)
+# Local terminal API (version 1)
 
 ## Start
 
@@ -8,7 +8,18 @@ Install the repository's locked Python environment and build `frontend/` using i
 python -m src.workstation.cli serve
 ```
 
-Open `http://127.0.0.1:8000`. The default is offline: no network discovery, collector lock, exchange socket, recorder, or durable demo generation. It generates a complete **180-second multi-venue synthetic scenario** in a bounded immutable memory source, then feeds the same `ReplaySession`, projection, analytics observer and cost engine used by recorded replay. This deliberately sparse fixture is not a historical market recording or a full exchange book. The source descriptor says `synthetic: true`, `recording: false`; native exchange/source identity is not rewritten. Initial presentation consumes bootstrap/early deliveries and pauses; remaining scenario data is available through replay controls, not leaked into current windows.
+Default startup performs no live discovery, collector locking, exchange socket
+connection, recording or durable demo generation. It generates a complete
+**180-second multi-venue synthetic scenario** in a bounded immutable memory
+source, then feeds the same `ReplaySession`, projection, analytics observer and
+cost engine used by recorded replay. This sparse fixture is not a historical
+market recording or full exchange book. The source descriptor says
+`synthetic: true`, `recording: false`; native identity is not rewritten.
+Initial presentation consumes bootstrap/early deliveries and pauses; remaining
+data is available through replay controls, not leaked into current windows.
+Explicit `source="venue_ohlcv"` candle requests can fetch public REST history
+without `--network`; the flag controls shared live discovery/collection, not
+all outbound HTTP.
 
 `/health/live` is available while memory preparation runs. Source catalog status is `loading` until generation finishes. Creating a demo session waits for that preparation, not durable capture generation or verification. This removes the durable path from first-data startup; it is not a measured startup-time guarantee.
 
@@ -22,7 +33,7 @@ python -m src.workstation.cli serve --network
 
 `serve --network` declares `preferred_source_id: 'live'`; offline startup declares
 the managed demo ID. This preference does not create a live session, override
-source readiness, or authorize network access on an offline server. The browser
+source readiness, or enable live collection on a server without `--network`. The browser
 uses URL `?source=<catalog ID>`, then an explicit saved source, then this server
 preference. `http://127.0.0.1:8000/?source=live` explicitly requests public live
 data; unavailable requests retain their error instead of substituting demo.

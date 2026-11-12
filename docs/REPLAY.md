@@ -18,6 +18,9 @@ checkpoint_policy="fallback" | "reject")` from `src.workstation.replay`.
   to that delivery. `seek(0)` returns to the empty initial projection. Receive
   ordinals can go backward between delivered batches from different streams;
   they are not replay order. `cursor.delivery_index` is the authoritative cursor.
+- `seek_delivery(index)` selects an exact delivery transaction (zero clears the
+  projection). The terminal uses this coordinate; CLI `seek`/`--seek` use the
+  receive ordinal/event index above.
 - `books()`, `book_hash`, `state_hash`, `cursor`, `status`, `checkpoint_status`, and
   `clock` expose the resulting state. `close()` releases the replay iterator;
   the caller owns the reader lifetime.
@@ -142,16 +145,27 @@ loading; seek can require linear processing but not an unbounded event list.
 
 `ReplayObserver` defines `observer_id`, `version`, `reset()`,
 `on_batch(batch, books, clock)`, `checkpoint() -> bytes`, and `restore(bytes)`.
-M3 windows and M5 alerts/paper must implement this same state ownership boundary.
-Without compatible saved observer state, seek resets **every** observer and
-recomputes its history from the beginning, rather than restoring only books and
-retaining a future window. Current persisted recorder checkpoints intentionally
-contain projection state, not unknown future observer schemas.
+The terminal registers its actual analytical/paper/history observers at this
+boundary. With any observers attached, current seek resets **every** observer
+and recomputes the requested prefix from the beginning; it does not restore
+book checkpoints while retaining future derived history. Current persisted
+recorder checkpoints contain projection state, not these observer histories.
+The observer checkpoint/restore interface does not imply that runtime seek
+currently restores saved observer checkpoints.
 
 `DeliveryDigestObserver` is a concrete bounded audit consumer: it counts batches
 and events and hashes exact delivered evidence in merge order. It has validated
 checkpoint restoration and provides deterministic no-future-state regression
 coverage; it is not presented as trading analytics.
+
+Paper can freeze at its last valid accounting prefix (for example, a bounded
+funding catch-up failure) while replay continues delivering market data to the
+other observers. A later market cursor therefore does not certify later paper
+accounting. Seek/reset reconstructs the prefix; it is not automatic continuation
+of the frozen ledger. Opening a persisted paper audit is read-only. Explicit
+resume first reconstructs and validates a matching demo/recording prefix before
+replacing active accounting; live archives cannot resume into a new owner.
+See [Paper freeze, archive and resume](TERMINAL.md#freeze-archive-replay-and-resume).
 
 ## Durable recorder leases
 

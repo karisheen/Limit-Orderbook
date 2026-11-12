@@ -4,7 +4,7 @@ Saved hypotheses for future experiments with the current workstation. These are 
 
 ## Scope and priorities
 
-Start with one liquid spot instrument on one venue, using recorded public market data. Evaluate the three built-in families independently before combining signals. The current research engine measures independent, unfunded directional outcomes; it is not a sequential portfolio backtester. Paper execution supports spot market IOC and marketable limit IOC, not passive fills, leverage, borrowing, or derivatives accounting.
+Start with one liquid spot instrument on one venue, using recorded public market data. Evaluate the three built-in families independently before combining signals. This is a proposed experiment scope, not the boundary of the paper engine: the current offline research engine measures independent, unfunded directional outcomes, while paper execution supports spot and supported isolated one-way perpetual market IOC and marketable limit IOC. Neither implements a live strategy runner or validates profitability.
 
 | ID | Experiment | Status | Current support |
 | --- | --- | --- | --- |
@@ -16,6 +16,14 @@ Start with one liquid spot instrument on one venue, using recorded public market
 | S6 | Cost-aware execution filter | Planned; no results recorded here | Cost estimates and paper accounting available; policy/evaluator needed |
 
 Recommended order: S1–S3 on comparable recordings, then S6 against a promising baseline, then S4/S5 if the evidence justifies the extra implementation. Unavailable metrics or insufficient evidence are valid outcomes, not reasons to substitute zeros or weaken eligibility rules.
+
+### Implemented accounting versus strategy research
+
+Paper supports explicit leverage, isolated collateral, settlement-denominated fees, funding and native realized/unrealized P&L for verified, pinned perpetual metadata with supported economics: quote-settled linear contracts, base-settled inverse quote-face contracts, and recognized official default-namespace Hyperliquid linear `quanto_no_fx` contracts. This is not arbitrary derivatives support: futures, unknown settlement conversion and unsupported/builder contracts are rejected. Native order quantities are base units or contracts according to the pinned descriptor; reference-asset multipliers never resize native orders. Spot has no borrowing or short-opening facility.
+
+Perpetual risk and funding are dated user models, not inferred exchange risk tiers or imported context rates. Funding must explicitly be `none`, `periodic`, or a finite `events` schedule; missing funding is unavailable, not zero. Marks use eligible executable-side book proxies (long bid/short ask), not exchange mark prices. Protective liquidation is modeled reduce-only IOC against remaining observed depth, with trading fees and a separate modeled penalty. It may remain partial/unresolved or leave isolated debt; it is not a guarantee of complete closure, insurance-fund recovery or real exchange liquidation behavior. Cross-margin, passive fills, market impact and exchange order submission remain unsupported. See [the native paper contract](CONTRACTS.md#supported-perpetual-economics-and-isolated-accounting) for exact formulas and bounded failure behavior.
+
+The offline research runner does not drive that funded ledger: its observations are independent taker markouts without sequential shared inventory, collateral, funding or portfolio simulation. A bearish research outcome does not establish borrow or margin access; the paper engine's ability to model a perpetual short does not retrofit those economics into a research trial. A strategy requires its own causal entry/exit/sizing/exposure rules and evaluator. Neither funding-arbitrage nor automated market-making strategies are implemented by these accounting primitives.
 
 ## S1 — Depth imbalance → short-term direction
 
@@ -131,7 +139,7 @@ For each future experiment, append or link a result record containing: experimen
 
 - Passive market making: no queue-position or passive-fill model.
 - Cross-exchange arbitrage: observed differences do not establish executable access, inventory availability, atomicity, or transfer feasibility.
-- Funding arbitrage: context data is not derivatives, margin, or funding-accounting support.
+- Funding arbitrage: isolated perpetual funding accounting exists under explicit models, but there is no hedged multi-leg strategy, automatic context-to-funding-model conversion, borrow/transfer model or validated executable arbitrage.
 - Spoof-detection strategies: aggregate public books cannot establish trader intent.
 - Complex machine learning: establish simple, interpretable baselines and cost-aware held-out evidence first.
 

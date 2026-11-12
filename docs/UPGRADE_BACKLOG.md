@@ -1,6 +1,25 @@
 # Flat upgrade backlog and acceptance criteria
 
-Scope source: `LIMIT_ORDERBOOK_OMP_UPGRADE_PROMPT.md`, sections 1–14. This file preserves **all required M0–M6 acceptance work**, not only headline features. M0 documentation does not implement later milestones. Every row is independently reviewable and must cite actual evidence before closure. Dependencies follow M0 → M1 → M2 → M3 → M4 → M5 → M6; tests/instrumentation accompany the feature rather than being postponed until M6. Optional features are explicitly distinguished from requirements. `[ ]` means not certified complete here; the integration owner records executed checks/results and any changed decisions in `OMP_UPGRADE_HANDOFF.md` and updates completion status.
+This is the **historical M0–M6 acceptance ledger**, not an exhaustive current
+feature backlog. Its original scope source, `LIMIT_ORDERBOOK_OMP_UPGRADE_PROMPT.md`
+(sections 1–14), is not tracked in this checkout; the numbered brief references
+below retain that historical provenance. Checked rows record milestone acceptance,
+not a fresh current-head certification. Dependencies followed M0 → M1 → M2 → M3
+→ M4 → M5 → M6. Executed checks, changed decisions and publication receipts belong
+in [the handoff](OMP_UPGRADE_HANDOFF.md).
+
+## Post-milestone implementation
+
+| Integration | Current status and boundary |
+| --- | --- |
+| Unified candles, perpetual paper and positioning — [PR #20](https://github.com/karisheen/Limit-Orderbook/pull/20) | Implemented: admitted-trade charting, isolated perpetual accounting, observed Hyperliquid OI/funding and synchronized panes; not cross-margin or multi-venue positioning backfill |
+| Live reliability — [PR #21](https://github.com/karisheen/Limit-Orderbook/pull/21) | Implemented: shared queue accounting, conditional catalog cache, bounded Paper query/cache isolation, frozen live-market reads and off-loop HTTP encoding; finite overload still fails closed |
+| Demonstration — [PR #22](https://github.com/karisheen/Limit-Orderbook/pull/22) | Updated video/preview separates recorded public positioning from synthetic paper/replay assumptions |
+
+See [current readiness](READINESS.md#current-implementation-and-release-scope)
+and [research boundaries](STRATEGY_RESEARCH.md). Rust HFT, funding-arbitrage
+strategy execution, automated market making and private exchange orders are
+not implemented.
 
 ## Acceptance ledger
 

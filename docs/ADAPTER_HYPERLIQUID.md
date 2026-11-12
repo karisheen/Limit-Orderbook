@@ -184,6 +184,36 @@ mark only in the current normalized model, without fabricated oracle, funding or
 open interest; perpetual-only fields on a spot context are rejected. Capabilities
 reflect this distinction. Neither context nor references mutate the book.
 
+### Observed OI/funding history and financial gates
+
+`PositioningHistory` retains admitted perpetual context observations in bounded
+one-minute bars (up to 10,080 observed minutes per stream), aggregated onto the
+same receive-clock UTC axis and interval boundaries as session candles. Among
+the implemented adapters, Hyperliquid supplies this context channel; there is no
+venue OI/funding-history backfill. Missing minutes and fields remain missing,
+not zero or carried-forward values. A time-closed bar is not proof of complete
+coverage, and replay exposes only the admitted prefix, never future context.
+An incomparable source clock or changed OI unit clears incompatible history.
+
+Series retain their actual venue, instrument, quote, funding interval and OI
+unit. A same-canonical-base perpetual can be displayed as
+`related_underlying`, never relabeled as the selected venue/product; wrapped
+spot assets do not become canonical underlying assets through ticker similarity.
+OI units are adapter-declared, not independently verified. This history is
+venue-reported positioning, not account positions, executable liquidity or a
+funding-arbitrage strategy.
+
+`quality.evaluate_context` qualifies context independently of books and trades,
+using validated receive-clock evidence and an explicit age policy. A fresh mark
+or funding observation cannot establish usable depth; slow20/fast5 cadence is
+not a freshness guarantee. Financial consumers additionally require exact
+session-pinned verified metadata and supported contract valuation. Default
+perpetuals can support the isolated one-way paper IOC model with explicit risk,
+funding and collateral assumptions; metadata/context availability does not supply
+those assumptions or exchange execution permission. HIP-3's unknown denomination
+remains unsupported. See [financial models](COSTS.md) for the model and
+exclusions.
+
 ## Sources and verification boundary
 
 - [Official subscriptions and wire types](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/websocket/subscriptions)
@@ -202,6 +232,11 @@ reflect this distinction. Neither context nor references mutate the book.
 USDT versus USDC denomination, quanto provenance and metadata/event wire identity,
 unsupported builder denomination, sourced size/notional units, precision,
 depth/aggregation, snapshot replacement, malformed/wrong-coin, trade-side/dedup-key,
-context/reference, checkpoint/reset and exact-flow-gate
-contracts. This implementation task did not run tests, gates or live probes;
-integration and live verification remain the main agent's responsibility.
+context/reference, checkpoint/reset and exact-flow-gate contracts.
+`tests/test_workstation_positioning.py` covers sparse same-axis aggregation,
+related-underlying disclosure, clock/unit transitions and replay-prefix history.
+These are offline contracts, not live-access evidence. The historical
+[2026-11-01 HTTP snapshot](evidence/m0-hyperliquid-access.json) measured endpoint
+access only, before adapter integrity validation; its successful recent-trade
+HTTP observations do not create an implemented REST trade fallback here.
+No external live revalidation was performed for this documentation audit.

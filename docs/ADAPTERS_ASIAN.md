@@ -1,4 +1,4 @@
-# Binance, Bybit and KuCoin public adapters
+# Binance, Bybit, KuCoin, OKX and Bitget public adapters
 
 These are the shared workstation adapters in `src/workstation/adapters`; both observation clients consume their output through the native API. The separate legacy UI adapters are retired. They perform public market-data operations only. No credentials, signing, testnet, order submission or execution eligibility is inferred.
 
@@ -11,10 +11,19 @@ These are the shared workstation adapters in `src/workstation/adapters`; both ob
 | `BinanceUSAdapter` / `binance-us` | `spot-v3` | Independent partial snapshots at 5/10/20 levels, 100 ms; REST fallback | `trade` stream and recent REST trades | No diff continuity claim; never fed through global bootstrap |
 | `BybitAdapter` / `bybit` | `v5-spot`, `v5-linear` | Spot and USDT linear crypto perpetual `orderbook.{depth}.{symbol}`, depths 1/50/200/1000; independent REST fallback at the requested depth | `publicTrade.{symbol}` and recent REST trades | Monotonic update/cross-sequence checks, not fictional contiguous IDs; depth 1 is snapshots only |
 | `KuCoinAdapter` / `kucoin` | `classic-spot` | Public REST `level2_20` / `level2_100` snapshots | Public REST `histories` observations | No implemented WebSocket, no continuous history, no checksum or sequence continuity claim |
+| `OKXAdapter` / `okx` | `v5-spot`, `v5-swap` | Spot and supported linear crypto perpetual `books5`, five-level WS replacement snapshots and REST fallback | WS `trades` and recent REST trades | Snapshot IDs do not establish incremental continuity; no checksum or exact event flow |
+| `BitgetAdapter` / `bitget` | `v2-spot`, `v2-usdt-futures` | Spot and USDT crypto perpetual `books5`, five-level WS replacement snapshots and REST fallback | WS `trade` and recent REST fills | Bounded snapshots, no sequence/checksum or exact event-flow guarantee |
 
 Synchronized Binance global **spot** diffs support **feed-message OFI over 100 ms aggregated updates** (`exact_event_flow=True` means continuity of received validated deltas, not every matching-engine order). Gap, initialization and source-mode gates remain mandatory. Bybit's monotonic counters do not establish gap-free continuity, so its exact-flow capability remains false. KuCoin, Binance USDⓈ-M and US snapshot differences are not event OFI. KuCoin snapshot reducers report `rest_snapshot`/`degraded`; snapshot coverage is bounded, never full-depth. UI display depth must not truncate reconstruction. Binance spot's initial unknown-depth boundary is preserved as described below.
 
 Each subscription has a separate `book` or `trades` key. The catalog resolves implicit Binance spot depth to 20 for streaming-only descriptors and 5,000 for verified descriptors; pass the pinned Instrument to `canonical_key`. Unsupported channels, aggregation or depth fail rather than silently selecting another feed. Binance combined-stream envelopes retain exact stream/symbol identity. Endpoint URLs are checked against the configured request; symbol-less REST responses are bound to that symbol-specific request, never guessed from prices.
+
+None of these adapters implements a `reference`/`context` channel or an OI/funding
+history source. A venue offering those APIs does not make them integrated here.
+Optional REST candle history covers Binance spot/USDⓈ-M, Binance.US spot, Bybit
+spot/linear and KuCoin spot; it is not implemented for OKX or Bitget. Admitted
+public trades can independently build session candles without inventing missing
+pre-session history.
 
 ## Metadata and identity
 
@@ -57,6 +66,14 @@ Metadata success alone leaves `data_access` and `execution_access` unknown. Supe
 
 Readiness is channel- and source-specific: a catalog candidate, verified pinned financial metadata, observed usable book and observed trades are separate evidence. A book observation does not establish trade readiness; a catalog entry or subscription acknowledgment establishes neither. Derivative quote/contract notional is exposure, not available cash, settlement collateral or margin. Exact pinned contract specifications and native settlement govern financial interpretation, regardless of aggregate display labels.
 
+Comparison, depth walking and paper fills fail on unverified pinned metadata.
+Supported perpetual valuation and isolated one-way paper IOC additionally require
+explicit contract economics, risk/funding assumptions and collateral; neither
+notional exposure nor a public data observation supplies them. Linear, inverse
+and documented quanto support in the financial engine does not imply that every
+adapter implements every contract type. Missing constraints/fees/history remain
+unknown, not zero. See [financial models](COSTS.md).
+
 ## Binance spot bootstrap and receive order
 
 This REST bridge applies only to verified-metadata spot diff streams. Streaming-only
@@ -86,6 +103,53 @@ Bybit public trade `S` is documented as taker side (`Buy`/`Sell`), not maker sid
 
 Bybit application heartbeat uses `{"op":"ping"}` every 20 seconds in supervision; recognized pong replies are heartbeat controls only. Explicit subscription failure returns a rejection control, not a successful book observation.
 
+## OKX and Bitget bounded public products
+
+OKX discovers `https://www.okx.com/api/v5/public/instruments?instType=SPOT` and
+`instType=SWAP`; Bitget discovers
+`https://api.bitget.com/api/v2/spot/public/symbols` and
+`https://api.bitget.com/api/v2/mix/market/contracts?productType=USDT-FUTURES`.
+Unlike the independent Binance/Bybit family acquisition above, each current
+OKX/Bitget discovery method completes both requests before publishing its combined
+result. Failure is not a partial-family success claim.
+
+OKX excludes non-crypto instrument categories and inverse swaps. Supported linear
+swaps require `ctValCcy` equal to the base and `settleCcy` equal to the quote.
+Book/trade size, `lotSz`, `minSz`, `maxLmtSz` and swap `maxMktSz` stay in native
+**contracts**; `ctVal` is the complete base face value per contract, not an extra
+size multiplier to apply to native limits. Spot `maxMktSz` is not imported as a
+base-size ceiling because it is quote-denominated. New swap descriptors use
+`okx-v2-native-size`; historical `okx-v1` descriptors remain immutable and shared
+`native_order_constraints` interprets their legacy size convention.
+
+An OKX **unpublished SPOT preopen announcement** is skipped only when
+`state="preopen"`, `instCategory=""`, and all of `baseCcy`, `quoteCcy`, `tickSz`,
+`lotSz`, `minSz` are empty strings. It is not yet an instrument definition.
+A complete preopen definition remains visible as `unavailable`; other incomplete
+definitions fail rather than deriving currencies from `instId` or inventing
+precision. `post_only`/`test` are unavailable and `suspend`/`rebase` suspended,
+not active ordinary products.
+
+OKX uses `wss://ws.okx.com:443/ws/v5/public`, `books5`/`trades`, and REST
+`/api/v5/market/books?instId=...&sz=5` or recent trades. Each book replaces the
+five-level window; repeated/reset snapshot IDs do not prove missing deltas.
+Connection-wide notices are informational controls, never subscription
+acknowledgments or market observations.
+
+Bitget uses `wss://ws.bitget.com/v2/ws/public`, retaining `SPOT` versus
+`USDT-FUTURES` subscription identity. Perpetual discovery excludes `isRwa=YES`
+and non-perpetual `symbolType`, requires USDT quote and supported USDT margin,
+and preserves base-coin `sizeMultiplier`/quantity rules (not integer contracts).
+`restrictedAPI` retains an active public product but explicitly sets
+`execution_access="blocked"`; `maintain`/`limit_open` are suspended, `off`
+delisted and `listed` unavailable. Spot uses REST `spot/market/orderbook` and
+`fills`; perpetuals use `mix/market/merge-depth` and `fills`, always under v2
+with the matching product family. Five-level books never imply deeper coverage.
+
+Neither adapter implements options, dated futures, private account access or
+exchange order execution. HTTP denial stays explicit; endpoint support in code
+is not proof of this environment's current access or legal/account eligibility.
+
 ## Trade provenance, failures and limitations
 
 Binance spot raw trade IDs remain exact strings, including integers above JavaScript's safe range; USDⓈ-M retains exact aggregate-trade IDs. `m=true` (buyer is maker) means the taker sold; `false` means the taker bought. Missing maker information stays unknown. WS and REST use the same instrument-scoped dedup key. Original duplicate raw frames and decoded observations are retained so downstream deduplication is deterministic and replayable.
@@ -98,7 +162,16 @@ Exchange timestamps are preserved in exact nanoseconds according to each documen
 
 `tests/test_workstation_asian.py` contains synthetic offline fixtures for metadata/status/priority, endpoint and schema failures, exact trade IDs/sides/unknown sides, dedup identity, bootstrap buffering/checkpoint restoration/bridge/gap/overflow, receive-order fencing, US replacement snapshots and cohort distinctions, Bybit non-contiguous/stale/reset/depth semantics, and KuCoin degraded capability. These fixtures are not live captures. Executed runtime evidence is recorded separately by the integration owner; adapter presence and earlier host reachability do not certify every family, decoding, synchronization or sustained availability.
 
-Inspected primary references:
+`tests/test_workstation_okx.py` covers unpublished-announcement versus complete
+preopen handling, native swap size limits, notices, bounded snapshots and trade
+identity. `tests/test_workstation_bitget.py` covers spot/perpetual metadata,
+`restrictedAPI`, native quantity rules and snapshot/trade decoding.
+`tests/test_workstation_public_boundary.py` and
+`tests/test_workstation_transport.py` cover the credential-free request boundary
+and origin-wide retry pacing. No tests or external live revalidation were run
+for this documentation audit; older dated access evidence remains historical.
+
+Primary protocol references (not a fresh live-access check):
 
 - [Binance global stream protocol and local-book algorithm](https://github.com/binance/binance-spot-api-docs/blob/master/web-socket-streams.md).
 - [Binance data-only hosts](https://developers.binance.com/docs/binance-spot-api-docs/faqs/market_data_only).
@@ -110,3 +183,9 @@ Inspected primary references:
 - [Bybit v5 REST orderbook, current 1–1000 spot depth](https://bybit-exchange.github.io/docs/v5/market/orderbook).
 - [KuCoin classic public partial orderbook](https://www.kucoin.com/docs-new/rest/spot-trading/market-data/get-part-orderbook).
 - [KuCoin classic public recent trade history](https://www.kucoin.com/docs-new/rest/spot-trading/market-data/get-trade-history).
+- [Binance USDⓈ-M partial book streams](https://developers.binance.com/docs/derivatives/usds-margined-futures/websocket-market-streams/Partial-Book-Depth-Streams).
+- [OKX public instrument definitions](https://www.okx.com/docs-v5/en/#public-data-rest-api-get-instruments).
+- [OKX market-data book and trade channels](https://www.okx.com/docs-v5/en/#order-book-trading-market-data).
+- [OKX connection notices](https://www.okx.com/docs-v5/en/#overview-websocket-notification).
+- [Bitget spot depth channel](https://www.bitget.com/docs/classic/websocket/spot/public/Depth-Channel).
+- [Bitget classic perpetual contract metadata and status](https://www.bitget.com/docs/catalog/classic-contract-market/classic-contract-market).

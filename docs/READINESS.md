@@ -4,7 +4,33 @@ This is a local public-market-data, replay and simulated-workflow application.
 It is not an exchange execution system. Tests, a complete recording and responsive
 rendering establish different properties; none establishes a profitable signal.
 
+## Current implementation and release scope
+
+The unified terminal and later reliability work are recorded in
+[PR #20](https://github.com/karisheen/Limit-Orderbook/pull/20),
+[PR #21](https://github.com/karisheen/Limit-Orderbook/pull/21) and the
+[implementation handoff](OMP_UPGRADE_HANDOFF.md#live-reliability-follow-through).
+PR #21's required gate recorded **1,965 Python tests, 189 frontend tests and
+79 offline browser scenarios**; three separately opted-in live scenarios also
+passed. These are release-scoped receipts, not a new benchmark or a guarantee
+that every current network workload is healthy.
+
+| Area | Implemented | Remaining boundary |
+| --- | --- | --- |
+| Paper accounting | Prefunded spot IOC; supported isolated one-way perpetuals with modeled leverage/margin/funding, reduce-only closes, native P&L, protective liquidation and debt | Explicit assumptions and verified pinned economics; no passive fills, cross-margin, borrow model, market impact or exchange orders |
+| Charts and context | Unified admitted-trade candles/footprints, shared intervals, native depth/tape and synchronized OI/funding history | Partial observed history; Hyperliquid context only; separate primary-only venue OHLCV is not replay-prefix evidence |
+| Workload isolation | Shared immutable queue accounting; conditional scoped catalog caching; read-only historical Paper queries; frozen live-market views and hot HTTP encoding off the analytical owner/event loop | Finite byte/count limits still fail closed; no general sustained-throughput or unlimited-client claim |
+| Research | Offline independent unfunded observations, held-out partitions and explicit cost/latency stress; read-only report UI | Not funded portfolio simulation, a funding-arbitrage strategy or automated market making |
+
+The core remains Python. A Rust HFT engine and private/live execution are not
+implemented. Read [current accounting/research limits](STRATEGY_RESEARCH.md#implemented-accounting-versus-strategy-research)
+and [measured workload boundaries](CORE_PERFORMANCE.md#current-workload-isolation-and-retained-measurements)
+before interpreting a performance or profitability claim.
+
 ## Readiness dimensions
+
+The following table and M6 measurements preserve their original historical
+scope and totals. They are not a current-head acceptance report.
 
 | Dimension | Established evidence | Boundary |
 | --- | --- | --- |
@@ -14,10 +40,10 @@ rendering establish different properties; none establishes a profitable signal.
 | Research | Chronological purged/embargoed experiments, baselines, costs/latency stress and multiple-experiment accounting; retained900-second synthetic experiment reports `insufficient_evidence` | No predictive edge or profitability claim; unknown fees are not zero |
 | Execution | Unsupported by design | No private APIs, exchange orders, wallets, signing, withdrawals or unattended trading |
 
-Normal-load processing, rendering, full fresh-capture replay and operational
-fault observations passed their declared checks. Finite replay/writer capacity
-and the deliberately incomplete saturation result are documented separately below.
-[The handoff](OMP_UPGRADE_HANDOFF.md) records exact commits, remote gates and merges.
+At those M5/M6 revisions, normal-load processing, rendering, fresh-capture replay
+and operational fault observations passed their declared checks. Finite
+replay/writer capacity and the deliberately incomplete saturation result remain
+documented below. The handoff separates later implementation and release receipts.
 
 ## Start locally
 
@@ -32,7 +58,12 @@ uv run --locked --offline --no-sync python -m src.workstation.cli serve
 
 Open `http://127.0.0.1:8000`. The default is the explicitly labelled original
 synthetic demo, generated in memory, not a historical recording. Public data
-requires `serve --network`. Replay requires `serve --capture PATH_TO_SESSION`.
+requires `serve --network` for shared live discovery/collection.
+`serve --capture PATH_TO_SESSION` exposes an operator-managed verified replay
+source; managed
+recordings in the retained state directory are also rediscovered. Explicit
+**Venue history** requests can fetch public OHLCV even without `--network`;
+that flag is not a sandbox blocking every public HTTP request.
 Use one backend worker; share its registry rather than launching duplicate
 collectors. The Streamlit observation client uses the same native API and now
 also defaults its own server listener to127.0.0.1 through project configuration.
@@ -53,13 +84,17 @@ Evidence: [initial install](evidence/m6-locked-setup-20261101T182042Z.json),
 
 ## Public venues and quality
 
-Binance **global**, not Binance.US, is the preferred accessible primary spot
-source on the measured workstation. The fresh sustained run included BTC/ETH/SOL
-Binance-global books/trades and Hyperliquid perpetual books/trades/reference/context.
-Earlier actual integration also exercised Coinbase and Kraken BTC/ETH/SOL;
-Binance.US and KuCoin retain their separately documented partial capabilities.
-Bybit metadata returned HTTP403 on this machine; downstream live validation is
-not claimed. Availability is a dated observation, not an access guarantee.
+The historical sustained run below used BTC/ETH/SOL Binance-global books/trades
+and Hyperliquid perpetual books/trades/reference/context. Later finite
+integration receipts cover Coinbase and Kraken, and PR #21 restored OKX
+discovery and exercised BTC spot/perpetual books, candles and metadata gates.
+The current catalog also includes Bybit, Bitget and Deribit; use the provider
+guides for exact product/channel support rather than inferring qualification.
+
+On the release workstation, Binance USD-M metadata returned HTTP 451 and Bybit
+metadata returned HTTP 403. Streaming-only candidate selection and disabled
+financial operations were exercised; this is not blanket Bybit feed or trading
+qualification. Provider access observations are dated, not guarantees.
 
 Hyperliquid's bounded replacement books do not establish exact event OFI or
 unsubscribed depth. BTC/ETH/SOL contract quote identity, separate USDC collateral
@@ -290,15 +325,18 @@ claim about exchange-side latency.
 
 ## Provenance and limits
 
-No third-party chart/font/icon implementation or market-data fixture was copied
-into the frontend. Its bundled React/ReactDOM/Scheduler MIT notice is retained
-at `frontend/public/THIRD_PARTY_NOTICES.txt`; package dependencies retain their
-own notices in the locked distributions. That notice does not license this
-repository. The original synthetic fixture is CC0-1.0 with pinned source/metadata
-provenance; public exchange data does not acquire that fixture license.
-See [baseline/reference audit](BASELINE_AUDIT.md) and [demo provenance](DEMO.md).
+The current frontend includes an Apache-2.0 order-flow UI adaptation, React,
+Zustand, Lucide/Feather glyphs, Geist fonts and web3icons assets. Retained
+attributions and license texts are indexed by
+[`THIRD_PARTY_NOTICES.txt`](../frontend/public/THIRD_PARTY_NOTICES.txt);
+modified source carries notices. These notices do not license the entire
+repository. Historical M0 statements about an independent chart spike do not
+describe the later adapted frontend. The original synthetic fixture is CC0-1.0;
+public exchange data does not acquire that fixture license.
+See [historical baseline audit](BASELINE_AUDIT.md) and [demo provenance](DEMO.md).
 
 Bounded tests and finite live observations replace the impossible claim that
-the application cannot crash. The24-hour run, blocked Bybit live paths,
-independently verified funding/OI semantics, profitable strategies and every
-future live-execution capability remain unclaimed.
+the application cannot crash. A 24-hour run, universal provider access,
+independently verified funding/OI denomination, profitable strategies and
+exchange-execution readiness remain unclaimed. The documented simulations
+and observed positioning history do not remove those limits.

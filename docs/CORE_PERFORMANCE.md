@@ -1,5 +1,35 @@
 # Core reducer performance
 
+This page preserves milestone-era measurements and reproduction commands.
+Their source/tool hashes, inputs and environments scope each result; none
+certifies the current head or an unconditional sustained-capacity/latency
+guarantee. Current implementation includes the later workload-isolation changes
+below. No new benchmark was run for this documentation audit.
+
+## Current workload isolation and retained measurements
+
+Python remains the native book, analytics, replay and paper authority; there
+is no Rust HFT engine. The [live-reliability receipt](OMP_UPGRADE_HANDOFF.md#live-reliability-follow-through)
+records the following local measurements and their failed preceding attempts:
+
+| Boundary | Implemented isolation | Retained measurement scope |
+| --- | --- | --- |
+| Required analytical queue | Shared immutable books, side tuples and levels are charged once across queued **and in-flight** ownership, including tracker overhead. Reservations roll back on rejected admission and release at last reference. Caps remain **256 deliveries / 128 MiB**; admitted events are not coalesced. | The same 32-delivery deep-book burst charged 163.49 MB before versus 22.66 MB with tracking overhead; retain/release averaged 111.5 ms for that burst. |
+| Catalog transport | Catalog-worker encoded-response LRU, **8 scopes / 64 MiB**, complete metadata/readiness keys and strong ETags; React keeps URL-local validators and only reuses a successfully validated object. | A live catalog returned 17,337,743 bytes with 200, then zero bytes with 304. This is not a catalog-wide response-size guarantee. |
+| Paper history | Strict durable-payload validation before caching immutable small summaries and SHA-256 identities; **1000 entries / 8 MiB**. Cold listing uses a catalog-worker-owned read-only SQLite connection, outside analytical ownership. | Five repeated listings on the observed 28-run database fell from 624 ms to 9 ms, with 137 KB of cache charge. This is not a fresh decode latency bound. |
+| Hot HTTP JSON | Session-frame and market-data `JSONResponse` encoding runs on the existing catalog/read worker instead of repeating FastAPI's recursive encoding on the event loop. | Earlier scheduling traces attributed about 2.0 s CPU across 210 market-data responses and 1.5 s across 61 session-frame responses to redundant encoding; these are trace totals, not per-request latency percentiles. |
+| Live market queries | A frozen completed-prefix view shares immutable native data and copies ownership/retention maps; paging, valuation and DTO construction run on the read worker. Replay readers stay on their owner thread. | Bounded runtime/API regressions and the live receipt support the ownership correction; no isolated speedup or sustained throughput is asserted. |
+
+The final recorded two-client Binance spot/Paper pressure scenario observed
+zero overflows over 30 samples per client, queue highwaters 79/63 and 5,001
+retained bid levels per client. This finite observation neither proves complete
+exchange depth nor upgrades earlier incomplete captures or certifies a 24-hour
+soak. Real distinct-data overflow still fails closed. Native reconstruction
+depth, financial precision, freshness gates and required-event fidelity were
+not relaxed to obtain these results. These analytical-queue bounds are distinct
+from the recorder's **4096 items / 128 MiB** and market-history retention bounds.
+
+
 ## Historical starting point (M1)
 
 The recorded baseline is [m1-core-initial-benchmark.json](evidence/m1-core-initial-benchmark.json): Python 3.13.5 on macOS 13.7.8 x86_64, a synthetic 40,000-level book (20,000 per side), and 30 single-price delta transactions.
@@ -29,9 +59,9 @@ The reducer copies only a side receiving a write, once per source message. Untou
 
 Unmodified `Level` objects are shared safely because both the dataclass and its Decimal fields are immutable. Changed-side copying and tuple construction/comparison still scale with depth; this is not a claim of constant-time updates. Sparse deltas use binary search into the committed tuple and copy unchanged runs only when distinct changed prices per side are **≤min(64, n // 64)** for that side's prior level count `n`. Snapshots and dense changes use full sorting. A payload larger than the sum of the two side budgets conservatively disables sparse construction (including duplicate-heavy payloads); touched sets are collected outside the per-level validation loop. No mutable public view, native rewrite, or second precision convention was introduced. Instrument validators still run for every incoming change, even when its price/quantity is numerically unchanged.
 
-### Current workspace cycle
+### Historical workspace optimization cycle
 
-The [workspace report](WORKSPACE_IMPROVEMENT.md#final-native-measurements) separates final native measurements from the historical M1/M3 results below. Three alternating runs of the identical 20,000-level-per-side, 300-delta workload show median run p50/p95/p99 **5.106/8.557/10.296 → 2.107/3.487/4.272ms** at 100/s and **4.242/7.428/10.785 → 1.912/3.223/4.556ms** at 200/s. Full run ranges, snapshots, CPU/RSS, source/dataset hashes and commands are in that report and the `verified-*` raw evidence, not the intermediate `core-*-final-*` files.
+The [workspace report](WORKSPACE_IMPROVEMENT.md#final-native-measurements) separates that cycle's final native measurements from the historical M1/M3 results below. Three alternating runs of the identical 20,000-level-per-side, 300-delta workload show median run p50/p95/p99 **5.106/8.557/10.296 → 2.107/3.487/4.272ms** at 100/s and **4.242/7.428/10.785 → 1.912/3.223/4.556ms** at 200/s. Full run ranges, snapshots, CPU/RSS, source/dataset hashes and commands are in that report and the `verified-*` raw evidence, not the intermediate `core-*-final-*` files.
 
 The initial `n // 8` sparse threshold regressed dense updates; a cap of 64 still regressed 128-level sides with 16 changes. The final depth-relative threshold and removal of dense per-level bookkeeping bound that cost. Three repeated 24-sample crossover runs retain exact lexical final-level parity, but tiny-book microsecond overhead and dense variance/regressions remain: this is not a universal speedup. Final raw and normalized replay each complete 4,276 deliveries with the original book/state/clock hashes. The original recording benchmark completed only 1× writer/parity before a 600s process deadline; 2×/saturation and sustainable capacity are not established by this cycle. Browser presentation and public-feed network latency are separate from reducer timing.
 
@@ -246,6 +276,12 @@ collectors, test suites and verification browsers are stopped:
   --viewport 1440x900 --output data/render-demo-1440.json
 ```
 
+The command preserves the historical local Node/Python layout. With the
+default locked environment, use `node tools/benchmark_terminal.mjs` and add
+`--python .venv/bin/python`; the tool otherwise defaults to
+`.venv-upgrade/bin/python`. Install the locked frontend dependencies and
+Playwright Chromium before running; see [Development](DEVELOPMENT.md).
+
 Repeat at `--viewport 1280x800` with a fresh output path. For an actual managed
 capture, add `--manifest /absolute/path/to/manifest.json` and an appropriate
 `--start-delivery`; the finite source must contain the entire measured interval
@@ -432,18 +468,19 @@ the fixed input/clock/script and original failure evidence are retained in
 `m5-service-integration.json`. The earlier asynchronous live profile also
 included unrelated event-loop work and is not exclusive owner CPU attribution.
 
-Current M6 native receive-to-validation and four real1x/2x render cohorts,
+The M6 native receive-to-validation and four real1x/2x render cohorts,
 including startup failures, causal measurement windows, limited burst margin,
-all commands/hashes and screenshots, are reported in [readiness](READINESS.md).
+commands/hashes and screenshots, are historical results linked from
+[readiness](READINESS.md), not current-head certification.
 Do not substitute reducer-only timing, a synthetic scheduling queue, original
 recording timestamp age or browser draw submission for those boundaries.
-Measured normal-load budgets currently justify retaining Python rather than
+Those declared normal-load measurements justified retaining Python rather than
 introducing an unmeasured cross-language component.
 
 ## M6 complete-source finite replay
 
 [Full report and embedded harness](evidence/m6-pipeline-90s.json) measured the
-unchanged final native implementation on macOS13.7.8/Darwin22.6.0,
+then-final native implementation on macOS13.7.8/Darwin22.6.0,
 MacBookPro14,1, Intel i5-7360U2.30GHz,4 logical CPUs,8GiB RAM, Python3.13.5.
 The complete12-stream Binance-global/Hyperliquid BTC/ETH/SOL source manifest is
 `d12553c14ee31de1e66db3d2e9247000b81a976826f4f3da8ae072d4622ee5f5`:
@@ -490,7 +527,7 @@ not called live-latency passes. The original historical recording predates the
 final source: its receive-to-normalized upper bound for valid incremental
 transactions was p9567.236081ms/p99989.912102ms, exceeding the initial budgets.
 It cannot separate original decode/validation or establish exact receive-to-valid
-latency. Original timestamps remain unchanged. The separately captured current
+latency. Original timestamps remain unchanged. The separately captured M6
 native live measurement in [readiness](READINESS.md) establishes only its declared
 finite normal-load window, not an unconditional latency SLO.
 
