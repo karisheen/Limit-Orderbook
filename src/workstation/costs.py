@@ -14,7 +14,7 @@ from typing import get_args, get_origin
 
 from .book import Book
 from .events import EventEnvelopeRef
-from .instruments import AssetId, Instrument, InstrumentId
+from .instruments import AssetId, Instrument, InstrumentId, native_order_constraints
 from .precision import (
     DECIMAL_CONTEXT,
     DERIVED_DECIMAL_POLICY,
@@ -477,7 +477,7 @@ def _walk(
     valuation = _valuation_reason(instrument)
     if valuation:
         reasons.append(valuation)
-    constraints = instrument.constraints
+    constraints = native_order_constraints(instrument)
     lot = instrument.lot_size
     if constraints.size_rule != "fixed_lot" or lot is None:
         reasons.append("unsupported_size_rule")

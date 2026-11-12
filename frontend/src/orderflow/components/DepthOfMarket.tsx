@@ -5,11 +5,11 @@ import { useSessionStore } from "@/lib/session/SessionContext";
 import { useCanvas, withAlpha, monoFont, type Palette } from "@/hooks/useCanvas";
 import { STUDY_AXIS_W, STUDY_TIME_H, drawEmpty, drawValueAxis, niceStep } from "@/lib/chartUtils";
 import { formatCompact, formatPriceValue, priceDecimals } from "@/lib/format";
-import { venueLabel } from "../../format";
 import { Icon } from "@/components/ui/Icons";
 import { Panel, Stat } from "@/components/ui/Primitives";
 import { showTooltip, hideTooltip } from "./GlobalTooltip";
 import type { OrderBookLevel } from "@/lib/types/market";
+import { BookCoverage, useBookPresentation } from "./OrderBook";
 
 // ─── Depth of Market ─────────────────────────────────────────────
 // Cumulative resting liquidity on each side of the mid, with depth
@@ -28,12 +28,10 @@ function depthWithin(levels: OrderBookLevel[], mid: number, bps: number) {
 }
 
 export default function DepthOfMarket() {
-  const orderBook = useSessionStore((s) => s.orderBook);
-  const aggregatedBook = useSessionStore((s) => s.aggregatedBook);
-  const selectedVenues = useSessionStore((s) => s.selectedVenues);
+  const presentation = useBookPresentation();
+  const { book, sourceLabel, missing } = presentation;
   const crosshairPrice = useSessionStore((s) => s.crosshairPrice);
   const tickSize = useSessionStore((s) => s.tickSize);
-  const book = selectedVenues.length > 1 ? aggregatedBook ?? orderBook : orderBook ?? aggregatedBook;
   const geometryRef = useRef<{ min: number; max: number; plotR: number } | null>(null);
 
   const bestBid = book?.bids[0]?.price ?? 0;
@@ -50,7 +48,7 @@ export default function DepthOfMarket() {
       const plotB = H - STUDY_TIME_H;
       geometryRef.current = null;
       if (!book || !book.bids.length || !book.asks.length || !mid) {
-        drawEmpty(ctx, W, H, "Waiting for order book…", p);
+        drawEmpty(ctx, W, H, book ? "Two-sided native depth unavailable" : missing, p);
         return;
       }
       const bids = cumulative(book.bids);
@@ -126,7 +124,7 @@ export default function DepthOfMarket() {
       }
       geometryRef.current = { min, max, plotR };
     },
-    [book, mid, crosshairPrice, decimals]
+    [book, mid, crosshairPrice, decimals, missing]
   );
 
   const { containerRef, canvasRef } = useCanvas(draw);
@@ -139,16 +137,16 @@ export default function DepthOfMarket() {
     if (x > geometry.plotR) return hideTooltip();
     const price = geometry.min + (x / geometry.plotR) * (geometry.max - geometry.min);
     const isBid = price < mid;
-    const levels = isBid ? book.bids : book.asks;
+    const levels = (isBid ? book.bids : book.asks).slice(0, MAX_LEVELS);
     const size = levels.reduce((s, l) => ((isBid ? l.price >= price : l.price <= price) ? s + l.size : s), 0);
     const distance = ((price - mid) / mid) * 10_000;
     showTooltip(
       `${isBid ? "Bid" : "Ask"} depth to ${formatPriceValue(price, decimals)}`,
       [
         `Distance from mid: ${distance.toFixed(1)} bp`,
-        `Cumulative ${isBid ? "bids" : "asks"}: ${formatCompact(size, 3)}`,
+        `Observed cumulative ${isBid ? "bids" : "asks"}: ${formatCompact(size, 3)}`,
         "",
-        `What this means: Size that must trade to push price ${isBid ? "down" : "up"} to this level.`,
+        "Bounded displayed depth only; hidden, omitted and out-of-window liquidity is not included.",
       ].join("\n"),
       e
     );
@@ -159,21 +157,22 @@ export default function DepthOfMarket() {
   const d25b = book && mid ? depthWithin(book.bids, mid, 25) : 0;
   const d25a = book && mid ? depthWithin(book.asks, mid, 25) : 0;
   const ratio = (b: number, a: number) => (a > 0 ? `${(b / a).toFixed(2)}×` : "—");
-  const source = book && "venue" in book ? venueLabel(book.venue) : "Consolidated";
 
   return (
     <Panel
       title="Market Depth" icon={<Icon.Depth />}
-      subtitle={source}
+      subtitle={sourceLabel}
       footer={
         <div className="study-stats">
-          <Stat label="±10 bp bid" value={formatCompact(d10b)} tone="buy" />
-          <Stat label="±10 bp ask" value={formatCompact(d10a)} tone="sell" />
-          <Stat label="Bid/Ask 10bp" value={ratio(d10b, d10a)} />
-          <Stat label="Bid/Ask 25bp" value={ratio(d25b, d25a)} />
+          <Stat label="Observed ±10 bp bid" value={book && mid ? formatCompact(d10b) : "—"} tone="buy" />
+          <Stat label="Observed ±10 bp ask" value={book && mid ? formatCompact(d10a) : "—"} tone="sell" />
+          <Stat label="Observed Bid/Ask 10bp" value={ratio(d10b, d10a)} />
+          <Stat label="Observed Bid/Ask 25bp" value={ratio(d25b, d25a)} />
         </div>
       }
     >
+      <BookCoverage presentation={presentation} visible={`Curve uses at most ${MAX_LEVELS} levels/side, clipped to the shared price range; band statistics use received levels only.`} />
+      {!book && <div className="empty-state" data-testid="primary-book-missing">{missing}</div>}
       <div ref={containerRef} className="canvas-host" onMouseMove={handleMove} onMouseLeave={hideTooltip}>
         <canvas ref={canvasRef} />
       </div>

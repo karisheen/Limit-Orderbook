@@ -57,6 +57,7 @@ class MemoryReplaySource:
                 (
                     ("fixture_sha256", source.fixture_hash),
                     ("fixture_version", "3"),
+                    ("positioning_scenario", "ramp-signed-v1"),
                     ("duration_seconds", str(duration_seconds)),
                 ),
                 synthetic=True,

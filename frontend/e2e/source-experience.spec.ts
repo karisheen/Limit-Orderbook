@@ -24,6 +24,9 @@ test('paused fixture supports scale recovery and independent replay controls', a
   await page.goto(`/?source=${encodeURIComponent(demo.id)}`);
   const frame = await (await created).json() as Frame;
   await expect(page.locator('.status')).toContainText('Connected');
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Native book & tape', exact: true }).click();
+  await expect(page.getByTestId('grouped-ladder').locator('tr.bid').first()).toBeInViewport();
+  await expect(page.getByTestId('grouped-ladder').locator('tr.ask').last()).toBeInViewport();
   await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Liquidity & flow', exact: true }).click();
   const primary = page.getByTestId('chart-pane-heatmap');
   await expect(primary).toBeVisible();
@@ -40,8 +43,6 @@ test('paused fixture supports scale recovery and independent replay controls', a
   expect(frame.status).toBe('paused');
   await expect(page.getByTestId('terminal-incident')).toHaveAttribute('data-incident', 'synthetic');
   await expect(page.getByTestId('terminal-incident').getByRole('button', { name: 'Play synthetic demo', exact: true })).toBeEnabled();
-  await expect(page.getByTestId('grouped-ladder').locator('tr.bid').first()).toBeInViewport();
-  await expect(page.getByTestId('grouped-ladder').locator('tr.ask').last()).toBeInViewport();
   expect(plays).toBe(0);
   const aggregation = primary.getByLabel('Price aggregation');
   await expect(aggregation.locator('option').nth(1)).toBeAttached();
@@ -172,6 +173,7 @@ for (const resolution of ['URL override', 'server preference'] as const) {
     await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Liquidity & flow', exact: true }).click();
     await expect(page.getByTestId('chart-pane-heatmap').getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'false');
     await expect(page.getByTestId('chart-pane-flow').getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'false');
+    await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Native book & tape', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Freeze tape', exact: true })).toHaveAttribute('aria-pressed', 'false');
     await expect.poll(() => page.evaluate(key => JSON.parse(localStorage.getItem(key) ?? '{}'), preferenceKey))
       .toMatchObject({
@@ -226,7 +228,7 @@ test('research tabs support roving keyboard focus without chart shortcuts', asyn
   const { demo } = await demoCatalog(page);
   await page.goto(`/?source=${encodeURIComponent(demo.id)}`);
   await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Liquidity & flow', exact: true }).click();
-  await expect(page.getByTestId('grouped-ladder').locator('tbody tr').first()).toBeVisible();
+  await expect(page.getByTestId('chart-pane-heatmap').getByTestId('market-charts')).toHaveAttribute('data-painted-view-id', /.+/);
   const tabs = page.getByRole('tablist', { name: 'Research pane', exact: true });
   const names = await tabs.getByRole('tab').allTextContents();
   expect(names.length).toBeGreaterThan(2);
@@ -345,7 +347,7 @@ test('network launch migrates automatic legacy demo to actual public live with a
   await page.getByText('Source & instrument details', { exact: true }).click();
   await expect(page.locator('[data-testid="terminal-incident"][data-incident="synthetic"]')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Play synthetic demo', exact: true })).toHaveCount(0);
-  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Liquidity & flow', exact: true }).click();
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Native book & tape', exact: true }).click();
   await expect(page.getByTestId('grouped-ladder').locator('tr.bid').first()).toBeInViewport();
   await expect(page.getByTestId('grouped-ladder').locator('tr.ask').last()).toBeInViewport();
   await page.locator('.workspace-configuration > summary').click();

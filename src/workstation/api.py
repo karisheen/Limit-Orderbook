@@ -145,6 +145,17 @@ class CostRequest(SessionAction):
 class CandleRequest(SessionAction):
     interval: str = Field(min_length=1, max_length=8, pattern=r"^[1-9][0-9]*[mhdwM]$")
     limit: int = Field(default=300, ge=1, le=500)
+    source: Literal["session_trades", "venue_ohlcv"] = "session_trades"
+    instrument_ids: list[str] = Field(default_factory=list, max_length=16)
+
+    @field_validator("instrument_ids")
+    @classmethod
+    def valid_candle_cohort(cls, values):
+        if any(not 1 <= len(value) <= 256 for value in values):
+            raise ValueError("invalid candle instrument identity")
+        if len(values) != len(set(values)):
+            raise ValueError("duplicate candle instrument identity")
+        return values
 
 
 class VisualizationRequest(SessionAction):
@@ -303,18 +314,54 @@ class ContextRequest(SessionAction):
     fx_rates: list[FXInput] = Field(default_factory=list, max_length=16)
 
 
+class PositioningRequest(SessionAction):
+    interval: str = Field(min_length=1, max_length=8, pattern=r"^[1-9][0-9]*[mhdwM]$")
+    limit: int = Field(default=300, ge=1, le=500)
+
+
 class PaperQuery(SessionAction):
     orders_limit: int = Field(default=20, ge=1, le=100)
     fills_limit: int = Field(default=20, ge=1, le=100)
+    funding_payments_limit: int = Field(default=20, ge=1, le=100)
+    liquidations_limit: int = Field(default=20, ge=1, le=100)
 
 
 class PaperFeeInput(FeeInput):
     instrument_id: str = Field(min_length=1, max_length=512)
 
 
+class PaperRiskInput(StrictInput):
+    instrument_id: str = Field(min_length=1, max_length=512)
+    leverage: str = Field(max_length=128)
+    maintenance_margin_rate: str = Field(max_length=128)
+    liquidation_fee_rate: str = Field(max_length=128)
+    provenance: str = Field(min_length=1, max_length=4096)
+    asof_wall_ns: str = Field(max_length=20, pattern=r"^[0-9]+$")
+
+
+class PaperFundingEventInput(StrictInput):
+    wall_ns: str = Field(max_length=20, pattern=r"^[0-9]+$")
+    rate: str = Field(max_length=128)
+
+
+class PaperFundingInput(StrictInput):
+    instrument_id: str = Field(min_length=1, max_length=512)
+    mode: Literal["none", "periodic", "events"]
+    provenance: str = Field(min_length=1, max_length=4096)
+    asof_wall_ns: str = Field(max_length=20, pattern=r"^[0-9]+$")
+    rate: str | None = Field(default=None, max_length=128)
+    interval_ns: str | None = Field(default=None, max_length=20, pattern=r"^[0-9]+$")
+    first_wall_ns: str | None = Field(default=None, max_length=20, pattern=r"^[0-9]+$")
+    events: list[PaperFundingEventInput] = Field(
+        default_factory=list, max_length=10_000
+    )
+
+
 class PaperConfigureRequest(PaperQuery):
     balances: list[InventoryInput] = Field(max_length=64)
     fees: list[PaperFeeInput] = Field(max_length=64)
+    risk_models: list[PaperRiskInput] = Field(default_factory=list, max_length=64)
+    funding_models: list[PaperFundingInput] = Field(default_factory=list, max_length=64)
     feed_latency_ns: str = Field(default="0", max_length=20, pattern=r"^[0-9]+$")
     decision_latency_ns: str = Field(default="0", max_length=20, pattern=r"^[0-9]+$")
     order_latency_ns: str = Field(default="0", max_length=20, pattern=r"^[0-9]+$")
@@ -326,6 +373,7 @@ class PaperOrderInput(PaperQuery):
     quantity: str = Field(max_length=128)
     order_type: Literal["market", "limit"] = "market"
     limit_price: str | None = Field(default=None, max_length=128)
+    reduce_only: bool = False
 
 
 class PaperCancelRequest(PaperQuery):
@@ -674,6 +722,10 @@ def create_app(
     @app.post("/api/v1/context")
     async def context_query(request: ContextRequest):
         return await consumer_action(request, "_context_query")
+
+    @app.post("/api/v1/positioning")
+    async def positioning_query(request: PositioningRequest):
+        return await consumer_action(request, "_positioning_query")
 
     @app.post("/api/v1/paper/query")
     async def paper_query(request: PaperQuery):

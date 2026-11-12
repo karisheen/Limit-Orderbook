@@ -292,6 +292,9 @@ class ReplaySession:
         return self._pending
 
     def _apply(self, batch: RecordedBatch) -> RecordedBatch:
+        # Local import avoids paper's ReplayClock/observer module cycle.
+        from .paper import PaperEngine, PaperError
+
         events = batch.events
         if not events:
             raise ValueError("empty recorded delivery transaction")
@@ -328,7 +331,17 @@ class ReplaySession:
         )
         self._pending = None
         for observer in self.observers:
-            observer.on_batch(delivered, self.books(), self.clock)
+            if isinstance(observer, PaperEngine):
+                if observer.frozen_reason is not None:
+                    continue
+                try:
+                    observer.on_batch(delivered, self.books(), self.clock)
+                except PaperError as error:
+                    if str(error) != "funding_catchup_limit":
+                        raise
+                    observer.freeze(str(error))
+            else:
+                observer.on_batch(delivered, self.books(), self.clock)
         return delivered
 
     def step(self, count: int = 1) -> tuple[RecordedBatch, ...]:

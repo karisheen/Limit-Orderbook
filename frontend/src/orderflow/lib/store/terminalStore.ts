@@ -50,6 +50,10 @@ export interface DisplayStatus {
   reasons: string[];
   primaryInstrumentId: string | null;
   instrumentIds: string[];
+  /** Selected native IDs with retained non-history rows, independent of the recent tape and plotting. */
+  retainedTradeInstrumentIds: string[];
+  /** Projected source frontier, never browser or request wall time. */
+  displayTimeMs: number | null;
   gap: boolean;
   unknownSideTrades: number;
   historyTrades: number;
@@ -132,7 +136,7 @@ const INITIAL_SETTINGS: TerminalSettings = {
 
 const INITIAL_MARKET: MarketDataState = {
   displayStatus: {
-    reasons: [], primaryInstrumentId: null, instrumentIds: [],
+    reasons: [], primaryInstrumentId: null, instrumentIds: [], retainedTradeInstrumentIds: [], displayTimeMs: null,
     gap: false, unknownSideTrades: 0, historyTrades: 0, lagObservation: "unknown",
   },
   candles: [],
@@ -227,7 +231,7 @@ export const createTerminalStore = () => {
         set((s) => ({
           candles: [], currentCandle: null, volumeProfile: null, recentTrades: [],
           flowBars: [], liveBar: null, session: null, ticker: null,
-          displayStatus: { ...s.displayStatus, unknownSideTrades: 0, historyTrades: 0 },
+          displayStatus: { ...s.displayStatus, retainedTradeInstrumentIds: [], unknownSideTrades: 0, historyTrades: 0 },
         }));
       },
 

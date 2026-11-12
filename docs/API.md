@@ -72,7 +72,7 @@ The supported Streamlit entrypoint is a thin loopback client of these same APIs;
 
 All routes below are prefixed `/api/v1`, except health. Native immutable domain models become plain JSON field objects (no persisted-wire tags), tuples become arrays, Decimal and **all domain integer/timestamp/ordinal fields become strings**. Presentation counters, the `/market-data` cursor's bounded `event` offset, and measured `*_ms` durations remain JSON numbers. Null means absent/unavailable, never a financial zero. Instrument `base`, `quote`, and optional `settlement` remain full `AssetIdentity` objects, preserving `asset_id` and `ticker`; no ticker-only identity simplification.
 
-The native persisted recording/wire schemas are unchanged. Derived financial output uses the explicit bounded `DERIVED_DECIMAL_POLICY`; market input validation remains stricter. Browser plotting/measurement numbers must never be submitted as economic inputs.
+Native recording identities are unchanged. Paper's additive durable records have explicit legacy-shape migrations; unknown or otherwise missing fields remain invalid (see [CONTRACTS](CONTRACTS.md#durable-state-archive-resume-and-manual-provenance)). Derived financial output uses the bounded `DERIVED_DECIMAL_POLICY`; market input validation remains stricter. Browser plotting/measurement numbers must never be submitted as economic inputs.
 
 Direct runtime dependencies pin FastAPI 0.162.0, Pydantic 2.14.2, Starlette 1.10.0 and AnyIO 4.15.1 in the lock. Pydantic and AnyIO use MIT licenses; Starlette uses BSD-3-Clause. Their installed license notices were inspected; no framework implementation source was copied. AnyIO's shielded cancellation scope protects owned-worker cleanup, not request success. Starlette's test client currently warns that the pinned httpx 0.28.1 transport is deprecated in favor of httpx 2; this warning is retained, not suppressed.
 
@@ -116,8 +116,12 @@ The response is:
 ```text
 {version:'1',session_id,generation,
  cursor:{delivery:string,event:number},highwater:string,gap:boolean,has_more:boolean,
+ retention:{floor:{delivery:string,event:number},
+   stream_floors:{[stream_id]:{delivery:string,event:number}}},
  books:[...],instruments:[...],trades:[...],boundaries:[...],
- now:{clock_id:string,mono_ns:string,wall_ns:string|null}|null}
+ now:{clock_id:string,mono_ns:string,wall_ns:string|null}|null,
+ display_frontier_ns:string|null,source_identity:string,
+ time_basis:'receive_utc',display_time_reasons:string[]}
 ```
 
 The cursor is an **exclusive (delivery, event offset) pair**, not a trade ID,
@@ -150,6 +154,13 @@ invalidate all display caches. Do not join histories across these fences.
 Trade-history resets preserve independent depth/OBI. Books are current snapshots
 at the query frontier, not reconstructed snapshots at each trade-page cursor.
 
+`retention.floor` is the effective raw/admitted-history inclusive floor;
+`stream_floors` independently retire affected streams. Drop cached rows at or
+before these exact cursor pairs **on every page**, even when `gap:false` and
+already caught up. Do not erase unaffected streams or depth/OBI on a trade-only
+retirement. The session-owned admitted history has independent 10,000-trade /
+8 MiB bounds and is also pruned when live raw history retires its prefix.
+
 `instruments` contains the selected native instrument and streamable same-base,
 same-market peers from the session's streams, bounded to 16 products with
 venue-fair selection. Quote and settlement identities remain separate.
@@ -170,7 +181,7 @@ indicative selection never changes native financial conversion requirements.
 
 Each displayed level preserves exact native `price` and `quantity` and adds
 `base_quantity` and `quote_notional`. Each trade is
-`{trade,asof,stream_id,base_quantity,quote_notional,instrument_id,cursor,source_identity}`,
+`{trade,asof,stream_id,base_quantity,quote_notional,instrument_id,cursor,source_identity,display_time_ns}`,
 where `trade` retains quantity units, taker side/provenance and
 `is_subscription_history`, and `asof` is the original event reference.
 `source_identity` is
@@ -209,6 +220,17 @@ Use book quality/eligibility and coverage limitations alongside display studies.
 and cannot expose events beyond its current delivery. Original exchange/receive
 timestamps remain in `asof`. Never substitute browser wall time for replay
 freshness or send display aggregates back as economic inputs.
+
+`display_time_ns` is the exact admitted trade timestamp: the source's first
+receive-wall anchor plus its same-clock receive-monotonic delta. It is not an
+exchange timestamp or browser time. `display_frontier_ns` projects the source
+monotonic highwater using that same origin; it may advance without trades and
+is independent of the returned page cursor. Use it to close existing buckets
+without inventing empty bars. Later admitted prints can revise a closed bucket:
+closed denotes elapsed source time, not completeness. Discontinuities are
+disclosed in `display_time_reasons`. For plotting milliseconds, divide exact
+nanoseconds first (`Number(BigInt(ns) / 1_000_000n)`), then check the safe plotting
+range; never round `Number(ns) / 1e6` across a bucket boundary.
 
 The display bridge recomputes timeframe, tick/indicator and venue changes from
 retained trades without restarting the native session; only a changed depth
@@ -404,10 +426,11 @@ Consumer results are explicit queries, not extra full evidence on every Frame.
 | `/alerts/rules/remove` | Required `rule_id`; also `event_limit` | Same as query |
 | `/alerts/evidence` | Exactly one `rule_id` or digit-string `event_id` (up to 20 digits) | Full bounded `evaluation`; 404 if absent from retained prefix |
 | `/context` | `fx_rates=[]`, at most 16 | `snapshot:{instrument_id,now,watchlist,contexts,basis,reasons}` |
-| `/paper/query` | `orders_limit=20`, `fills_limit=20` (each integer 1–100) | `snapshot` |
-| `/paper/configure` | Required `balances`, `fees` (each at most 64); three latency fields below; query limits | New run's `snapshot` |
-| `/paper/orders` | Required `side:'buy'|'sell'`, `quantity`; optional `instrument_id`, `order_type:'market'|'limit'` (default `market`), `limit_price`; query limits | `snapshot` |
-| `/paper/cancel` | Required `order_id`; query limits | `snapshot` |
+| `/positioning` | Required `interval` (any of the 15 candle intervals); `limit=300` (integer 1–500) | Observed open-interest/funding `series` on the session-candle axis; see below |
+| `/paper/query` | `orders_limit=20`, `fills_limit=20`, `funding_payments_limit=20`, `liquidations_limit=20` (each integer 1–100) | `capability`, `snapshot` |
+| `/paper/configure` | Required `balances`, `fees`; optional `risk_models=[]`, `funding_models=[]` (each list at most 64); three latency fields below; query limits | `capability`, new run's `snapshot` |
+| `/paper/orders` | Required `side:'buy'|'sell'`, `quantity`; optional `instrument_id`, `order_type:'market'|'limit'` (default `market`), `limit_price`, `reduce_only=false`; query limits | `capability`, `snapshot` |
+| `/paper/cancel` | Required `order_id`; query limits | `capability`, `snapshot` |
 | `/paper/runs` | `limit=20` (integer 1–100) | `runs` summaries across stored sources |
 | `/paper/archive` | Required `run_id`; query limits | `archived:true`, `archive_scope:'historical_accounting_not_current_replay_state'`, `snapshot` |
 | `/paper/resume` | Required `run_id`; query limits accepted | A new-generation **Frame**, not a consumer snapshot |
@@ -471,6 +494,54 @@ leave basis unavailable. USDT, USDC and USD are not interchangeable.
 **not funding-rate P&L**. Basis cost scope includes FX spread/conversion fees,
 not trading fees, funding P&L, executable arbitrage or a realizable hedge.
 
+#### Observed open interest and funding
+
+`POST /api/v1/positioning` returns the history of the same admitted
+`AssetContext` observations that `/context` shows only as a latest value. It is
+session-observed, venue-reported context: not an executable price, an exchange
+guarantee, account state or a paper funding input.
+
+```text
+{version:'1',session_id,generation,source_identity,delivery_index,
+ instrument_id,interval,status:'ready'|'empty'|'unavailable',
+ source:'session_context',time_basis:'receive_utc',fetched_at_ns,
+ supported_intervals,bucket_alignment,partial:true,highwater,reasons,
+ label:'venue_reported_positioning_not_executable',
+ series:[{stream_id,instrument_id,venue,api_family,native_symbol,
+   base_asset_id,quote_asset_id,relation:'selected'|'related_underlying',
+   open_interest_unit:string|null,open_interest_unit_provenance,
+   funding_rate_unit:'fraction_per_funding_interval',
+   coverage_start_ns,coverage_end_ns,
+   retention:{base_interval:'1m',max_minutes:10080,retained_minutes},
+   bars:[{start_ns,end_ns,first_ns,last_ns,samples,closed,
+     open_interest:{open,high,low,close,change}|null,
+     funding_rate:string|null,funding_interval_ns:string|null,
+     mark:string|null,oracle:string|null}]}]}
+```
+
+`series` holds every perpetual context stream of the session whose canonical
+base asset equals the selected instrument's, selected first. A perpetual on
+another venue (or the perpetual behind a selected spot product) is
+`related_underlying`; it is never relabeled as the selection. Other assets are
+excluded. No such stream yields `series:[]`, status `empty` and
+`context_channel_not_subscribed`.
+
+Bars use exactly the `session_trades` candle buckets, clock projection and
+`fetched_at_ns` frontier, so a bar and a candle with equal `start_ns` describe
+the same interval. Observations are stored as UTC-minute bars (at most 10,080
+per stream) and aggregated to the requested interval: open-interest
+`open/high/low/close` over the observations, `change = close - open` inside the
+bucket, and the **last** observed `funding_rate`, `funding_interval_ns`, `mark`
+and `oracle`. A field absent from later observations keeps the bucket's earlier
+value; nothing is carried into an unobserved bucket and no bar is synthesized.
+`closed` is a time boundary, not completeness.
+
+Continuity controls add `context_discontinuities` and keep earlier bars. A
+changed open-interest unit or an incomparable source clock clears that history
+(`open_interest_unit_changed`, `source_clock_changed`). Replay seek/reset rebuilds
+only the delivered prefix; rewinding to delivery 0 is `unavailable`. Obsolete
+generations fail with 409 like other consumer routes.
+
 #### Paper and journal semantics
 
 Balance objects are `{venue,asset_id,available,provenance?,asof?}`; venue/asset IDs
@@ -483,33 +554,114 @@ at most 20 digits and at most one day. Feed latency delays usable books;
 decision plus order latency determines arrival. Funds are competed for at
 arrival, not reserved at submission.
 
-Orders use positive exact `quantity`; limit orders require positive
-`limit_price`, market orders forbid it. Only supported spot/base-unit instruments
-are fillable. Native constraints, funds, eligibility, dated known fees and
-available unconsumed depth gate fills. Fees may use native base or quote, not a
-third token; future-dated fees or unavailable arrival wall clocks exclude fills.
-Marketable-limit and market orders are IOC: partial/unfilled remainders cancel.
-Cancellation targets pending orders; there is no passive order queue or impact
-model. `order_id`, `run_id` and journal IDs are 1–128 characters.
+`PaperConfig` retains balances, fees, feed/decision/order latency, core eligibility
+`policy`, `risk_models` and `funding_models`; HTTP does not accept a policy override.
+Risk inputs are `{instrument_id,leverage,maintenance_margin_rate,
+liquidation_fee_rate,provenance,asof_wall_ns}`. Leverage is 1–1000; maintenance
+is nonnegative and below `1/leverage`; liquidation fee rate is nonnegative and
+below one. Funding inputs are `{instrument_id,mode,provenance,asof_wall_ns,
+rate?,interval_ns?,first_wall_ns?,events?}`:
+
+- `none` explicitly models no funding; no periodic fields or events are allowed.
+- `periodic` requires signed `rate`, positive `interval_ns` and `first_wall_ns`,
+  with no events.
+- `events` uses at most 10,000 `{wall_ns,rate}` entries in strictly increasing
+  order, with no periodic fields.
+
+Rates have magnitude below one. Boundaries/events cannot predate the model's
+as-of. Provenance is required, not `"unknown"` (HTTP maximum 4096 characters);
+as-of/boundary/interval timestamps are digit strings of at most 20 digits.
+All economics remain exact strings. Duplicate instrument models are invalid.
+Missing funding is unavailable, not an implicit zero; risk and funding are
+explicit assumptions, not fetched venue maintenance tiers or guaranteed rates.
+
+Orders use positive exact **native-unit** `quantity`; limit orders require
+positive `limit_price`, market orders forbid it. Supported spot/base-unit IOC
+behavior is unchanged. Supported perpetuals use isolated, one-way signed native
+exposure: buy opens long/reduces short; sell opens short/reduces long.
+`reduce_only` cannot increase or flip exposure. Opposite orders close first,
+then open only an eligible, collateral-funded remainder. Native lot/order bounds,
+funds, fresh eligible books, dated known fees and available unconsumed depth gate
+fills. Spot fees use native base or quote; perpetual fees use native settlement.
+Future-dated fees or unavailable arrival wall clocks exclude fills. Market and
+marketable-limit orders are IOC; partial/unfilled remainders cancel. Cancellation
+targets pending orders; no passive queue or market-impact model is implied.
+`order_id`, `run_id` and journal IDs are 1–128 characters.
+
+Active paper queries, configuration, orders, cancellation and run lists include
+`capability:{instrument_id,metadata_version,market_type,quantity_unit,
+settlement_asset_id,supported,reasons,native_order_constraints}` for the exact
+session-pinned primary, not latest discovery metadata. With no pinned primary,
+identity/constraints are null, `supported:false`, reason `no_pinned_primary`.
+`native_order_constraints` is the derived `native_order_constraints(instrument)`
+result, not a rewritten captured descriptor. Fence by ID **and** metadata version.
+Intrinsic support is not current fill eligibility, sufficient collateral or
+verified venue access. Streaming-only metadata cannot authorize financial use.
 
 Paper snapshots expose `run,delivery_index,at,balances,orders,fills,positions,
-reasons,assumptions,presentation`. Run configuration retains funds, fees and
-latencies; metadata presentation includes instrument ID/version pairs rather
-than full duplicated instruments. Run-list summaries omit configuration.
-Orders/fills are the newest requested rows. Each presented fill includes at most
-20 consumed levels and `consumed_levels_omitted`; snapshot presentation reports
-order/fill limits and omissions. Exact fill fees, book key/revision/as-of and
-native source clocks remain visible. Initial inventory basis and derived P&L
-can be null; marks are gross best bid, not liquidation proceeds.
+perpetual_positions,funding_payments,liquidations,reasons,assumptions,presentation`.
+Run metadata presentation uses `instrument_metadata:[{instrument_id,
+metadata_version}]`; durable runs retain full captured descriptors. Run lists omit
+configuration. `balances[].available` is free collateral/inventory, not isolated
+margin. Spot `positions` retain average-cost accounting; initial inventory basis
+and affected P&L can be null, and marks are gross best bid.
 
-Archives are separately queried durable accounting transitions, including live
-audit history; 404 means no archived transition. Opening a new client does not
-auto-adopt an old run. Resume is replay/demo-only and must match native source
-identity. It rebuilds a candidate from commands against an independent replay
-projection at the current cursor; failure does not replace current state.
-Successful publication pauses playback, replaces paper ownership, increments
-generation and clears old presentation/ACK state. It does not import archived
-future fills into a past cursor. Live histories cannot resume across ownership.
+Perpetual records preserve these defining fields:
+
+```text
+PaperPerpetualPosition:
+ venue,instrument_id,settlement_asset_id,instrument,quantity,entry_price,
+ initial_margin,isolated_collateral,realized_pnl,fees_paid,funding_paid,
+ liquidation_fees_paid,debt,unrealized_pnl,mark_price,maintenance_margin,
+ equity,shortfall,liquidating,reasons,mark_source
+PaperFundingPayment:
+ instrument_id,settlement_asset_id,at,rate,quantity,mark_price,amount,
+ provenance,reasons
+PaperLiquidation:
+ instrument_id,settlement_asset_id,at,requested_quantity,filled_quantity,
+ remaining_quantity,fee_amount,debt,reasons,fill_id
+```
+
+Money is in `settlement_asset_id`; quantity is signed native exposure. Null
+valuation/payment fields mean unresolved, never zero. Positive funding `amount`
+debits isolated collateral. Liquidation `fee_amount` is the protective penalty;
+the linked `PaperFill` retains ordinary trading fees. `mark_source` is
+`eligible_executable_side_book_proxy_not_exchange_mark`: long bid/short ask,
+not an exchange mark or guaranteed exit. Supported settlement, P&L, liquidation
+and debt rules are detailed in [CONTRACTS](CONTRACTS.md#paper-funds-fees-time-and-consumed-liquidity).
+
+Orders, fills, funding payments and liquidations are sliced **before**
+serialization to the newest requested rows. `presentation` supplies
+`orders_limit/orders_total/orders_omitted`, `fills_limit/fills_total/fills_omitted`,
+`funding_payments_limit/funding_payments_total/funding_payments_omitted`,
+`liquidations_limit/liquidations_total/liquidations_omitted`, and
+`fill_levels_limit:20` (JSON number counters). Each fill exposes at most 20
+`consumed_levels` plus `consumed_levels_omitted`. These are presentation windows,
+not a claim that omitted accounting vanished; archive storage retains full
+bounded accounting. Exact fees, book key/revision/as-of and source clocks remain.
+
+Funding catch-up is bounded before monetary mutation. `funding_catchup_limit`
+freezes paper at its last valid accounting prefix; snapshot `reasons` contains
+`paper_frozen` and the cause, and `delivery_index` remains that accounting
+frontier even while charts continue. Frozen queries do not advance accounting;
+time/order observation is rejected rather than skipping payments. Explicit
+configuration creates a fresh child run using **current** streams, pinned
+metadata, source time/delivery and books, not stale frozen books or an abandoned
+cohort. It does not repair or mutate the old run.
+
+Archives are separately queried durable historical accounting transitions,
+including live audit history; 404 means no archived transition. Archive queries
+are bounded presentations, not current replay state or a source of future fills.
+Opening a client does not auto-adopt an old run. Resume is replay/demo-only,
+requires the same native source identity, and rebuilds an independent candidate
+from commands at the current cursor. A valid historical prefix **may resume**
+even when future commands exist: `future_commands_fork_required` keeps further
+order/cancel mutations fenced until the timeline catches up or configuration
+creates a child run. Genuine frozen/inactive/incomplete candidates are rejected
+atomically with `paper_resume_incomplete_accounting_prefix`; current projection
+and durable historical accounting are not replaced by failed staging. Successful
+publication pauses playback, replaces paper ownership, increments generation and
+clears old presentation/ACK state. Live histories cannot resume across ownership.
 
 Journal rationale is 1–8192 characters, context up to 16384; optional `entry`
 and `stop` are positive exact strings (up to 128 characters).
@@ -651,52 +803,98 @@ for the measurement boundaries.
 
 This slice adds `tests/test_workstation_api.py` and `tests/test_workstation_api_runtime.py` covering full-source provenance/precision/readiness, independent clients, cursor-bounded history/reset, actual costs/fees/prefunding, all-or-none fee input groups, controls and invalid/stale selection, host/origin/payload/capacity bounds, WebSocket ACK/disconnect, raw/normalized memory parity, generic ReplaySource consumers, durable-reader thread ownership and capture identity changes, analytical overload invalidation, immediate source deliveries/quiet joins, private capacity reservations, initializer shutdown and active-owner reaping. Run with the project's locked Python and full existing replay/CLI suite; frontend principal browser workflows and real live singleton-safe smoke are integration-owner gates. No benchmark or test pass is claimed merely by this document.
 
-## Independent historical candles
+## Unified native candles and explicit venue history
 
-`POST /api/v1/candles` accepts
-`{session_id, generation, interval, limit?}`. `interval` is case-sensitive
-(`1m`, `1h`, `1d`, `1w`, `1M`); limit defaults to 300 and is bounded to 1–500.
-The strict session input and local-origin policy apply. Unknown fields, URLs,
-noninteger limits, and malformed intervals are rejected. Valid but unsupported
-intervals return `status: "unavailable"` with the actual `supported_intervals`;
-the server never substitutes another timeframe, instrument, venue, or API family.
+`POST /api/v1/candles` takes strict `CandleRequest` fields:
+`{session_id,generation,interval,limit?,source?,instrument_ids?}`.
+`source` defaults to `session_trades` in **live, demo and replay**; the only other
+value is explicit `venue_ohlcv`. `interval` is case-sensitive, 1–8 characters,
+matching `^[1-9][0-9]*[mhdwM]$`; `limit` is an integer 1–500, default 300.
+`instrument_ids` defaults to `[]`, at most 16 unique nonempty strings of at most
+256 characters. Empty/omitted means primary only. An explicit cohort must include
+the exact selected primary and belong to the active pinned same-base,
+same-market session cohort. Foreign, duplicate or incompatible IDs are rejected,
+not silently discarded. Canonical response order is primary first, then sorted
+peer IDs. `venue_ohlcv` requires exactly the primary, never aggregate substitution.
+Unknown fields/URLs, numeric economics and malformed intervals are rejected;
+syntactically valid unsupported intervals return `status:"unavailable"` and
+actual `supported_intervals`, not a replacement timeframe.
 
-The response contains `version`, `session_id`, `generation`, `instrument_id`,
-`interval`, `status` (`ready`, `empty`, `unavailable`), `source` (`venue_ohlcv`,
-`session_trades`), `venue`, `time_basis` (`exchange_utc`, `receive_utc`),
-`fetched_at_ns`, `supported_intervals`, `candles`, `reasons`, `volume_unit`,
-and nullable `coverage_start_ns`/`coverage_end_ns`. Each candle has
-`start_ns`, exclusive `end_ns`, exact decimal `open`, `high`, `low`, `close`,
-`volume`, and boolean `closed`. All timestamps are decimal strings. Native
-volume is base-asset volume for these supported products; quote turnover is
-never substituted. `closed` only means the bucket's end has passed according
-to the response's source time, not independently verified completeness.
+Native session trades support all fifteen intervals:
+`1m,3m,5m,15m,30m,1h,2h,4h,6h,8h,12h,1d,3d,1w,1M`.
+Fixed intervals floor UTC nanoseconds against Unix epoch; `1w` therefore has a
+Thursday 1970-01-01 origin, not Monday alignment. `1M` spans the UTC first day
+of a calendar month to the next first, never a fixed 30-day approximation.
 
-Live sessions use fixed public native endpoints via the existing credential-free
-transport (access blocks and Retry-After/circuit policy remain authoritative).
-One attempt per query, four concurrent native queries, no admission wait queue,
-at most 32 successful exact-instrument/metadata/interval/limit cache entries,
-five-second cache TTL, at most 500 output candles, and a 2 MiB JSON parsing
-limit bound this feature. Transport retains its existing 32 MiB response cap.
-Overload returns `candle_capacity`; network/access/rate errors return explicit
-unavailable reasons. Cancellation propagates and releases capacity without a
-background fetch. Neither live observer nor lifecycle action locks are held
-during HTTP; source identity and generation are rechecked before publication.
-Book health is not a prerequisite for native candle history.
+All responses contain:
 
-Demo and replay never use HTTP or a native-history cache. They aggregate only
-the selected instrument's already-admitted retained trade prefix (the existing
-4096-trade retention bound), in receive-UTC minute/hour/day buckets. They return
-`session_history_partial` and `retained_session_trades_only`; subscription-history
-prints and unknown-size prints do not fabricate volume. Coverage is the actual
-first/last contributing retained trade timestamp, not enclosing bucket edges.
-Replay's evaluation clock can omit wall time. Candle closure uses the admitted
-receive-clock segment projected at the retained source-monotonic frontier, not
-the evaluation clock's optional wall field or today's time. Nonadvancing clock
-pairs are disclosed but never adopted; mismatched clock/source trades are excluded.
-Seeking rebuilds the retained prefix and changes generation; future deliveries
-cannot appear after rewind. This endpoint does not alter `/visualization`,
-capture bytes, replay ordering, book reconstruction, or execution semantics.
+```text
+version,session_id,generation,source_identity,instrument_id,instrument_ids,
+scope,venue_label,quote_asset_ids,interval,status,source,venue,time_basis,
+fetched_at_ns,supported_intervals,candles,reasons,volume_unit,partial,
+coverage_start_ns,coverage_end_ns
+```
 
-Native provider details and checked documentation are in
-[Historical price candles](VISUALIZATION.md#historical-price-candles).
+`scope` is `primary` or `aggregate`; native aggregate `venue` is `"aggregate"`
+and `venue_label` lists contributing cohort venues, not just the primary.
+`quote_asset_ids` preserves native quote identities. Cross-quote aggregate
+prices are indicative with `indicative_quote_family_no_conversion`; no FX or
+financially executable merged book is implied. `status` is `ready`, `empty`
+or `unavailable`. `source_identity` is the native session source fence.
+
+Each candle contains `start_ns`, exclusive `end_ns`, exact-string
+`open,high,low,close,volume`, and boolean `closed`. `volume_unit` is `"base"`,
+never quote turnover. `closed` means only that source time reached `end_ns`.
+It does not certify completeness or prohibit later retained prints revising a
+bucket. No empty buckets are synthesized.
+
+### Retained session-trade candles
+
+`session_trades` uses `time_basis:"receive_utc"` and the same admitted-trade
+history and exact `display_time_ns` projection as `/market-data`, not selected-only
+visualization history or a browser venue socket. Open/close follow native
+delivery order; unrelated clocks, future, unadmitted, subscription-history and
+unknown-base-size prints cannot fabricate bars/volume. Wall-clock corrections
+do not rewrite the origin; the source-monotonic frontier determines closure.
+`fetched_at_ns` is that projected frontier (string `"0"` when unavailable), not
+request wall time. Source/generation/selection/cohort/interval changes fence old
+responses; seeks rebuild only the admitted prefix.
+
+Additional native fields are `highwater` (delivery string),
+`bucket_alignment:"utc_epoch_floor"|"utc_calendar_month"`,
+`missing_instrument_ids`, and
+`retention:{max_trades:10000,max_bytes:8388608,retained_trades,retained_bytes,truncated}`.
+Retention counters describe the session-wide admitted history, not only returned
+bars/cohort. Live raw-history rollover also prunes this history. Native results
+always disclose `partial:true`, `session_history_partial` and
+`retained_session_trades_only`; truncation, discontinuity, missing receive UTC
+and cohort members without contributing admitted trades have explicit reasons.
+Partial coverage is not silently upgraded because a bar closed. Coverage bounds
+are nullable first/last contributing retained trade timestamps of the returned
+bars, not bucket edges. Native chart operation needs no REST backfill.
+
+### Explicit venue OHLCV
+
+`venue_ohlcv` is a separate request, not a live default or a replay-prefix
+reconstruction. It uses `time_basis:"exchange_utc"` and native exchange bucket
+starts; multiday/week alignment must not be assumed identical to session epoch
+flooring. Its coverage defaults to first returned bucket start through the lesser
+of the last bucket end and fetch time. It discloses `native_history_may_have_gaps`
+and `closed_is_time_boundary_not_completeness`.
+
+Supported families include Binance global spot/USD-M and Bybit spot/linear,
+plus supported native Binance.US, Coinbase, Kraken, KuCoin and Hyperliquid
+products. Exact family/market/interval support is returned, not inferred from
+venue name or catalog presence. Unsupported history stays unavailable; it is
+never substituted from another venue, instrument or API family. This request
+does not prove any provider is currently reachable. Native access restrictions
+and transport Retry-After/circuit policy remain authoritative.
+
+One attempt per query, four concurrent queries, no admission wait queue, at most
+32 successful exact-instrument/metadata/interval/limit cache entries, five-second
+TTL, at most 500 candles and a 2 MiB JSON parsing bound apply. Transport retains
+its 32 MiB response cap. Overload yields `candle_capacity`; network/access/rate
+failures have explicit unavailable reasons. Cancellation releases capacity without
+a background fetch. No observer/lifecycle lock is held during HTTP; source and
+generation are checked before publication. Book health is not a prerequisite for
+venue history. See [provider details](VISUALIZATION.md#historical-price-candles).

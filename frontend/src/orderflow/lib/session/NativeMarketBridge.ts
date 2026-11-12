@@ -14,6 +14,14 @@ export function compareCursor(a: MarketDataCursor, b: MarketDataCursor): number 
   const deliveryA = BigInt(a.delivery), deliveryB = BigInt(b.delivery);
   return deliveryA < deliveryB ? -1 : deliveryA > deliveryB ? 1 : a.event - b.event;
 }
+
+/** Floor while exact, then enforce the JavaScript date and integer ranges. */
+function displayMilliseconds(value: string): number {
+  const nanoseconds = BigInt(value);
+  const timestamp = Number(nanoseconds / 1_000_000n);
+  return nanoseconds >= 0n && Number.isSafeInteger(timestamp) && timestamp <= 8_640_000_000_000_000
+    ? timestamp : NaN;
+}
 export interface DisplayScope {
   sessionId: string; generation: string; sourceId: string; primary: Instrument; sourceMode?: Mode;
 }
@@ -29,12 +37,12 @@ export class NativeMarketBridge {
   private reasons = new Set<string>();
   private gap = false;
   private lastGapCursor: string | null = null;
-  private clock: { id: string; mono: bigint; wall: number } | null = null;
   private configuration = "";
   private tickInstrument = "";
   private depthCohort = "";
   private refreshVenues = false;
   private sourceIdentities = new Map<string, NativeMarketTrade["source_identity"]>();
+  private displayTimeMs: number | null = null;
 
   constructor(private readonly store: StoreApi<TerminalStore>) { this.studies = new DisplayStudies(store); }
 
@@ -50,12 +58,12 @@ export class NativeMarketBridge {
     this.scope = scope;
     this.cursor = { ...START };
     this.retained = [];
+    this.displayTimeMs = null;
     this.instruments.clear();
     this.books = [];
     this.reasons.clear();
     this.gap = false;
     this.lastGapCursor = null;
-    this.clock = null;
     this.configuration = "";
     this.depthCohort = "";
     this.tickInstrument = "";
@@ -84,10 +92,6 @@ export class NativeMarketBridge {
   }
 
   private rebuild(): void {
-    // Staggered stream transitions can leave only trades from a new clock.
-    // Re-anchor only after all evidence in the previous monotonic domain is gone.
-    const selected = new Set(this.cohort().map(instrument => instrument.instrument_id));
-    if (this.clock && !this.retained.some(trade => selected.has(trade.instrument_id) && trade.asof.clock_id === this.clock!.id)) this.clock = null;
     this.studies = new DisplayStudies(this.store);
     this.store.getState().resetTradeStudies();
     this.publish(this.retained);
@@ -96,6 +100,9 @@ export class NativeMarketBridge {
   accept(page: NativeMarketData): boolean {
     if (!this.scope || page.session_id !== this.scope.sessionId || page.generation !== this.scope.generation) return false;
     if (!page.gap && compareCursor(page.cursor, this.cursor) < 0) return false;
+    const frontier = page.display_frontier_ns === null ? NaN : displayMilliseconds(page.display_frontier_ns);
+    this.displayTimeMs = Number.isFinite(frontier) ? frontier : null;
+    if (page.display_frontier_ns !== null && this.displayTimeMs === null) this.reasons.add("Native source frontier outside plotting range");
     // A response is a complete current book cohort, not a patch: remove vanished books.
     this.books = page.books;
     this.instruments = new Map(page.instruments.map(instrument => [instrument.instrument_id, instrument]));
@@ -107,25 +114,33 @@ export class NativeMarketBridge {
       this.store.getState().setSelectedVenues([...new Set(available.map(displayVenue))]);
     }
     const gapCursor = `${page.cursor.delivery}:${page.cursor.event}`;
+    const rewind = page.gap && compareCursor(page.cursor, this.cursor) < 0;
     if (page.gap && this.lastGapCursor !== gapCursor) {
       this.lastGapCursor = gapCursor;
       this.gap = true;
-      this.reasons.add("Native cursor gap: studies restart at available history");
+      this.reasons.add("Native cursor gap: studies limited to available history");
+    }
+    if (rewind) {
       this.retained = [];
       this.cursor = { ...START };
-      this.clock = null;
       this.sourceIdentities.clear();
-      this.studies = new DisplayStudies(this.store);
-      this.store.getState().resetTradeStudies();
     }
     const selected = new Set(this.cohort().map(instrument => instrument.instrument_id));
-    let rebuild = JSON.stringify([...selected].sort()) !== this.depthCohort;
-    if (rebuild) this.clock = null;
-    this.retained = this.retained.filter(trade => {
-      if (admitted.has(trade.instrument_id)) return true;
-      this.sourceIdentities.delete(trade.stream_id);
-      return false;
-    });
+    let rebuild = rewind || JSON.stringify([...selected].sort()) !== this.depthCohort;
+    // Floors are inclusive retirement cursors, independent of pagination and
+    // whether this client has already caught up. Never discard healthy peers.
+    const retained = (trade: NativeMarketTrade): boolean => {
+      const streamFloor = page.retention.stream_floors[trade.stream_id];
+      return admitted.has(trade.instrument_id) &&
+        compareCursor(trade.cursor, page.retention.floor) > 0 &&
+        (!streamFloor || compareCursor(trade.cursor, streamFloor) > 0);
+    };
+    const previousCount = this.retained.length;
+    this.retained = this.retained.filter(retained);
+    if (this.retained.length !== previousCount) {
+      rebuild = true;
+      this.reasons.add("Native retention floors limit study history");
+    }
     const fresh: NativeMarketTrade[] = [];
     // Native boundaries and trades share one cursor order; an epoch boundary can
     // precede a trade at the same cursor, so compare both with the page-start cursor.
@@ -145,6 +160,7 @@ export class NativeMarketBridge {
         this.sourceIdentities.delete(event.stream_id);
         rebuild ||= visible;
       } else {
+        if (!retained(event)) continue;
         const previous = this.sourceIdentities.get(event.stream_id);
         const identity = event.source_identity;
         if (previous && (previous.session_id !== identity.session_id || previous.segment_id !== identity.segment_id ||
@@ -185,20 +201,9 @@ export class NativeMarketBridge {
       !state.selectedVenues.length || state.selectedVenues.includes(displayVenue(instrument)));
   }
 
-  private time(trade: NativeMarketTrade): number {
-    const reference = trade.asof;
-    const mono = BigInt(reference.receive_mono_ns);
-    if (!this.clock) this.clock = { id: reference.clock_id, mono, wall: Number(BigInt(reference.receive_wall_ns) / 1_000_000n) };
-    if (reference.clock_id !== this.clock.id) {
-      this.reasons.add("Multiple native receive clocks; cross-clock studies unavailable");
-      return NaN;
-    }
-    return this.clock.wall + Number(mono - this.clock.mono) / 1_000_000;
-  }
-
   private plot(trade: NativeMarketTrade, instrument: Instrument): NormalizedTrade | null {
     if (trade.base_quantity === null) { this.reasons.add("Native base trade quantity unavailable"); return null; }
-    const price = Number(trade.trade.price), quantity = Number(trade.base_quantity), timestamp = this.time(trade);
+    const price = Number(trade.trade.price), quantity = Number(trade.base_quantity), timestamp = displayMilliseconds(trade.display_time_ns);
     if (!Number.isFinite(price) || !Number.isFinite(quantity) || !Number.isFinite(timestamp) || price <= 0 || quantity < 0) {
       this.reasons.add("Native trade outside plotting range"); return null;
     }
@@ -253,6 +258,7 @@ export class NativeMarketBridge {
       // History has no trustworthy live ordering. Show it on tape, never invent historical CVD.
       if (!native.trade.is_subscription_history) this.studies.apply(trade, completedBars);
     }
+    this.studies.advance(this.displayTimeMs);
     const books = new Map<string, NormalizedOrderBook>();
     const connections: VenueConnection[] = [];
     const qualityReasons = new Set<string>();
@@ -284,7 +290,8 @@ export class NativeMarketBridge {
     state.applyMarketDataBatch({
       trades: plotted, orderBook: books.get(primary.instrument_id) ?? null, aggregatedBook: aggregate,
       candle: candle ? { ...candle } : null,
-      volumeProfile: candle ? computeVolumeProfile([...state.candles, candle], state.valueAreaPct) : null,
+      volumeProfile: state.candles.length || candle
+        ? computeVolumeProfile(candle ? [...state.candles, candle] : state.candles, state.valueAreaPct) : null,
       ticker: session ? { venue: primary.venue, symbol: displaySymbol(primary), price: session.last,
         open: session.open, high: session.high, low: session.low, change: session.last - session.open,
         changePct: session.open ? (session.last / session.open - 1) * 100 : 0, volume: session.volume,
@@ -294,6 +301,10 @@ export class NativeMarketBridge {
     });
     const displayStatus: DisplayStatus = { reasons: [...this.reasons, ...qualityReasons],
       primaryInstrumentId: primary.instrument_id, instrumentIds: cohort.map(instrument => instrument.instrument_id),
+      retainedTradeInstrumentIds: [...new Set(this.retained
+        .filter(trade => selected.has(trade.instrument_id) && !trade.trade.is_subscription_history)
+        .map(trade => trade.instrument_id))],
+      displayTimeMs: this.displayTimeMs,
       gap: this.gap, unknownSideTrades: unknown, historyTrades: history,
       lagObservation: this.scope?.sourceMode === "replay" ? "recorded" : this.scope?.sourceMode === "demo" ? "synthetic" :
         this.scope?.sourceMode === "live" ? "live" : "unknown" };

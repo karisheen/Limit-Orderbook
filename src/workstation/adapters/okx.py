@@ -2,15 +2,17 @@
 
 Protocol: https://www.okx.com/docs-v5/en/#order-book-trading-market-data
 books5 replaces the complete observed five-level window on every message. It
-has no incremental continuity/checksum guarantee. Native SWAP quantities remain
-contracts; ctVal supplies the explicit base-currency valuation per contract.
+has no incremental continuity/checksum guarantee. Native SWAP quantities and
+min/max size constraints remain contracts; ctVal only values base exposure.
+SWAP parser revision okx-v2-native-size corrects the old base-scaled limits;
+historical okx-v1 descriptors remain immutable (see native_order_constraints).
 
 Public WebSocket uses TLS port 443. Connection-wide notice envelopes are
 informational controls, not subscription acknowledgements or market observations.
 Notice protocol: https://www.okx.com/docs-v5/en/#overview-websocket-notification
 """
 
-from decimal import Decimal, localcontext
+from decimal import Decimal
 from hashlib import sha256
 import json
 from time import time_ns
@@ -27,7 +29,7 @@ from ..events import (
     Trade,
 )
 from ..instruments import Instrument, InstrumentId, MetadataSnapshot, OrderConstraints
-from ..precision import DECIMAL_CONTEXT, decimal, exact_json_loads, text
+from ..precision import decimal, exact_json_loads, text
 from ..quality import Capabilities
 from .base import DecodedEvent, DecodeResult, TransportRequest
 from .binance import (
@@ -103,7 +105,8 @@ class OKXAdapter:
         root = object_field(exact_json_loads(raw))
         if integer_field(root["code"]) != 0:
             raise ValueError(f"metadata endpoint error: {root['code']}")
-        version = f"{sha256(raw).hexdigest()}:{fetch_wall_ns}:okx-v1"
+        revision = "okx-v2-native-size" if inst_type == "SWAP" else "okx-v1"
+        version = f"{sha256(raw).hexdigest()}:{fetch_wall_ns}:{revision}"
         instruments = []
         for value in array_field(root["data"]):
             row = object_field(value)
@@ -138,14 +141,10 @@ class OKXAdapter:
             currency = asset_identity(self.venue, quote_symbol)
             decimal(row["minSz"], positive=True)
 
-            def base_constraint(field):
+            def native_constraint(field):
                 if row.get(field) in (None, ""):
                     return None
-                with localcontext(DECIMAL_CONTEXT):
-                    return decimal(
-                        decimal(row[field], nonnegative=True) * multiplier,
-                        nonnegative=True,
-                    )
+                return decimal(row[field], nonnegative=True)
 
             status = {
                 "live": "active",
@@ -178,10 +177,10 @@ class OKXAdapter:
                     if swap
                     else None,
                     constraints=OrderConstraints(
-                        min_base=base_constraint("minSz"),
-                        max_limit_base=base_constraint("maxLmtSz"),
-                        # Spot maxMktSz is quote-denominated, not base size.
-                        max_market_base=base_constraint("maxMktSz") if swap else None,
+                        min_base=native_constraint("minSz"),
+                        max_limit_base=native_constraint("maxLmtSz"),
+                        # Spot maxMktSz is quote-denominated, not native base size.
+                        max_market_base=native_constraint("maxMktSz") if swap else None,
                     ),
                     status=status,
                     metadata_asof_wall_ns=fetch_wall_ns,

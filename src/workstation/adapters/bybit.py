@@ -1,4 +1,9 @@
-"""Bybit v5 spot and linear USDT perpetual books; IDs are not contiguous."""
+"""Bybit v5 spot and linear USDT perpetual books; IDs are not contiguous.
+
+Metadata uses only documented mainnet peers, once per family after bounded
+transport/service failure. Denials and invalid/incomplete payloads never trigger
+peer fallback; each published family is complete from one origin.
+"""
 
 from hashlib import sha256
 import json
@@ -53,6 +58,7 @@ class BybitAdapter:
     # Both mainnet hosts are official; neither bypasses regional restrictions.
     # https://bybit-exchange.github.io/docs/v5/guide
     rest_host = "https://api.bytick.com"
+    metadata_hosts = ("https://api.bytick.com", "https://api.bybit.com")
     stream = "wss://stream.bybit.com/v5/public/spot"
     linear_api_family = "v5-linear"
     linear_stream = "wss://stream.bybit.com/v5/public/linear"
@@ -67,37 +73,48 @@ class BybitAdapter:
         return await discover_metadata_families(self, timeout=timeout)
 
     async def discover_family(self, family) -> MetadataSnapshot:
+        from ..transport import PublicTransportError
+
+        if family not in self.metadata_families:
+            raise ValueError("unsupported metadata API family")
+        # Restart the entire family on the peer, never mix pagination generations
+        # or reinterpret a rejected/malformed authoritative response as an outage.
+        primary, peer = self.metadata_hosts
+        try:
+            return await self._discover_family_at_host(family, primary)
+        except PublicTransportError as exc:
+            if not exc.peer_retryable:
+                raise
+            return await self._discover_family_at_host(family, peer)
+
+    async def _discover_family_at_host(self, family, host) -> MetadataSnapshot:
         from ..transport import fetch_public
 
         if family == self.api_family:
-            raw = await fetch_public(
-                TransportRequest(
-                    "GET", f"{self.rest_host}/v5/market/instruments-info?category=spot"
-                )
-            )
+            endpoint = f"{host}/v5/market/instruments-info?category=spot"
+            raw = await fetch_public(TransportRequest("GET", endpoint))
             snapshot, _ = self._metadata_page(
-                raw, fetch_wall_ns=time_ns(), expected_category="spot"
+                raw, fetch_wall_ns=time_ns(), expected_category="spot", source=endpoint
             )
             return snapshot
-        if family != self.linear_api_family:
-            raise ValueError("unsupported metadata API family")
         fetched = time_ns()
-        raws, instruments = [], []
+        raws, instruments, sources = [], [], []
         cursor = ""
         seen = set()
         for _ in range(self.MAX_METADATA_PAGES):
-            endpoint = f"{self.rest_host}/v5/market/instruments-info?category=linear&limit=1000"
+            endpoint = f"{host}/v5/market/instruments-info?category=linear&limit=1000"
             if cursor:
                 endpoint += f"&cursor={quote(cursor, safe='')}"
             raw = await fetch_public(TransportRequest("GET", endpoint))
             page, cursor = self._metadata_page(
-                raw, fetch_wall_ns=fetched, expected_category="linear"
+                raw, fetch_wall_ns=fetched, expected_category="linear", source=endpoint
             )
             raws.append(raw)
+            sources.append(endpoint)
             instruments.extend(page.instruments)
             if not cursor:
                 return metadata_snapshot(
-                    page.source,
+                    ";".join(sources),
                     b"\n".join(raws),
                     fetched,
                     instruments,
@@ -114,7 +131,12 @@ class BybitAdapter:
         return snapshot
 
     def _metadata_page(
-        self, raw: bytes, *, fetch_wall_ns: int, expected_category: str | None = None
+        self,
+        raw: bytes,
+        *,
+        fetch_wall_ns: int,
+        expected_category: str | None = None,
+        source: str | None = None,
     ):
         root = object_field(exact_json_loads(raw))
         if integer_field(root["retCode"]) != 0:
@@ -125,12 +147,17 @@ class BybitAdapter:
             raise ValueError("unexpected metadata category")
         if expected_category is not None and category != expected_category:
             raise ValueError("unexpected metadata category")
-        cursor = result.get("nextPageCursor", "")
+        cursor = (
+            result["nextPageCursor"]
+            if category == "linear"
+            else result.get("nextPageCursor", "")
+        )
         if not isinstance(cursor, str) or len(cursor) > 4096:
             raise ValueError("invalid metadata pagination cursor")
         if category == "spot" and cursor:
             raise ValueError("unexpected spot metadata category/pagination")
-        source = f"{self.rest_host}/v5/market/instruments-info?category={category}"
+        if source is None:
+            source = f"{self.rest_host}/v5/market/instruments-info?category={category}"
         linear = category == "linear"
         family = self.linear_api_family if linear else self.api_family
         market_type = "perpetual" if linear else "spot"

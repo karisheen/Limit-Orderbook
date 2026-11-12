@@ -138,6 +138,7 @@ button, select, input { font: inherit; color: inherit; }
 
 .topbar-group { display: flex; align-items: center; gap: 6px; }
 .topbar-spacer { flex: 1; }
+.topbar .interval-select { min-width: 72px; }
 .topbar-break { display: none; }
 
 /* ─── Controls ─── */
@@ -606,21 +607,18 @@ body.is-resizing-row, .is-resizing-row * { cursor: row-resize !important; }
 .native-chart-content .chart-pane { overflow-y: auto; }
 .native-chart-content .chart-pane > .m4-charts { flex: 1 0 auto; min-height: 280px; }
 .native-chart-content .m4-chart-body { min-height: 200px; }
-.native-book-tape { display: flex; flex: 0 0 var(--right-width, 340px); flex-direction: column; min-width: 0; min-height: 0; contain: size; }
+.native-book-tape { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; contain: size; }
 .native-book-tape .dom-pane, .native-book-tape .tape-pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .native-book-tape .dom-pane { flex: 0 0 var(--tape-split, 58%); }
 .native-book-tape .tape-pane { flex: 1; }
 .native-book-tape .dom-pane > .depth-ladder, .native-book-tape .tape-pane > .panel { flex: 1; min-height: 0; }
-.native-chart-workspace:not(:has(.price-workspace:not([hidden]), .native-linked-charts:not([hidden]))) .native-book-tape { flex: 1; }
 .native-chart-workspace .chart-splitter, .native-chart-workspace .tape-splitter { height: 8px; flex: 0 0 8px; position: relative; }
-.native-chart-workspace .right-resizer { width: 8px; flex: 0 0 8px; position: relative; }
 .native-surface .resize-handle { position: relative; display: block; width: 100%; height: 100%; border: 0; border-radius: 0; padding: 0; min-height: 0; background: transparent; touch-action: none; }
 .native-surface .resize-horizontal { cursor: col-resize; }
 .native-surface .resize-vertical { cursor: row-resize; }
 .native-surface .resize-handle:hover, .native-surface .resize-handle:focus-visible { background: var(--highlight-dim); }
 .native-surface .resize-handle::after { display: none; }
 .native-chart-workspace [data-interaction-active="true"] { outline: 1px solid var(--border); outline-offset: -1px; }
-.native-chart-workspace[data-maximized]:not([data-maximized=""]) .right-resizer,
 .native-chart-workspace[data-maximized]:not([data-maximized=""]) .chart-splitter,
 .native-chart-workspace[data-maximized]:not([data-maximized=""]) .tape-splitter { display: none; }
 .native-chart-workspace[data-maximized]:not([data-maximized=""]) .native-linked-charts { grid-template-rows: minmax(0, 1fr); }
@@ -648,7 +646,7 @@ body.is-resizing-row, .is-resizing-row * { cursor: row-resize !important; }
   .native-chart-content { min-height: 460px; }
   .native-chart-workspace { min-height: 420px; }
   .native-chart-workspace .native-book-tape, .native-chart-workspace .chart-slot, .native-chart-workspace .dom-pane { flex: 1; }
-  .native-chart-workspace .right-resizer, .native-chart-workspace .chart-splitter, .native-chart-workspace .tape-splitter { display: none; }
+  .native-chart-workspace .chart-splitter, .native-chart-workspace .tape-splitter { display: none; }
   .native-chart-content .market-pane-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
   .native-controls-toolbar > details, .native-controls .source-inspector { position: static; }
   .native-control-body, .workspace-configuration-body, .source-inspector-body { left: 0; right: auto; width: 100%; max-height: 65vh; }
@@ -666,7 +664,7 @@ body.is-resizing-row, .is-resizing-row * { cursor: row-resize !important; }
   .chart-area:has(> .native-chart-area[data-native-view="orderflow"] .native-chart-workspace[data-maximized=""]) { min-height: 520px; }
   .native-linked-charts { grid-template-rows: minmax(0, 1fr); }
   .native-chart-workspace .native-book-tape, .native-chart-workspace .chart-slot, .native-chart-workspace .dom-pane { flex: 1; }
-  .native-chart-workspace .right-resizer, .native-chart-workspace .chart-splitter, .native-chart-workspace .tape-splitter { display: none; }
+  .native-chart-workspace .chart-splitter, .native-chart-workspace .tape-splitter { display: none; }
   .native-chart-content .market-pane-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
 }
 

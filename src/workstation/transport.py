@@ -3,6 +3,7 @@
 Budgets/circuits are shared per event loop and origin. 403/451 are access blocks,
 404/410 are unsupported; neither is retried. Retry-After is honored up to a
 120-second safety bound (larger values open the circuit rather than retry early).
+Actual request starts remain spaced after shared cooldowns, including extensions.
 """
 
 import asyncio
@@ -21,12 +22,38 @@ from .precision import MAX_MARKET_DATA_BYTES
 
 class PublicTransportError(RuntimeError):
     def __init__(
-        self, reason: str, *, status: int | None = None, retry_after: float = 0
+        self,
+        reason: str,
+        *,
+        status: int | None = None,
+        retry_after: float = 0,
+        endpoint_id: str | None = None,
+        failure_reason: str | None = None,
     ):
         super().__init__(reason)
         self.reason = reason
         self.status = status
         self.retry_after = retry_after
+        self.endpoint_id = endpoint_id
+        self.failure_reason = failure_reason
+
+    def __str__(self):
+        reason = super().__str__()
+        return f"{reason}: {self.endpoint_id}" if self.endpoint_id else reason
+
+    @property
+    def peer_retryable(self) -> bool:
+        """Only transport/service failures permit a documented official peer.
+
+        A circuit retains its triggering failure: denied, rate-limited, unknown
+        and malformed responses must never become cross-origin retry permission.
+        """
+        reason = self.failure_reason if self.reason == "circuit_open" else self.reason
+        return (reason == "network_error" and self.status is None) or (
+            reason == "server_error"
+            and self.status is not None
+            and 500 <= self.status <= 599
+        )
 
 
 @dataclass
@@ -36,6 +63,8 @@ class _OriginBudget:
     blocked_until: float = 0
     retry_until: float = 0
     block_reason: str = "circuit_open"
+    block_status: int | None = None
+    block_failure_reason: str | None = None
 
 
 _BUDGETS: WeakKeyDictionary = WeakKeyDictionary()
@@ -83,28 +112,30 @@ async def fetch_public(
         ) as owned:
             return await fetch_public(request, client=owned, attempts=attempts)
     budget = _budget(request.endpoint_id)
-    last: PublicTransportError = PublicTransportError("transport_unavailable")
+    last = PublicTransportError(
+        "transport_unavailable", endpoint_id=request.endpoint_id
+    )
     for attempt in range(attempts):
-        now = time.monotonic()
-        if budget.blocked_until > now:
-            raise PublicTransportError(
-                budget.block_reason, retry_after=budget.blocked_until - now
-            )
-        # Reserve the slot before yielding: concurrent discoveries share the budget.
-        slot = max(now, budget.next_request)
-        budget.next_request = slot + 0.1
-        await asyncio.sleep(max(0, slot - now))
-        while budget.retry_until > time.monotonic():
-            if budget.blocked_until > time.monotonic():
+        while True:
+            now = time.monotonic()
+            if budget.blocked_until > now:
                 raise PublicTransportError(
                     budget.block_reason,
-                    retry_after=budget.blocked_until - time.monotonic(),
+                    status=budget.block_status,
+                    failure_reason=budget.block_failure_reason,
+                    endpoint_id=request.endpoint_id,
+                    retry_after=budget.blocked_until - now,
                 )
-            await asyncio.sleep(budget.retry_until - time.monotonic())
-        if budget.blocked_until > time.monotonic():
-            raise PublicTransportError(
-                budget.block_reason, retry_after=budget.blocked_until - time.monotonic()
-            )
+            delay = max(budget.retry_until, budget.next_request) - now
+            if delay > 0:
+                await asyncio.sleep(delay)
+                # A response may extend the cooldown, or another waiter may
+                # take the next slot. Recheck both before reserving a start.
+                continue
+            # No yield between eligibility and reservation: cooldown waiters
+            # share actual start times instead of expiring pre-reserved slots.
+            budget.next_request = now + 0.1
+            break
         if (
             client.auth is not None
             or client.cookies
@@ -137,15 +168,25 @@ async def fetch_public(
                 if status in (401, 403, 451):
                     budget.blocked_until = time.monotonic() + 60
                     budget.block_reason = "blocked"
-                    raise PublicTransportError("blocked", status=status, retry_after=60)
+                    budget.block_status = status
+                    budget.block_failure_reason = "blocked"
+                    raise PublicTransportError(
+                        "blocked",
+                        status=status,
+                        retry_after=60,
+                        endpoint_id=request.endpoint_id,
+                    )
                 if status in (404, 410):
-                    raise PublicTransportError("unsupported", status=status)
+                    raise PublicTransportError(
+                        "unsupported", status=status, endpoint_id=request.endpoint_id
+                    )
                 if status == 429 or 500 <= status <= 599:
                     delay = retry_after_seconds(response.headers.get("Retry-After"))
                     last = PublicTransportError(
                         "rate_limited" if status == 429 else "server_error",
                         status=status,
                         retry_after=delay,
+                        endpoint_id=request.endpoint_id,
                     )
                     # Other callers cannot jump ahead of Retry-After either.
                     budget.next_request = max(
@@ -157,27 +198,43 @@ async def fetch_public(
                     if delay > 120:
                         budget.blocked_until = time.monotonic() + delay
                         budget.block_reason = "circuit_open"
+                        budget.block_status = status
+                        budget.block_failure_reason = last.reason
                         raise last
                 elif not 200 <= status < 300:
-                    raise PublicTransportError("http_rejected", status=status)
+                    raise PublicTransportError(
+                        "http_rejected", status=status, endpoint_id=request.endpoint_id
+                    )
                 else:
                     payload = bytearray()
                     async for chunk in response.aiter_bytes():
                         if len(payload) + len(chunk) > MAX_MARKET_DATA_BYTES:
                             raise PublicTransportError(
-                                "response_too_large", status=status
+                                "response_too_large",
+                                status=status,
+                                endpoint_id=request.endpoint_id,
                             )
                         payload.extend(chunk)
                     budget.failures = 0
                     return bytes(payload)
         except httpx.TransportError as exc:
-            last = PublicTransportError("network_error")
+            last = PublicTransportError(
+                "network_error", endpoint_id=request.endpoint_id
+            )
             last.__cause__ = exc
         budget.failures += 1
         if budget.failures >= 6:
             budget.blocked_until = time.monotonic() + 30
             budget.block_reason = "circuit_open"
-            raise PublicTransportError("circuit_open", retry_after=30) from last
+            budget.block_status = last.status
+            budget.block_failure_reason = last.reason
+            raise PublicTransportError(
+                "circuit_open",
+                status=last.status,
+                retry_after=30,
+                endpoint_id=request.endpoint_id,
+                failure_reason=last.reason,
+            ) from last
         if attempt + 1 < attempts:
             await asyncio.sleep(
                 max(

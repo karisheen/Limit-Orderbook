@@ -589,3 +589,178 @@ def test_failed_paper_resume_preserves_active_projection_and_generation(
     assert int(resumed.json()["generation"]) == int(identity["generation"]) + 1
     assert resumed.json()["replay"]["cursor"] == stepped.json()["replay"]["cursor"]
     assert terminal.post("/api/v1/paper/query", json=identity).status_code == 409
+
+
+def test_paper_exact_models_capability_and_reduce_only_input(terminal):
+    frame = new_session(terminal)
+    identity = {"session_id": frame["session_id"], "generation": frame["generation"]}
+    instrument_id = frame["selection"]["instrument_id"]
+    risk = {
+        "instrument_id": instrument_id,
+        "leverage": "3",
+        "maintenance_margin_rate": "0.01234567890123456789",
+        "liquidation_fee_rate": "0.0001234567890123456789",
+        "provenance": "explicit modeled regression assumptions",
+        "asof_wall_ns": "1",
+    }
+    funding = {
+        "instrument_id": instrument_id,
+        "mode": "events",
+        "provenance": "explicit dated regression model",
+        "asof_wall_ns": "1",
+        "events": [
+            {"wall_ns": "9007199254740993", "rate": "-0.0001234567890123456789"},
+            {"wall_ns": "9007199254740994", "rate": "0.0001234567890123456789"},
+        ],
+    }
+    response = terminal.post(
+        "/api/v1/paper/configure",
+        json={
+            **identity,
+            "balances": [],
+            "fees": [],
+            "risk_models": [risk],
+            "funding_models": [funding],
+        },
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    config = payload["snapshot"]["run"]["config"]
+    assert config["risk_models"] == [risk]
+    assert config["funding_models"][0]["events"] == funding["events"]
+    capability = payload["capability"]
+    assert capability["instrument_id"] == instrument_id
+    assert capability["supported"] is True
+    assert capability["reasons"] == []
+    assert capability["native_order_constraints"] is not None
+    session = terminal.app.state.runtime.sessions[frame["session_id"]]
+    pinned = terminal.portal.call(session.work, session._book_spec).instrument
+    assert capability["metadata_version"] == pinned.metadata_version
+    for invalid in ("true", 1, None):
+        rejected = terminal.post(
+            "/api/v1/paper/orders",
+            json={**identity, "side": "buy", "quantity": "0.1", "reduce_only": invalid},
+        )
+        assert rejected.status_code == 422
+    for name in ("funding_payments_limit", "liquidations_limit"):
+        assert (
+            terminal.post(
+                "/api/v1/paper/query", json={**identity, name: 101}
+            ).status_code
+            == 422
+        )
+        assert payload["snapshot"]["presentation"][name] == 20
+
+
+@pytest.mark.parametrize(
+    "funding",
+    [
+        {"mode": "periodic", "rate": "0.001", "interval_ns": "0", "first_wall_ns": "2"},
+        {"mode": "periodic", "rate": "0.001", "interval_ns": "1"},
+        {"mode": "none", "rate": "0"},
+        {
+            "mode": "events",
+            "events": [
+                {"wall_ns": "2", "rate": "0.001"},
+                {"wall_ns": "2", "rate": "-0.001"},
+            ],
+        },
+        {"mode": "events", "events": [{"wall_ns": "2", "rate": 0.001}]},
+        {"mode": "none", "provenance": "unknown"},
+    ],
+)
+def test_paper_rejects_invalid_explicit_funding_without_creating_run(terminal, funding):
+    frame = new_session(terminal)
+    identity = {"session_id": frame["session_id"], "generation": frame["generation"]}
+    before = terminal.post("/api/v1/paper/query", json=identity).json()["snapshot"]
+    response = terminal.post(
+        "/api/v1/paper/configure",
+        json={
+            **identity,
+            "balances": [],
+            "fees": [],
+            "funding_models": [
+                {
+                    "instrument_id": frame["selection"]["instrument_id"],
+                    "provenance": "explicit regression assumption",
+                    "asof_wall_ns": "1",
+                    **funding,
+                }
+            ],
+        },
+    )
+    assert response.status_code == 422, response.text
+    assert (
+        terminal.post("/api/v1/paper/query", json=identity).json()["snapshot"] == before
+    )
+
+
+def test_paper_accounting_windows_bound_records_before_serialization(
+    terminal, monkeypatch
+):
+    from dataclasses import replace
+    from decimal import Decimal
+    from src.workstation.api import PaperQuery
+    from src.workstation.perpetual import PaperFundingPayment, PaperLiquidation
+    from src.workstation import runtime as runtime_module
+
+    frame = new_session(terminal)
+    session = terminal.app.state.runtime.sessions[frame["session_id"]]
+    snapshot = terminal.portal.call(
+        session.work, lambda: session.paper.snapshot(session._now())
+    )
+    instrument = terminal.portal.call(session.work, session._book_spec).instrument
+    payment = PaperFundingPayment(
+        instrument.instrument_id,
+        instrument.quote.asset_id,
+        snapshot.at,
+        Decimal("-0.001"),
+        Decimal("1"),
+        Decimal("100"),
+        Decimal("-0.1"),
+        "modeled",
+    )
+    liquidation = PaperLiquidation(
+        instrument.instrument_id,
+        instrument.quote.asset_id,
+        snapshot.at,
+        Decimal("1"),
+        Decimal("0.5"),
+        Decimal("0.5"),
+        Decimal("0.01"),
+        Decimal("0"),
+        (),
+    )
+    snapshot = replace(
+        snapshot, funding_payments=(payment,) * 150, liquidations=(liquidation,) * 120
+    )
+    original = runtime_module.dto
+    serialized_lengths = []
+
+    def bounded_dto(value):
+        if (
+            isinstance(value, tuple)
+            and value
+            and isinstance(value[0], (PaperFundingPayment, PaperLiquidation))
+        ):
+            serialized_lengths.append(len(value))
+        return original(value)
+
+    monkeypatch.setattr(runtime_module, "dto", bounded_dto)
+    result = runtime_module._paper_presentation(
+        snapshot,
+        PaperQuery(
+            session_id=frame["session_id"],
+            generation=frame["generation"],
+            funding_payments_limit=2,
+            liquidations_limit=3,
+        ),
+    )
+    assert serialized_lengths == [2, 3]
+    assert len(result["funding_payments"]) == 2
+    assert result["funding_payments"][0]["amount"] == "-0.1"
+    assert len(result["liquidations"]) == 3
+    assert result["presentation"]["funding_payments_total"] == 150
+    assert result["presentation"]["funding_payments_omitted"] == 148
+    assert result["presentation"]["liquidations_total"] == 120
+    assert result["presentation"]["liquidations_omitted"] == 117

@@ -14,10 +14,10 @@ const workflowTabs = [
 type WorkflowTab = typeof workflowTabs[number][0];
 
 export function NativeTools() {
-  const { terminal, preferences: p, updatePreferences: update, instruments, usable, selectInstrument: selectContextInstrument } = useNativeTerminal();
+  const { terminal, preferences: p, updatePreferences: update, financialInstruments, usable, selectInstrument: selectContextInstrument } = useNativeTerminal();
   const { frame } = terminal;
   const [bottomTab, setBottomTab] = useState<WorkflowTab>('costs');
-  const workflow = { frame, instruments, connected: usable, busy: terminal.busy, request: terminal.workflow };
+  const workflow = { frame, instruments: financialInstruments, connected: usable, busy: terminal.busy, request: terminal.workflow };
   const openWorkflow = (tab: WorkflowTab) => { setBottomTab(tab); update({ bottomOpen: true }); };
   return <section className="native-tools native-surface" style={{ '--bottom-height': `${p.bottomHeight}px` } as CSSProperties}>
       <div className="workflow-dock">
@@ -34,7 +34,7 @@ export function NativeTools() {
       </div>
       {p.bottomOpen && <><div className="bottom-resizer"><ResizeHandle axis="vertical" reverse name="Research pane height" value={p.bottomHeight} min={170} max={460} onChange={bottomHeight => update({ bottomHeight })} /></div><section className="research-pane native-tools-content">
         <div className="research-scroll">
-          <div id="workflow-panel-costs" role="tabpanel" aria-labelledby="workflow-tab-costs" hidden={bottomTab !== 'costs'}><CostsPanel frame={frame} instruments={instruments} connected={usable} calculate={terminal.costs} /><ProposalRiskPanel frame={frame} connected={usable} calculate={terminal.proposalRisk} /></div>
+          <div id="workflow-panel-costs" role="tabpanel" aria-labelledby="workflow-tab-costs" hidden={bottomTab !== 'costs'}><CostsPanel frame={frame} instruments={financialInstruments} connected={usable} calculate={terminal.costs} /><ProposalRiskPanel frame={frame} connected={usable} calculate={terminal.proposalRisk} /></div>
           <div id="workflow-panel-analytics" role="tabpanel" aria-labelledby="workflow-tab-analytics" hidden={bottomTab !== 'analytics'}><AnalyticsPanel analytics={usable ? frame?.analytics ?? null : null} /></div>
           <div id="workflow-panel-alerts" role="tabpanel" aria-labelledby="workflow-tab-alerts" hidden={bottomTab !== 'alerts'}><AlertsPanel {...workflow} active={bottomTab === 'alerts'} /></div>
           <div id="workflow-panel-context" role="tabpanel" aria-labelledby="workflow-tab-context" hidden={bottomTab !== 'context'}><ContextPanel {...workflow} active={bottomTab === 'context'} selectInstrument={selectContextInstrument} /></div>

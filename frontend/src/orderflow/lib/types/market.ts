@@ -14,7 +14,7 @@ export type MarketType = "spot" | "perpetual";
 export type TradeSide = "buy" | "sell" | "unknown";
 export type ConnectionStatus = "connecting" | "live" | "offline" | "error" | "stale";
 
-export type Timeframe = "1m" | "5m" | "15m" | "30m" | "1h" | "4h";
+export type Timeframe = "1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d" | "3d" | "1w" | "1M";
 
 // ----------------------------------------------------------
 // Numeric plotting projection of native evidence
@@ -24,7 +24,7 @@ export interface NormalizedTrade {
   venue: Venue;
   symbol: string;
   timestamp: number; // native receive clock projected to milliseconds
-  localTimestamp: number; // local receive timestamp (ms)
+  localTimestamp: number; // same producer-projected receive timestamp (ms)
   price: number;
   quantity: number; // base asset quantity
   quoteVolume: number | null; // native quote notional, unavailable when unvalued

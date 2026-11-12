@@ -1,7 +1,8 @@
-"""Bounded native OHLCV and explicitly partial retained-session trade candles.
+"""Exact admitted native candles and explicitly separate optional venue history.
 
-This is independent of VisualHistory's analytical receive-monotonic grid.
-Native starts are preserved, never rebucketed or filled across missing periods.
+Session buckets use the source-owned receive projection, UTC epoch floors for
+fixed intervals (including Thursday-origin weeks), and UTC calendar months.
+Venue history preserves its own exchange-time boundaries and is never merged.
 """
 
 from collections import OrderedDict
@@ -46,7 +47,7 @@ FIXED_SECONDS = {
     "3d": 259200,
     "1w": 604800,
 }
-LOCAL_INTERVALS = tuple(key for key in FIXED_SECONDS if key not in ("3d", "1w"))
+LOCAL_INTERVALS = tuple(FIXED_SECONDS) + ("1M",)
 BINANCE_INTERVALS = tuple(FIXED_SECONDS) + ("1M",)
 COINBASE_INTERVALS = dict(
     zip(
@@ -96,6 +97,11 @@ FAMILIES = {
 
 
 def supported_intervals(instrument: Instrument) -> tuple[str, ...]:
+    if instrument.market_type == "perpetual":
+        if (instrument.venue, instrument.api_family) == ("binance-global", "usdm-v1"):
+            return BINANCE_INTERVALS
+        if (instrument.venue, instrument.api_family) == ("bybit", "v5-linear"):
+            return tuple(BYBIT_INTERVALS)
     if FAMILIES.get(instrument.venue) != instrument.api_family:
         return ()
     if instrument.venue != "hyperliquid" and instrument.market_type != "spot":
@@ -211,7 +217,11 @@ def native_request(
             if venue == "binance-global"
             else BinanceUSAdapter.rest_host
         )
-        endpoint = f"{host}/api/v3/klines"
+        endpoint = (
+            "https://fapi.binance.com/fapi/v1/klines"
+            if instrument.api_family == "usdm-v1"
+            else f"{host}/api/v3/klines"
+        )
         params = {"symbol": symbol, "interval": interval, "limit": limit}
     elif venue == "coinbase":
         count = min(limit, 350)
@@ -238,7 +248,7 @@ def native_request(
     elif venue == "bybit":
         endpoint = f"{BybitAdapter.rest_host}/v5/market/kline"
         params = {
-            "category": "spot",
+            "category": "linear" if instrument.api_family == "v5-linear" else "spot",
             "symbol": symbol,
             "interval": BYBIT_INTERVALS[interval],
             "limit": limit,
@@ -291,7 +301,11 @@ def parse_native(
         if root["retCode"] != 0:
             raise ValueError("Bybit candle endpoint rejected request")
         result = root["result"]
-        if result["category"] != "spot" or result["symbol"] != instrument.native_symbol:
+        category = "linear" if instrument.api_family == "v5-linear" else "spot"
+        if (
+            result["category"] != category
+            or result["symbol"] != instrument.native_symbol
+        ):
             raise ValueError("wrong Bybit candle identity")
         rows = result["list"]
     elif venue == "kucoin":
@@ -366,16 +380,21 @@ def response(
     return {
         "version": "1",
         "instrument_id": str(instrument.instrument_id),
+        "instrument_ids": [str(instrument.instrument_id)],
+        "scope": "primary",
+        "venue_label": instrument.venue,
+        "quote_asset_ids": [instrument.quote.asset_id],
         "interval": interval,
         "status": "unavailable" if unavailable else "ready" if candles else "empty",
         "source": source,
         "venue": instrument.venue,
         "time_basis": "exchange_utc" if source == "venue_ohlcv" else "receive_utc",
-        "fetched_at_ns": str(time.time_ns() if source == "session_trades" else now_ns),
+        "fetched_at_ns": str(now_ns),
         "supported_intervals": list(supported),
         "candles": [item.wire(now_ns) for item in candles],
         "reasons": list(reasons),
         "volume_unit": "base",
+        "partial": source == "session_trades" or bool(reasons),
         "coverage_start_ns": None if coverage[0] is None else str(coverage[0]),
         "coverage_end_ns": None if coverage[1] is None else str(coverage[1]),
     }
@@ -480,125 +499,85 @@ class CandleService:
         return tuple(reasons)
 
 
-def receive_utc_frontier(history):
-    """Project only the admitted source-monotonic frontier, never today's clock."""
-    clock = history.clock
-    if clock is None or history._clock_frontier is None:
-        return None, None, ()
-    frontier = min(clock.mono_ns, history._clock_frontier)
-    segment = next(
-        (
-            item
-            for item in reversed(history.clock_segments)
-            if item.start_ns <= frontier
-        ),
-        None,
-    )
-    if segment is None or segment.reference.clock_id != clock.clock_id:
-        return None, None, ()
-    reference = segment.reference
-    now = reference.receive_wall_ns + frontier - reference.receive_mono_ns
-    if now < 0:
-        return None, None, ()
-    reasons = []
-    if any(item.cause == "wall_offset_change" for item in history.clock_segments):
-        reasons.append("receive_clock_discontinuity")
-    if history.last_unapplied_pair is not None:
-        reasons.append("nonadvancing_receive_pair")
-    if history._clock_changed:
-        reasons.append("source_clock_changed")
-    if history._clock_truncated:
-        reasons.append("receive_clock_history_truncated")
-    return now, (reference.session_id, clock.clock_id, frontier), tuple(reasons)
+def session_bucket(stamp: int, interval: str) -> tuple[int, int]:
+    if interval == "1M":
+        utc = datetime.fromtimestamp(stamp // SECOND, timezone.utc)
+        start = (
+            int(datetime(utc.year, utc.month, 1, tzinfo=timezone.utc).timestamp())
+            * SECOND
+        )
+        return start, bucket_end(start, interval)
+    width = FIXED_SECONDS[interval] * SECOND
+    start = stamp // width * width
+    return start, start + width
 
 
-def session_candles(history, instrument: Instrument, interval: str, limit: int) -> dict:
-    """Read only already-admitted bounded trades on the session owner thread.
+def session_candles(
+    history, instrument: Instrument, interval: str, limit: int, *, cohort=()
+) -> dict:
+    """Aggregate the same admitted native prints exposed by the market cursor.
 
-    Receive UTC is explicit: no invented exchange clock and no historical HTTP.
-    Replay rebuilds this deque on seek, so future deliveries are never visible.
+    Delivery order determines open/close, not exchange timestamps or wall-clock
+    corrections. No synthetic bars and no current-time advance during replay.
     """
-    now, receive_scope, clock_reasons = receive_utc_frontier(history)
-    options = dict(source="session_trades", now_ns=now or 0, supported=LOCAL_INTERVALS)
-    if now is None:
-        return response(
-            instrument,
-            interval,
-            (),
-            **options,
-            reasons=("missing_receive_utc", "session_history_partial"),
-            unavailable=True,
-        )
-    if interval not in LOCAL_INTERVALS:
-        return response(
-            instrument,
-            interval,
-            (),
-            **options,
-            reasons=("unsupported_interval", "retained_session_trades_only"),
-            unavailable=True,
-        )
-    reasons = [
+    from .market_presentation import MAX_TRADE_BYTES, MAX_TRADE_ROWS
+
+    if type(limit) is not int or not 1 <= limit <= MAX_LIMIT:
+        raise ValueError("invalid candle limit")
+    instruments = cohort or (instrument,)
+    identities = {str(item.instrument_id) for item in instruments}
+    now = history.now_ns
+    reasons = {
         "retained_session_trades_only",
         "session_history_partial",
         "receive_time_buckets",
         "closed_is_time_boundary_not_completeness",
-    ]
-    reasons.extend(clock_reasons)
-    if history.truncated or history.trade_floor is not None:
-        reasons.append("retained_history_truncated")
-    if history.discontinuities:
-        reasons.append("session_discontinuities")
-    buckets = {}
-    coverage = {}
-    width = FIXED_SECONDS[interval] * SECOND
-    previous = None
-    with localcontext(DECIMAL_CONTEXT):
-        for observed in history.trades:
-            item = observed.print
-            if receive_scope is not None and (
-                item.asof.session_id != receive_scope[0]
-                or item.asof.clock_id != receive_scope[1]
-                or item.asof.receive_mono_ns > receive_scope[2]
-            ):
-                continue
-            if item.trade.is_subscription_history:
-                continue
-            if item.base_quantity is None:
-                if "unknown_trade_quantity" not in reasons:
-                    reasons.append("unknown_trade_quantity")
-                continue
-            stamp = item.asof.receive_wall_ns
-            if stamp > now:
-                if "receive_clock_discontinuity" not in reasons:
-                    reasons.append("receive_clock_discontinuity")
-                continue
-            if (
-                previous is not None
-                and stamp < previous
-                and "receive_clock_discontinuity" not in reasons
-            ):
-                reasons.append("receive_clock_discontinuity")
-            previous = stamp
-            start = stamp // width * width
-            price = item.trade.price
-            if start not in buckets:
-                buckets[start] = [price, price, price, price, item.base_quantity]
-                coverage[start] = [stamp, stamp]
-            else:
-                values = buckets[start]
-                values[1], values[2], values[3] = (
-                    max(values[1], price),
-                    min(values[2], price),
-                    price,
-                )
-                values[4] += item.base_quantity
-                coverage[start][0] = min(coverage[start][0], stamp)
-                coverage[start][1] = max(coverage[start][1], stamp)
-        starts = sorted(buckets)[-limit:]
-        candles = tuple(
-            Candle(start, start + width, *buckets[start]) for start in starts
-        )
+        *history.reasons,
+    }
+    if history.truncated:
+        reasons.add("retained_history_truncated")
+    if now is None:
+        reasons.add("missing_receive_utc")
+    if interval not in LOCAL_INTERVALS:
+        reasons.add("unsupported_interval")
+    buckets, coverage = {}, {}
+    seen = set()
+    if now is not None and interval in LOCAL_INTERVALS:
+        with localcontext(DECIMAL_CONTEXT):
+            for item in history.trades:
+                event = item.event
+                identity = str(event.key.instrument_id)
+                if identity not in identities:
+                    continue
+                if (event.session_id, event.clock_id) != history.scope:
+                    reasons.add("unrelated_source_clock")
+                    continue
+                if item.delivery > history.highwater or item.display_time_ns > now:
+                    reasons.add("future_trades_excluded")
+                    continue
+                if event.payload.is_subscription_history:
+                    reasons.add("subscription_history_excluded")
+                    continue
+                if item.base_quantity is None:
+                    reasons.add("unknown_trade_quantity")
+                    continue
+                stamp = item.display_time_ns
+                start, end = session_bucket(stamp, interval)
+                seen.add(identity)
+                price = event.payload.price
+                if start not in buckets:
+                    buckets[start] = [price, price, price, price, item.base_quantity]
+                    coverage[start] = [stamp, stamp, end]
+                else:
+                    values = buckets[start]
+                    values[1] = max(values[1], price)
+                    values[2] = min(values[2], price)
+                    values[3] = price
+                    values[4] += item.base_quantity
+                    coverage[start][0] = min(coverage[start][0], stamp)
+                    coverage[start][1] = max(coverage[start][1], stamp)
+    starts = sorted(buckets)[-limit:]
+    bars = tuple(Candle(start, coverage[start][2], *buckets[start]) for start in starts)
     actual = (
         (
             min(coverage[start][0] for start in starts),
@@ -607,6 +586,40 @@ def session_candles(history, instrument: Instrument, interval: str, limit: int) 
         if starts
         else (None, None)
     )
-    return response(
-        instrument, interval, candles, **options, reasons=reasons, coverage=actual
+    missing = sorted(identities - seen)
+    if missing:
+        reasons.add("cohort_members_without_admitted_trades")
+    result = response(
+        instrument,
+        interval,
+        bars,
+        source="session_trades",
+        now_ns=now or 0,
+        supported=LOCAL_INTERVALS,
+        reasons=sorted(reasons),
+        coverage=actual,
+        unavailable=now is None or interval not in LOCAL_INTERVALS,
     )
+    aggregate = len(instruments) > 1
+    result["quote_asset_ids"] = sorted({item.quote.asset_id for item in instruments})
+    result.update(
+        instrument_ids=[str(item.instrument_id) for item in instruments],
+        scope="aggregate" if aggregate else "primary",
+        venue="aggregate" if aggregate else instrument.venue,
+        venue_label=" + ".join(sorted({item.venue for item in instruments})),
+        missing_instrument_ids=missing,
+        bucket_alignment="utc_calendar_month"
+        if interval == "1M"
+        else "utc_epoch_floor",
+        highwater=str(history.highwater),
+        retention={
+            "max_trades": MAX_TRADE_ROWS,
+            "max_bytes": MAX_TRADE_BYTES,
+            "retained_trades": len(history.trades),
+            "retained_bytes": history.bytes,
+            "truncated": history.truncated,
+        },
+    )
+    if aggregate:
+        result["reasons"].append("indicative_quote_family_no_conversion")
+    return result

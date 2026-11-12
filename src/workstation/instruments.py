@@ -1,10 +1,18 @@
 """Immutable product metadata and explicit, version-preserving resolution."""
 
 from dataclasses import dataclass, field, replace
-from decimal import Decimal
+from decimal import Decimal, localcontext
+import re
 from typing import ClassVar
 
-from .precision import choice, decimal, nonnegative_int, text, validate_increment
+from .precision import (
+    DECIMAL_CONTEXT,
+    choice,
+    decimal,
+    nonnegative_int,
+    text,
+    validate_increment,
+)
 
 
 class Identifier(str):
@@ -20,6 +28,55 @@ class InstrumentId(Identifier):
 
 class AssetId(Identifier):
     pass
+
+
+# Explicit native ticker policy, not ticker equality or reference/wrapped equivalence.
+# Append-only ordering retains the original discovery priority for the first ten.
+CANONICAL_ASSETS = (
+    "BTC",
+    "ETH",
+    "SOL",
+    "XRP",
+    "DOGE",
+    "ADA",
+    "LTC",
+    "LINK",
+    "AVAX",
+    "DOT",
+    "BNB",
+    "TRX",
+    "HYPE",
+    "SUI",
+    "BCH",
+    "UNI",
+    "NEAR",
+    "APT",
+    "AAVE",
+    "ETC",
+    "ENA",
+    "ATOM",
+    "ARB",
+    "OP",
+    "INJ",
+    "FIL",
+    "SEI",
+    "TIA",
+    "WIF",
+)
+_CANONICAL_ASSET_IDS = frozenset(CANONICAL_ASSETS + ("USD", "USDT", "USDC"))
+_EXPANDED_CANONICAL_ASSET_IDS = frozenset(CANONICAL_ASSETS[10:])
+ASSET_IDENTITY_POLICY_REVISION = "canonical-assets-v2"
+
+
+def canonical_asset_id(venue: str, symbol: str) -> AssetId:
+    """Resolve curated native assets only; never reinterpret captured identities.
+
+    Native aliases are the venue parser's responsibility. Case, network prefixes,
+    wrapped tokens and unknown tickers remain distinct venue-scoped identities.
+    """
+    text(venue)
+    text(symbol)
+    return AssetId(symbol if symbol in _CANONICAL_ASSET_IDS else f"{venue}:{symbol}")
 
 
 @dataclass(frozen=True)
@@ -43,8 +100,30 @@ class AssetIdentity:
             )
 
 
+def asset_identity_metadata_version(version: str, *assets: AssetIdentity | None) -> str:
+    """Version newly parsed identities without changing payload hashes or as-of.
+
+    Only the expanded policy changes prior parser output. This is a generation
+    helper, never a constructor/wire migration for historical descriptors.
+    """
+    suffix = f":{ASSET_IDENTITY_POLICY_REVISION}"
+    if not version.endswith(suffix) and any(
+        asset is not None and asset.asset_id in _EXPANDED_CANONICAL_ASSET_IDS
+        for asset in assets
+    ):
+        return version + suffix
+    return version
+
+
 @dataclass(frozen=True)
 class OrderConstraints:
+    """Size fields use native quantity units, despite their historical names.
+
+    Use native_order_constraints for financial reads of captured descriptors:
+    known legacy parser revisions may have stored differently denominated sizes.
+    Notional fields always retain their explicitly named currency.
+    """
+
     min_base: Decimal | None = None
     max_base: Decimal | None = None
     min_notional: Decimal | None = None
@@ -229,9 +308,6 @@ class Instrument:
         self.validate_price(price)
         self.validate_quantity(quantity)
         decimal(quantity, positive=True)
-        from decimal import localcontext
-        from .precision import DECIMAL_CONTEXT
-
         with localcontext(DECIMAL_CONTEXT):
             notional = price * quantity * self.contract_multiplier
         if self.inverse or self.quantity_unit == "contracts":
@@ -254,6 +330,55 @@ class Instrument:
             or self.constraints.max_notional is not None
         ) and self.constraints.min_notional_currency != self.quote.asset_id:
             raise ValueError("notional constraints require explicit quote currency")
+
+
+def native_order_constraints(instrument: Instrument) -> OrderConstraints:
+    """Interpret native size limits without rewriting captured metadata.
+
+    OKX's original ``okx-v1`` SWAP parser scaled minSz/maxLmtSz/maxMktSz
+    by ctVal, although lotSz and order quantities remained contracts. Only that
+    documented parser revision with its official metadata/contract provenance
+    is reversed here. ``okx-v2-native-size`` stores native limits directly.
+    The raw hash, as-of, descriptor, asset identities and version stay untouched;
+    other venues/revisions and all native constraints return the existing object.
+    """
+    constraints = instrument.constraints
+    if (
+        instrument.venue != "okx"
+        or instrument.api_family != "v5-swap"
+        or instrument.market_type != "perpetual"
+        or instrument.quantity_unit != "contracts"
+        or instrument.inverse
+        or instrument.contract_multiplier == 1
+        or ":okx-v1" not in instrument.metadata_version
+        or instrument.contract_value_currency != instrument.base.asset_id
+        or instrument.settlement != instrument.quote
+        or instrument.settlement_conversion != "none"
+        or instrument.metadata_source
+        != "https://www.okx.com/api/v5/public/instruments?instType=SWAP"
+        or instrument.contract_specification_source
+        != "https://www.okx.com/docs-v5/en/#public-data-rest-api-get-instruments"
+        or re.fullmatch(
+            rf"[0-9a-f]{{64}}:{instrument.metadata_asof_wall_ns}:okx-v1"
+            r"(?::canonical-assets-v2)?",
+            instrument.metadata_version,
+        )
+        is None
+    ):
+        return constraints
+    with localcontext(DECIMAL_CONTEXT):
+        return replace(
+            constraints,
+            min_base=constraints.min_base / instrument.contract_multiplier
+            if constraints.min_base is not None
+            else None,
+            max_limit_base=constraints.max_limit_base / instrument.contract_multiplier
+            if constraints.max_limit_base is not None
+            else None,
+            max_market_base=constraints.max_market_base / instrument.contract_multiplier
+            if constraints.max_market_base is not None
+            else None,
+        )
 
 
 @dataclass(frozen=True)

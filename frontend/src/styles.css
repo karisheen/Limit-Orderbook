@@ -119,6 +119,8 @@
   .depth-ladder .ladder .dom-cumulative { color: var(--muted); font-weight: 400; }
   .depth-ladder .dom-diagnostic tr[data-side] td { color: var(--text-muted); }
   .depth-ladder .ladder .crosshair-row, .depth-ladder .ladder tr:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; background: var(--bg-active); }
+  .depth-ladder .ladder .dom-pin { display: block; width: 100%; min-height: 0; padding: 0; border: 0; background: transparent; font: inherit; color: inherit; cursor: pointer; }
+  .depth-ladder .ladder .dom-pinned .dom-pin { text-decoration: underline; text-underline-offset: 3px; }
   .depth-ladder .ladder .dom-spread td { padding: 4px 5px; height: 27px; text-align: center; background: var(--bg-panel-alt); border-block: 1px solid var(--border); color: var(--text-secondary); white-space: normal; font-size: 11px; }
   .dom-spread td > span { display: block; line-height: 1.45; }
   .dom-spread .number { white-space: normal; overflow-wrap: anywhere; }

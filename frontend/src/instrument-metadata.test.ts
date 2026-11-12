@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Frame, Instrument } from './api.ts';
-import { initialLiveInstrument, metadataNotice, metadataVerified, selectableInstrument } from './instrument-metadata.ts';
+import { initialLiveInstrument, metadataNotice, metadataVerified, nativeReadinessEvidence, selectableInstrument } from './instrument-metadata.ts';
 import { retainConfirmedCatalog } from './integration/nativeWorkspace.ts';
 
 function candidate(venue = 'bybit', patch: Partial<Instrument> = {}): Instrument {
@@ -80,4 +80,51 @@ test('missing pinned metadata never borrows catalogue verification and version c
   assert.equal(retainConfirmedCatalog(confirmed, missing, [instrument], 'refresh failed'), null);
   assert.equal(retainConfirmedCatalog(confirmed, { ...frame, selection: { ...frame.selection, metadata_version: 'candidate-2' } }, [], 'refresh failed'), null);
   assert.equal(metadataVerified({ selection: { instrument_id: null, metadata_status: 'verified', metadata_version: '1' } }), false);
+});
+
+test('native readiness separates catalog candidates, selected books, prints and pinned verification', () => {
+  const instrument = candidate();
+  const frame: Pick<Frame, 'selection' | 'book' | 'analytics'> = {
+    selection: scope(instrument).selection, book: null, analytics: null,
+  };
+  const none = { bookObserved: false, tradesObserved: false, metadataVerified: false };
+  assert.deepEqual(nativeReadinessEvidence(null), none);
+  assert.deepEqual(nativeReadinessEvidence(frame), none);
+  const asof = { session_id: 'capture', ingest_ordinal: '1', event_index: '0', clock_id: 'clock',
+    receive_wall_ns: '1000000000', receive_mono_ns: '1', exchange_event_wall_ns: null };
+  const book: NonNullable<Frame['book']> = {
+    instrument_id: instrument.instrument_id, bids: [], asks: [], asof, revision: '1',
+    quality: { lifecycle: 'live', integrity: 'valid', source_mode: 'live', recorded_source_mode: null,
+      reason_codes: [], capture_complete: true,
+      coverage: { subscribed_depth: '20', retained_bid_levels: '0', retained_ask_levels: '0', full_depth: false } },
+    presentation: { depth_limit: 20, bids_omitted: 0, asks_omitted: 0 },
+  };
+  assert.deepEqual(nativeReadinessEvidence({ ...frame, book }), { ...none, bookObserved: true });
+  const analytics: NonNullable<Frame['analytics']> = {
+    instrument_id: instrument.instrument_id, metrics: [], profile: [], display_evidence: [], reasons: [],
+    presentation: { profile_limit: 20, profile_omitted: 0, evidence_limit: 20, evidence_omitted: 0 },
+    tape: [{ asof, stream_id: 'trades', base_quantity: '1', quote_notional: '10',
+      trade: { trade_id: '1', dedup_key: '1', price: '10', quantity: '1', quantity_unit: 'base',
+        taker_side: 'unknown', side_provenance: 'unknown', is_subscription_history: false } }],
+  };
+  assert.deepEqual(nativeReadinessEvidence({ ...frame, analytics }), { ...none, tradesObserved: true });
+  assert.deepEqual(nativeReadinessEvidence({ ...frame,
+    book: { ...book, instrument_id: 'another-primary' },
+    analytics: { ...analytics, instrument_id: 'another-primary' } }), none);
+  assert.deepEqual(nativeReadinessEvidence({ ...frame, analytics: { ...analytics,
+    tape: analytics.tape.map(print => ({ ...print, trade: { ...print.trade, is_subscription_history: true } })) } }), none);
+  const verified = { ...frame, selection: { ...frame.selection, metadata_status: 'verified' as const } };
+  assert.deepEqual(nativeReadinessEvidence(verified), { ...none, metadataVerified: true });
+  assert.deepEqual(nativeReadinessEvidence({ ...verified,
+    selection: { ...verified.selection, metadata_version: null } }), none);
+});
+
+test('denied catalog access remains unavailable and cannot verify a streaming-only session', () => {
+  const pinned = candidate();
+  const denied = { ...pinned, data_access: 'blocked', metadata_status: 'verified' as const, metadata_version: 'newer' };
+  assert.equal(selectableInstrument(denied), false);
+  assert.equal(initialLiveInstrument([denied]), undefined);
+  assert.equal(metadataVerified(scope(pinned)), false);
+  assert.match(metadataNotice(scope(pinned), [denied])!, /Subscription candidacy does not establish data access/);
+  assert.match(metadataNotice(scope(pinned), [denied])!, /read-only studies are not financial execution inputs/);
 });

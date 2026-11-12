@@ -5,13 +5,21 @@ export interface PriceCandle {
   open: string; high: string; low: string; close: string; volume: string;
   closed: boolean;
 }
+export type CandleSource = 'session_trades' | 'venue_ohlcv';
+export interface CandleRetention {
+  max_trades: number; max_bytes: number; retained_trades: number; retained_bytes: number; truncated: boolean;
+}
 export interface CandleHistory {
-  version: '1'; session_id: string; generation: string; instrument_id: string;
+  version: '1'; session_id: string; generation: string; source_identity: string; instrument_id: string;
+  instrument_ids: string[]; scope: 'primary' | 'aggregate'; venue_label: string; quote_asset_ids: string[];
   interval: string; status: 'ready' | 'empty' | 'unavailable';
-  source: 'venue_ohlcv' | 'session_trades'; venue: string;
+  source: CandleSource; venue: string; partial: boolean;
   time_basis: 'exchange_utc' | 'receive_utc'; fetched_at_ns: string;
   supported_intervals: string[]; candles: PriceCandle[]; reasons: string[];
   volume_unit: string; coverage_start_ns: string | null; coverage_end_ns: string | null;
+  // These fields are supplied only by the admitted session-trade producer.
+  missing_instrument_ids?: string[]; bucket_alignment?: 'utc_calendar_month' | 'utc_epoch_floor';
+  highwater?: string; retention?: CandleRetention;
 }
 export const QUICK_INTERVALS = ['1m', '5m', '15m', '1h', '4h', '1d'] as const;
 export const INTERVAL_GROUPS = [
@@ -20,11 +28,32 @@ export const INTERVAL_GROUPS = [
   { label: 'Days & longer', values: ['1d', '3d', '1w', '1M'] },
 ] as const;
 export interface CandleRange { start: bigint; end: bigint }
-export function candleIdentity(frame: Frame | null, interval: string): string {
-  return frame ? JSON.stringify([frame.session_id, frame.generation, frame.source.id, frame.source.mode, frame.selection.instrument_id, interval]) : '';
+export function candleInstrumentIds(primary: string, instrumentIds: readonly string[]): string[] {
+  return [...instrumentIds].sort((a, b) => a === b ? 0 : a === primary ? -1 : b === primary ? 1 : a < b ? -1 : 1);
 }
-export function matchesCandleHistory(data: CandleHistory, session: string, generation: string, instrument: string, interval: string): boolean {
-  return data.version === '1' && data.session_id === session && data.generation === generation && data.instrument_id === instrument && data.interval === interval;
+export function candleIdentity(frame: Frame | null, interval: string, instrumentIds: readonly string[], source: CandleSource, cohortReady: boolean): string {
+  return frame ? JSON.stringify([frame.session_id, frame.generation, frame.source.id, frame.source.mode,
+    frame.selection.instrument_id, interval, source, candleInstrumentIds(frame.selection.instrument_id ?? '', instrumentIds), cohortReady]) : '';
+}
+export function candleSourceBlock(source: CandleSource, primary: string, instrumentIds: readonly string[], cohortReady: boolean): string | null {
+  if (!cohortReady) return 'Waiting for the selected native trade cohort.';
+  if (!primary || !instrumentIds.includes(primary) || instrumentIds.length > 16
+    || new Set(instrumentIds).size !== instrumentIds.length) return 'The selected native cohort does not match the active primary.';
+  if (source === 'venue_ohlcv' && instrumentIds.length !== 1) {
+    return 'Venue history is primary-only. Select a single native instrument to view it; an aggregate is never replaced by one venue.';
+  }
+  return null;
+}
+export type CandleRequestIdentity = Pick<CandleHistory, 'session_id' | 'generation' | 'instrument_id' | 'interval' | 'source' | 'instrument_ids'>;
+export function matchesCandleHistory(data: CandleHistory, expected: CandleRequestIdentity, sourceIdentity: string | null = null): boolean {
+  return data.version === '1' && data.session_id === expected.session_id && data.generation === expected.generation
+    && data.instrument_id === expected.instrument_id && data.interval === expected.interval && data.source === expected.source
+    && typeof data.source_identity === 'string' && data.source_identity.length > 0
+    && (sourceIdentity === null || data.source_identity === sourceIdentity)
+    && Array.isArray(data.instrument_ids) && data.instrument_ids.length === expected.instrument_ids.length
+    && data.instrument_ids.every((id, index) => id === expected.instrument_ids[index])
+    && data.scope === (expected.instrument_ids.length > 1 ? 'aggregate' : 'primary')
+    && (data.source !== 'venue_ohlcv' || expected.instrument_ids.length === 1);
 }
 export function candleRange(candles: readonly PriceCandle[], latest = false): CandleRange | null {
   if (!candles.length) return null;
@@ -57,7 +86,7 @@ export function zoomCandles(range: CandleRange, factor: number, anchor: number, 
   return { start, end: start + span };
 }
 // A gap is deliberately not mapped to its nearest bar: absent history stays absent.
-export function candleAtTime(candles: readonly PriceCandle[], time: bigint): number {
+export function candleAtTime(candles: readonly Pick<PriceCandle, 'start_ns' | 'end_ns'>[], time: bigint): number {
   let lo = 0; let hi = candles.length - 1;
   while (lo <= hi) {
     const mid = (lo + hi) >>> 1; const candle = candles[mid]!;
@@ -125,7 +154,7 @@ function decimalText(value: bigint, places: number): string {
 }
 // Subtract the exact decimal origin before converting a display distance to number.
 // This keeps adjacent prices distinct even above Number.MAX_SAFE_INTEGER.
-export function candlePriceScale(candles: readonly PriceCandle[]) {
+export function candlePriceScale(candles: readonly Pick<PriceCandle, 'open' | 'high' | 'low' | 'close'>[]) {
   const values = candles.flatMap(c => [decimal(c.low), decimal(c.high), decimal(c.open), decimal(c.close)]);
   const places = Math.max(0, ...values.map(v => v.places));
   const ints = values.map(v => atPlaces(v, places));
@@ -156,10 +185,33 @@ export function validateCandles(data: CandleHistory): void {
     || !data.supported_intervals.every(value => typeof value === 'string') || !data.reasons.every(value => typeof value === 'string')
     || !/^\d+$/.test(data.fetched_at_ns)
     || [data.coverage_start_ns, data.coverage_end_ns].some(value => value !== null && !/^\d+$/.test(value))) throw new Error('Invalid candle history response');
+  if (typeof data.source_identity !== 'string' || !data.source_identity
+    || !Array.isArray(data.instrument_ids) || !data.instrument_ids.length || data.instrument_ids.length > 16
+    || !data.instrument_ids.every(id => typeof id === 'string' && !!id)
+    || new Set(data.instrument_ids).size !== data.instrument_ids.length || data.instrument_ids[0] !== data.instrument_id
+    || data.scope !== (data.instrument_ids.length > 1 ? 'aggregate' : 'primary')
+    || typeof data.venue_label !== 'string' || !data.venue_label
+    || !Array.isArray(data.quote_asset_ids) || !data.quote_asset_ids.length || !data.quote_asset_ids.every(id => typeof id === 'string' && !!id)
+    || typeof data.partial !== 'boolean') throw new Error('Invalid candle cohort or source identity');
+  if (data.time_basis !== (data.source === 'session_trades' ? 'receive_utc' : 'exchange_utc')
+    || data.source === 'venue_ohlcv' && data.scope !== 'primary') throw new Error('Invalid candle source boundary');
+  if (data.source === 'session_trades') {
+    const retention = data.retention;
+    if (!data.partial || !Array.isArray(data.missing_instrument_ids)
+      || !data.missing_instrument_ids.every(id => data.instrument_ids.includes(id))
+      || data.bucket_alignment !== (data.interval === '1M' ? 'utc_calendar_month' : 'utc_epoch_floor')
+      || typeof data.highwater !== 'string' || !/^\d+$/.test(data.highwater)
+      || !retention || typeof retention.truncated !== 'boolean'
+      || ![retention.max_trades, retention.max_bytes, retention.retained_trades, retention.retained_bytes].every(value => Number.isSafeInteger(value) && value >= 0)
+      || retention.retained_trades > retention.max_trades || retention.retained_bytes > retention.max_bytes) {
+      throw new Error('Invalid native candle coverage or retention');
+    }
+  }
   let previousEnd: bigint | null = null;
   for (const candle of data.candles) {
     if (!/^\d+$/.test(candle.start_ns) || !/^\d+$/.test(candle.end_ns)) throw new Error('Invalid candle timestamp');
     const start = BigInt(candle.start_ns); const end = BigInt(candle.end_ns);
+    if (end / 1_000_000n > 8_640_000_000_000_000n) throw new Error('Candle timestamp outside safe plotting range');
     if (end <= start || previousEnd !== null && start < previousEnd) throw new Error('Unordered or overlapping candle history');
     previousEnd = end;
     const fields = [candle.open, candle.high, candle.low, candle.close, candle.volume].map(decimal);

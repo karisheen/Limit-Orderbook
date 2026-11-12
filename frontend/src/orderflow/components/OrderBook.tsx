@@ -7,7 +7,76 @@ import { venueLabel } from "../../format";
 import { Icon } from "@/components/ui/Icons";
 import { Panel, Segmented } from "@/components/ui/Primitives";
 import { showTooltip, hideTooltip } from "./GlobalTooltip";
-import type { OrderBookLevel } from "@/lib/types/market";
+import type { AggregatedOrderBook, NormalizedOrderBook, OrderBookLevel } from "@/lib/types/market";
+import type { DisplayStatus, OrderBookMode } from "@/lib/store/terminalStore";
+import { useNativeTerminal } from "../../integration/NativeContext";
+
+export interface BookPresentation {
+  book: NormalizedOrderBook | AggregatedOrderBook | null;
+  orderBook: NormalizedOrderBook | null;
+  aggregate: AggregatedOrderBook | null;
+  mode: OrderBookMode;
+  status: DisplayStatus;
+  sourceLabel: string;
+  missing: string;
+  primaryLabel: string;
+}
+
+// Both reference depth views use the same scope; a peer is never a primary.
+export function useBookPresentation(): BookPresentation {
+  const { instrument, instruments } = useNativeTerminal();
+  const primary = useSessionStore((s) => s.orderBook);
+  const aggregate = useSessionStore((s) => s.aggregatedBook);
+  const mode = useSessionStore((s) => s.orderBookMode);
+  const status = useSessionStore((s) => s.displayStatus);
+  const orderBook = primary?.native?.eligibility?.eligible &&
+    primary.native.instrument_id === status.primaryInstrumentId ? primary : null;
+  const consolidated = mode !== "single";
+  const book = consolidated ? aggregate : orderBook;
+  const primaryLabel = instrument
+    ? `${venueLabel(instrument.venue)} · ${instrument.native_symbol}`
+    : status.primaryInstrumentId ?? "Native primary";
+  const contributors = aggregate?.venues.map(venue => {
+    const descriptor = instrument?.venue === venue ? instrument : instruments.find(item =>
+      item.venue === venue && status.instrumentIds.includes(item.instrument_id));
+    return descriptor ? `${venueLabel(venue)} · ${descriptor.native_symbol}` : venueLabel(venue);
+  }) ?? [];
+  const sourceLabel = consolidated
+    ? `${mode === "compact" ? "Compact" : "Consolidated"} cohort · ${contributors.join(" + ") || "no eligible contributors"}`
+    : `Single · ${primaryLabel}`;
+  const missing = consolidated
+    ? "No eligible native depth in the selected display cohort."
+    : `Primary book unavailable · ${primaryLabel}. No peer book is substituted.`;
+  return { book, orderBook, aggregate, mode, status, sourceLabel, missing, primaryLabel };
+}
+
+export function BookCoverage({ presentation, visible }: {
+  presentation: BookPresentation;
+  visible: string;
+}) {
+  const { book, orderBook, aggregate, mode, status, primaryLabel } = presentation;
+  const native = mode === "single" ? orderBook?.native : undefined;
+  return <div className="caption" data-testid="book-coverage" role="status">
+    <strong className="tone-warn">Bounded depth · not full market</strong>
+    <details>
+      <summary>Native coverage / source reasons</summary>
+      <p>
+        {book ? `${visible} Received ${book.bids.length} bid / ${book.asks.length} ask price levels. ` : "No displayed depth. "}
+        {native && <>
+          {native.quality.coverage.full_depth ? "Source reports full depth" : "Partial native depth coverage"}
+          {`; subscribed depth ${native.quality.coverage.subscribed_depth ?? "unknown"}; retained ${native.quality.coverage.retained_bid_levels} bid / ${native.quality.coverage.retained_ask_levels} ask levels. `}
+          {`Native presentation limit ${native.presentation.depth_limit}/side; omitted ${native.presentation.bids_omitted} bid / ${native.presentation.asks_omitted} ask levels. `}
+          {!native.quality.capture_complete && "Native capture incomplete. "}
+        </>}
+        {mode !== "single" && "Compatible display cohort only; native quotes are not converted. Per-venue depth limits are not a full-book count. "}
+        {!orderBook && aggregate && (mode === "single"
+          ? "Eligible cohort depth is available separately in Consolidated or Compact mode. "
+          : `Primary unavailable · ${primaryLabel}; only eligible peer depth contributes. `)}
+      </p>
+      {status.reasons.length > 0 && <ul>{status.reasons.map(reason => <li key={reason}>{reason}</li>)}</ul>}
+    </details>
+  </div>;
+}
 
 // ─── Order Book Ladder ───────────────────────────────────────────
 // Price ladder with per-level size bars, cumulative depth shading,
@@ -39,17 +108,14 @@ function groupLevels(levels: OrderBookLevel[], step: number, side: "bid" | "ask"
 }
 
 export default function OrderBookPanel() {
-  const orderBook = useSessionStore((s) => s.orderBook);
-  const aggregatedBook = useSessionStore((s) => s.aggregatedBook);
-  const mode = useSessionStore((s) => s.orderBookMode);
+  const presentation = useBookPresentation();
+  const { book, mode, sourceLabel, missing } = presentation;
   const setMode = useSessionStore((s) => s.setOrderBookMode);
-  const selectedVenues = useSessionStore((s) => s.selectedVenues);
   const tickSize = useSessionStore((s) => s.tickSize);
   const lastTrade = useSessionStore((s) => s.ticker);
   const [group, setGroup] = useState<Group>(0);
 
-  const multiVenue = selectedVenues.length > 1;
-  const book = mode === "aggregated" || mode === "compact" ? aggregatedBook ?? orderBook : orderBook ?? aggregatedBook;
+  const multiVenue = presentation.status.instrumentIds.length > 1;
   const step = group === 0 ? 0 : tickSize * group;
   const rawDecimals = useMemo(
     () => (book ? inferDecimals([...book.bids.slice(0, 20), ...book.asks.slice(0, 20)].map((l) => l.price)) : 0),
@@ -86,7 +152,6 @@ export default function OrderBookPanel() {
     title: g === 0 ? "Exchange price levels" : `Group levels into ${tickSize * g} buckets`,
   }));
 
-  const sourceLabel = book && "venue" in book ? venueLabel(book.venue) : "Consolidated";
 
   return (
     <Panel
@@ -98,11 +163,12 @@ export default function OrderBookPanel() {
           {multiVenue && (
             <Segmented
               size="xs"
-              value={mode === "single" ? "single" : "aggregated"}
+              value={mode}
               onChange={(value) => setMode(value)}
               options={[
                 { value: "aggregated", label: "Consolidated" },
-                { value: "single", label: venueLabel(selectedVenues[0]!) },
+                { value: "compact", label: "Compact" },
+                { value: "single", label: "Single", title: presentation.primaryLabel },
               ]}
               ariaLabel="Book source"
             />
@@ -128,8 +194,11 @@ export default function OrderBookPanel() {
         )
       }
     >
+      <BookCoverage presentation={presentation} visible={view
+        ? `Visible ${view.bids.length} bid / ${view.asks.length} ask rows; at most ${LEVELS_PER_SIDE}/side${step ? " after price grouping" : ""}.`
+        : ""} />
       {!view ? (
-        <div className="empty-state">Waiting for order book…</div>
+        <div className="empty-state" data-testid="primary-book-missing">{missing}</div>
       ) : (
         <div className="ladder">
           <div className="ladder-head">
@@ -190,7 +259,7 @@ function LadderRow({
             `Cumulative: ${formatCompact(row.cum, 3)}`,
             `vs median level: ${view.median ? (row.size / view.median).toFixed(1) : "—"}×`,
             "",
-            `What this means: Resting limit ${side === "bid" ? "buy" : "sell"} orders. ${wall ? "This level is a liquidity wall (≥4× the median level size)." : "Cumulative size is the liquidity that must be consumed to move price through this level."}`,
+            `What this means: Observed resting limit ${side === "bid" ? "buy" : "sell"} size within bounded native coverage. ${wall ? "This displayed level is a liquidity wall (≥4× the median displayed level size)." : "Cumulative size includes displayed rows only, not hidden or omitted liquidity."}`,
           ].join("\n"),
           e
         )

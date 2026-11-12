@@ -37,6 +37,7 @@ def _registry() -> dict[str, type]:
         instruments,
         journal,
         paper,
+        perpetual,
         precision,
         quality,
         research,
@@ -57,6 +58,7 @@ def _registry() -> dict[str, type]:
         context,
         journal,
         paper,
+        perpetual,
         research,
     ):
         for name, cls in vars(module).items():
@@ -215,7 +217,27 @@ def _decode(value, expected, decimal_policy):
             expected.__name__ == "Instrument"
             and value.keys() == allowed - {"metadata_status"}
         )
-        if value.keys() != allowed and not legacy_instrument:
+        # Exact pre-perpetual paper shapes only. Do not relax any other record,
+        # nested Instrument descriptor, or partially supplied new shape.
+        paper_additions = {
+            "PaperConfig": {"risk_models", "funding_models"},
+            "PaperOrderRequest": {"reduce_only"},
+            "PaperSnapshot": {
+                "perpetual_positions",
+                "funding_payments",
+                "liquidations",
+            },
+            "PaperCheckpoint": {
+                "perpetual_positions",
+                "funding_payments",
+                "funding_cursors",
+                "liquidations",
+                "frozen_reason",
+            },
+        }
+        additions = paper_additions.get(expected.__name__)
+        legacy_paper = additions is not None and value.keys() == allowed - additions
+        if value.keys() != allowed and not legacy_instrument and not legacy_paper:
             raise ValueError("missing/unknown wire fields")
         hints = _record_hints(expected)
         return expected(

@@ -10,6 +10,12 @@ const secondary = (page: Page) => page.getByTestId('chart-pane-flow');
 const preferences = (page: Page): Promise<WorkspacePreferences> =>
   page.evaluate(() => JSON.parse(localStorage.getItem('limit-orderbook.workspace.v1')!));
 
+async function openMarketView(page: Page, name: 'Liquidity & flow' | 'Native book & tape') {
+  const tab = page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name, exact: true });
+  if (await tab.getAttribute('aria-selected') !== 'true') await tab.click();
+  await expect(name === 'Liquidity & flow' ? primary(page) : page.locator('[data-pane="dom"]')).toBeVisible();
+}
+
 async function painted(pane: Locator, pending: Promise<Response>) {
   const response = await pending;
   const view = await body<VisualGrid>(Promise.resolve(response));
@@ -60,7 +66,7 @@ async function openAdvancedDemo(page: Page) {
     && response.request().method() === 'POST');
   await page.goto(`/?source=${encodeURIComponent(demo.id)}`);
   await expect(page.locator('.status')).toContainText(/\bConnected$/i);
-  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Liquidity & flow', exact: true }).click();
+  await openMarketView(page, 'Liquidity & flow');
   await primary(page).locator('.m4-chart-plot').scrollIntoViewIfNeeded();
   await expect(primary(page).getByTestId('market-charts')).toHaveAttribute('data-painted-view-id', /.+/);
   const initial = await body<Frame>(created);
@@ -216,10 +222,12 @@ test('optional time linking aligns to its actor without coupling cursors, price 
   expect(linked.links).toEqual({ ...before.links, flow: false });
   await expect(liquidity.getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'true');
   await expect(flow.getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'false');
+  await openMarketView(page, 'Native book & tape');
   const bid = page.getByTestId('grouped-ladder').locator('tr.bid').first();
   const price = await bid.getAttribute('data-price');
   expect(price).toBeTruthy();
-  await bid.hover();
+  await bid.getByRole('button', { name: `Pin DOM price ${price}`, exact: true }).click();
+  await openMarketView(page, 'Liquidity & flow');
   await expect(liquidity.getByRole('tooltip')).toContainText(price!);
   await expect(flow.getByRole('tooltip')).toHaveCount(0);
   for (const pane of [liquidity, flow]) {
@@ -327,6 +335,10 @@ test('focused secondary chart owns price, follow, fit and freeze shortcuts; DOM 
   await expect(liquidity.getByTestId('market-charts')).toHaveAttribute('data-painted-view-id', primaryId!);
 
   // Focus real DOM rows and native tape print buttons, not document.body.
+  await openMarketView(page, 'Native book & tape');
+  await expect(page.getByTestId('grouped-ladder')).toBeVisible();
+  // Workspace persistence is debounced; capture the requested view before testing foreign shortcuts.
+  await expect.poll(() => preferences(page)).toMatchObject({ nativeView: 'book' });
   const beforeForeignFocus = await preferences(page);
   const requests: Record<string, unknown>[] = [];
   const observe = (request: Request) => {
@@ -347,14 +359,17 @@ test('focused secondary chart owns price, follow, fit and freeze shortcuts; DOM 
     await expect(print).toBeFocused();
     await replay(page, 'step');
     expect(await preferences(page)).toEqual(beforeForeignFocus);
-    await expect(liquidity.getByTestId('market-charts')).toHaveAttribute('data-painted-view-id', primaryId!);
-    await expect(flow.getByTestId('market-charts')).toHaveAttribute('data-painted-view-id', fitted.view.view_id);
+    await expect(liquidity).toBeHidden();
+    await expect(flow).toBeHidden();
     expect(requests).toEqual([]);
   } finally {
     page.off('request', observe);
   }
 
   // Only an explicit Space on the focused secondary plot resumes it.
+  await openMarketView(page, 'Liquidity & flow');
+  await expect(liquidity.getByTestId('market-charts')).toHaveAttribute('data-painted-view-id', primaryId!);
+  await expect(flow.getByTestId('market-charts')).toHaveAttribute('data-painted-view-id', fitted.view.view_id);
   const resumedResponse = visualization(page, input => input.start_ns === fitStart.toString() && input.end_ns === fitEnd.toString(), 32);
   await plot.click();
   await page.keyboard.press('Space');

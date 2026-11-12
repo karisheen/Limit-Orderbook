@@ -1063,6 +1063,165 @@ bounded depth and flow eligibility remain explicit. The known public-live
 No 24-hour soak, uninterrupted live ingestion, execution readiness or profitable
 signals are established by the redesigned interface.
 
+## Unified candles, perpetual paper and positioning — resume handoff
+
+Branch `unified-candles-perpetual-paper`, from `main` at `837fae0`. Core commit
+`67ddab7` (native trade candles, isolated perpetual accounting). The integration
+phase described here was resumed on 2026-11-11 after the previous session's
+`unified-regression-migration` and `unified-perpetual-documentation` jobs were
+cut off mid-edit. Commit, push, PR and merge receipts belong in the delivery
+ledger once they exist; nothing below claims them.
+
+### Reconciled interrupted work
+
+| Interrupted job | State found | Resolution |
+| --- | --- | --- |
+| regression-migration 1 (`workspace.spec.ts`, `pane-evidence.spec.ts`) | Specs already migrated to explicit workspaces and to a `Pin DOM price <price>` control that did not exist in source | Implemented the control: `DepthLadder` `pinned`/`onPin`, `NativeCharts` `domPin` fenced by session fence, cleared by Esc, clock-scope reset and `terminal-clear-cursor`. Hover/focus stay transient |
+| regression-migration 2–4 | Completed before the cutoff | Kept. One live freeze assertion compared query fills with archive fills; the query adds `consumed_levels_omitted`, so the assertion now states exactly that difference |
+| documentation 1, 3 | Completed | Kept |
+| documentation 2 (`API.md`, `CONTRACTS.md`) | All three edits had landed; no final report | Read for truncation and consistency with source; kept |
+
+Integration defects fixed before the full gate (the full-gate failures below remained unresolved at that point):
+
+- `useCandleHistory` (uncommitted phase-2 change) dropped held candles on a
+  failed refresh, an `unavailable` refresh or a lost connection. Docs, the
+  chart's stale warning and two specs require same-owner candles to be kept and
+  labelled stale. Restored; a response from another source, cohort, market or
+  generation still clears the series.
+- `perpetual-paper.spec.ts`: `getByLabel` matched no `<select>` inside the
+  `Field` label wrapper (now `getByRole('combobox')`, as `workflow.spec.ts`);
+  the freeze scenario's `0.0001`-per-nanosecond funding liquidated the position
+  before the 10,000-record bound could freeze paper (now `0.000000001`); the
+  fork step toggled the form before the resumed run had rendered.
+- `workspace.spec.ts` asserted the obsolete readiness wording `Unavailable`;
+  it now asserts the warning state.
+
+### Open interest and funding beside price
+
+Implemented on the existing architecture, without new venue transport:
+
+- `src/workstation/positioning.py`: `PositioningHistory` replay observer over
+  perpetual `context` streams, minute bars on the admitted candle clock, bounded
+  to 10,080 minutes per stream, checkpoint/restore; `positioning_series`
+  aggregates to any of the 15 candle intervals with `session_bucket`.
+- `POST /api/v1/positioning`; `PositioningRequest`; observer order is
+  visuals, trades, positioning, context, alerts, paper.
+- `PriceChart`: **OI & funding** toggle, two panes under volume on the shared
+  axis, cursor-linked readout; `positioning-model.ts`, `positioning-api.ts`.
+- Demo fixture context varies (open interest ramp, signed funding steps).
+  Both memory descriptor and durable configuration now include
+  `positioning_scenario=ramp-signed-v1`, so older constant-context demos cannot
+  share the new scenario's source identity. Existing captures remain unchanged.
+- Documented in `API.md`, `CONTRACTS.md`, `VISUALIZATION.md`, `TERMINAL.md`.
+
+Data availability. In this codebase only `HyperliquidAdapter` has `reference`
+and `context` channels, and `_select_live` subscribes context only for
+Hyperliquid perpetuals of BTC/ETH/SOL/HYPE or the selected base (at most 8).
+So live positioning is Hyperliquid's, shown as `related_underlying` when another
+venue or spot is selected. Provider documentation is not proof of live access.
+Hyperliquid's [subscription schema](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/websocket/subscriptions),
+Bybit's [ticker schema](https://bybit-exchange.github.io/docs/v5/websocket/public/ticker),
+Bitget's [public positioning endpoints](https://www.bitget.com/docs/catalog/market/derivatives),
+and Deribit's [funding history schema](https://docs.deribit.com/api-reference/market-data/public-get_funding_rate_history)
+were consulted during resume. Remaining integration details need validation
+before implementing any additional provider.
+
+| Venue | Streaming open interest / funding | Historical |
+| --- | --- | --- |
+| Hyperliquid | `activeAssetCtx` (implemented): funding, open interest, mark, oracle | `fundingHistory` REST; no open-interest history |
+| Binance USDⓈ-M | `<symbol>@markPrice`: mark, index, funding rate, next funding time. No open-interest stream | REST `openInterest` (current), `openInterestHist`, `fundingRate` |
+| Bybit linear | `tickers.<symbol>` snapshots/deltas; omitted fields are unchanged; funding interval supplied in hours. Both-sided and single-sided OI fields are distinct | REST open-interest and funding history; do not assume every symbol funds every 8h |
+| OKX swap | `open-interest`, `funding-rate`, `mark-price` channels | REST open-interest and funding-rate history |
+| Bitget USDT-M | Ticker integration not implemented | v3 current and historical OI (base units, both/single-sided distinguished), plus funding endpoints; v3 is a separate integration from current adapter transport |
+| Deribit perpetual | Ticker integration not implemented | Hourly history contains separate `interest_1h` and `interest_8h`; never annualize one using the other's interval |
+| Coinbase, Kraken, KuCoin spot | Not applicable | Not applicable |
+
+Natural extension, in order: (1) add a `context` channel to the Bybit, OKX,
+Bitget and Deribit adapters that decodes their ticker into the existing
+`AssetContext` (unit, funding interval and next-funding provenance per venue;
+OKX open interest is in contracts); (2) widen the `references` selection in
+`_select_live` to the selected cohort's perpetuals; (3) Binance needs REST
+polling for open interest; (4) optional explicit venue backfill as a separate
+source, like `venue_ohlcv`, never merged with observed bars. Geo-denied
+metadata (Binance USDⓈ-M 451, Bybit 403 from this network) does not by itself
+establish whether those streams are reachable.
+
+### Remaining work
+
+1. **Live verification is blocked, not done.** A second `serve --network`
+   (port 8002) could not create a live session: the collector is a singleton
+   and the running port-8000 server holds its lock
+   (`another feed collector owns the singleton lock`, surfaced as HTTP 500).
+   Cross-venue live chart/paper checks, live market switching, reconnect and
+   live recording remain unverified for this branch, as does `/positioning`
+   on real Hyperliquid context. The latest user instruction explicitly preserves
+   the running port-8000 collector: do not stop or restart it for verification.
+2. The prior full gate reported **18 failures / 1,894 passes**. The isolated
+   clean `/tmp/lob-head-check` at `67ddab71043c88a2b42240ba72fd41f94a2c824d`
+   reproduced **17 failures / 10 passes**. Repaired fixtures now deliver through
+   native analytics/admission; retired prints are not resurrected. Capture
+   shutdown gaps intentionally retire current trades: tests inspect the valid
+   prefix before shutdown and prove complete raw/normalized replay parity,
+   including after restart. Raw archived fills are compared with their explicit
+   presentation-only omission field. **103 targeted Python tests passed**.
+3. **Full repository gate passed:** 1,923 Python tests, 186 frontend tests,
+   Ruff (94 files), mypy (44 files), ESLint, TypeScript and production build.
+   **79 offline browser scenarios passed; 3 network-dependent scenarios skipped.**
+   The existing Starlette/httpx deprecation and Lucide directive build warnings
+   remain non-fatal. Publication must use the protected PR and its required
+   `offline` check; receipts are available in the
+   [branch PR](https://github.com/karisheen/Limit-Orderbook/pulls?q=head%3Aunified-candles-perpetual-paper)
+   and merge history rather than inferred from local checks.
+4. Preserve port 8000 on its existing running revision after merge; report the
+   deployment distinction rather than claim the merged code is running there.
+
+### Resume correctness review
+
+- Sparse positioning observations use canonical larger-bucket starts, including
+  calendar intervals; late unit changes cannot erase valid history.
+- Clock transitions on any admitted stream clear incomparable context, so
+  returning to an old clock cannot resurrect its earlier observations.
+- Positioning is fenced to the displayed candle source. Inspection follows the
+  candle timestamp; related-venue attribution stays explicit.
+- Funding remains a fraction per declared interval. Simple annualization is
+  `rate × (365 days / interval) × 100` percent; mixed/unknown intervals are
+  labelled rather than silently scaled as the latest period.
+- Context discontinuities suppress connecting OI lines. Missing buckets and
+  missing fields are not drawn as zeros or joined.
+- Actual narrow-browser inspection found the mobile 140px rule overriding the
+  positioning plot's 320px minimum and clipping funding. The corrected final
+  production build rendered both panes at **390px viewport / 320px plot height**
+  with **no horizontal overflow**.
+- Desktop browser inspection showed OI **1010 base / change -85**, then
+  **1100 / -105** at the previous shared candle cursor. Funding **-0.00002 per
+  hour** displayed **approximately -17.52% simple annualization**. Switching to
+  Binance spot labelled Hyperliquid as a **related perpetual, not the selected
+  instrument**; the 5m aggregation displayed OI **1010 / change 10**.
+
+### Publication and CI receipts
+
+- Integration commit `f5ebb6e` was pushed after the mandatory pre-push gate
+  passed again: **1,923 Python / 186 frontend tests**, lint, types and build.
+- [PR #20](https://github.com/karisheen/Limit-Orderbook/pull/20) owns the protected
+  merge and final-head CI receipt.
+- [Initial CI run](https://github.com/karisheen/Limit-Orderbook/actions/runs/43157880197)
+  passed the repository gate but failed one browser assertion: **78 passed /
+  1 failed / 3 skipped**. The focus-isolation test captured `nativeView=orderflow`
+  before the 200ms workspace save settled after switching to book view, then
+  compared it against the correctly persisted `book` view.
+- The corrective test waits for persisted `nativeView=book` before capturing
+  its baseline. All subsequent exact preference equality, focus, hidden-pane
+  and no-leaked-request assertions remain unchanged; no timeout/retry increase
+  or production suppression was added. Required final-head CI must pass before
+  merge; see PR #20 for its final status and merge commit.
+- Corrected focus-isolation scenario: **1 passed** against the isolated actual
+  backend before committing the CI correction.
+
+Temporary verification uses an owned offline server on `127.0.0.1:8003` with
+`/tmp/flow-resume-verify-state`. Earlier probes used port 8001 and
+`/tmp/unified-integration-state`; `/tmp/unified-resume-*` and
+`/tmp/unified-positioning-*` probes are not repository deliverables.
+
 ## Decisions and next action
 
 Use one local asyncio backend worker, exact immutable domain contracts, explicit quality gates, direct venue adapters, a React/TypeScript terminal, native Canvas heatmap, Parquet/raw compressed recording and SQLite metadata. Preserve the legacy entrypoint during cutover; do not duplicate analytics. Detailed decisions/contracts/backlog are in the accompanying M0 documents.

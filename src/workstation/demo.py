@@ -378,7 +378,19 @@ class DemoSource:
                     if instrument.market_type == "spot"
                     else "hyperliquid_context"
                 )
-                return _json(_expand(self.fixture[template], fields))
+                message = _expand(self.fixture[template], fields)
+                if template == "hyperliquid_context":
+                    if not isinstance(message, dict):
+                        raise ValueError(
+                            "Hyperliquid fixture template must be an object"
+                        )
+                    # Illustrative positioning: open interest ramps up and down
+                    # while signed funding steps through zero every 30 seconds.
+                    message["data"]["ctx"].update(
+                        openInterest=str(1000 + 5 * abs(tick % 120 - 60)),
+                        funding=str((tick // 30 % 5 - 2) * Decimal("0.00001")),
+                    )
+                return _json(message)
             template = (
                 "hyperliquid_book" if key.channel == "book" else "hyperliquid_trade"
             )
@@ -623,6 +635,7 @@ async def create_demo(
     config = (
         ("fixture_version", "3"),
         ("fixture_sha256", source.fixture_hash),
+        ("positioning_scenario", "ramp-signed-v1"),
         ("duration_seconds", str(duration_seconds)),
         ("source_cadence_hz", "1"),
     )

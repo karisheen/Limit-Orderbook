@@ -22,6 +22,15 @@ export function retainConfirmedCatalog(previous: ConfirmedCatalog | null, frame:
     ? previous : { scope, instruments, selected };
 }
 
+// Discovery stays current, but financial labels must match the selected stream.
+// Missing pinned metadata removes that choice rather than borrowing newer precision.
+export function financialInstrumentsForSelection(instruments: Instrument[], selectedId: string | null | undefined, selected: Instrument | undefined): Instrument[] {
+  if (!selectedId) return instruments;
+  if (!selected || selected.instrument_id !== selectedId) return instruments.filter(instrument => instrument.instrument_id !== selectedId);
+  if (!instruments.some(instrument => instrument.instrument_id === selectedId)) return [...instruments, selected];
+  return instruments.map(instrument => instrument.instrument_id === selectedId ? selected : instrument);
+}
+
 // An owned capture remains active until Stop releases its session, even on error.
 export function ownedSessionRecording(recordings: readonly ManagedRecording[], sessionId: string | null | undefined): ManagedRecording | undefined {
   if (sessionId == null) return undefined;
@@ -40,12 +49,3 @@ export function paneForView(view: NativeView, preferred?: MarketPane): MarketPan
   return view === 'price' ? 'price' : view === 'book' ? 'dom' : 'heatmap';
 }
 
-// Book/Tape is its own mobile view, not a hidden selection in a chart view.
-// Closing it restores the remembered Price or Orderflow workspace; paneForView
-// maps Book/Tape selection to Price or Liquidity respectively. Desktop sidecar
-// toggles retain the chart workspace, and focus reconciliation uses its visible pane.
-export function toggleBookView(view: NativeView, rightOpen: boolean, narrow: boolean, desktopView: WorkspacePreferences['desktopView']): Pick<WorkspacePreferences, 'nativeView' | 'rightOpen'> {
-  if (view === 'book') return { nativeView: desktopView, rightOpen: false };
-  if (narrow) return { nativeView: 'book', rightOpen: true };
-  return { nativeView: view, rightOpen: !rightOpen };
-}

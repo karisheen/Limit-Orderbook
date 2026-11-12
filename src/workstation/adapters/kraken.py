@@ -18,12 +18,13 @@ from ..events import (
     Trade,
 )
 from ..instruments import (
-    AssetId,
     AssetIdentity,
     Instrument,
     InstrumentId,
     MetadataSnapshot,
     OrderConstraints,
+    asset_identity_metadata_version,
+    canonical_asset_id,
 )
 from ..precision import decimal, exact_json_loads, nonnegative_int, scaled_decimal, text
 from ..quality import Capabilities
@@ -36,9 +37,6 @@ from .base import (
     parse_rfc3339_ns,
 )
 
-_CANONICAL_ASSETS = frozenset(
-    "BTC ETH SOL XRP DOGE ADA LTC LINK AVAX DOT USD USDT USDC".split()
-)
 _ALIASES = {"XBT": "BTC", "XDG": "DOGE"}
 
 
@@ -85,20 +83,12 @@ class KrakenAdapter:
             )
             symbol = f"{base_name}/{quote_name}"
             base = AssetIdentity(
-                AssetId(
-                    base_name
-                    if base_name in _CANONICAL_ASSETS
-                    else f"kraken:{base_name}"
-                ),
+                canonical_asset_id("kraken", base_name),
                 base_name,
                 native_token_id=text(row["base"]),
             )
             quote = AssetIdentity(
-                AssetId(
-                    quote_name
-                    if quote_name in _CANONICAL_ASSETS
-                    else f"kraken:{quote_name}"
-                ),
+                canonical_asset_id("kraken", quote_name),
                 quote_name,
                 native_token_id=text(row["quote"]),
             )
@@ -121,7 +111,7 @@ class KrakenAdapter:
             instruments.append(
                 Instrument(
                     InstrumentId(f"{self.venue}:{self.api_family}:spot:{symbol}"),
-                    f"{digest}:{now}",
+                    asset_identity_metadata_version(f"{digest}:{now}", base, quote),
                     self.venue,
                     self.api_family,
                     symbol,

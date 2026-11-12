@@ -4,7 +4,6 @@ import asyncio
 from dataclasses import replace
 from decimal import Decimal, localcontext
 import json
-from types import SimpleNamespace
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
@@ -22,11 +21,18 @@ from src.workstation.candles import (
     session_candles,
     supported_intervals,
 )
-from src.workstation.events import EventEnvelopeRef
-from src.workstation.instruments import AssetIdentity, Instrument
-from src.workstation.quality import ClockReading
+from src.workstation.events import (
+    Control,
+    Gap,
+    SubscriptionKey,
+    Trade,
+    synthetic_envelope,
+)
+from src.workstation.instruments import AssetIdentity, Instrument, OrderConstraints
+from src.workstation.market_presentation import AdmittedTradeHistory
+from src.workstation.recording import RecordedBatch, StreamSpec
+from src.workstation.replay import ReplayClock
 from src.workstation.transport import PublicTransportError
-from src.workstation.visuals import VisualHistory
 
 HOUR = 3600 * SECOND
 START = 1700002800 * SECOND  # 2023-11-14 23:00 UTC
@@ -277,57 +283,82 @@ def test_bounded_cache_concurrency_cancellation_and_access_errors(monkeypatch):
     asyncio.run(scenario())
 
 
-def test_session_aggregation_exact_partial_coverage_and_no_fabricated_gaps():
-    def trade(stamp, price, quantity, *, history=False):
-        return SimpleNamespace(
-            print=SimpleNamespace(
-                asof=EventEnvelopeRef(
-                    "recorded-session",
-                    1,
-                    0,
-                    None,
-                    stamp,
-                    stamp - START,
-                    "recorded-clock",
-                ),
-                trade=SimpleNamespace(
-                    price=Decimal(price), is_subscription_history=history
-                ),
-                base_quantity=Decimal(quantity),
+class NativeFeed:
+    def __init__(self, *products):
+        self.products = products or (instrument(),)
+        self.streams = tuple(
+            StreamSpec(
+                f"{index}-{channel}",
+                product,
+                SubscriptionKey.for_instrument(product, channel=channel),
+                "test-v1",
+                "test-config",
             )
+            for index, product in enumerate(self.products)
+            for channel in ("book", "trades")
+        )
+        self.engine = AnalyticsEngine(self.streams)
+        self.history = AdmittedTradeHistory(self.streams, self.engine)
+        self.clock = ReplayClock()
+        self.batches = []
+
+    def event(
+        self,
+        mono,
+        price="100",
+        quantity="1",
+        *,
+        product=0,
+        wall=None,
+        historical=False,
+        dedup=None,
+        payload=None,
+        clock_id="recorded-clock",
+        epoch=0,
+        segment_id="synthetic-segment",
+    ):
+        spec = self.streams[product * 2 + 1]
+        ordinal = len(self.batches) + 1
+        return synthetic_envelope(
+            spec.instrument,
+            payload
+            or Trade(
+                str(ordinal),
+                dedup or str(ordinal),
+                Decimal(price),
+                Decimal(quantity),
+                quantity_unit=spec.instrument.quantity_unit,
+                is_subscription_history=historical,
+            ),
+            ordinal=ordinal,
+            mono_ns=mono,
+            receive_wall_ns=START + mono if wall is None else wall,
+            epoch=epoch,
+            segment_id=segment_id,
+            clock_id=clock_id,
+            key=spec.key,
+            stream_id=spec.stream_id,
         )
 
-    history = VisualHistory(AnalyticsEngine(()), source_identity="recorded-source")
-    history.clock = ClockReading("recorded-clock", 180 * SECOND)
-    history._observe_receive_clock(
-        EventEnvelopeRef("recorded-session", 1, 0, None, START, 0, "recorded-clock"),
-        ClockReading("recorded-clock", 0),
-    )
-    history._observe_receive_clock(
-        EventEnvelopeRef(
-            "recorded-session",
-            2,
-            0,
-            None,
-            START + 180 * SECOND,
-            180 * SECOND,
-            "recorded-clock",
-        ),
-        history.clock,
-    )
-    assert history.clock.wall_ns is None
-    history.trades.extend(
-        [
-            trade(START + 1, PRICE, "0.00000000000000000000000000000000000001"),
-            trade(START + 120 * SECOND, "101", "0.2"),
-            trade(START + 150 * SECOND, "99", "0.3"),
-            trade(START + 160 * SECOND, "400", "10", history=True),
-            trade(START + 181 * SECOND, "500", "10"),
-        ]
-    )
+    def deliver(self, *args, **kwargs):
+        event = self.event(*args, **kwargs)
+        batch = RecordedBatch(len(self.batches) + 1, (event,))
+        self.batches.append(batch)
+        self.clock.advance(event)
+        self.engine.on_batch(batch, (), self.clock)
+        self.history.on_batch(batch, (), self.clock)
+        return event
+
+
+def test_session_aggregation_exact_partial_coverage_and_no_fabricated_gaps():
+    feed = NativeFeed()
+    feed.deliver(0, PRICE, "0.00000000000000000000000000000000000001")
+    feed.deliver(120 * SECOND, "101", "0.2")
+    feed.deliver(150 * SECOND, "99", "0.3")
+    feed.deliver(160 * SECOND, "400", "10", historical=True)
     with localcontext() as context:
-        context.prec = 6  # Aggregation must not use the caller's small context.
-        result = session_candles(history, instrument(), "1h", 300)
+        context.prec = 6
+        result = session_candles(feed.history, instrument(), "1h", 300)
     bar = result["candles"][0]
     assert (bar["open"], bar["high"], bar["low"], bar["close"]) == (
         PRICE,
@@ -338,15 +369,15 @@ def test_session_aggregation_exact_partial_coverage_and_no_fabricated_gaps():
     assert Decimal(bar["volume"]) == Decimal("0.50000000000000000000000000000000000001")
     assert bar["closed"] is False
     assert result["time_basis"] == "receive_utc"
-    assert (
-        int(result["coverage_end_ns"]) - int(result["coverage_start_ns"]) < 180 * SECOND
-    )
+    assert "subscription_history_excluded" in result["reasons"]
     assert "session_history_partial" in result["reasons"]
-    minute = session_candles(history, instrument(), "1m", 300)
-    assert len(minute["candles"]) == 2  # no fabricated minute 1
-    limited = session_candles(history, instrument(), "1m", 1)
+    assert len(session_candles(feed.history, instrument(), "1m", 300)["candles"]) == 2
+    limited = session_candles(feed.history, instrument(), "1m", 1)
     assert int(limited["coverage_start_ns"]) == START + 120 * SECOND
-    assert session_candles(history, instrument(), "1M", 300)["status"] == "unavailable"
+    assert (
+        session_candles(feed.history, instrument(), "7m", 300)["status"]
+        == "unavailable"
+    )
 
 
 @pytest.mark.parametrize("venue", tuple(FAMILIES))
@@ -389,43 +420,431 @@ def test_cache_ttl_and_exact_metadata_identity(monkeypatch):
     asyncio.run(scenario())
 
 
-def test_replay_utc_frontier_uses_admitted_projection_not_unapplied_pair():
-    history = VisualHistory(AnalyticsEngine(()), source_identity="recorded-source")
-    history.clock = ClockReading("recorded-clock", 10 * SECOND)
-    reference = EventEnvelopeRef(
-        "recorded-session", 1, 0, None, START, 0, "recorded-clock"
+def test_receive_projection_anchors_clock_corrections_and_resets_unrelated_clocks():
+    feed = NativeFeed()
+    feed.deliver(0)
+    event = feed.deliver(10 * SECOND, wall=START + 2 * HOUR)
+    assert feed.history.display_time(event) == START + 10 * SECOND
+    assert feed.history.now_ns == START + 10 * SECOND
+    assert "receive_clock_discontinuity" in feed.history.reasons
+    feed.deliver(5 * SECOND, "500", wall=START + 3 * HOUR)
+    result = session_candles(feed.history, instrument(), "1h", 300)
+    assert "nonadvancing_receive_pair" in result["reasons"]
+    assert result["candles"][0]["high"] == "100"  # analytics rejects clock regression
+    feed.deliver(0, "200", clock_id="replacement-clock", wall=START + 4 * HOUR)
+    result = session_candles(feed.history, instrument(), "1h", 300)
+    assert "source_clock_changed" in result["reasons"]
+    assert len(result["candles"]) == 1 and result["candles"][0]["open"] == "200"
+    feed.history.reset()
+    assert session_candles(feed.history, instrument(), "1h", 300)["candles"] == []
+
+
+@pytest.mark.parametrize("interval", module.LOCAL_INTERVALS)
+def test_all_shared_timeframes_use_exact_utc_source_boundaries(interval):
+    feed = NativeFeed()
+    feed.deliver(0)
+    feed.deliver(2 * HOUR, "101")
+    result = session_candles(feed.history, instrument(), interval, 300)
+    assert result["status"] == "ready"
+    assert result["supported_intervals"] == list(module.LOCAL_INTERVALS)
+    for bar in result["candles"]:
+        start, end = module.session_bucket(int(bar["start_ns"]), interval)
+        assert (str(start), str(end)) == (bar["start_ns"], bar["end_ns"])
+        assert int(bar["start_ns"]) <= feed.history.now_ns
+        assert bar["closed"] == (end <= feed.history.now_ns)
+    assert module.session_bucket(0, "1w") == (0, 604800 * SECOND)
+    assert module.session_bucket(1709164800 * SECOND, "1M") == (
+        1706745600 * SECOND,
+        1709251200 * SECOND,
     )
-    history._observe_receive_clock(reference, ClockReading("recorded-clock", 0))
-    history._observe_receive_clock(
-        replace(
-            reference, receive_mono_ns=10 * SECOND, receive_wall_ns=START + 10 * SECOND
-        ),
-        history.clock,
+
+
+def perpetual(venue, family, quote="USDT", *, streaming=False):
+    changes = dict(
+        instrument_id=f"{venue}:{family}:perpetual:BTC{quote}",
+        api_family=family,
+        native_symbol="BTC" + quote,
+        market_type="perpetual",
+        quote=AssetIdentity(quote, quote),
+        settlement=AssetIdentity(quote, quote),
     )
-    now, scope, reasons = module.receive_utc_frontier(history)
-    assert now == START + 10 * SECOND
-    assert scope == ("recorded-session", "recorded-clock", 10 * SECOND)
-    assert not reasons
-    # This later-delivered pair did not advance the admitted monotonic frontier.
-    # Its large offset must be disclosed, not adopted as the source's current UTC.
-    history._observe_receive_clock(
-        replace(reference, receive_mono_ns=5 * SECOND, receive_wall_ns=START + HOUR),
-        history.clock,
+    if streaming:
+        changes.update(
+            metadata_status="streaming_only",
+            tick_size=None,
+            lot_size=None,
+            constraints=OrderConstraints(
+                price_rule="unconstrained", size_rule="unconstrained"
+            ),
+        )
+    return replace(instrument(venue), **changes)
+
+
+@pytest.mark.parametrize(
+    "venue,family,host,path,category",
+    (
+        ("binance-global", "usdm-v1", "fapi.binance.com", "/fapi/v1/klines", None),
+        ("bybit", "v5-linear", "api.bytick.com", "/v5/market/kline", ["linear"]),
+    ),
+)
+def test_optional_perpetual_history_uses_real_native_family(
+    venue, family, host, path, category
+):
+    product = perpetual(venue, family)
+    request = native_request(product, "1h", 20, START)
+    url = urlsplit(request.endpoint_id)
+    assert (url.netloc, url.path) == (host, path)
+    assert parse_qs(url.query).get("category") == category
+    raw = payload(venue)
+    if venue == "bybit":
+        root = json.loads(raw)
+        root["result"]["category"] = "linear"
+        root["result"]["symbol"] = product.native_symbol
+        raw = json.dumps(root).encode()
+        with pytest.raises(ValueError, match="identity"):
+            parse_native(payload(venue), product, "1h", 20, START)
+    assert parse_native(raw, product, "1h", 20, START)[0].open == Decimal(PRICE)
+
+
+def test_admission_dedup_gaps_unknown_quantity_and_retention(monkeypatch):
+    import src.workstation.market_presentation as presentation
+
+    product = replace(instrument(), quantity_unit="contracts")
+    feed = NativeFeed(product)
+    feed.deliver(0)
+    result = session_candles(feed.history, product, "1m", 300)
+    assert not result["candles"] and "unknown_trade_quantity" in result["reasons"]
+    feed = NativeFeed()
+    monkeypatch.setattr(presentation, "MAX_TRADE_ROWS", 2)
+    feed.deliver(0, dedup="same")
+    feed.deliver(1, "200", dedup="same")
+    assert len(feed.history.trades) == 1
+    feed.deliver(2, "250")
+    feed.deliver(2, "275")
+    assert feed.history.floor_cursor == (1, 0)
+    feed.deliver(2, payload=Control("disconnect", "test_disconnect"))
+    feed.deliver(2, payload=Gap("test_gap"))
+    feed.deliver(3, "300")
+    feed.deliver(4, "400")
+    result = session_candles(feed.history, instrument(), "1m", 300)
+    assert result["retention"]["retained_trades"] == 2
+    assert result["retention"]["truncated"] is True
+    assert result["candles"][0]["open"] == "300"
+    assert "session_discontinuities" in result["reasons"]
+    assert "retained_history_truncated" in result["reasons"]
+    assert feed.history.floor_cursor == (1, 0)
+    assert feed.history.stream_floors["0-trades"] == (6, 0)
+    monkeypatch.setattr(presentation, "MAX_TRADE_BYTES", 1)
+    feed.deliver(5)
+    assert feed.history.bytes == 0 and not feed.history.trades
+
+
+def test_live_streaming_perpetual_api_is_immediate_exact_and_rest_independent(
+    tmp_path, monkeypatch
+):
+    from httpx import ASGITransport, AsyncClient
+    from src.workstation.api import create_app
+    from src.workstation.runtime import ClientSession, TerminalRuntime
+
+    primary = perpetual("binance-global", "usdm-v1", streaming=True)
+    peer = perpetual("bybit", "v5-linear", quote="USDC", streaming=True)
+    wrong_base = replace(
+        peer, instrument_id="bybit:wrong-base", base=AssetIdentity("ETH", "ETH")
     )
-    now, _, reasons = module.receive_utc_frontier(history)
-    assert now == START + 10 * SECOND
-    assert "nonadvancing_receive_pair" in reasons
-    history.clock = ClockReading("recorded-clock", 11 * SECOND)
-    history._observe_receive_clock(
-        replace(
-            reference, receive_mono_ns=11 * SECOND, receive_wall_ns=START + 2 * HOUR
-        ),
-        history.clock,
+    spot = instrument("coinbase")
+    feed = NativeFeed(primary, peer, wrong_base, spot)
+    feed.deliver(0, PRICE, "0.1")
+    feed.deliver(SECOND, "101", "0.2", product=1, wall=START + 8 * HOUR)
+    feed.deliver(2 * SECOND, "99", "0.3")
+    calls = []
+
+    async def denied(request, **kwargs):
+        calls.append(request)
+        raise PublicTransportError("blocked", status=451)
+
+    monkeypatch.setattr(module, "fetch_public", denied)
+
+    async def scenario():
+        runtime = TerminalRuntime(state_dir=tmp_path)
+        session = ClientSession(runtime, "live", "live")
+        runtime.sessions[session.id] = session
+        try:
+            await session.work(
+                session._initialize_live,
+                feed.streams,
+                str(primary.instrument_id),
+                (),
+                "recorded-clock",
+            )
+            session.live_clock = ReplayClock()
+            session.status = "ready"
+            for batch in feed.batches:
+                await session.work(session._apply_live, batch.events, (), 1000)
+            request = dict(session_id=session.id, generation="1", interval="1h")
+            async with AsyncClient(
+                transport=ASGITransport(app=create_app(runtime)),
+                base_url="http://127.0.0.1",
+            ) as client:
+
+                async def query(**options):
+                    return await client.post(
+                        "/api/v1/candles", json={**request, **options}
+                    )
+
+                response = await asyncio.wait_for(query(), 2)
+                assert response.status_code == 200, response.text
+                primary_result = response.json()
+                assert primary_result["source"] == "session_trades" and not calls
+                assert primary_result["instrument_ids"] == [str(primary.instrument_id)]
+                assert primary_result["candles"][0]["volume"] == "0.4"
+                assert primary_result["candles"][0]["high"] == PRICE
+                result = (
+                    await query(
+                        instrument_ids=[
+                            str(peer.instrument_id),
+                            str(primary.instrument_id),
+                        ]
+                    )
+                ).json()
+                assert result["scope"] == "aggregate" and result["venue"] == "aggregate"
+                assert result["instrument_ids"] == [
+                    str(primary.instrument_id),
+                    str(peer.instrument_id),
+                ]
+                assert result["quote_asset_ids"] == ["USDC", "USDT"]
+                assert result["candles"][0]["volume"] == "0.6"
+                assert result["candles"][0]["high"] == "101"
+                assert result["candles"][0]["close"] == "99"
+                assert result["source_identity"] == session.source_identity
+                tape = (
+                    await client.post(
+                        "/api/v1/market-data",
+                        json={"session_id": session.id, "generation": "1"},
+                    )
+                ).json()
+                assert [item["display_time_ns"] for item in tape["trades"]] == [
+                    str(START),
+                    str(START + SECOND),
+                    str(START + 2 * SECOND),
+                ]
+                for ids in (
+                    [str(peer.instrument_id)],
+                    [str(primary.instrument_id)] * 2,
+                    [str(primary.instrument_id), "unknown"],
+                    [str(primary.instrument_id), str(wrong_base.instrument_id)],
+                    [str(primary.instrument_id), str(spot.instrument_id)],
+                ):
+                    assert (await query(instrument_ids=ids)).status_code == 422
+                assert (
+                    await query(
+                        source="venue_ohlcv",
+                        instrument_ids=[
+                            str(primary.instrument_id),
+                            str(peer.instrument_id),
+                        ],
+                    )
+                ).status_code == 422
+                historical = (await query(source="venue_ohlcv")).json()
+                assert historical["source"] == "venue_ohlcv"
+                assert historical["time_basis"] == "exchange_utc"
+                assert historical["status"] == "unavailable" and len(calls) == 1
+                assert (await query()).json()["candles"] == primary_result["candles"]
+                gap_event = feed.deliver(
+                    3 * SECOND,
+                    payload=Gap("missing", affected_streams=("1-trades",)),
+                    wall=START + 9 * HOUR,
+                )
+                next_event = feed.deliver(4 * SECOND, "90", "0.5")
+                for event in (gap_event, next_event):
+                    await session.work(session._apply_live, (event,), (), 1000)
+                after_gap = (
+                    await query(
+                        instrument_ids=[
+                            str(primary.instrument_id),
+                            str(peer.instrument_id),
+                        ]
+                    )
+                ).json()
+                assert after_gap["candles"][0]["high"] == "90"
+                assert after_gap["candles"][0]["volume"] == "0.5"
+                tape = (
+                    await client.post(
+                        "/api/v1/market-data",
+                        json={"session_id": session.id, "generation": "1"},
+                    )
+                ).json()
+                assert [item["trade"]["price"] for item in tape["trades"]] == ["90"]
+                assert tape["trades"][0]["display_time_ns"] == str(START + 4 * SECOND)
+                assert {item["stream_id"] for item in tape["boundaries"]} == {
+                    "0-trades",
+                    "1-trades",
+                }
+                assert {item["display_time_ns"] for item in tape["boundaries"]} == {
+                    str(START + 3 * SECOND)
+                }
+                assert tape["source_identity"] == after_gap["source_identity"]
+        finally:
+            await runtime.close()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("mode", ("demo", "replay"))
+def test_replay_seek_rebuilds_admitted_candle_history_without_future(
+    mode, tmp_path, monkeypatch
+):
+    from src.workstation.api import CandleRequest
+    from src.workstation.demo import create_demo
+    from src.workstation.demo_memory import MemoryReplaySource
+    from src.workstation.runtime import ClientSession, TerminalRuntime, capture_identity
+
+    async def forbidden(*args, **kwargs):
+        raise AssertionError("session candles cannot request REST")
+
+    monkeypatch.setattr(module, "fetch_public", forbidden)
+
+    async def scenario():
+        runtime = TerminalRuntime(state_dir=tmp_path)
+        session = ClientSession(runtime, mode, "fixture")
+        runtime.sessions[session.id] = session
+        capture = await create_demo(tmp_path / "capture") if mode == "replay" else None
+        try:
+            if capture is not None:
+                await session.work(
+                    session._initialize_replay,
+                    capture.reader.path,
+                    (capture.reader.manifest, capture_identity(capture.reader.path)),
+                )
+            else:
+                await session.work(
+                    session._initialize_replay, MemoryReplaySource.demo()
+                )
+            selected = next(
+                spec.instrument
+                for spec in session.streams
+                if spec.key.channel == "book"
+            )
+            await session.work(session.choose, str(selected.instrument_id))
+            request = CandleRequest(
+                session_id=session.id, generation="1", interval="1m"
+            )
+            initial = await runtime.candles(request)
+            initial_cursor = session.replay.cursor.delivery_index
+            await session.work(session.replay.seek_delivery, 1200)
+            if capture is not None:
+                checkpoints = tuple(
+                    capture.reader.iter_checkpoints(before_delivery=1200)
+                )
+                assert (
+                    checkpoints
+                    and max(item.delivery_index for item in checkpoints) >= 1000
+                )
+                assert session.replay.checkpoint_status == "observer_history_recomputed"
+            saved = await session.work(session.trade_history.checkpoint)
+            prefix = await runtime.candles(request)
+            await session.work(session.replay.step, 100)
+            later = await runtime.candles(request)
+            assert int(later["highwater"]) > int(initial["highwater"])
+            await session.work(session.replay.seek_delivery, 1200)
+            assert (await runtime.candles(request))["candles"] == prefix["candles"]
+            assert await session.work(session.trade_history.checkpoint) == saved
+            await session.work(session.trade_history.reset)
+            await session.work(session.trade_history.restore, saved)
+            assert (await runtime.candles(request))["candles"] == prefix["candles"]
+            await session.work(session.replay.seek_delivery, initial_cursor)
+            rewound = await runtime.candles(request)
+            assert rewound["candles"] == initial["candles"]
+            assert rewound["coverage_end_ns"] == initial["coverage_end_ns"]
+            await session.work(session.replay.seek_delivery, 0)
+            empty = await runtime.candles(request)
+            assert empty["candles"] == [] and empty["coverage_end_ns"] is None
+        finally:
+            await runtime.close()
+            if capture is not None:
+                capture.close()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    "boundary",
+    ("gap", "fanout", "reset", "disconnect", "source_change", "segment", "epoch"),
+)
+def test_boundaries_remove_old_extremes_and_preserve_unaffected_cohort(boundary):
+    primary, peer, other = instrument(), instrument("bybit"), instrument("coinbase")
+    feed = NativeFeed(primary, peer, other)
+    feed.deliver(0, "99999.00")
+    feed.deliver(SECOND, "1.00", product=1)
+    feed.deliver(2 * SECOND, "120.00", product=2)
+    identity = {}
+    if boundary in ("segment", "epoch"):
+        identity = (
+            {"segment_id": "next-segment"} if boundary == "segment" else {"epoch": 1}
+        )
+        feed.deliver(3 * SECOND, "100.00", **identity)
+    else:
+        payload = (
+            Gap("missing", affected_streams=("1-trades",))
+            if boundary == "fanout"
+            else Gap("missing")
+            if boundary == "gap"
+            else Control(boundary, "boundary")
+        )
+        event = feed.deliver(3 * SECOND, payload=payload, wall=START + HOUR)
+        assert feed.history.display_time(event) == START + 3 * SECOND
+        feed.deliver(4 * SECOND, "100.00")
+    selected = (primary, peer, other)
+    result = session_candles(feed.history, primary, "1m", 300, cohort=selected)
+    bar = result["candles"][0]
+    assert (bar["open"], bar["high"], bar["low"], bar["close"]) == (
+        ("120", "120", "100", "100")
+        if boundary == "fanout"
+        else ("1", "120", "1", "100")
     )
-    now, _, reasons = module.receive_utc_frontier(history)
-    assert now == START + 2 * HOUR
-    assert "receive_clock_discontinuity" in reasons
-    history.clock = ClockReading("different-clock", 11 * SECOND, START + 10 * HOUR)
-    assert module.receive_utc_frontier(history)[0] is None
-    history.reset()
-    assert session_candles(history, instrument(), "1h", 300)["candles"] == []
+    assert bar["volume"] == ("2" if boundary == "fanout" else "3")
+    assert all(
+        item.event.payload.price != Decimal("99999") for item in feed.history.trades
+    )
+    assert set(feed.history.admitted) == {
+        (item.delivery, item.event_index) for item in feed.history.trades
+    }
+    assert feed.history.bytes == sum(feed.history.sizes)
+    assert "session_discontinuities" in result["reasons"]
+
+    saved = feed.history.checkpoint()
+    restored = AdmittedTradeHistory(feed.streams, feed.engine)
+    restored.restore(saved)
+    assert restored.checkpoint() == saved
+    assert session_candles(restored, primary, "1m", 300, cohort=selected) == result
+    assert restored.origins == feed.history.origins
+    assert restored.stream_sources == feed.history.stream_sources
+    assert restored.stream_floors == feed.history.stream_floors
+    feed.deliver(5 * SECOND, "110.00", **identity)
+    restored.on_batch(feed.batches[-1], (), feed.clock)
+    assert restored.checkpoint() == feed.history.checkpoint()
+
+
+def test_history_checkpoint_restores_retention_and_exact_clock_state(monkeypatch):
+    import src.workstation.market_presentation as presentation
+
+    monkeypatch.setattr(presentation, "MAX_TRADE_ROWS", 2)
+    feed = NativeFeed()
+    empty = feed.history.checkpoint()
+    feed.deliver(0, "1.00")
+    feed.deliver(SECOND, "2.00", wall=START + HOUR)
+    feed.deliver(2 * SECOND, "3.00")
+    saved = feed.history.checkpoint()
+    expected = session_candles(feed.history, instrument(), "1m", 300)
+    feed.deliver(3 * SECOND, "99999")
+    feed.history.restore(saved)
+    assert feed.history.checkpoint() == saved
+    assert session_candles(feed.history, instrument(), "1m", 300) == expected
+    assert feed.history.floor_cursor == (1, 0)
+    assert feed.history.truncated
+    assert feed.history.now_ns == START + 2 * SECOND
+    feed.history.on_batch(feed.batches[-1], (), feed.clock)
+    assert feed.history.highwater == 4
+    assert feed.history.floor_cursor == (2, 0)
+    feed.history.restore(empty)
+    assert feed.history.checkpoint() == empty
+    assert not feed.history.trades and not feed.history.admitted

@@ -5,9 +5,10 @@ import { useNativeTerminal } from "../../integration/NativeContext";
 import type { NativeMarketData } from "../../api";
 import { useMarketSession, useSessionStore } from "@/lib/session/SessionContext";
 import { drainNativeMarketData } from "@/lib/session/NativeMarketBridge";
+import type { Timeframe } from "@/lib/types/market";
 
 export function useMarketData() {
-  const { terminal, instrument, usable } = useNativeTerminal();
+  const { terminal, instrument, usable, preferences } = useNativeTerminal();
   const session = useMarketSession();
   const { frame, workflow, busy } = terminal;
   const sessionId = frame?.session_id;
@@ -16,10 +17,17 @@ export function useMarketData() {
   const sourceMode = frame?.source.mode;
   const venue = useSessionStore(s => s.venue);
   const selectedVenues = useSessionStore(s => s.selectedVenues);
-  const timeframe = useSessionStore(s => s.timeframe);
+  const timeframe = preferences.candleInterval as Timeframe;
   const tickSize = useSessionStore(s => s.tickSize);
   const imbalanceThreshold = useSessionStore(s => s.imbalanceThreshold);
   const valueAreaPct = useSessionStore(s => s.valueAreaPct);
+
+  // Workspace persistence is authoritative; the session interval is only an
+  // engine input. Apply it before resetting/configuring the native study bridge.
+  useLayoutEffect(() => {
+    const state = session.store.getState();
+    if (state.timeframe !== timeframe) state.setTimeframe(timeframe);
+  }, [session, timeframe]);
 
   // Busy/unusable pauses polling, not evidence. Only the native scope fences caches.
   useLayoutEffect(() => {

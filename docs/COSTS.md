@@ -30,6 +30,8 @@ All economic inputs and results are Decimal, not floats. Money arithmetic uses `
 
 All public models are frozen dataclasses with tuple containers. Their complete typed fields are in `costs.py`. Core walk/pair helpers and cohort containers retain concrete domain types; optional price, fee, and FX amounts are narrowed before accounting, never replaced with zero to satisfy typing. The formula version is `costs-v1-p80`.
 
+Financial inputs use the exact session-pinned instrument descriptor and metadata version, not the newest discovery row for the same instrument ID. Discovery can enrich future stream owners without silently upgrading an active session, capture, or paper run. Native quote, contract-value and settlement identities remain authoritative; display aggregation and canonical base grouping do not authorize cross-quote valuation or orders on another book. Streaming-only descriptors can support observation but cannot supply missing financial precision or contract rules.
+
 ### Fee, conversion, inventory, and scenario inputs
 
 - `FeeSchedule(rate=None, asset_id=None, provenance="unknown", asof_wall_ns=None, assumed=True)`: rate is a fraction, not bps. A known rate, including zero, requires a non-unknown provenance string and a date. `asset_id=None` means the instrument's native quote asset. Known rates must be nonnegative and below one; negative rebate schedules are not silently accepted as taker costs. Unknown fees retain gross diagnostics but make fee/effective/net values unavailable. A future fee date relative to supplied wall time is rejected as evidence, not used. There is no fabricated default exchange fee tier.
@@ -41,9 +43,11 @@ All public models are frozen dataclasses with tuple containers. Their complete t
 
 Exactly one nonnegative base quantity or native-quote budget is required. Zero is valid and returns no fills, zero summed notional and known zero fees, but no VWAP/effective price. Buy walks asks ascending; sell walks bids descending.
 
-A quote budget caps **gross native quote notional, excluding fees**. For sells it caps gross proceeds; it is not a cash-spending request. The result explicitly labels this convention. Pair inventory feasibility, unlike this gross-budget control, includes known quote fees in the cash cap.
+A quote budget caps **gross native quote notional, excluding fees**. For sells it caps gross proceeds; it is not a cash-spending request. For derivatives this is a contract/quote-exposure cap, not available cash, collateral or margin. Pair spot-inventory feasibility, unlike this gross-budget control, includes known quote fees in the cash cap.
 
-Native lot increments are rounded down, never up. Native `min_base`, generic `max_base`, and the selected `max_market_base`/`max_limit_base` constrain the native order quantity; for contract instruments these metadata quantities are contract counts. Maxima intersect rather than overwrite one another. Quote-notional constraints require an explicit matching constraint currency. A known maximum may reduce a fill and leaves an explicit remainder; a resulting fill below a minimum is unavailable as a proposed executable order. Unknown constraints remain unknown, not invented zero bounds. An unsupported size rule fails explicitly.
+Native lot increments are rounded down, never up. `native_order_constraints(instrument)` supplies the interpreted `min_base`, generic `max_base`, and selected `max_market_base`/`max_limit_base` bounds on native order quantity; despite the field names, contract instruments use contract counts. Maxima intersect rather than overwrite one another. Quote-notional constraints require an explicit matching constraint currency. A known maximum may reduce a fill and leaves an explicit remainder; a resulting fill below a minimum is unavailable as a proposed executable order. Unknown constraints remain unknown, not invented zero bounds. An unsupported size rule fails explicitly.
+
+OKX SWAP metadata revision `okx-v2-native-size` retains `minSz`, `maxLmtSz`, `maxMktSz` and `lotSz` in native contracts; `ctVal` is applied when valuing exposure, not to these order-size limits. Captured `okx-v1` linear descriptors had the three min/max fields scaled by `ctVal` while lot/order quantities remained contracts. The shared helper derives compatible native bounds by dividing those three fields by the captured multiplier only for the recognized official v1 source, version/hash/as-of shape and matching linear base-value/quote-settlement contract provenance. The optional `:canonical-assets-v2` version suffix is recognized. It does not rewrite the captured descriptor, raw hash, asset IDs, version or as-of; other revisions and contracts retain their original constraints. Order validation, depth costs and paper capability use the shared interpretation rather than a browser repair.
 
 Marketable-limit estimates require `order_type="limit"` and `limit_price`; market estimates reject an unrelated limit price. Native prices use existing instrument validation, including the existing Hyperliquid significant-digit validator. No separate price-rule implementation is introduced. A limit stops at the first nonmarketable known price.
 
@@ -63,7 +67,7 @@ The summed per-level notional is the accounting input. It is never reconstructed
 
 Partial known-depth results are explicit and never extrapolate. `coverage.full_depth` remains the source's coverage claim, not an assertion that a requested order can fill. Stale, invalid, unsynchronized, blocked, or wrong-clock books do not produce diagnostic simulated fills: `quality.evaluate(..., "depth_walk", ...)` is the shared gate.
 
-For derivatives, notional is exposure, **not principal cash movement or a margin calculation**. Known inverse base settlement and linear quote settlement retain their units. Hyperliquid `quanto_no_fx` preserves the contract's settlement denomination; this is not an executable USDT/USDC conversion. An unknown settlement conversion remains unknown.
+For derivatives, notional is exposure, **not principal cash movement, available collateral or a margin calculation**. Known inverse base settlement and linear quote settlement retain their units. Hyperliquid `quanto_no_fx` preserves the documented native contract payout denomination; this is not an executable USDT/USDC conversion or stablecoin parity assumption. An unknown settlement conversion remains unknown. The separate perpetual paper ledger models isolated margin, fees, funding and P&L under explicit inputs; its existence does not turn this cost engine's derivative comparison into a collateral-sizing or execution model.
 
 ## Same-size pair accounting
 
@@ -99,6 +103,8 @@ Both books must pass centralized comparison eligibility, identity, freshness and
 ## FX orientation, timing, and depegs
 
 No implicit USD=USDT=USDC equivalence exists. Exact identity conversions need no rate; distinct assets require one unambiguous direct supplied rate. Missing, stale, future, wrong-clock, or book-skewed FX is unavailable with reasons. Multiple candidate direct rates require caller selection rather than silent source preference. Multi-hop routes are not inferred.
+
+FX rates here are supplied financial-model evidence, not a new FX product, automatic rate feed or executable FX UI. Canonical crypto identity expansion does not merge USD, USDT and USDC or change these conversion requirements.
 
 For FX base X / quote Y with bid `b`, ask `a`, output fee fraction `f`:
 

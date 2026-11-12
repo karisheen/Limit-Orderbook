@@ -9,10 +9,12 @@ import type {
 import { Details, Empty, Panel, Reasons, Value } from './WorkflowUI';
 import { venueLabel } from './format';
 import { metadataVerified } from './instrument-metadata';
+import { closeIntent, emptyPerpetualDraft, matchingPaperCapability, perpetualModels } from './perpetual-paper';
+import type { PerpetualDraft } from './perpetual-paper';
 import './paper-panels.css';
 
-const detailLimits = { orders_limit: 100, fills_limit: 100 };
-const scopeOf = (props: WorkflowPanelProps) => [props.frame?.session_id, props.frame?.generation, props.frame?.source.id, props.frame?.selection.instrument_id].join('|');
+const detailLimits = { orders_limit: 100, fills_limit: 100, funding_payments_limit: 100, liquidations_limit: 100 };
+const scopeOf = (props: WorkflowPanelProps) => [props.frame?.session_id, props.frame?.generation, props.frame?.source.id, props.frame?.selection.instrument_id, props.frame?.selection.metadata_version].join('|');
 
 // One completion-paced read chain per visible panel. Mutations take exclusive ownership,
 // cancel outstanding reads, and are never retried, including on lifecycle interruption.
@@ -134,10 +136,31 @@ function Accounting({ snapshot, cancel, disabled = false }: { snapshot: PaperSna
   return <div className="paper-accounting">
     <p className="paper-provenance">Run <Exact value={snapshot.run?.run_id} /> · source <Exact value={snapshot.run?.source_id} /> · accounting delivery <Exact value={snapshot.delivery_index} /> · clock <Exact value={snapshot.at?.clock_id} /> · monotonic ns <Exact value={snapshot.at?.mono_ns} /> · wall ns <Exact value={snapshot.at?.wall_ns} /></p>
     <Reasons reasons={snapshot.reasons} />
+    {snapshot.reasons.includes('paper_frozen') && <p className="paper-notice" role="alert">PAPER FROZEN — last valid accounting prefix only: delivery {snapshot.delivery_index}. Market data may continue beyond this prefix; no skipped funding has been silently settled. Orders and cancellation are disabled. Explicitly create a new run with current inputs, or reconstruct via replay; refreshing does not resume accounting.</p>}
     {!snapshot.run && <Empty>No configured paper run. Set explicit starting balances and sourced fees below.</Empty>}
-    {snapshot.run && <Details title="Run configuration intent, starting balances, fee schedules, latency and origin (not current funds)" value={snapshot.run} />}
+    {snapshot.run && <Details title="Run configuration intent, collateral, fees, risk, funding, latency and origin (not current funds)" value={snapshot.run} />}
     <h3>Balances at the stated accounting prefix</h3>
     {snapshot.balances.length === 0 ? <Empty>No balances visible at this accounting prefix. Configuration intent is not available funds.</Empty> : <div className="paper-table-scroll"><table><thead><tr><th>Venue</th><th>Asset ID</th><th>Available — exact</th></tr></thead><tbody>{snapshot.balances.map(balance => <tr key={`${balance.venue}:${balance.asset_id}`}><td>{venueLabel(balance.venue)}</td><td>{balance.asset_id}</td><td><Exact value={balance.available} /></td></tr>)}</tbody></table></div>}
+    <p className="caption">Available balances are free funds / settlement collateral, excluding isolated collateral. No cross-venue or cross-asset netting.</p>
+    <h3>Perpetual positions — isolated one-way accounting</h3>
+    <p className="caption">All monetary values below are exact in each row's settlement asset. Signed quantity is native exposure, not spot inventory. Realized P&amp;L is gross; trading fees, funding and liquidation penalties are separate. Marks are conservative executable-side book proxies, not exchange marks or guaranteed liquidation prices. Null is unavailable, never zero.</p>
+    {snapshot.perpetual_positions.length === 0 ? <Empty>No perpetual positions at this prefix.</Empty> : <div className="paper-table-scroll"><table aria-label="Perpetual positions"><thead><tr><th>Venue / instrument / settlement</th><th>Signed native quantity / entry</th><th>Initial margin / isolated collateral</th><th>Realized / unrealized P&amp;L</th><th>Trading fees / funding / liquidation penalties</th><th>Book proxy / maintenance / equity</th><th>Debt / shortfall / status</th></tr></thead><tbody>{snapshot.perpetual_positions.map(position => <tr key={`${position.venue}:${position.instrument_id}`}>
+      <td>{venueLabel(position.venue)}<br />{position.instrument_id}<br />{position.settlement_asset_id}</td>
+      <td><Exact value={position.quantity} /> {position.instrument.quantity_unit}<br />Entry <Exact value={position.entry_price} /></td>
+      <td>Initial <Exact value={position.initial_margin} /><br />Isolated <Exact value={position.isolated_collateral} /></td>
+      <td>Realized <Exact value={position.realized_pnl} /><br />Unrealized <Exact value={position.unrealized_pnl} /></td>
+      <td>Trading <Exact value={position.fees_paid} /><br />Funding <Exact value={position.funding_paid} /><br />Penalty <Exact value={position.liquidation_fees_paid} /></td>
+      <td>Proxy <Exact value={position.mark_price} /><br />Maintenance <Exact value={position.maintenance_margin} /><br />Equity <Exact value={position.equity} /><br />{position.mark_source}</td>
+      <td>Debt <Exact value={position.debt} /><br />Shortfall <Exact value={position.shortfall} /><br />{position.liquidating ? 'Protective liquidation / residual risk' : 'Not liquidating'}<Reasons reasons={position.reasons} /><Details title="Captured position metadata" value={position.instrument} /></td>
+    </tr>)}</tbody></table></div>}
+    <h3>Funding payments — modeled source-time boundaries</h3>
+    <p className="caption">Positive amount debits isolated collateral; negative credits it. Unresolved payments remain null with reasons. No inferred exchange funding.</p>
+    {snapshot.funding_payments.length === 0 ? <Empty>No funding payments at this prefix.</Empty> : <div className="paper-table-scroll"><table aria-label="Funding payments"><thead><tr><th>Instrument / settlement</th><th>Boundary wall ns / rate</th><th>Quantity / proxy</th><th>Amount / provenance / reasons</th></tr></thead><tbody>{snapshot.funding_payments.map((payment, index) => <tr key={index}><td>{payment.instrument_id}<br />{payment.settlement_asset_id}</td><td><Exact value={payment.at.wall_ns} /><br /><Exact value={payment.rate} /></td><td><Exact value={payment.quantity} /><br /><Exact value={payment.mark_price} /></td><td><Exact value={payment.amount} /><br />{payment.provenance}<Reasons reasons={payment.reasons} /></td></tr>)}</tbody></table></div>}
+    <p className="caption">Funding window: {snapshot.funding_payments.length} shown / {snapshot.presentation.funding_payments_total} total; limit {snapshot.presentation.funding_payments_limit}; {snapshot.presentation.funding_payments_omitted} omitted.</p>
+    <h3>Protective liquidations — observed depth only</h3>
+    <p className="caption">Residual exposure and debt are retained; partial or unavailable depth is not a completed close. Penalties below exclude ordinary trading fees recorded on the linked fill.</p>
+    {snapshot.liquidations.length === 0 ? <Empty>No protective liquidations at this prefix.</Empty> : <div className="paper-table-scroll"><table aria-label="Protective liquidations"><thead><tr><th>Instrument / settlement / time</th><th>Requested / filled / remaining native quantity</th><th>Penalty / debt / fill</th><th>Reasons</th></tr></thead><tbody>{snapshot.liquidations.map((liquidation, index) => <tr key={index}><td>{liquidation.instrument_id}<br />{liquidation.settlement_asset_id}<br /><Exact value={liquidation.at.wall_ns} /></td><td><Exact value={liquidation.requested_quantity} /><br /><Exact value={liquidation.filled_quantity} /><br /><Exact value={liquidation.remaining_quantity} /></td><td><Exact value={liquidation.fee_amount} /><br /><Exact value={liquidation.debt} /><br />Fill {liquidation.fill_id ?? 'none'}</td><td><Reasons reasons={liquidation.reasons} /></td></tr>)}</tbody></table></div>}
+    <p className="caption">Liquidation window: {snapshot.liquidations.length} shown / {snapshot.presentation.liquidations_total} total; limit {snapshot.presentation.liquidations_limit}; {snapshot.presentation.liquidations_omitted} omitted.</p>
     <h3>Positions and native P&amp;L</h3>
     <p className="caption">Unrealized P&amp;L uses gross best-bid marks, not net liquidation proceeds. Initial inventory cost basis can be unknown. No browser valuation or cross-asset totals.</p>
     {snapshot.positions.length === 0 ? <Empty>No positions at this prefix.</Empty> : <div className="paper-table-scroll"><table><thead><tr><th>Venue / instrument / assets</th><th>Quantity</th><th>Cost basis (quote)</th><th>Realized P&amp;L (quote)</th><th>Gross bid-mark unrealized (quote)</th><th>Bid mark / reasons</th></tr></thead><tbody>{snapshot.positions.map(position => <tr key={`${position.venue}:${position.instrument_id}`}><td>{venueLabel(position.venue)}<br />{position.instrument_id}<br />{position.asset_id} / {position.quote_asset_id}</td><td><Exact value={position.quantity} /></td><td><Exact value={position.cost_basis_quote} /></td><td><Exact value={position.realized_pnl_quote} /></td><td><Exact value={position.unrealized_pnl_quote} /></td><td><Exact value={position.mark_price} /><Reasons reasons={position.reasons} /></td></tr>)}</tbody></table></div>}
@@ -166,6 +189,9 @@ export function PaperPanel(props: WorkflowPanelProps & { resumeRun: (id: string,
   const io = useWorkflowData(props, load);
   const [balances, setBalances] = useState<BalanceDraft[]>([EMPTY_BALANCE]);
   const [fees, setFees] = useState<FeeDraft[]>([EMPTY_FEE]);
+  const [models, setModels] = useState<PerpetualDraft[]>([]);
+  const [formError, setFormError] = useState('');
+  const [reduceOnly, setReduceOnly] = useState(false);
   const [feed, setFeed] = useState('');
   const [decision, setDecision] = useState('');
   const [orderLatency, setOrderLatency] = useState('');
@@ -182,24 +208,39 @@ export function PaperPanel(props: WorkflowPanelProps & { resumeRun: (id: string,
   const instrument = props.instruments.find(item => item.instrument_id === props.frame?.selection.instrument_id);
   const disabled = !io.enabled || io.pending;
   const verified = metadataVerified(props.frame);
-  const configurationDisabled = disabled || !verified;
+  const capability = matchingPaperCapability(props.frame, instrument, paper?.capability);
+  const configurationDisabled = disabled || !capability?.supported;
+  const perpetual = capability?.market_type === 'perpetual';
   const currentRun = snapshot?.run;
-  const runActive = !!currentRun && !snapshot?.reasons.some(reason => ['run_not_active_at_cursor', 'future_commands_fork_required', 'stale_run_reload_required', 'run_source_clock_mismatch'].includes(reason));
-  const canOrder = !configurationDisabled && runActive && instrument?.market_type === 'spot' && instrument.quantity_unit === 'base';
-  useEffect(() => { setArchive(null); setConfirmedFork(false); setQuantity(''); setLimitPrice(''); }, [scope]);
+  const runActive = !!currentRun && !snapshot?.reasons.some(reason => ['paper_frozen', 'run_not_active_at_cursor', 'future_commands_fork_required', 'stale_run_reload_required', 'run_source_clock_mismatch'].includes(reason));
+  const modelsPresent = !perpetual || (!!currentRun?.config.risk_models.some(model => model.instrument_id === instrument?.instrument_id)
+    && !!currentRun?.config.funding_models.some(model => model.instrument_id === instrument?.instrument_id));
+  const canOrder = !configurationDisabled && runActive && modelsPresent;
+  const selectedPosition = snapshot?.perpetual_positions.find(position => position.instrument_id === instrument?.instrument_id && position.venue === instrument?.venue);
+  const close = selectedPosition ? closeIntent(selectedPosition) : null;
+  useEffect(() => { setArchive(null); setConfirmedFork(false); setQuantity(''); setLimitPrice(''); setReduceOnly(false); setFormError(''); }, [scope]);
   const configure = (event: FormEvent) => {
     event.preventDefault();
     if (configurationDisabled || !confirmedFork) return;
-    const input: PaperConfigurationInput = {
-      balances: balances.map((balance): BalanceInput => ({ ...balance })), fees: fees.map(fee => ({ ...fee })),
-      feed_latency_ns: feed, decision_latency_ns: decision, order_latency_ns: orderLatency,
-    };
-    void io.act(signal => props.request<PaperResponse>('/paper/configure', input, signal)).then(ok => { if (ok) setConfirmedFork(false); });
+    setFormError('');
+    try {
+      const assumptions = perpetualModels(models);
+      if (perpetual && !assumptions.risk_models.some(model => model.instrument_id === instrument?.instrument_id)) {
+        throw new Error('Add explicit risk and funding assumptions for the selected perpetual.');
+      }
+      const input: PaperConfigurationInput = {
+        balances: balances.map((balance): BalanceInput => ({ ...balance })), fees: fees.map(fee => ({ ...fee })),
+        feed_latency_ns: feed, decision_latency_ns: decision, order_latency_ns: orderLatency, ...assumptions, ...detailLimits,
+      };
+      void io.act(signal => props.request<PaperResponse>('/paper/configure', input, signal)).then(ok => { if (ok) setConfirmedFork(false); });
+    } catch (failure) {
+      setFormError(failure instanceof Error ? failure.message : String(failure));
+    }
   };
   const submitOrder = (event: FormEvent) => {
     event.preventDefault();
     if (!canOrder || !instrument) return;
-    const input: PaperOrderInput = { instrument_id: instrument.instrument_id, side, quantity, order_type: orderType, ...(orderType === 'limit' ? { limit_price: limitPrice } : {}) };
+    const input: PaperOrderInput = { instrument_id: instrument.instrument_id, side, quantity, order_type: orderType, reduce_only: perpetual && reduceOnly, ...(orderType === 'limit' ? { limit_price: limitPrice } : {}), ...detailLimits };
     void io.act(signal => props.request<PaperResponse>('/paper/orders', input, signal));
   };
   const showArchive = (runId: string) => {
@@ -224,24 +265,29 @@ export function PaperPanel(props: WorkflowPanelProps & { resumeRun: (id: string,
       setResumeRequested(previous => previous === attempt ? { ...attempt, acceptedGeneration: accepted.generation } : previous);
     });
   };
-  return <Panel title="Paper execution — native spot simulation" className="paper-workflow" extra={<button type="button" disabled={disabled} onClick={io.refresh}>Refresh native state</button>}>
-    <p className="caption">Simulation only. No credentials or real orders. Spot market and marketable-limit IOC; no passive fills or derivative economics. Native fees, funds, depth, latency and reservations determine outcomes.</p>
+  return <Panel title="Paper execution — native spot / perpetual simulation" className="paper-workflow" extra={<button type="button" disabled={disabled} onClick={io.refresh}>Refresh native state</button>}>
+    <p className="caption">Simulation only. No credentials or real orders. Spot inventory and isolated one-way perpetual market / marketable-limit IOC; no passive fills. Native fees, collateral, risk, funding, depth, latency and shared consumed-depth reservations determine outcomes.</p>
     <Availability {...io} />
     {props.frame?.selection.instrument_id && !verified && <p className="paper-notice" role="status">Streaming-only or unverified session metadata: paper configuration and orders require verified session-pinned instrument metadata. Native accounting, archived audits, market data and analytics remain available.</p>}
     {paper && <Provenance response={paper} />}
+    {!capability && <p className="paper-notice">Waiting for native capability matching the selected instrument and pinned metadata version. Financial actions remain fenced.</p>}
+    {capability && <><p className="caption">Native capability: {capability.supported ? 'supported' : 'unsupported'} · metadata {capability.metadata_version} · settlement {capability.settlement_asset_id ?? 'not applicable'}.</p><Reasons reasons={capability.reasons} /><Details title="Native derived order constraints (size bounds in native quantity units)" value={capability.native_order_constraints} /></>}
     {resumeRequested && resumeRequested.session === props.frame?.session_id && <p className="paper-notice">Resume requested: {resumeRequested.id}. {resumeRequested.acceptedGeneration !== null && paper?.generation === resumeRequested.acceptedGeneration && currentRun?.run_id === resumeRequested.id && !snapshot?.reasons.includes('run_not_active_at_cursor') ? 'Confirmed by a new-generation native run snapshot; accounting is rebuilt only through the current cursor.' : 'Not yet confirmed by a new-generation native run snapshot. Inspect terminal lifecycle/errors and refresh; completion alone is not success.'}</p>}
     <form className="paper-order-form" onSubmit={submitOrder}>
       <h3>Simulated entry — {instrument?.native_symbol ?? 'select an instrument'}</h3>
       <p className="caption">Exact instrument: {instrument?.instrument_id ?? 'unavailable'}. Quantity unit: {instrument?.quantity_unit ?? 'unavailable'}. A pending order requires subsequent native source time to reach arrival.</p>
       <fieldset disabled={!canOrder}><div className="paper-fields">
-        <Field label="Side"><select value={side} onChange={event => setSide(event.target.value as 'buy' | 'sell')}><option value="buy">Buy</option><option value="sell">Sell</option></select></Field>
-        <Field label="Base quantity — exact"><input required inputMode="decimal" value={quantity} onChange={event => setQuantity(event.target.value)} /></Field>
+        <Field label="Side"><select value={side} onChange={event => setSide(event.target.value as 'buy' | 'sell')}><option value="buy">{perpetual ? 'Buy — long / close short' : 'Buy'}</option><option value="sell">{perpetual ? 'Sell — short / close long' : 'Sell'}</option></select></Field>
+        <Field label={perpetual ? 'Native quantity — exact' : 'Base quantity — exact'}><input required maxLength={128} inputMode="decimal" value={quantity} onChange={event => setQuantity(event.target.value)} /></Field>
         <Field label="Order type"><select value={orderType} onChange={event => setOrderType(event.target.value as 'market' | 'limit')}><option value="market">Market IOC</option><option value="limit">Marketable limit IOC</option></select></Field>
         {orderType === 'limit' && <Field label="Limit price — exact"><input required inputMode="decimal" value={limitPrice} onChange={event => setLimitPrice(event.target.value)} /></Field>}
+        {perpetual && <label className="paper-check"><input type="checkbox" checked={reduceOnly} onChange={event => setReduceOnly(event.target.checked)} />Reduce only — never increase or flip exposure</label>}
+        {perpetual && <button type="button" disabled={!close} onClick={() => { if (close) { setSide(close.side); setQuantity(close.quantity); setReduceOnly(true); setOrderType('market'); setLimitPrice(''); } }}>Prepare full reduce-only close</button>}
         <button type="submit" className="primary">Submit simulated order</button>
       </div></fieldset>
       {!runActive && <p className="caption">Entry requires an active native run at this cursor. Rewind before creation leaves configuration intent only; future commands require an explicit fork.</p>}
-      {instrument && (instrument.market_type !== 'spot' || instrument.quantity_unit !== 'base') && <p className="paper-notice">Unsupported instrument economics: {instrument.market_type} / {instrument.quantity_unit}. No derivative simulation is represented.</p>}
+      {perpetual && <p className="caption">Opposite-side orders close existing exposure before opening any eligible remainder; select reduce only to forbid a flip. Prepare close fills the exact native quantity above for explicit submission; depth can leave a residual. Missing/stale book evidence is rejected by native execution.</p>}
+      {!modelsPresent && <p className="paper-notice">This run lacks explicit risk or funding assumptions for the selected perpetual. Create an explicit fork; missing funding is not zero funding.</p>}
     </form>
     <details className="paper-section" open={!currentRun}>
       <summary>Explicit new run / fork — starting funds, sourced fees and latency</summary>
@@ -254,7 +300,7 @@ export function PaperPanel(props: WorkflowPanelProps & { resumeRun: (id: string,
             <button type="button" onClick={() => setBalances(previous => previous.filter((_, rowIndex) => rowIndex !== index))}>Remove balance</button>
           </div>)}
           <button type="button" disabled={balances.length >= 64} onClick={() => setBalances(previous => [...previous, EMPTY_BALANCE])}>Add balance</button>
-          <p className="caption">Selected metadata: venue {instrument?.venue ?? 'unavailable'}; base {instrument?.base.asset_id ?? 'unavailable'}; quote {instrument?.quote.asset_id ?? 'unavailable'}. These identifiers do not grant funds. Balance as-of is unspecified; provenance is supplied by you.</p>
+          <p className="caption">Selected metadata: venue {instrument?.venue ?? 'unavailable'}; base {instrument?.base.asset_id ?? 'unavailable'}; quote {instrument?.quote.asset_id ?? 'unavailable'}; settlement collateral {capability?.settlement_asset_id ?? 'not applicable'}. Perpetual balances fund the exact settlement asset, never spot base inventory. These identifiers do not grant funds. Balance as-of is unspecified; provenance is supplied by you.</p>
           <h3>Explicit sourced and dated fee schedules</h3>
           {fees.map((fee, index) => <div className="paper-draft-row" key={index}>
             <Field label="Fee instrument"><select required value={fee.instrument_id} onChange={event => setFees(previous => previous.map((row, rowIndex) => rowIndex === index ? { ...row, instrument_id: event.target.value } : row))}><option value="">Select exact instrument</option>{props.instruments.map(item => <option key={item.instrument_id} value={item.instrument_id}>{venueLabel(item.venue)} · {item.native_symbol} · {item.instrument_id}</option>)}</select></Field>
@@ -263,14 +309,35 @@ export function PaperPanel(props: WorkflowPanelProps & { resumeRun: (id: string,
           </div>)}
           <button type="button" disabled={fees.length >= 64} onClick={() => setFees(previous => [...previous, EMPTY_FEE])}>Add fee schedule</button>
           <p className="caption">No fee schedule is not a zero fee: native execution reports missing/unsupported fee assumptions. Asset identifiers must match native economics.</p>
+          <h3>Explicit perpetual risk and funding assumptions</h3>
+          <p className="caption">User models, not exchange risk tiers or guarantees. Leverage 1–1000; maintenance rate must be below 1 / leverage; liquidation penalty rate below 1. Rates are fractions, not basis points. Every model needs provenance and as-of wall ns. Funding must be an explicit no-funding assumption, periodic schedule, or strictly chronological dated events. Boundary times cannot predate the model. Native validation is authoritative; inputs never use browser floating-point economics.</p>
+          {models.map((model, index) => <fieldset className="paper-draft-row" key={index}><legend>Perpetual model {index + 1}</legend>
+            <Field label="Risk / funding instrument"><select required value={model.instrument_id} onChange={event => setModels(previous => previous.map((row, rowIndex) => rowIndex === index ? { ...row, instrument_id: event.target.value } : row))}><option value="">Select exact perpetual</option>{props.instruments.filter(item => item.market_type === 'perpetual').map(item => <option key={item.instrument_id} value={item.instrument_id}>{venueLabel(item.venue)} · {item.native_symbol} · {item.instrument_id}</option>)}</select></Field>
+            {([
+              ['leverage', 'Modeled leverage — exact'], ['maintenance_margin_rate', 'Maintenance margin rate — exact'],
+              ['liquidation_fee_rate', 'Liquidation penalty rate — exact'], ['risk_provenance', 'Risk model provenance'],
+              ['risk_asof', 'Risk as-of wall ns'], ['funding_provenance', 'Funding model provenance'], ['funding_asof', 'Funding as-of wall ns'],
+            ] as const).map(([key, label]) => <Field key={key} label={label}><input required maxLength={key.endsWith('provenance') ? 4096 : key.endsWith('asof') ? 20 : 128} value={model[key]} pattern={key.endsWith('asof') ? '[0-9]+' : undefined} onChange={event => setModels(previous => previous.map((row, rowIndex) => rowIndex === index ? { ...row, [key]: event.target.value } : row))} /></Field>)}
+            <Field label="Funding assumption"><select required value={model.funding_mode} onChange={event => setModels(previous => previous.map((row, rowIndex) => rowIndex === index ? { ...row, funding_mode: event.target.value as PerpetualDraft['funding_mode'] } : row))}><option value="">Choose explicitly</option><option value="none">No funding — explicit modeled assumption</option><option value="periodic">Periodic signed rate and boundaries</option><option value="events">Exact dated signed-rate events</option></select></Field>
+            {model.funding_mode === 'periodic' && ([
+              ['rate', 'Periodic funding rate — exact'], ['interval_ns', 'Funding interval ns'], ['first_wall_ns', 'First funding boundary wall ns'],
+            ] as const).map(([key, label]) => <Field key={key} label={label}><input required maxLength={key === 'rate' ? 128 : 20} pattern={key === 'rate' ? undefined : '[0-9]+'} value={model[key]} onChange={event => setModels(previous => previous.map((row, rowIndex) => rowIndex === index ? { ...row, [key]: event.target.value } : row))} /></Field>)}
+            {model.funding_mode === 'events' && <><p className="caption">At most 10,000 strictly increasing source-wall boundaries; signed rate magnitude below 1. An empty list is an explicit schedule with no events.</p>{model.events.map((fundingEvent, eventIndex) => <div className="paper-fields" key={eventIndex}>
+              {([['wall_ns', 'Event wall ns'], ['rate', 'Event funding rate — exact']] as const).map(([key, label]) => <Field key={key} label={`${label} ${eventIndex + 1}`}><input required maxLength={key === 'rate' ? 128 : 20} pattern={key === 'wall_ns' ? '[0-9]+' : undefined} value={fundingEvent[key]} onChange={event => setModels(previous => previous.map((row, rowIndex) => rowIndex === index ? { ...row, events: row.events.map((entry, entryIndex) => entryIndex === eventIndex ? { ...entry, [key]: event.target.value } : entry) } : row))} /></Field>)}
+              <button type="button" onClick={() => setModels(previous => previous.map((row, rowIndex) => rowIndex === index ? { ...row, events: row.events.filter((_, entryIndex) => entryIndex !== eventIndex) } : row))}>Remove funding event {eventIndex + 1}</button>
+            </div>)}<button type="button" disabled={model.events.length >= 10000} onClick={() => setModels(previous => previous.map((row, rowIndex) => rowIndex === index ? { ...row, events: [...row.events, { wall_ns: '', rate: '' }] } : row))}>Add funding event</button></>}
+            <button type="button" onClick={() => setModels(previous => previous.filter((_, rowIndex) => rowIndex !== index))}>Remove perpetual model</button>
+          </fieldset>)}
+          <button type="button" disabled={models.length >= 64} onClick={() => setModels(previous => [...previous, { ...emptyPerpetualDraft(), instrument_id: perpetual ? instrument?.instrument_id ?? '' : '' }])}>Add perpetual model</button>
           <div className="paper-fields">
             <Field label="Feed latency (ns)"><input required pattern="[0-9]+" inputMode="numeric" value={feed} onChange={event => setFeed(event.target.value)} /></Field>
             <Field label="Decision latency (ns)"><input required pattern="[0-9]+" inputMode="numeric" value={decision} onChange={event => setDecision(event.target.value)} /></Field>
             <Field label="Order latency (ns)"><input required pattern="[0-9]+" inputMode="numeric" value={orderLatency} onChange={event => setOrderLatency(event.target.value)} /></Field>
           </div>
-          <label className="paper-check"><input type="checkbox" required checked={confirmedFork} onChange={event => setConfirmedFork(event.target.checked)} />I explicitly intend a new run / fork with these starting balances, fees and latencies; previous history remains preserved.</label>
+          <label className="paper-check"><input type="checkbox" required checked={confirmedFork} onChange={event => setConfirmedFork(event.target.checked)} />I explicitly intend a new run / fork with these starting balances, fees, risk, funding and latencies; previous history remains preserved.</label>
           <button className="primary" type="submit" disabled={!confirmedFork}>{currentRun ? 'Create explicit fork' : 'Create new paper run'}</button>
         </fieldset>
+        {formError && <p className="error" role="alert">{formError}</p>}
       </form>
     </details>
     {snapshot ? <Accounting snapshot={snapshot} disabled={disabled || !runActive} cancel={id => { void io.act(signal => props.request<PaperResponse>('/paper/cancel', { order_id: id, ...detailLimits }, signal)); }} /> : io.enabled && !io.error && <Empty>Reading native paper state…</Empty>}
