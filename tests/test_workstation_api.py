@@ -59,6 +59,124 @@ def test_full_demo_is_honest_exact_and_ready(terminal):
     assert terminal.get("/health/ready").status_code == 200
 
 
+def test_catalog_validators_are_scoped_exact_and_refresh_source_evidence(
+    terminal, monkeypatch
+):
+    import threading
+
+    import src.workstation.runtime as runtime_module
+
+    frame = new_session(terminal)
+    runtime = terminal.app.state.runtime
+    source_id = frame["source"]["id"]
+    scoped_url = "/api/v1/instruments?source_id=" + source_id
+    narrow_id = "catalog-narrow-fixture"
+    narrow_url = "/api/v1/instruments?source_id=" + narrow_id
+    instrument = runtime.source_instruments[source_id][0]
+    monkeypatch.setitem(
+        runtime.sources, narrow_id, {**runtime.sources[source_id], "id": narrow_id}
+    )
+    monkeypatch.setitem(runtime.source_instruments, narrow_id, (instrument,))
+    original_dto = runtime_module.dto
+    conversions = []
+    worker_threads = []
+
+    def counted_dto(value):
+        conversions.append(value)
+        worker_threads.append(threading.current_thread().name)
+        return original_dto(value)
+
+    monkeypatch.setattr(runtime_module, "dto", counted_dto)
+    root = terminal.get("/api/v1/instruments")
+    scoped = terminal.get(scoped_url)
+    narrow = terminal.get(narrow_url)
+    assert root.status_code == scoped.status_code == narrow.status_code == 200
+    assert len(conversions) == 3
+    assert all(name.startswith("terminal-catalog") for name in worker_threads)
+    assert root.headers["cache-control"] == "private, no-cache"
+    assert root.headers["etag"].startswith('"')
+    assert root.headers["etag"].endswith('"')
+    assert root.json()["version"] == "1"
+    assert len(narrow.json()["instruments"]) == 1
+    assert narrow.headers["etag"] != root.headers["etag"]
+
+    for path, cached in (
+        ("/api/v1/instruments", root),
+        (scoped_url, scoped),
+        (narrow_url, narrow),
+        ("/api/v1/instruments", root),
+    ):
+        response = terminal.get(path, headers={"If-None-Match": cached.headers["etag"]})
+        assert response.status_code == 304
+        assert response.content == b""
+        assert response.headers["etag"] == cached.headers["etag"]
+        assert response.headers["cache-control"] == "private, no-cache"
+    # Revalidation must not serialize again when root/source requests alternate.
+    assert len(conversions) == 3
+    for validator in (
+        "W/" + narrow.headers["etag"],
+        '"other", ' + narrow.headers["etag"],
+        "*",
+    ):
+        assert (
+            terminal.get(narrow_url, headers={"If-None-Match": validator}).status_code
+            == 304
+        )
+    different = terminal.get(
+        narrow_url, headers={"If-None-Match": root.headers["etag"]}
+    )
+    assert different.status_code == 200
+    assert different.content == narrow.content
+    assert (
+        terminal.get(
+            "/api/v1/instruments?source_id=missing",
+            headers={"If-None-Match": "*"},
+        ).status_code
+        == 404
+    )
+
+    monkeypatch.setitem(runtime.sources[source_id], "status", "unavailable")
+    monkeypatch.setitem(
+        runtime.sources[source_id], "reasons", ["catalog_source_changed"]
+    )
+    changed = terminal.get(
+        scoped_url, headers={"If-None-Match": scoped.headers["etag"]}
+    )
+    assert changed.status_code == 200
+    assert changed.headers["etag"] != scoped.headers["etag"]
+    source = next(item for item in changed.json()["sources"] if item["id"] == source_id)
+    assert source["status"] == "unavailable"
+    assert source["reasons"] == ["catalog_source_changed"]
+    assert (
+        terminal.get(
+            scoped_url, headers={"If-None-Match": changed.headers["etag"]}
+        ).status_code
+        == 304
+    )
+
+    current = terminal.get(narrow_url)
+    changed_instrument = replace(
+        instrument, metadata_version=instrument.metadata_version + "-catalog-change"
+    )
+    monkeypatch.setitem(runtime.source_instruments, narrow_id, (changed_instrument,))
+    metadata = terminal.get(
+        narrow_url, headers={"If-None-Match": current.headers["etag"]}
+    )
+    assert metadata.status_code == 200
+    assert (
+        metadata.json()["instruments"][0]["metadata_version"]
+        == changed_instrument.metadata_version
+    )
+    assert metadata.headers["etag"] != current.headers["etag"]
+    monkeypatch.setattr(runtime, "demo_id", narrow_id)
+    preferred = terminal.get(
+        narrow_url, headers={"If-None-Match": metadata.headers["etag"]}
+    )
+    assert preferred.status_code == 200
+    assert preferred.json()["preferred_source_id"] == narrow_id
+    assert preferred.headers["etag"] != metadata.headers["etag"]
+
+
 def test_clients_seek_and_selection_are_independent_without_future_history(terminal):
     first, second = new_session(terminal), new_session(terminal)
     initial_second = second["replay"]["cursor"]

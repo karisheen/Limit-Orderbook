@@ -12,15 +12,18 @@ of page position and trade availability; request/browser wall time is not a cloc
 """
 
 from collections import OrderedDict, deque
+from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal, localcontext
+from functools import partial
+from types import MappingProxyType
 from typing import TypeAlias
 
 from .analytics import AnalyticsEngine, TapePrint, _valuation
 from .book import Book
-from .events import Control, EventEnvelope, Gap, Trade
+from .events import Control, EventEnvelope, Gap, SubscriptionKey, Trade
 from .precision import DECIMAL_CONTEXT, DERIVED_DECIMAL_POLICY
-from .quality import EligibilityPolicy, evaluate
+from .quality import ClockReading, EligibilityPolicy, evaluate
 from .recording import RecordedBatch, StreamSpec
 from .replay import ReplayClock
 from .wire import dumps, loads
@@ -59,6 +62,26 @@ class AdmittedTrade:
     display_time_ns: int
     delivery: int
     event_index: int
+
+
+def _display_time(origins, event: EventEnvelope) -> int | None:
+    origin = origins.get((event.session_id, event.clock_id))
+    if origin is None or event.receive_mono_ns < origin[0]:
+        return None
+    return origin[1] + event.receive_mono_ns - origin[0]
+
+
+@dataclass(frozen=True)
+class AdmittedTradeView:
+    admitted: Mapping[TradeCursor, AdmittedTrade]
+    floor_cursor: TradeCursor
+    stream_floors: Mapping[str, TradeCursor]
+    origins: Mapping[ClockScope, tuple[int, int]]
+    now_ns: int | None
+    reasons: frozenset[str]
+
+    def display_time(self, event: EventEnvelope) -> int | None:
+        return _display_time(self.origins, event)
 
 
 class AdmittedTradeHistory:
@@ -248,10 +271,17 @@ class AdmittedTradeHistory:
         self.trades, self.sizes = retained, sizes
 
     def display_time(self, event: EventEnvelope) -> int | None:
-        origin = self.origins.get((event.session_id, event.clock_id))
-        if origin is None or event.receive_mono_ns < origin[0]:
-            return None
-        return origin[1] + event.receive_mono_ns - origin[0]
+        return _display_time(self.origins, event)
+
+    def query_snapshot(self) -> AdmittedTradeView:
+        return AdmittedTradeView(
+            MappingProxyType(dict(self.admitted)),
+            self.floor_cursor,
+            MappingProxyType(dict(self.stream_floors)),
+            MappingProxyType(dict(self.origins)),
+            self.now_ns,
+            frozenset(self.reasons),
+        )
 
     @property
     def now_ns(self) -> int | None:
@@ -366,26 +396,124 @@ class AdmittedTradeHistory:
                     self.prune_through(batch.delivery_index, index)
 
 
+@dataclass(frozen=True)
+class LiveMarketView:
+    """One completed live prefix, retained only while its lifecycle action runs.
+
+    Native books/events are immutable and shared. History and admission retain
+    their existing count/byte bounds; copied maps have no mutable owner aliases.
+    The captured clock is never advanced by the independent projection worker.
+    """
+
+    session_id: str
+    generation: int
+    source_identity: str
+    streams: tuple[StreamSpec, ...]
+    key: SubscriptionKey | None
+    books: tuple[Book, ...]
+    now: ClockReading | None
+    highwater: int
+    floor: int
+    floor_event: int
+    batches: tuple[RecordedBatch, ...]
+    trade_history: AdmittedTradeView
+
+    def query(self, request):
+        return _project_market_data(
+            request,
+            session_id=self.session_id,
+            generation=self.generation,
+            source_identity=self.source_identity,
+            streams=self.streams,
+            key=self.key,
+            books=self.books,
+            now=self.now,
+            highwater=self.highwater,
+            floor=self.floor,
+            floor_event=self.floor_event,
+            trade_history=self.trade_history,
+            read_batches=partial(_retained_batches, self.batches),
+        )
+
+
+def live_market_snapshot(session) -> LiveMarketView:
+    """Capture on the analytical owner, without a reader or mutable observer."""
+    if session.replay is not None:
+        raise ValueError("live market snapshot requires a live owner")
+    return LiveMarketView(
+        session.id,
+        session.generation,
+        session.source_identity,
+        session.streams,
+        session.key,
+        session.live_books,
+        session._now(),
+        session.delivery,
+        session.history_floor,
+        session.history_floor_event,
+        tuple(session.history),
+        session.trade_history.query_snapshot(),
+    )
+
+
+def _retained_batches(history, *, start_delivery, stop_delivery):
+    return (
+        batch
+        for batch in history
+        if start_delivery <= batch.delivery_index <= stop_delivery
+    )
+
+
 def market_data(session, request):
-    # Called only on the session owner, with its lifecycle locks held.
+    """Owned projection, including replay's thread-affine reader path."""
+    return _project_market_data(
+        request,
+        session_id=session.id,
+        generation=session.generation,
+        source_identity=session.source_identity,
+        streams=session.streams,
+        key=session.key,
+        books=session.replay.books() if session.replay else session.live_books,
+        now=session._now(),
+        highwater=(
+            session.replay.cursor.delivery_index if session.replay else session.delivery
+        ),
+        floor=1 if session.replay else session.history_floor,
+        floor_event=-1 if session.replay else session.history_floor_event,
+        trade_history=session.trade_history,
+        read_batches=session.reader.iter_batches
+        if session.replay
+        else partial(_retained_batches, session.history),
+    )
+
+
+def _project_market_data(
+    request,
+    *,
+    session_id,
+    generation,
+    source_identity,
+    streams,
+    key,
+    books,
+    now,
+    highwater,
+    floor,
+    floor_event,
+    trade_history,
+    read_batches,
+):
     from .runtime import _book_presentation, _live_cohort, dto
 
-    highwater = (
-        session.replay.cursor.delivery_index if session.replay else session.delivery
-    )
-    floor = 1 if session.replay else session.history_floor
     delivery, offset = int(request.after_delivery), request.after_event
-    floor_event = -1 if session.replay else session.history_floor_event
-    floor_cursor = max((floor - 1, floor_event), session.trade_history.floor_cursor)
+    floor_cursor = max((floor - 1, floor_event), trade_history.floor_cursor)
     gap = delivery > highwater or (delivery, offset) < floor_cursor
     if gap:
         delivery, offset = floor_cursor
     cursor = {"delivery": str(delivery), "event": offset}
-    selected = next(
-        (spec.instrument for spec in session.streams if spec.key == session.key), None
-    )
+    selected = next((spec.instrument for spec in streams if spec.key == key), None)
     instruments = {}
-    for spec in session.streams:
+    for spec in streams:
         instrument = spec.instrument
         if (
             selected is None
@@ -403,16 +531,15 @@ def market_data(session, request):
             str(instrument.instrument_id): instrument
             for instrument in _live_cohort(selected, tuple(instruments.values()))
         }
-    specs = {spec.stream_id: spec for spec in session.streams}
+    specs = {spec.stream_id: spec for spec in streams}
     book_instruments = {
         (spec.key, spec.instrument.metadata_version): spec.instrument
-        for spec in session.streams
+        for spec in streams
         if spec.key.channel == "book"
     }
-    now = session._now()
-    books = []
+    presented_books = []
     with localcontext(DECIMAL_CONTEXT):
-        for book in session.replay.books() if session.replay else session.live_books:
+        for book in books:
             if str(book.key.instrument_id) not in instruments:
                 continue
             instrument = book_instruments.get((book.key, book.metadata_version))
@@ -428,17 +555,13 @@ def market_data(session, request):
                 if now is not None
                 else None
             )
-            books.append(presented)
+            presented_books.append(presented)
 
         start = max(floor, delivery, 1)
         batches = (
-            session.reader.iter_batches(start_delivery=start, stop_delivery=highwater)
-            if session.replay and start <= highwater
-            else (
-                batch
-                for batch in session.history
-                if start <= batch.delivery_index <= highwater
-            )
+            read_batches(start_delivery=start, stop_delivery=highwater)
+            if start <= highwater
+            else ()
         )
         trades: list[dict[str, object]] = []
         boundaries: list[dict[str, object]] = []
@@ -503,11 +626,7 @@ def market_data(session, request):
                                     "asof": dto(event.ref()),
                                     "display_time_ns": (
                                         str(stamp)
-                                        if (
-                                            stamp := session.trade_history.display_time(
-                                                event
-                                            )
-                                        )
+                                        if (stamp := trade_history.display_time(event))
                                         is not None
                                         else None
                                     ),
@@ -520,9 +639,7 @@ def market_data(session, request):
                                 }
                             )
                     presented = None
-                    admitted = session.trade_history.admitted.get(
-                        (batch.delivery_index, index)
-                    )
+                    admitted = trade_history.admitted.get((batch.delivery_index, index))
                     if (
                         isinstance(payload, Trade)
                         and str(event.key.instrument_id) in instruments
@@ -585,8 +702,8 @@ def market_data(session, request):
                 close()
     return {
         "version": "1",
-        "session_id": session.id,
-        "generation": str(session.generation),
+        "session_id": session_id,
+        "generation": str(generation),
         "cursor": cursor,
         "highwater": str(highwater),
         "gap": gap,
@@ -594,21 +711,19 @@ def market_data(session, request):
             "floor": {"delivery": str(floor_cursor[0]), "event": floor_cursor[1]},
             "stream_floors": {
                 stream: {"delivery": str(position[0]), "event": position[1]}
-                for stream, position in session.trade_history.stream_floors.items()
+                for stream, position in trade_history.stream_floors.items()
             },
         },
         "has_more": has_more,
-        "books": books,
+        "books": presented_books,
         "instruments": dto(tuple(instruments.values())),
         "trades": trades,
         "boundaries": boundaries,
         "now": dto(now),
         "display_frontier_ns": (
-            str(frontier)
-            if (frontier := session.trade_history.now_ns) is not None
-            else None
+            str(frontier) if (frontier := trade_history.now_ns) is not None else None
         ),
-        "source_identity": session.source_identity,
+        "source_identity": source_identity,
         "time_basis": "receive_utc",
-        "display_time_reasons": sorted(session.trade_history.reasons),
+        "display_time_reasons": sorted(trade_history.reasons),
     }

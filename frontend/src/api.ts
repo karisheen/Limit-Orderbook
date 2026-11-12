@@ -215,6 +215,10 @@ export async function request<T>(path: string, body?: unknown, signal?: AbortSig
     headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
+  return responseData<T>(response, onReceive);
+}
+
+async function responseData<T>(response: Response, onReceive?: (receivedAtMs: number) => void): Promise<T> {
   const text = await response.text();
   onReceive?.(performance.now());
   let data: unknown;
@@ -225,6 +229,23 @@ export async function request<T>(path: string, body?: unknown, signal?: AbortSig
     throw new ApiError(`HTTP ${response.status}: ${typeof detail === 'string' ? detail : JSON.stringify(detail)}`, response.status);
   }
   return data as T;
+}
+
+export interface CatalogSnapshot { path: string; etag: string | null; data: Catalog }
+
+/** A 304 confirms only the exact URL's previously received catalog, not another source. */
+export async function requestCatalog(path: string, signal: AbortSignal, previous?: CatalogSnapshot): Promise<CatalogSnapshot> {
+  const cached = previous?.path === path && previous.etag ? previous : undefined;
+  const response = await fetch(`/api/v1${path}`, {
+    signal, cache: 'no-store',
+    headers: cached ? { 'If-None-Match': cached.etag! } : undefined,
+  });
+  if (response.status === 304) {
+    if (!cached) throw new ApiError('HTTP 304: no matching catalog representation', 304);
+    return cached;
+  }
+  const data = await responseData<Catalog>(response);
+  return { path, etag: response.headers.get('ETag'), data };
 }
 
 export function errorMessage(error: unknown): string { return error instanceof Error ? error.message : String(error); }

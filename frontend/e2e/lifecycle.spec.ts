@@ -120,7 +120,11 @@ test('catalog readiness refreshes without replacing the active session', async (
     const response = await route.fetch();
     const catalog = await response.json() as Catalog;
     if (loading && new URL(route.request().url()).searchParams.has('source_id')) catalog.sources = catalog.sources.map(source => ({ ...source, status: 'loading', reasons: ['fault_injected_catalog_preparation'] }));
-    await route.fulfill({ response, json: catalog });
+    // The injected body is not the origin's validated representation.
+    const headers = response.headers();
+    delete headers.etag;
+    delete headers['content-length'];
+    await route.fulfill({ response, headers, json: catalog });
   });
   const created = page.waitForResponse(response => response.url().endsWith('/api/v1/sessions') && response.request().method() === 'POST');
   await page.goto('/');

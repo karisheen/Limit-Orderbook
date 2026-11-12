@@ -1146,16 +1146,13 @@ source, like `venue_ohlcv`, never merged with observed bars. Geo-denied
 metadata (Binance USDⓈ-M 451, Bybit 403 from this network) does not by itself
 establish whether those streams are reachable.
 
-### Remaining work
+### Original integration verification
 
-1. **Live verification is blocked, not done.** A second `serve --network`
-   (port 8002) could not create a live session: the collector is a singleton
-   and the running port-8000 server holds its lock
-   (`another feed collector owns the singleton lock`, surfaced as HTTP 500).
-   Cross-venue live chart/paper checks, live market switching, reconnect and
-   live recording remain unverified for this branch, as does `/positioning`
-   on real Hyperliquid context. The latest user instruction explicitly preserves
-   the running port-8000 collector: do not stop or restart it for verification.
+1. Live verification was initially blocked: a second `serve --network` on
+   port 8002 could not acquire the singleton collector held by port 8000.
+   The original preserve-running instruction was honored during PR #20.
+   The user subsequently authorized restarting that service and correcting
+   live failures; the follow-through below supersedes this earlier boundary.
 2. The prior full gate reported **18 failures / 1,894 passes**. The isolated
    clean `/tmp/lob-head-check` at `67ddab71043c88a2b42240ba72fd41f94a2c824d`
    reproduced **17 failures / 10 passes**. Repaired fixtures now deliver through
@@ -1172,8 +1169,8 @@ establish whether those streams are reachable.
    `offline` check; receipts are available in the
    [branch PR](https://github.com/karisheen/Limit-Orderbook/pulls?q=head%3Aunified-candles-perpetual-paper)
    and merge history rather than inferred from local checks.
-4. Preserve port 8000 on its existing running revision after merge; report the
-   deployment distinction rather than claim the merged code is running there.
+4. PR #20 merged as `4a4eb9d` with required CI green. Its later authorized
+   deployment and the remaining live-reliability work are recorded below.
 
 ### Resume correctness review
 
@@ -1222,8 +1219,180 @@ Temporary verification uses an owned offline server on `127.0.0.1:8003` with
 `/tmp/unified-integration-state`; `/tmp/unified-resume-*` and
 `/tmp/unified-positioning-*` probes are not repository deliverables.
 
+## Live reliability follow-through
+
+The user subsequently authorized restarting port 8000 on merged `main`
+(`4a4eb9d`) with `--network --state-dir data/workstation-state`, superseding the
+earlier keep-running instruction. Durable state was preserved. Live Hyperliquid
+OI/funding, shared intervals and reconnect worked; Hyperliquid perpetual and
+Coinbase spot each completed two simulated paper fills. Binance USD-M supplied
+real candles while its unverified metadata correctly fenced financial actions.
+Capture `fc9470da848c493ea2032e55eb9c369d` completed with all four native
+channels; replay delivery 40 returned candles and 14 context observations with
+the same source identity and frontier. No real orders were submitted.
+
+The initial automated live run had **1 pass / 2 failures**: multi-client
+recording encountered `analytical_queue_overflow`; streaming-only financial
+gates exceeded the existing 45-second test deadline. OKX discovery also rejected
+unpublished native announcements with empty definitions.
+
+### Browser and catalog corrections
+
+`PaperPanel` now memoizes catalog-sized option fragments rather than rebuilding
+11,825 fee choices on every live frame, including while its panel is hidden.
+All choices, controlled selections, metadata refreshes and financial gates are
+unchanged. Actual Chromium sampling on the same live catalog:
+
+| Six-second sample | Before | After |
+| --- | ---: | ---: |
+| Sample duration (ms) | 6354 | 6173 |
+| Garbage collection (ms) | 847 | 84 |
+| Idle (ms) | 978 | 2735 |
+
+These are local samples, not portable latency guarantees. The previously timed
+out live streaming-only scenario passed in **21.0s**, without changing its
+45-second deadline or assertions.
+
+OKX's official SPOT payload contained `XIBKR-USDT`, `XMPWR-USDT`, `XMP-USDT`
+and `XGILD-USDT` as `preopen`, with empty category, currencies, tick, lot and
+minimum size. These unpublished definitions are excluded without inferring
+currencies or precision from names. Complete pre-open definitions remain
+represented; malformed/active rows still fail closed. The metadata regression
+suite passed **91 tests**. Live rediscovery and integrated capacity verification
+are tracked in the final receipt below.
+
+### Queue residency accounting
+
+The retained native capture contains Binance spot books of roughly 10,000
+levels. Thirty-two consecutive changed-book deliveries were charged **163.49MB**
+by the old per-delivery calculation, despite retaining **17.52MB** under the
+same conservative level budget when shared immutable books, side tuples and
+levels are counted once. This is duplicate byte pressure, not evidence that
+analytical events may be coalesced or skipped.
+
+Bounded live diagnostics with two Hyperliquid clients and two
+Binance-to-Hyperliquid transitions observed queue highwaters 48–94 without
+overflow. This distinguishes transient full-depth retention/CPU pressure from
+an always-reproducible bootstrap failure. Queue capacity must still fail closed
+for genuine distinct-data overflow; no claim of unlimited throughput is made.
+
+The implemented queue budget counts shared immutable Books, side tuples and
+Levels once across both queued and in-flight deliveries. It includes tracker
+allocation and uses a larger per-Level allowance for counter entries; the
+measured 32-delivery burst is **22.66MB** including that overhead. The existing
+**128MiB / 256-delivery bounds remain unchanged**. Rejected admissions roll back
+their reservation; last-reference release and joined cancellation/reset/close
+release ownership without discarding admitted evidence. Retain plus release
+averaged **111.5ms for the 32-delivery burst** in the local measurement.
+
+### Catalog contention correction
+
+The first integrated rerun still overflowed despite corrected queue accounting.
+Its browser trace contained **nine complete 17.34MB catalog responses (156MB)**
+plus an aborted request. Alternating root and live-scoped queries invalidated
+the former single-entry server cache, repeatedly encoding large catalogs while
+the analytical workers needed CPU.
+
+The catalog worker now keeps an **8-scope / 64MiB encoded-response LRU** keyed by
+the complete metadata/readiness snapshot. Strong ETags allow exact unchanged
+requests to return empty 304 responses. The browser maintains URL-local
+validators within its current lifecycle and reuses the confirmed catalog object
+only after successful validation. Poll cadence, request deadlines, financial
+gates and refresh-error visibility are unchanged. Catalog fault overlays remove
+the origin validator when they change the body.
+
+Focused queue/catalog backend suites passed **91 tests**; catalog transport
+and freshness client suites passed **32 tests**. The earlier five perpetual
+paper browser scenarios also passed with the memoized selectors.
+
+### Full-depth Paper-history correction
+
+After the three original live scenarios passed, two full-depth Binance clients
+with active Paper panels still reached the unchanged 256-delivery count limit.
+Low-overhead per-thread measurements isolated historical run listing:
+29 calls consumed **4.39s CPU / 8.66s owner time**; the 29 current paper-state
+queries consumed only **7.3ms CPU**. No analytical formula rewrite was justified.
+An initial concurrent cProfile attempt produced profiler collisions and was
+discarded; the causal measurements use thread CPU/wall counters.
+
+`PaperStore.list_run_summaries` now caches only small immutable summaries and
+SHA256 payload identities, after complete strict decoding of each durable run.
+Changed payloads revalidate even when their revision is unchanged; revisions
+are always read from the current database query. Configuration/resume loading
+remains uncached and strict. The summary cache is bounded to **1000 entries /
+8MiB** and cleared on store close. On the actual 28-run database, five repeated
+listings fell from **624ms to 9ms** with **137KB** of cache charge.
+
+Cold historical reads were also moved to a runtime-owned **read-only** SQLite
+connection on the catalog worker. Selection/close stay fenced for the request,
+but historical decoding does not hold the analytical lock or executor. The
+native owner performs the final generation check and builds the response.
+The read-only connection performs no creation, migration or pragma writes, and
+closes on its owning thread. Live ingestion can therefore continue even during
+the first strict decode, before any summary cache is warm.
+
+### Nonblocking native HTTP responses
+
+Scheduling traces also measured redundant event-loop conversion after the
+native owner had finished: `/market-data` incurred about **2.0s CPU** in
+FastAPI's recursive encoder across 210 responses; two session-frame endpoints
+incurred another **1.5s CPU** across 61 responses. These DTOs were already
+JSON-safe. The two hot routes now construct `JSONResponse` on the existing
+catalog/read worker, avoiding that duplicate traversal and keeping encoding
+off the event loop. Runtime dictionary APIs and HTTP bodies/statuses are
+unchanged; source reason arrays are detached to preserve snapshot ownership.
+
+The final uninstrumented pressure scenario kept two real Binance spot clients
+and both Paper panels active for 30 samples each: **zero overflows**, queue
+highwaters **79 / 63** against the unchanged 256 bound, and **5,001 retained bid
+levels per client**. This is bounded deep-book evidence, not a claim of complete
+exchange depth or a 24-hour soak. Focused backend regressions passed **147 tests**.
+
+### Live market-query isolation
+
+The remaining Hyperliquid recording case exposed two separate facts: the
+official slow 20-level book feed could go roughly 9–10 seconds between actual
+messages, and repeated full-prefix market queries held analytical ownership
+while waiting for the next book. The existing five-second freshness gate was
+kept; no timestamp was refreshed without evidence and depth was not silently
+changed to the fast five-level feed.
+
+Live market queries now capture a named immutable view of the completed prefix:
+native books/events are shared, while admission, clock-origin and retention
+maps are copied read-only. Paging, valuation and DTO construction run on the
+existing read worker without holding the analytical lock. Lifecycle actions
+bound each session to one such input, with final generation/availability checks.
+Existing history/admission bounds and exact paging output are preserved.
+Replay's thread-affine reader remains on its owner. The focused runtime/API,
+retention, continuity and unified-session suites passed **144 tests**.
+
+### Final verification and publication
+
+- Final `tools/check.sh`: **1,965 Python tests / 189 frontend tests passed**,
+  plus Ruff, formatting, mypy, ESLint, TypeScript and production build.
+- Final real-network acceptance: **3 passed**, with no skips, covering two-client
+  recording ownership/replay, live startup, and cross-venue streaming-only
+  financial gates. The original assertions and deadlines were retained.
+- Real OKX BTC spot and perpetual feeds returned eligible native books and
+  observed candles, with verified metadata and native paper support. Their
+  quantity units remained **base** and **contracts**, respectively.
+- Real catalog validation returned **200 / 17,337,743 bytes**, then
+  **304 / zero bytes** with the same validator.
+- Provider metadata restrictions remain explicit: Binance futures HTTP 451 and
+  Bybit HTTP 403 were not bypassed. Unverified financial operations stay fenced.
+- Publication follows the required `offline` check in the
+  [live-reliability PR](https://github.com/karisheen/Limit-Orderbook/pulls?q=head%3Afix%2Flive-financial-reliability).
+  Its final-head CI and merge/deployment receipts are authoritative; no optional
+  long soak or real exchange execution is claimed.
+- The full local offline browser run recorded **78 passes / 1 failure / 3
+  network-dependent skips**. The remaining fixture hid the native book pane
+  before reading its pending response body, so Chromium correctly discarded
+  that aborted response. The fixture now consumes reset/reconnect ladder bodies
+  before switching views; all evidence, focus and generation assertions remain.
+  Its targeted rerun passed. Required final-head CI reruns the complete suite.
+
 ## Decisions and next action
 
 Use one local asyncio backend worker, exact immutable domain contracts, explicit quality gates, direct venue adapters, a React/TypeScript terminal, native Canvas heatmap, Parquet/raw compressed recording and SQLite metadata. Preserve the legacy entrypoint during cutover; do not duplicate analytics. Detailed decisions/contracts/backlog are in the accompanying M0 documents.
 
-M8 implementation and local verification are complete; this supersedes the M7 next-action statement while preserving its historical audit above. Start with `README.md`, inspect exact source identity/quality and use **R / Recenter price** when activity leaves a held chart range. Use `READINESS.md` for separate correctness, UI/operations, research and execution boundaries. The next capacity work is investigation and measured remediation of the known live `analytical_queue_overflow`, not another browser reconnect or an inference from recorded rendering passes. The optional documented 24-hour soak remains unrun; Bybit live validation remains conditional on access. Funding/OI provenance, native returned-flow Fit limits, unknown fees/FX and research limitations remain explicit. No live exchange execution or external deployment is authorized or implemented. Git publication, remote CI and PR/merge outcomes require their own actual receipts; local evidence is not a claim of those outcomes.
+The live-reliability follow-through above supersedes the earlier capacity blocker. Start with `README.md`, inspect exact source identity/quality and use **R / Recenter price** when activity leaves a held chart range. Use `READINESS.md` for separate correctness, UI/operations, research and execution boundaries. Actual queue limits still fail closed; the bounded live checks are not a 24-hour soak or an unlimited-throughput guarantee. Binance futures and Bybit metadata access remains conditional on provider/network permissions. Funding/OI provenance, native returned-flow Fit limits, unknown fees/FX and research limitations remain explicit. No live exchange orders or external deployment are implemented. Local checks and deployment receipts are distinct from the required remote CI and protected merge receipts.

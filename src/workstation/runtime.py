@@ -16,6 +16,7 @@ from hashlib import sha256
 import json
 import os
 from pathlib import Path
+from sys import getsizeof
 import time
 from tempfile import TemporaryDirectory
 from typing import (
@@ -42,7 +43,11 @@ from .demo_memory import MemoryReplaySource
 from .events import ClientId, EventEnvelope, Gap, StreamId, SubscriptionKey
 from .instruments import Instrument, native_order_constraints
 from .journal import JournalStore
-from .market_presentation import AdmittedTradeHistory, market_data
+from .market_presentation import (
+    AdmittedTradeHistory,
+    live_market_snapshot,
+    market_data,
+)
 from .paper import PaperEngine, PaperError, PaperStore
 from .positioning import PositioningHistory, positioning_series
 from .precision import DERIVED_DECIMAL_POLICY, canonical_decimal, decimal
@@ -55,15 +60,101 @@ from .wire import dumps
 
 
 CaptureIdentity: TypeAlias = tuple[int, int, int, int, int, int]
-LiveDelivery: TypeAlias = tuple[
-    tuple[EventEnvelope, ...], tuple[Book, ...], int, int, int
-]
+LiveDelivery: TypeAlias = tuple[tuple[EventEnvelope, ...], tuple[Book, ...], int, int]
 P = ParamSpec("P")
 R = TypeVar("R")
 FRAME_BOOK_LEVELS = 100
 FRAME_PROFILE_LEVELS = 200
 FRAME_DISPLAY_EVIDENCE = 100
 LIVE_QUEUE_BYTES = 128 * 1024 * 1024
+CATALOG_CACHE_BYTES = 64 * 1024 * 1024
+CATALOG_CACHE_SCOPES = 8
+
+
+class _LiveBookBudget:
+    """Count immutable objects retained by queued AND in-flight deliveries.
+
+    Reducer deltas share unchanged Levels and sometimes whole side tuples.
+    Identities are safe here: admitted delivery references keep every counted
+    object alive until release. Counters themselves do not retain market data.
+    Fixed object charges cover bounded native Decimals and counter entries;
+    dictionary allocation is charged separately, including unreclaimed slots.
+    """
+
+    def __init__(self) -> None:
+        self.books: dict[int, int] = {}
+        self.sides: dict[int, int] = {}
+        self.levels: dict[int, int] = {}
+        self.bytes = 0
+
+    def _tables_size(self) -> int:
+        return getsizeof(self.books) + getsizeof(self.sides) + getsizeof(self.levels)
+
+    def retain(self, books: tuple[Book, ...]) -> int:
+        before = self._tables_size()
+        added = 0
+        for book in books:
+            identity = id(book)
+            count = self.books.get(identity, 0)
+            self.books[identity] = count + 1
+            if count:
+                continue
+            added += 4096
+            for side in (book.bids, book.asks):
+                identity = id(side)
+                count = self.sides.get(identity, 0)
+                self.sides[identity] = count + 1
+                if count:
+                    continue
+                added += 256 + 8 * len(side)
+                for level in side:
+                    identity = id(level)
+                    count = self.levels.get(identity, 0)
+                    self.levels[identity] = count + 1
+                    if not count:
+                        added += 640
+        added += self._tables_size() - before
+        self.bytes += added
+        return added
+
+    def release(self, books: tuple[Book, ...], *, compact: bool = False) -> int:
+        before = self._tables_size()
+        removed = 0
+        for book in books:
+            identity = id(book)
+            count = self.books[identity] - 1
+            if count:
+                self.books[identity] = count
+                continue
+            del self.books[identity]
+            removed += 4096
+            for side in (book.bids, book.asks):
+                identity = id(side)
+                count = self.sides[identity] - 1
+                if count:
+                    self.sides[identity] = count
+                    continue
+                del self.sides[identity]
+                removed += 256 + 8 * len(side)
+                for level in side:
+                    identity = id(level)
+                    count = self.levels[identity] - 1
+                    if count:
+                        self.levels[identity] = count
+                    else:
+                        del self.levels[identity]
+                        removed += 640
+        for counts in (self.books, self.sides, self.levels):
+            if not counts:
+                counts.clear()
+        if compact:
+            # Rejected admissions must not leave their table growth behind.
+            self.books = dict(self.books)
+            self.sides = dict(self.sides)
+            self.levels = dict(self.levels)
+        removed += before - self._tables_size()
+        self.bytes -= removed
+        return removed
 
 
 class ClientTelemetry(TypedDict):
@@ -243,23 +334,21 @@ def _alert_summary(evaluation):
     return result
 
 
-def _paper_run_presentation(run, *, configuration=True):
+def _paper_run_presentation(run):
     if run is None:
         return None
-    excluded = ("instruments",) if configuration else ("instruments", "config")
     result = {
         field.name: dto(getattr(run, field.name))
         for field in fields(run)
-        if field.name not in excluded
+        if field.name != "instruments"
     }
-    if configuration:
-        result["instrument_metadata"] = [
-            {
-                "instrument_id": str(item.instrument_id),
-                "metadata_version": item.metadata_version,
-            }
-            for item in run.instruments
-        ]
+    result["instrument_metadata"] = [
+        {
+            "instrument_id": str(item.instrument_id),
+            "metadata_version": item.metadata_version,
+        }
+        for item in run.instruments
+    ]
     return result
 
 
@@ -417,6 +506,7 @@ class ClientSession:
         self.live_queue: asyncio.Queue[LiveDelivery] = asyncio.Queue(maxsize=256)
         self.live_bytes = 0
         self.live_inflight = 0
+        self.live_book_budget = _LiveBookBudget()
         self.live_keys: frozenset[SubscriptionKey] = frozenset()
         self.live_stream_ids: frozenset[StreamId] = frozenset()
         self.live_stream_keys: dict[StreamId, SubscriptionKey] = {}
@@ -992,17 +1082,18 @@ class ClientSession:
         # Immutable batch + atomic post-reduction books from the registry only.
         affected = self.affected_keys(selected)
         changed_books = tuple(book for book in books if book.key in affected)
-        # Charge retained immutable books as well as events. Fixed native Decimal
-        # bounds permit a conservative per-level object budget without building
-        # giant book repr/JSON strings in the ingestion callback.
+        # Admission is synchronous: failed reservations roll back before any
+        # consumer can observe them. Shared native depth is retained, not copied
+        # or discounted according to a guessed delta size.
         event_bytes = len(repr(selected))
-        size = event_bytes + sum(
-            4096 + 512 * (len(book.bids) + len(book.asks)) for book in changed_books
-        )
+        book_bytes = self.live_book_budget.retain(changed_books)
+        size = event_bytes + book_bytes
         if (
             self.live_queue.qsize() + self.live_inflight >= self.live_queue.maxsize
             or self.live_bytes + size > LIVE_QUEUE_BYTES
         ):
+            removed = self.live_book_budget.release(changed_books, compact=True)
+            self.live_bytes += book_bytes - removed
             self.telemetry["overflows"] += 1
             self.status, self.error = (
                 "unavailable",
@@ -1011,7 +1102,7 @@ class ClientSession:
             return
         self.live_bytes += size
         self.live_queue.put_nowait(
-            (selected, changed_books, time.monotonic_ns(), size, event_bytes)
+            (selected, changed_books, time.monotonic_ns(), event_bytes)
         )
         depth = self.live_queue.qsize() + self.live_inflight
         self.telemetry["queue_depth"] = depth
@@ -1084,14 +1175,27 @@ class ClientSession:
         return batch
 
     def _release_live_batch(self, batch: list[LiveDelivery]) -> None:
-        self.live_bytes -= sum(delivery[3] for delivery in batch)
+        self.live_bytes -= sum(
+            event_bytes + self.live_book_budget.release(books)
+            for _events, books, _queued, event_bytes in batch
+        )
+        batch.clear()
         self.live_inflight = 0
         self.telemetry["queue_depth"] = self.live_queue.qsize()
+
+    def _clear_live_queue(self) -> None:
+        # The lifecycle caller has joined the worker before abandoning history.
+        if self.live_inflight:
+            raise RuntimeError("cannot clear in-flight live ownership")
+        self.live_queue = asyncio.Queue(maxsize=256)
+        self.live_book_budget = _LiveBookBudget()
+        self.live_bytes = 0
+        self.telemetry["queue_depth"] = 0
 
     def _apply_live_batch(
         self, batch: list[LiveDelivery], bootstrap: bool = False
     ) -> None:
-        for events, books, _queued, _size, event_bytes in batch:
+        for events, books, _queued, event_bytes in batch:
             if self.status in ("unavailable", "error"):
                 break
             if bootstrap:
@@ -1762,14 +1866,10 @@ class ClientSession:
         )
         return self._paper_query(request)
 
-    def _paper_runs(self, request):
-        assert self.paper_store is not None
+    def _paper_runs_response(self, runs):
         return self._consumer_result(
             capability=self._paper_capability(),
-            runs=[
-                _paper_run_presentation(run, configuration=False)
-                for run in self.paper_store.list_runs(limit=request.limit)
-            ],
+            runs=runs,
         )
 
     def _paper_archive(self, request):
@@ -1960,6 +2060,7 @@ class ClientSession:
         if self.mode == "live" and self.runtime.registry is not None:
             await self.runtime.registry.release_client(ClientId(self.id))
         async with self.lock:
+            self._clear_live_queue()
             await self.work(self._close_worker)
         self.executor.shutdown(wait=True, cancel_futures=True)
         self.pending_acks.clear()
@@ -2025,7 +2126,11 @@ class TerminalRuntime:
         ] = {}
         self.instruments: dict[str, Instrument] = {}
         self.source_instruments: dict[str, tuple[Instrument, ...]] = {}
-        self._catalog_cache: tuple[object, bytes] | None = None
+        self._catalog_cache: OrderedDict[str | None, tuple[object, bytes, str]] = (
+            OrderedDict()
+        )
+        self._catalog_cache_bytes = 0
+        self._paper_history_store: PaperStore | None = None
         self.closed = False
         self.captures = CaptureService(self)
 
@@ -2072,12 +2177,15 @@ class TerminalRuntime:
         finally:
             store.close()
 
-    def _catalog_response(self, instruments, sources, preferred_source_id):
-        # One encoded catalog, owned by the catalog worker. Source snapshots
-        # include readiness/reasons, not just immutable instrument metadata.
+    def _catalog_response(self, instruments, sources, preferred_source_id, source_id):
+        # Scope-local encoded snapshots avoid root/live startup cache thrashing.
+        # This method and its bounded cache belong to the catalog worker only.
+        # Readiness/reasons and the preferred source participate in validators.
         identity = (instruments, sources, preferred_source_id)
-        if self._catalog_cache is not None and self._catalog_cache[0] == identity:
-            return self._catalog_cache[1]
+        cached = self._catalog_cache.get(source_id)
+        if cached is not None and cached[0] == identity:
+            self._catalog_cache.move_to_end(source_id)
+            return cached[1], cached[2]
         encoded = json.dumps(
             {
                 "version": "1",
@@ -2089,8 +2197,46 @@ class TerminalRuntime:
             allow_nan=False,
             separators=(",", ":"),
         ).encode("utf-8")
-        self._catalog_cache = (identity, encoded)
-        return encoded
+        etag = '"' + sha256(encoded).hexdigest() + '"'
+        previous = self._catalog_cache.pop(source_id, None)
+        if previous is not None:
+            self._catalog_cache_bytes -= len(previous[1])
+        if len(encoded) <= CATALOG_CACHE_BYTES:
+            while self._catalog_cache and (
+                len(self._catalog_cache) >= CATALOG_CACHE_SCOPES
+                or self._catalog_cache_bytes + len(encoded) > CATALOG_CACHE_BYTES
+            ):
+                _scope, evicted = self._catalog_cache.popitem(last=False)
+                self._catalog_cache_bytes -= len(evicted[1])
+            self._catalog_cache[source_id] = (identity, encoded, etag)
+            self._catalog_cache_bytes += len(encoded)
+        return encoded, etag
+
+    def _paper_run_history(self, limit: int):
+        # This connection and validated summary cache belong to the catalog
+        # worker, never an analytical owner. Native owners create/migrate SQLite.
+        if self._paper_history_store is None:
+            self._paper_history_store = PaperStore(
+                self.state_dir / "paper.sqlite3", read_only=True
+            )
+        return dto(self._paper_history_store.list_run_summaries(limit=limit))
+
+    def _close_paper_history(self) -> None:
+        if self._paper_history_store is not None:
+            self._paper_history_store.close()
+            self._paper_history_store = None
+
+    async def paper_runs(self, request):
+        session = self.get(request.session_id)
+        session.check(request.generation)
+        async with session.activity(), session.actions:
+            session.check(request.generation)
+            # Historical decoding can be cold/slow. Fence selection and close,
+            # but leave the analytical lock and worker free for every delivery.
+            runs = await self._catalog_work(self._paper_run_history, request.limit)
+            async with session.lock:
+                session.check(request.generation)
+                return await session.work(session._paper_runs_response, runs)
 
     async def _catalog_work(
         self, fn: Callable[P, R], *args: P.args, **kwargs: P.kwargs
@@ -2121,7 +2267,9 @@ class TerminalRuntime:
         source = self.sources.get(source_id)
         if source is None:
             raise RuntimeFailure(404, "unknown managed source ID")
-        return source.copy()
+        snapshot = source.copy()
+        snapshot["reasons"] = list(source["reasons"])
+        return snapshot
 
     async def start(self) -> None:
         await self.captures.load()
@@ -2489,9 +2637,19 @@ class TerminalRuntime:
     async def market_data(self, request):
         session = self.get(request.session_id)
         session.check(request.generation)
-        async with session.activity(), session.actions, session.lock:
-            session.check(request.generation)
-            return await session.work(market_data, session, request)
+        async with session.activity(), session.actions:
+            async with session.lock:
+                session.check(request.generation)
+                if session.mode != "live":
+                    # Replay readers and their iterators remain thread-affine.
+                    return await session.work(market_data, session, request)
+                snapshot = await session.work(live_market_snapshot, session)
+            # One bounded frozen prefix per session action. Neither the native
+            # owner nor its lock waits for paging, valuation, or DTO projection.
+            result = await self._catalog_work(snapshot.query, request)
+            async with session.lock:
+                session.check(request.generation)
+                return result
 
     async def recording_action(self, request, *, stop=False):
         session = self.get(request.session_id)
@@ -2600,9 +2758,7 @@ class TerminalRuntime:
             session.pending_acks.clear()
             session.pending_views.clear()
             if session.mode == "live":
-                session.live_queue = asyncio.Queue(maxsize=256)
-                session.live_bytes = 0
-                session.live_inflight = 0
+                session._clear_live_queue()
                 session.status = "loading"
                 try:
                     await self._select_live(session, instrument_id)
@@ -2675,6 +2831,8 @@ class TerminalRuntime:
         await self.captures.close()
         if self.registry is not None and self.owns_registry:
             await self.registry.close()
+        if self._paper_history_store is not None:
+            await self._catalog_work(self._close_paper_history)
         self.catalog_executor.shutdown(wait=True, cancel_futures=True)
         self.visual_executor.shutdown(wait=True, cancel_futures=True)
         if self._temporary_state is not None:

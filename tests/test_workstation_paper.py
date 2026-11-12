@@ -407,8 +407,147 @@ def test_rewind_resume_reopened_store_and_explicit_fork_preserve_original(tmp_pa
     deliver(resumed, first_book, first)
     deliver(resumed, second_book, second)
     assert resumed.snapshot(second_now) == original
-    assert {run.run_id for run in reopened.list_runs()} == {run_id, fork_id}
+    assert {run.run_id for run in reopened.list_run_summaries()} == {run_id, fork_id}
     reopened.close()
+
+
+@pytest.mark.parametrize("corrupt_part", ("config", "instruments"))
+def test_run_summaries_cache_validated_payload_not_revision_or_resume_authority(
+    tmp_path, monkeypatch, corrupt_part
+):
+    import json
+
+    import src.workstation.paper as paper
+
+    store, engine, stream, book, now = setup(tmp_path)
+    run_id = engine.snapshot(now).run.run_id
+    writer = PaperStore(tmp_path / "paper.sqlite")
+    other = PaperEngine((stream,), writer, "synthetic:fixture-v1", run_id=run_id)
+    _, _, initial = observation(stream.instrument)
+    deliver(other, book, initial)
+    decoded = []
+    original_decode = paper._decode
+
+    def counted_decode(payload, expected):
+        decoded.append(expected)
+        return original_decode(payload, expected)
+
+    monkeypatch.setattr(paper, "_decode", counted_decode)
+    try:
+        summary = store.list_run_summaries()[0]
+        assert summary.run_id == run_id
+        assert summary.revision == 0
+        assert not hasattr(summary, "config")
+        assert not hasattr(summary, "instruments")
+        assert store.list_run_summaries(source_id="synthetic:fixture-v1") == (summary,)
+        assert store.list_run_summaries(source_id="synthetic:other") == ()
+        assert decoded == [paper.PaperRun]
+        other.submit(request(stream), now=now, delivery_index=1)
+        revised = store.list_run_summaries()[0]
+        assert revised == replace(summary, revision=1)
+        assert decoded == [paper.PaperRun]
+        # Resume still reads and validates full intent and every command.
+        full, commands = store._load(run_id)
+        assert full.config == engine.snapshot(now).run.config
+        assert full.revision == len(commands) == 1
+        assert decoded == [paper.PaperRun, paper.PaperRun, paper.PaperCommand]
+
+        edited = paper._encode(replace(full, parent_run_id="changed-parent"))
+        with writer._db:
+            writer._db.execute(
+                "UPDATE runs SET payload=? WHERE run_id=?", (edited, run_id)
+            )
+        refreshed = store.list_run_summaries()[0]
+        assert refreshed.parent_run_id == "changed-parent"
+        assert refreshed.revision == 1
+        assert decoded.count(paper.PaperRun) == 3
+        # The durable codec accepts both SQLite BLOB and UTF-8 TEXT storage.
+        with writer._db:
+            writer._db.execute(
+                "UPDATE runs SET payload=? WHERE run_id=?",
+                (edited.decode("utf-8"), run_id),
+            )
+        assert store.list_run_summaries()[0] == refreshed
+        assert decoded.count(paper.PaperRun) == 3
+
+        corrupt = json.loads(edited)
+        omitted = (
+            corrupt["value"]["config"]
+            if corrupt_part == "config"
+            else corrupt["value"]["instruments"][0]
+        )
+        omitted["unexpected_field"] = "must still reject"
+        with writer._db:
+            writer._db.execute(
+                "UPDATE runs SET payload=? WHERE run_id=?",
+                (json.dumps(corrupt).encode(), run_id),
+            )
+        for _ in range(2):
+            with pytest.raises(ValueError):
+                store.list_run_summaries()
+            with pytest.raises(ValueError):
+                store._load(run_id)
+        for limit in (0, 1001, True):
+            with pytest.raises(ValueError, match="query limit"):
+                store.list_run_summaries(limit=limit)
+    finally:
+        writer.close()
+        store.close()
+    assert not store._run_summaries
+    assert store._run_summary_bytes == 0
+
+
+@pytest.mark.parametrize("bound", ("entries", "bytes", "oversized"))
+def test_run_summary_cache_is_bounded_without_omitting_history(
+    tmp_path, monkeypatch, bound
+):
+    import src.workstation.paper as paper
+
+    store, engine, stream, _book, now = setup(tmp_path)
+    first_id = engine.snapshot(now).run.run_id
+    second_id = engine.configure(config(stream.instrument), now=now, delivery_index=1)
+    if bound == "entries":
+        monkeypatch.setattr(paper, "MAX_RUN_SUMMARY_CACHE_ENTRIES", 1)
+    else:
+        monkeypatch.setattr(
+            paper, "MAX_RUN_SUMMARY_CACHE_BYTES", 8192 if bound == "bytes" else 1
+        )
+    try:
+        summaries = store.list_run_summaries()
+        assert [run.run_id for run in summaries] == [second_id, first_id]
+        assert store.list_run_summaries(limit=1) == summaries[:1]
+        assert store._run_summary_bytes <= paper.MAX_RUN_SUMMARY_CACHE_BYTES
+        assert len(store._run_summaries) <= paper.MAX_RUN_SUMMARY_CACHE_ENTRIES
+        assert len(store._run_summaries) == (0 if bound == "oversized" else 1)
+    finally:
+        store.close()
+
+
+def test_historical_paper_store_is_read_only_and_never_creates_or_migrates(tmp_path):
+    import sqlite3
+
+    missing = tmp_path / "missing.sqlite"
+    with pytest.raises(sqlite3.OperationalError):
+        PaperStore(missing, read_only=True)
+    assert not missing.exists()
+    writer, engine, _stream, _book, now = setup(tmp_path)
+    path = tmp_path / "paper.sqlite"
+    run_id = engine.snapshot(now).run.run_id
+    reader = PaperStore(path, read_only=True)
+    try:
+        assert reader.list_run_summaries()[0].run_id == run_id
+        with pytest.raises(sqlite3.OperationalError, match="readonly"):
+            reader._db.execute("UPDATE runs SET revision=99")
+        assert writer.list_run_summaries()[0].revision == 0
+    finally:
+        reader.close()
+        writer.close()
+    with sqlite3.connect(path) as legacy:
+        legacy.execute("PRAGMA user_version=1")
+    with pytest.raises(ValueError, match="unsupported paper schema"):
+        PaperStore(path, read_only=True)
+    with sqlite3.connect(path) as unchanged:
+        assert unchanged.execute("PRAGMA user_version").fetchone()[0] == 1
 
 
 def test_cohort_removal_disables_pending_fills_and_marks_but_retains_reservations(
@@ -491,7 +630,7 @@ def test_two_simultaneous_connections_cannot_append_from_same_revision(tmp_path)
         results = tuple(pool.map(lambda _: compete(), range(2)))
     assert sorted(results) == ["accepted", "stale_run_reload_required"]
     reopened = PaperStore(tmp_path / "paper.sqlite")
-    assert reopened.list_runs()[0].revision == 1
+    assert reopened.list_run_summaries()[0].revision == 1
     reopened.close()
 
 
@@ -687,7 +826,9 @@ def test_source_clock_discontinuity_freezes_run_until_explicit_new_run(tmp_path)
     assert new_run != original_run
     assert engine.submit(request(stream), now=now, delivery_index=3).status == "filled"
     assert (
-        next(run for run in store.list_runs() if run.run_id == original_run).revision
+        next(
+            run for run in store.list_run_summaries() if run.run_id == original_run
+        ).revision
         == 1
     )
     store.close()
@@ -879,7 +1020,7 @@ def test_legacy_paper_schema_migrates_without_losing_commands(tmp_path):
         legacy.execute("DROP TABLE archives")
         legacy.execute("PRAGMA user_version=1")
     reopened = PaperStore(tmp_path / "paper.sqlite")
-    assert reopened.list_runs()[0].revision == 1
+    assert reopened.list_run_summaries()[0].revision == 1
     assert reopened.archived_snapshot(order.run_id) is None
     resumed = PaperEngine(
         (stream,), reopened, "synthetic:fixture-v1", run_id=order.run_id

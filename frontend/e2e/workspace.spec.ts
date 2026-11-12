@@ -1446,6 +1446,8 @@ test('both frozen chart panes replace native evidence after replay reset and rec
   expect(reset.book).toBeNull();
   expect(reset.analytics).toBeNull();
   expect(reset.replay?.cursor.delivery_index).toBe('0');
+  // Hiding a native pane aborts its request; retain the completed body first.
+  const ladder = await body<GroupedLadder>(domReset);
   await openMarketView(page, 'Liquidity & flow');
   const resetViews = await Promise.all([body<VisualGrid>(liquidityReset), body<VisualGrid>(flowReset)]);
   for (const [index, pane] of [primary(page), secondary(page)].entries()) {
@@ -1461,7 +1463,6 @@ test('both frozen chart panes replace native evidence after replay reset and rec
     await expect(pane.locator('.m4-chart-empty')).toBeVisible();
   }
   await openMarketView(page, 'Native book & tape');
-  const ladder = await body<GroupedLadder>(domReset);
   expect(ladder.generation).toBe(reset.generation);
   await assertLadder(page, ladder);
   await expect(page.getByTestId('grouped-ladder')).toHaveCount(0);
@@ -1474,6 +1475,7 @@ test('both frozen chart panes replace native evidence after replay reset and rec
   const replacement = await body<Frame>(replacementResponse);
   expect(replacement.session_id).not.toBe(first.session_id);
   expect(replacement.selection).toEqual(reset.selection);
+  const reconnectedDOM = await body<GroupedLadder>(domReconnect);
   await openMarketView(page, 'Liquidity & flow');
   const replacementViews = await Promise.all([body<VisualGrid>(liquidityReconnect), body<VisualGrid>(flowReconnect)]);
   for (const [index, pane] of [primary(page), secondary(page)].entries()) {
@@ -1485,7 +1487,6 @@ test('both frozen chart panes replace native evidence after replay reset and rec
     await expect(pane.getByTestId('market-charts')).toHaveAttribute('data-painted-view-id', view.view_id);
   }
   await openMarketView(page, 'Native book & tape');
-  const reconnectedDOM = await body<GroupedLadder>(domReconnect);
   expect(reconnectedDOM.generation).toBe(replacement.generation);
   expect(reconnectedDOM.instrument_id).toBe(replacement.selection.instrument_id);
   await assertLadder(page, reconnectedDOM);
