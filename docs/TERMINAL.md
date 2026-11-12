@@ -279,6 +279,9 @@ bars are invented. A time-closed bar is not a completeness certificate.
 exchange-UTC aligned where supported. It is not stitched into session candles
 or substituted for a cohort aggregate. Its single bounded page is up to 300
 requested bars in this UI; panning does not fetch unlimited older history.
+Selecting Venue history explicitly can request public HTTP even in demo/replay
+without `serve --network`. It is a current venue page, not evidence available at
+the recorded cursor; session-trade candles alone remain prefix-bound.
 
 Drag to pan, scroll or **+/−** to zoom, **Fit** for returned history and **Latest**
 for the recent window. Hover/focus and **←/→** inspect exact OHLC/base volume;
@@ -292,12 +295,15 @@ See [native candle contracts](VISUALIZATION.md#historical-price-candles).
 **OI & funding** adds open-interest and funding panes under volume on the same
 time axis, so positioning can be read against each price move. It is on by
 default for a perpetual and opt-in for spot, where the related perpetual is
-shown and labeled as such. The readout follows the inspection cursor: exact
-open interest and its change inside the bucket, the exact funding fraction per
-interval and an approximate annualization. Values are venue-reported context
-observed by this session (Hyperliquid today), not executable prices and not the
-funding model used by Paper. Unobserved intervals stay empty; the toggle is
-disabled for Venue history. With the panes on, the plot needs at least 320 px:
+shown and labeled as such when its context stream is already owned. A selected
+perpetual on another venue can likewise show related Hyperliquid context, not
+that selected contract's OI. The readout follows the inspection cursor: exact
+open interest and its change inside the bucket, the last observed funding
+fraction with its own interval and an approximate annualization. Values are
+venue-reported context observed by this session (Hyperliquid today), not
+aggregate OI, executable prices or the funding model used by Paper. Missing
+channels do not trigger backfill; unobserved intervals stay empty. The toggle
+is disabled for Venue history. With the panes on, the plot needs at least 320 px:
 use **Expand** or collapse the workflow drawer on short windows. See
 [positioning panes](VISUALIZATION.md#open-interest-and-funding-beside-price).
 
@@ -319,6 +325,9 @@ or freezes. Moving from a chart into the native ladder transfers the linked
 cursor to that exact price. **Link chart time ranges** separately synchronizes
 time navigation, not price origins, buckets or overlays. Off-screen exact prices
 never select an unrelated nearest row. Ownership/clock changes invalidate obsolete links.
+This linking is for Liquidity & flow and the native book/tape, not Price Action's
+independent OHLC/positioning cursor. Per-pane settings do not select independent
+instruments or create extra market sessions.
 Native receive-clock UTC/local labels are not exchange timestamps or
 browser-estimated historical times. See [visualization](VISUALIZATION.md).
 

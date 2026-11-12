@@ -1,6 +1,6 @@
-# Public USD spot adapters
+# Public USD spot and inverse-perpetual adapters
 
-These adapters implement `src.workstation.adapters.base.Adapter` using the exact workstation contracts. They perform no authenticated calls or execution. Offline fixtures live in `tests/test_workstation_usd.py`; their existence is not a claim that integration checks or live adapter validation have run. The parent integration owner records executed verification separately.
+Coinbase and Kraken implement public USD spot feeds; Deribit implements the explicitly separate USD-quoted inverse perpetuals below. These adapters implement `src.workstation.adapters.base.Adapter` using the exact workstation contracts. They perform no authenticated calls or execution. Offline fixtures live in `tests/test_workstation_usd.py` and `tests/test_workstation_deribit.py`; their existence is not evidence that tests or live adapter validation ran.
 
 ## Identity, discovery, and timestamps
 
@@ -12,9 +12,23 @@ These adapters implement `src.workstation.adapters.base.Adapter` using the exact
 
 Discovery acquires official public metadata through shared `transport.fetch_public`, not a substitute exchange's schema or an unofficial proxy. Complete authoritative family results alone can retire missing products in the catalog; failed/incomplete acquisition does not justify retirement. Missing-product descriptors become `unavailable` with that family's source, hash and fetch-time provenance, while existing streams/captures retain their pinned versions. Coinbase's pagination must finish before its result is published. For independent Binance/Bybit family discovery and the strictly transport/5xx-only official Bybit metadata peer policy, see [Asian adapters](ADAPTERS_ASIAN.md#metadata-and-identity); that peer policy is not a general host fallback for these USD adapters.
 
-Shared HTTP pacing honors `Retry-After` seconds or HTTP dates for retryable 429/5xx responses through an origin-wide request-start deadline. Waiters recheck extensions, and delays above 120 seconds open the circuit instead of retrying early. HTTP 403/451 remains an access denial, never permission to bypass it through another host. These rules do not certify current network access.
+Shared HTTP pacing honors `Retry-After` seconds or HTTP dates for retryable 429/5xx responses through an origin-wide request-start deadline. Waiters recheck extensions, and delays above 120 seconds open the circuit instead of retrying early. HTTP 401/403/451 remains an access denial, never permission to bypass it through another host; 404/410 is unsupported and is not retried. These rules do not certify current network access.
 
 Catalog candidates, verified session-pinned financial metadata, observed usable books and observed trades are separate readiness evidence. Neither a catalog entry nor a subscription acknowledgment proves received market data, and book readiness does not prove trade readiness. Discovery selectors may expose newer descriptors, but costs/paper financial interpretation uses the selected session's exact pinned metadata, not a silent upgrade. Native venue, symbol, quote and settlement identity remain authoritative; aggregate display grouping does not supply FX evidence or execution permission.
+
+For Coinbase and Kraken the implemented product family is **spot only**; venue
+support for other products does not add workstation futures/perpetual channels.
+Neither adapter emits `reference`/`context` or OI/funding observations. Optional venue
+candle history is a separate REST service (`CandleService`), not a book/trade
+subscription or a source of replayable missing trades. Native session candles
+instead aggregate admitted public prints and retain gaps/partial coverage.
+
+Financial readiness is independently gated by `quality.evaluate`: comparison,
+depth walks and paper fills require verified pinned metadata, valid noncrossed
+depth, an admitted source mode, a compatible clock and fresh observations.
+`evaluate_trades` requires its own validated trade evidence. Missing constraints,
+unknown fees and missing history are not zero; neither displayed USD labels nor
+successful public access supplies account balances, fees or execution permission.
 
 ## Kraken WebSocket v2 and REST snapshots
 
@@ -42,11 +56,58 @@ The Advanced `market_trades.side` field is the **maker's** side. `BUY` normalize
 
 Both trade decoders validate positive exact price and quantity against the instrument's price tick and quantity lot before emitting any trade. No rounding or float conversion repairs an off-increment print; one invalid trade rejects the entire source batch, including preceding valid prints, with the raw frame hash. Valid decimals retain their original lexical scale. These checks do not change maker/taker interpretation, history flags, immutable dedup IDs or Coinbase connection sequencing.
 
+## Deribit USD-quoted inverse perpetuals
+
+`DeribitAdapter` uses venue `deribit`, family `jsonrpc-v2`, public metadata
+`https://www.deribit.com/api/v2/public/get_instruments?currency=any&kind=future&expired=false`,
+and `wss://www.deribit.com/ws/api/v2`. Only `BTC-PERPETUAL` and `ETH-PERPETUAL`
+are admitted: inverse (`instrument_type="reversed"`) perpetuals, USD quote,
+and native BTC/ETH settlement respectively. Options, dated futures and other
+linear products are not implemented even if returned by the metadata endpoint.
+Nonempty variable `tick_size_steps` fail rather than silently using one tick.
+
+Wire amounts are USD amounts, normalized exactly to **contracts** by division by
+the metadata USD-per-contract `contract_size`; they are not base-coin quantities.
+`min_trade_amount / contract_size` supplies the native contract lot/minimum,
+not the API's separate fee-counting `lot_size`. Quote exposure is not USD cash
+or collateral. Inverse valuation/P&L must use pinned contract specifications and
+BTC/ETH settlement; a USD label cannot merge these products with spot balances.
+
+| Book mode | Native channel | Coverage and continuity |
+| --- | --- | --- |
+| Grouped snapshots, depth 1/10/20 | `book.SYMBOL.none.DEPTH.100ms` | Each notification replaces its bounded window; catalog default depth is 20 |
+| Ungrouped, adapter key `depth=None` | `book.SYMBOL.100ms` | Native full snapshot then action-tuple deltas linked by `prev_change_id`; full-depth evidence begins only after validated snapshot |
+
+Catalog canonicalization resolves omitted book depth to 20; it does not select
+the adapter's ungrouped mode. Numeric `change_id` skips are not fabricated gaps;
+the ungrouped predecessor link supplies continuity. Neither 100 ms mode claims
+raw exact event flow or event OFI, and neither supplies a checksum.
+`trades.SYMBOL.100ms` is a separate public trade subscription. There is **no
+implemented REST book or trade fallback**: a bounded HTTP book cannot bootstrap
+the unlimited stream as full depth.
+
+There is no integrated Deribit reference/context, OI/funding-history or optional
+venue-candle-history channel. Admitted public prints can still form session
+candles. Supported inverse economics in the paper engine require separate
+verified metadata, usable source evidence, explicit risk/funding assumptions and
+native collateral; public feed support is never account eligibility or exchange
+execution permission.
+
 ## Offline acceptance coverage and limits
 
-Fixtures cover whole-message application, the published Kraken CRC vector, numeric lexical precision, depth eviction, repeated changes, missing/mismatched CRC, malformed/negative/nonfinite/excess-precision inputs, wrong symbols, empty/crossed/duplicate snapshots, invalid ticks, no-snapshot gating, Coinbase independent book/trade connection sequencing, duplicate/gap/epoch rejection, full-depth bounds, native REST separation, Kraken REST native-key/endpoint/schema validation and degraded snapshot reduction, side normalization/history/dedup, subscription rejection, capabilities, metadata discovery/pagination/status, and timestamp nanoseconds. Run through the parent integration test command; this implementation task deliberately does not execute tests, formatters, type checks, or network probes.
+Fixtures cover whole-message application, the published Kraken CRC vector, numeric lexical precision, depth eviction, repeated changes, missing/mismatched CRC, malformed/negative/nonfinite/excess-precision inputs, wrong symbols, empty/crossed/duplicate snapshots, invalid ticks, no-snapshot gating, Coinbase independent book/trade connection sequencing, duplicate/gap/epoch rejection, full-depth bounds, native REST separation, Kraken REST native-key/endpoint/schema validation and degraded snapshot reduction, side normalization/history/dedup, subscription rejection, capabilities, metadata discovery/pagination/status, and timestamp nanoseconds. `tests/test_workstation_public_boundary.py` additionally covers credential rejection and redirect/cookie boundaries. Executed gate results belong in the handoff and containing PR; no external live-feed revalidation was performed for this documentation audit.
 
 This document does not certify live access, live synchronization, account trading eligibility, loss-free historical trade coverage, or profitability. A checksum protects Kraken's WS top ten levels, not independently every deeper price; Kraken REST snapshots carry no such checksum evidence. Coinbase's REST fallback does not represent its complete WS depth. Current public data and metadata never supply missing historical books.
+
+The [2026-11-01 access snapshot](evidence/m0-access.json) is immutable historical
+endpoint/channel evidence, explicitly not synchronized adapter validation. Its
+Coinbase single-product HTTP check is not proof that today's paginated discovery
+or all book/trade dependencies are available. It does not certify current head.
+
+`tests/test_workstation_deribit.py` covers inverse identity and exact native
+amount conversion, grouped versus full-book semantics, predecessor checks,
+checkpoint coverage and the absence of REST fallback. HTTP access denial is
+retained as evidence, not bypassed through authentication or another venue.
 
 ## Primary protocol references
 
@@ -58,3 +119,7 @@ This document does not certify live access, live synchronization, account tradin
 - [Coinbase Advanced market trades: maker side](https://docs.cdp.coinbase.com/api-reference/advanced-trade-api/websocket/market-trades)
 - [Coinbase Advanced public products and alias metadata](https://docs.cdp.coinbase.com/api-reference/advanced-trade-api/rest-api/public/list-public-products)
 - [Coinbase Advanced public product book](https://docs.cdp.coinbase.com/api-reference/advanced-trade-api/rest-api/public/get-public-product-book)
+- [Deribit instrument definitions and contract units](https://docs.deribit.com/api-reference/market-data/public-get_instruments)
+- [Deribit grouped bounded books](https://docs.deribit.com/subscriptions/orderbook/bookinstrument_namegroupdepthinterval)
+- [Deribit ungrouped snapshot/delta books](https://docs.deribit.com/subscriptions/orderbook/bookinstrument_nameinterval)
+- [Deribit public trade channel](https://docs.deribit.com/subscriptions/trades/tradesinstrument_nameinterval)

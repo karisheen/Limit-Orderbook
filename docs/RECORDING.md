@@ -447,6 +447,24 @@ unnecessary second eviction. Retention never removes an active writer, open read
 quarantine directory or arbitrary unregistered path. During an active capture,
 exhausting budget fails capture rather than deleting its data.
 
+### Terminal-managed capture scope
+
+The terminal's `CaptureService` wraps this storage API under
+`--state-dir/recordings`; it is not the headless CLI's default
+`data/workstation` root. It admits only live owners, one active capture per
+session/two per server, and 64 managed entries. Each capture has a separate
+128 MiB managed-root budget; the browser cannot choose paths or delete entries.
+Capacity rejects a new capture instead of evicting an older managed row.
+
+`instrument` scope freezes all session-owned channels for the selected primary;
+`cohort` freezes all session-owned keys, including reference/context channels.
+Later selection changes do not retarget either scope. Only the owner can stop
+the capture; closing that session or the server also finalizes it. Complete,
+verified captures are registered as replay sources; incomplete/error rows and
+their reasons persist without becoming complete history. Startup recovers and
+verifies saved entries. Scope membership is not proof each channel delivered
+usable evidence. See [managed recording workflow](TERMINAL.md#managed-recording).
+
 ## Finalization, verification and recovery
 
 Sealed data files and the manifest are written through `.partial`, flushed,
@@ -509,9 +527,11 @@ Recovery runs at recorder startup and is also public for explicit operator use.
 
 ## Measured storage amplification
 
-An isolated macOS x64/Python 3.13.5 profiling workload used the unchanged default
-180-second synthetic source: 4,410 transactions, 24 streams and 1,452 logical
-checkpoints. Schema-1 versus final schema-2 sealed output was:
+A historical isolated macOS x64/Python 3.13.5 profiling workload used the
+then-default 180-second synthetic source: 4,410 transactions, 24 streams and
+1,452 logical checkpoints. These are preserved benchmark inputs, not the
+current v3 generator's stream/count contract or current-head validation.
+Schema-1 versus final schema-2 sealed output was:
 
 | Evidence | Schema 1 | Schema 2 |
 | --- | ---: | ---: |

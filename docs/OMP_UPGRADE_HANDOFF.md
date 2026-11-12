@@ -12,6 +12,15 @@
 | M5 | `upgrade/m5-simulation-research`, from merged M4 | Prerequisites `54cabdf`, `12915c0`, `1aa63f2`, `31ba0d8`; feature `366e68ad6784a6ec54a17c9e5c3eeacae636e600`; final evidence `54131d6eb9f50e5dfd6f78e664542c7707d67bef`; all pushed and remote heads verified | [PR #6](https://github.com/karisheen/Limit-Orderbook/pull/6); both exact-final-head checks succeeded; normal merge `6588c44210140a2854398bbdf24b1977d420e06c` | Integrated:1,166 native tests,23 browser scenarios, finite production-capacity full-cohort workflows. Sustained and final readiness remain separately measured in M6 |
 | M6 | `upgrade/m6-readiness`, from merged M5 | Configuration/operations `a2e57dd49f93c0ace60c374f5ebcac38a15a2f7f`; final evidence/disclosure `e3447f224e0eed64575a11387ad8d48b004d4ba7`; both pushed and exact remote heads verified | [PR #7](https://github.com/karisheen/Limit-Orderbook/pull/7), both exact-final-head offline/browser checks succeeded; normal merge `612309c905c311310e620563c764e97304465d98` at2026-11-01T19:56:20Z | Complete and integrated: full sustained replay, finite normal-load processing/rendering, recovery/setup and capacity evidence; failed saturation, startup/tail limits and unrun24-hour soak remain explicit |
 
+| Post-milestone integration | Merged commit | Required final-head check |
+| --- | --- | --- |
+| Unified candles, perpetual paper and positioning — [PR #20](https://github.com/karisheen/Limit-Orderbook/pull/20) | `4a4eb9d87d805ea1d4e74009b61d6a2550fb2f93` | [offline succeeded](https://github.com/karisheen/Limit-Orderbook/actions/runs/43160298920) |
+| Live financial reliability — [PR #21](https://github.com/karisheen/Limit-Orderbook/pull/21) | `a52e214419ad165fdb17a006cafe654c48cec20f` | [offline succeeded](https://github.com/karisheen/Limit-Orderbook/actions/runs/43189015895) |
+| Current feature video and preview — [PR #22](https://github.com/karisheen/Limit-Orderbook/pull/22) | `3df32c3358bf588708e5e29c3a0371253e71864a` | [offline succeeded](https://github.com/karisheen/Limit-Orderbook/actions/runs/43238469803) |
+
+These merged receipts supersede pending-publication wording in the chronological
+entries below. Historical failures and intermediate counts remain retained.
+
 ## M0 verified evidence
 
 - Starting checkout: clean `main`, `e7dceaf9492e4b5413ea3a972b66db7474b0232f`; origin `https://github.com/karisheen/Limit-Orderbook.git`; remote default `main`, unprotected. No applicable AGENTS.md found.
@@ -1380,16 +1389,72 @@ retention, continuity and unified-session suites passed **144 tests**.
   **304 / zero bytes** with the same validator.
 - Provider metadata restrictions remain explicit: Binance futures HTTP 451 and
   Bybit HTTP 403 were not bypassed. Unverified financial operations stay fenced.
-- Publication follows the required `offline` check in the
-  [live-reliability PR](https://github.com/karisheen/Limit-Orderbook/pulls?q=head%3Afix%2Flive-financial-reliability).
-  Its final-head CI and merge/deployment receipts are authoritative; no optional
-  long soak or real exchange execution is claimed.
+- [PR #21](https://github.com/karisheen/Limit-Orderbook/pull/21) merged as
+  `a52e214419ad165fdb17a006cafe654c48cec20f` after its required final-head
+  `offline` check succeeded. Its CI completed **79 offline browser scenarios**
+  with **3 deliberate network skips**, separate from the three live passes above.
+  No optional long soak or real exchange execution is claimed.
 - The full local offline browser run recorded **78 passes / 1 failure / 3
   network-dependent skips**. The remaining fixture hid the native book pane
   before reading its pending response body, so Chromium correctly discarded
   that aborted response. The fixture now consumes reset/reconnect ladder bodies
   before switching views; all evidence, focus and generation assertions remain.
-  Its targeted rerun passed. Required final-head CI reruns the complete suite.
+  Its targeted rerun passed; the final-head CI receipt above closes the full suite.
+
+## Documentation synchronization audit (post-PR #22)
+
+Documentation-only audit based on merged `3df32c3`, on
+`docs/synchronize-current-implementation`. Reviewed merged PR #20–22 receipts,
+source contracts, regression coverage, operator commands and the chronological
+handoff. No application behavior, tests, dependencies, captures, benchmark
+evidence or running collector were changed.
+
+Corrections:
+
+- Replaced spot-only/no-leverage/no-margin/no-funding claims with supported
+  isolated perpetual accounting, explicit models, settlement P&L, partial
+  protective liquidation and debt. Kept independent unfunded research distinct
+  from funded paper, portfolio simulation and an executable strategy.
+- Synchronized candle, positioning and replay documentation: observed
+  Hyperliquid-only context, exact related-venue labeling, gaps, funding fractions
+  and simple annualization, independent venue OHLCV, and CLI ordinal versus
+  terminal delivery seeks. Explicit venue-history HTTP is not controlled by
+  the shared live-collector `--network` flag.
+- Added OKX/Bitget/Deribit coverage and limitations, corrected Hyperliquid
+  quote/collateral terminology, and distinguished adapter support, metadata
+  readiness, financial eligibility and the narrower probe/record CLI scopes.
+- Documented actual queue/cache/read-worker/HTTP isolation without presenting
+  finite measurements as an unlimited-capacity guarantee. Preserved historical
+  figures, commands and diagrams; marked superseded scope/status explicitly.
+- Shortened README into a linked public overview; corrected current attribution
+  guidance and stale local anchors. Rust HFT, live execution, funding-arbitrage
+  strategy and automated market making remain explicitly unimplemented.
+
+Validation scope:
+
+- Checked README and all 24 top-level documentation Markdown files:
+  **248 local links/anchors passed** after fixing two obsolete terminal anchors.
+- Probed external Markdown links with bounded HEAD requests (GET only where
+  HEAD was unsupported). Replaced Bitget's HTTP-404 contract reference with its
+  current classic contract-market documentation. HTTP 200/202 is reachability
+  evidence, not validation of every external fragment or rendered page.
+- Exercised workstation CLI/subcommand help and feed/core-benchmark help;
+  compared setup, build, browser and gate commands against dependency manifests,
+  Vite, `tools/check.sh`, the pre-push hook and GitHub workflow. No benchmark,
+  capture or network-feed command was rerun as a documentation check.
+  **45 shell-command blocks passed `bash -n` syntax checks.**
+- Reviewed the documentation-only diff. The configured pre-push gate and
+  containing PR's required `offline` check are the publication receipts;
+  historical counts above are not claimed as new documentation-audit results.
+
+Remaining documentation/evidence dependencies:
+
+| Item | Status |
+| --- | --- |
+| Original `LIMIT_ORDERBOOK_OMP_UPGRADE_PROMPT.md` | Not tracked in this checkout. Historical numbered acceptance references are preserved and labeled; the original brief cannot be reconstructed or revalidated from that file here. |
+| Oxford/JFEC academic reference | The publisher returned HTTP 403 to this audit. Retained the citation rather than calling it broken or bypassing access controls. External fragments and five HTTP-202 responses were not fully content-verified. |
+| Current long-run/provider certification | No new soak, benchmark, independent OI-unit verification or full provider requalification. Current implementation and dated receipts are separate throughout the guides. |
+| Streamlit catalog compatibility | Its full-JSON, non-ETag client retains a 12 MiB cap and can reject a larger discovery union; now documented in `LEGACY.md`, not repaired in this documentation-only increment. |
 
 ## Decisions and next action
 

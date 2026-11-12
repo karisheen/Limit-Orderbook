@@ -241,6 +241,11 @@ instead synchronizes deliberate time navigation between the charts; it never
 links DOM/tape ranges, changes price aggregation or resumes a frozen sibling.
 Source/session/generation and clock-scope fences invalidate obsolete evidence.
 
+This linked cursor/range mechanism belongs to the paired **Liquidity & flow**
+charts and native DOM/tape. **Price action** has its own OHLC/positioning
+inspection cursor, not that linked DOM cursor; sharing the global candle
+interval does not synchronize its viewport with the short-window charts.
+
 **Follow latest** advances at the qualified source frontier while retaining the
 painted duration. **Fit time** pins available native sample bounds for liquidity/
 OFI and the **returned native aggregates** for flow. There is no separate
@@ -551,16 +556,32 @@ response. No line asserts continuity across missing evidence. The readout
 follows the OHLC inspection timestamp, not an unrelated latest context bucket,
 and shows exact open interest, within-bucket change, funding fraction/interval,
 approximate simple annualization, and the supplying instrument. Positioning
-must match the candle source identity. Mixed or unknown funding intervals are
-labelled explicitly rather than attributed to the latest interval.
+must match the candle source identity. Each bucket retains the last observed
+funding rate together with that observation's interval; it is not a sum of
+funding payments. An unknown interval stays null and has no annualization.
 
 The panes are on by default for a selected perpetual and opt-in for spot, where
 they show the related perpetual of the same underlying, labeled as related.
 They are unavailable with **Venue history**: observed context uses projected
 receive time and is never drawn against exchange-time bars. Only venues with
-a native context channel supply data, currently Hyperliquid; other selections
-show the related Hyperliquid perpetual or **not observed**. History starts when
-the session (or recording) starts observing; there is no venue backfill.
+a native context channel supply data, currently Hyperliquid. A different venue
+or spot selection can show an already-owned Hyperliquid perpetual of the same
+canonical underlying, explicitly labeled `related_underlying`, or **not
+observed**. Querying positioning does not subscribe or backfill a missing
+channel, and aggregate price candles do not make its single supplying series
+aggregate open interest. History starts when the session (or recording) starts
+observing; there is no venue backfill.
+
+Retention is at most 10,080 observed one-minute buckets per context stream,
+with at most 16 perpetual context streams and 500 returned buckets per series
+(the UI requests 300). These are bounds, not a promised week of continuous
+history. Funding-only minutes leave OI unknown; missing minutes are never
+forward-filled. Coarser intervals aggregate only observed minute inputs.
+Open-interest units remain adapter-declared, not independently verified, and
+unit or incomparable source-clock changes discard incompatible history.
+Discontinuities retain prior observed bars with reasons rather than repairing
+gaps; replay rewind rebuilds only the admitted prefix. **Chart help & provenance**
+exposes the supplying series, retention and reasons.
 
 ### Explicit primary-only venue OHLCV
 
@@ -570,6 +591,11 @@ It uses exchange UTC, not projected receive UTC. Aggregate selection cannot
 silently return primary-only candles; choose a single instrument for venue
 history. This is never automatic startup backfill, a fallback for missing
 session trades, or merged into the session series.
+Explicit Venue history can make public HTTP requests even from a demo/replay
+session without `serve --network`; that flag enables live discovery/collection,
+not this separately selected history query. The result is a current venue
+history page, not recorded-prefix evidence, and cannot certify what was known
+at a replay cursor.
 
 | Existing native venue/family | Supported candle intervals | Endpoint and bounds |
 | --- | --- | --- |
@@ -581,6 +607,10 @@ session trades, or merged into the session series.
 | Bybit / v5-spot or v5-linear | 1m, 3m, 5m, 15m, 30m; 1h, 2h, 4h, 6h, 12h; 1d, 1w, 1M | `/v5/market/kline?category=spot` or `linear` from the native family; validates category/symbol, no inverse substitution |
 | KuCoin / classic-spot | 1m, 3m, 5m, 15m, 30m; 1h, 2h, 4h, 6h, 8h, 12h; 1d, 1w, 1M | `/api/v1/market/candles`; seconds-based bounded range, native maximum 1500 rows, output ≤500; volume, not turnover |
 | Hyperliquid / info | 1m, 3m, 5m, 15m, 30m; 1h, 2h, 4h, 8h, 12h; 1d, 3d, 1w, 1M | Public `candleSnapshot`; exact native coin including spot `@index` and HIP-3 dex prefix; most recent 5000 candles available upstream |
+
+OKX, Bitget and Deribit are not currently venue-OHLCV families in this service,
+even though the live catalog has their adapters. Session-trade candles remain
+independent of venue-history endpoint support.
 
 Venue `1M` is also a UTC calendar month, including leap-year February. Unlike
 session fixed buckets, venue weeks/multi-day bars preserve the returned native

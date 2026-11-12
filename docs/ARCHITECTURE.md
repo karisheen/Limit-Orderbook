@@ -1,6 +1,57 @@
 # Workstation architecture and decisions
 
-Status: **living architecture through native M5 workflows; not certification of milestone acceptance or operational readiness.** The authoritative product brief is `LIMIT_ORDERBOOK_OMP_UPGRADE_PROMPT.md`. The baseline audit below remains historical evidence; the M4 cutover replaced the duplicate legacy engine with a thin native-API client. Acceptance is tracked in [UPGRADE_BACKLOG.md](UPGRADE_BACKLOG.md); implemented interfaces are in [CONTRACTS.md](CONTRACTS.md) and [API.md](API.md). Commands, actual checks and Git delivery belong in [OMP_UPGRADE_HANDOFF.md](OMP_UPGRADE_HANDOFF.md). The baseline inspection found no applicable `AGENTS.md` in this checkout or its ancestors.
+Status: **living architecture synchronized with the native candles, perpetual-paper and live-reliability implementation; not certification of current-head performance or operational readiness.** The baseline audit and milestone-era ADR rationale below remain historical. The M4 cutover replaced the duplicate legacy engine with a thin native-API client; subsequent implementation is summarized here. Acceptance is tracked in [UPGRADE_BACKLOG.md](UPGRADE_BACKLOG.md); implemented interfaces are in [CONTRACTS.md](CONTRACTS.md) and [API.md](API.md). Dated checks and delivery receipts belong in [OMP_UPGRADE_HANDOFF.md](OMP_UPGRADE_HANDOFF.md), not an implied fresh pass.
+
+## Current runtime ownership and transport
+
+- `cli serve` runs FastAPI/Uvicorn on loopback, port **8000**, with exactly one
+  backend worker. `TerminalRuntime` owns one shared public-feed registry;
+  browsers and managed recorders lease its subscriptions rather than opening
+  competing collectors. Each `ClientSession` has a dedicated executor for
+  replay readers and mutable analytics/context/alerts/paper observers.
+  Cancellation joins owned work before resources or in-flight evidence release.
+- The required analytical queue admits at most **256 deliveries / 128 MiB**,
+  including detached in-flight work. `_LiveBookBudget` counts shared immutable
+  books, side tuples and levels once across their retained references, including
+  tracker allocation. Failed admission rolls back its reservation; true overflow
+  makes the session unavailable rather than silently clipping native depth or
+  dropping/coalescing required events. The recorder's separate queue is
+  **4096 items / 128 MiB**; neither byte budget is a whole-process RSS cap.
+- The runtime's single-thread catalog/read worker encodes scoped catalogs,
+  reads historical paper summaries and projects frozen live market queries.
+  A separate visual worker supports presentation work; these workers are not
+  additional feed or financial-state owners. The catalog encoded-response LRU
+  is bounded to **8 scopes / 64 MiB**. Its metadata/readiness-sensitive strong
+  ETags permit bodyless 304 responses. React's URL-local validators remain
+  lifecycle-scoped; an unrelated scope or failed refresh is not validation.
+- `market_presentation.live_market_snapshot` captures a `LiveMarketView` of
+  the completed prefix on the analytical owner. It shares immutable books and
+  events, but copies admission, clock-origin and retention maps read-only.
+  Paging, valuation and DTO construction then run on the read worker outside
+  the analytical lock. Session actions bound retained query input and final
+  generation checks fence results. **Replay readers remain thread-affine** on
+  their session owner; they are not passed to this live-only projection path.
+- `GET /api/v1/sessions/{session_id}` and `POST /api/v1/market-data` encode
+  completed JSON-safe DTOs into `JSONResponse` on that worker, avoiding a second
+  framework traversal on the event loop. This is hot-route isolation, not a
+  claim that every endpoint or all Python CPU work is off-loop.
+- React has one native session per document, coalesced WebSocket frames and
+  bounded HTTP queries. Native `/candles` and `/positioning` supply the Price
+  chart; the separate `/market-data` cursor bridge supports display-only trade
+  studies. Floating-point plotting coordinates never become financial inputs.
+  Funding/OI history uses admitted Hyperliquid context, not venue-history
+  backfill, and related-underlying context keeps its own identity. Streamlit
+  exposes a narrower HTTP observation subset, not a second engine.
+
+Native Python remains authoritative for exact Decimal economics, quality,
+replay, analytics and the simulated ledger. Verified pinned metadata and native
+units gate financial support; missing fees, precision, coverage or valuation
+remain unknown rather than zero. Source capability is separate from access on
+this environment's last observed network; provider denial is not bypassed.
+There is no Rust HFT engine, funding-arbitrage strategy, automated market making
+or exchange order execution. The [performance record](CORE_PERFORMANCE.md#current-workload-isolation-and-retained-measurements)
+scopes the measured isolation changes to their finite workloads.
+
 
 ## Actual baseline audit
 
@@ -130,7 +181,7 @@ Replay from checkpoint restores complete reducer state, dedup/window anchors and
 
 Alternatives rejected: SQLite per-message event store (avoidable ingestion contention/poor analytical layout), in-memory-only history (not research/replay evidence), mandatory server databases/message brokers (unnecessary local operations).
 
-### M5 implementation: durable consumers, not a second feed engine
+### Current durable consumers and paper simulation
 
 The runtime owns analytics, visualization, context, alerts and paper observers
 on each client's dedicated worker. All consume admitted atomic source deliveries
@@ -154,12 +205,34 @@ instrument and optional run/order provenance. Owner-thread-local connections
 keep persistence outside ingestion ownership. Embedded `TerminalRuntime` without
 an explicit directory uses temporary state; operator CLI state is durable.
 
-Paper deliberately models only funded spot market/marketable-limit IOC against
-qualified native depth. Feed delay controls available books; decision plus order
-delay fixes arrival. Arrival competes for balances and conservative per-price
-consumed-liquidity reservations. Partial remainder cancels; unchanged snapshots
-do not replenish consumed depth. Unknown fees/basis stay unknown; there is no
-passive fill, market impact, derivative margin/funding or live order submission.
+Paper models funded spot and supported **isolated one-way perpetual**
+market/marketable-limit IOC against qualified native depth. Perpetual economics
+are admitted from pinned verified metadata: ordinary quote-settled linear,
+base-settled inverse, and the explicitly proven default-Hyperliquid
+`quanto_no_fx` payout. This is not generic quanto or builder-DEX support.
+Unsupported settlement/conversion and unknown contract economics fail closed.
+
+Feed delay controls available books; decision plus order delay fixes arrival.
+Orders compete at arrival for balances and conservative per-price consumed
+liquidity; partial remainder cancels and unchanged snapshots do not replenish
+depth. Perpetual runs require explicit dated leverage/maintenance/liquidation-fee
+assumptions and a funding model (`none`, periodic or explicit events).
+Collateral, funding payments, protective partial liquidation, residual debt and
+native-settlement P&L are accounted by Python. Book-side mark proxies are
+labeled, not exchange mark/risk-engine replicas; unknown fees/basis/valuation
+stay unknown. Chart funding context is not an automatically adopted paper model.
+No cross-margin, hedge-mode book, borrowing, cross-venue collateral transfer,
+passive queue fills, market impact or live order submission is modeled.
+
+Historical listings use a separate catalog-worker-owned `PaperStore(read_only=True)`
+SQLite connection: no creation, migration or pragma writes, and close occurs
+on its owner thread. `list_run_summaries` validates the entire durable run,
+including configuration and pinned instruments, before caching small immutable
+summaries plus payload SHA-256 identity (**1000 entries / 8 MiB**).
+Changed bytes revalidate even if the revision is unchanged; current revisions
+come from the database. Resume/configuration loads remain uncached and strict.
+Historical decoding does not hold the analytical lock; lifecycle and final
+generation fences still apply. Cached summaries are not resume authority.
 
 Archives preserve historical accounting without becoming current replay state.
 Explicit same-source demo/replay resume stages a separate prefix reconstruction,
@@ -200,4 +273,4 @@ Acceptance before native selection: retain original Python benchmark, identify C
 
 Target initial budgets are p95 receive-to-valid <=25ms, p99 <=100ms and p95 publish-to-render <=250ms at declared normal load, plus responsive 2x peak replay bursts. Separate queue wait, processing, publish-to-render and timestamp age; disclose throughput, high-water queues, CPU/memory, gap/drop counts and capture completeness. Budget changes require retaining original measurements and rationale. At least BTC/ETH/SOL across available initial venues plus a deliberately slow/disconnected venue are required. A finite replay benchmark and approximately 30-minute soak are implementation gates when feasible; a runnable 24-hour command and truthful run status are required, not an invented pass.
 
-Bind to loopback by default; validate API origins/inputs and bound history/query ranges. Native development is primary, optional Compose uses persistent data volumes. Use locked dependencies, offline CI, type/lint/test/build gates and opt-in live probes. No external deployment/services/contact, private keys, signing, real orders or withdrawals. Readiness dimensions remain independent: data correctness; UI/operational stability; research validity; future live execution (not implemented).
+Bind to loopback by default; validate API origins/inputs and bound history/query ranges. Native development is the supplied path; no Docker or database service is required. Use locked dependencies, offline CI, type/lint/test/build gates and opt-in live probes. No external deployment/services/contact, private keys, signing, real orders or withdrawals. Readiness dimensions remain independent: data correctness; UI/operational stability; research validity; future live execution (not implemented).

@@ -6,7 +6,8 @@ The workstation requires **Python 3.13** (minimum 3.13.0; Python 3.14 and later
 are not yet supported). The reproducible CI interpreter is **CPython 3.13.5**.
 Use a modern OpenSSL-backed interpreter, not the macOS system Python. CI pins
 **uv 0.8.4**; use that version for matching dependency-management behavior.
-The frontend uses **Node.js 22.22.0** and **npm 10.9.4**.
+CI pins **Node.js 22.22.0**; `frontend/package.json` admits Node
+**>=22.22.0 <23** and npm **>=10 <11** (the recorded local npm is 10.9.4).
 No Docker, database service, exchange credentials, or wallet is needed for the
 offline development checks.
 
@@ -145,7 +146,7 @@ concurrency groups. Tests, quality gates, browser workflows, read-only token
 permissions, and the 15-minute job timeout remain in place. There is no automatic
 deployment.
 
-The active **Protect main** repository ruleset requires:
+The committed **Protect main** repository ruleset declares:
 
 - A pull request rather than a direct push.
 - The `offline` status check from the **GitHub Actions** integration, with the
@@ -219,6 +220,24 @@ the explicitly synthetic offline demo and configured recordings. The Python
 server serves `frontend/dist` at `http://127.0.0.1:8000/` after a production
 build. Vite alone or `vite preview` does not provide the session API.
 
+`serve` binds only to loopback, uses one Uvicorn worker, defaults to eight
+sessions and persists operator state under `data/workstation-state`. Do not
+launch multiple API workers or a second collector to scale browsers: session
+and managed-recording leases share the runtime's feed registry. Recordings own
+independent leases; browser display lifetime is not recording ownership.
+
+For local browser workflows after building, install Chromium explicitly:
+
+```sh
+npm --prefix frontend exec -- playwright install chromium
+# With the API running on its default port:
+npm --prefix frontend run test:e2e
+```
+
+CI uses `playwright install --with-deps chromium` before its separately launched
+offline backend. Browser installation may access the network; offline scenario
+execution does not thereby become a live-provider check.
+
 `frontend/src/integration/` connects the shell to the native session and
 reuses the chart/workflow components. `frontend/src/orderflow/` owns the shell
 and display-only studies; `@/` resolves there. Its market-data bridge consumes
@@ -227,6 +246,15 @@ coordinates; exact costs, analytics, paper accounting and replay remain Python
 responsibilities. Never feed display aggregates back into financial inputs.
 Session/generation/source/instrument boundaries invalidate obsolete evidence.
 Changing display studies must not create a second native session.
+
+The Price chart uses the native `/candles` series; perpetual session-trade
+views can also query `/positioning` for admitted Hyperliquid context. Venue
+candle history does not acquire fabricated funding/OI backfill. OI/funding
+overlays share the chart's price/time geometry while retaining their own units,
+quality and exact source identity; related-underlying context is never relabeled
+as the selected instrument. The order-flow bridge's retained-trade plotting
+candles/studies below are display-only, not a second authoritative candle or
+financial engine.
 
 The bridge polls `POST /api/v1/market-data` with the existing session/generation,
 about every 150 ms when caught up, draining `has_more` sequentially without
@@ -258,6 +286,49 @@ without creating sessions or erasing independent depth/OBI history. A changed
 depth cohort resets depth history separately. Busy/unusable polling state pauses
 requests without clearing same-owner caches or cursor; retained evidence is
 not a claim of freshness. Scope changes still fence all old evidence.
+
+### Workload ownership and query isolation
+
+The analytical sink keeps its **256-delivery / 128 MiB** admission limits.
+Residency accounting deduplicates immutable books, side tuples and levels
+across queued and in-flight deliveries, including tracking overhead; it does
+not drop/coalesce admitted analytical events. Genuine overflow remains an
+explicit failure. This is separate from live market-history retention and the
+recorder's **4096-item / 128 MiB** queue.
+
+Catalog responses are encoded on the catalog worker and retained in a bounded
+**8-scope / 64 MiB** LRU keyed by metadata/readiness. React keeps URL-scoped
+ETags within its current lifecycle; an unchanged validated request can return
+304 without downloading/reparsing the union. Scope changes and refresh errors
+must not reuse an unvalidated or unrelated catalog. Full responses remain
+available to clients without conditional requests.
+
+Historical Paper run listing uses a catalog-worker-owned **read-only** SQLite
+connection, not the active analytical owner. Its **1000-entry / 8 MiB** summary
+cache admits only fully validated durable payloads and checks their SHA-256
+identity on subsequent reads; changed bytes revalidate even with the same
+revision. Current database revisions are returned, and configuration/resume
+loads remain strict and uncached. The read-only connection performs no
+creation/migration/pragma writes and closes on its owning thread.
+
+Live market-data requests freeze a completed prefix under the session owner,
+then page, value and construct DTOs on the existing read worker, outside the
+analytical lock. Immutable books/events are shared; admission, clock-origin
+and retention maps are copied read-only. Lifecycle/generation checks fence
+the result and bound each session to one captured query input. Replay retains
+its thread-affine reader on the replay owner. Hot session-frame and market-data
+JSON responses are also encoded off the event loop; this is not permission to
+move a mutable replay reader or ledger between workers.
+
+These changes isolate observation workload; they neither establish unlimited
+capacity nor change exact native financial rules. Paper supports funded spot
+and explicitly configured isolated one-way perpetual IOC simulation where
+pinned contract metadata supports the economics. Browser controls never become
+an order executor, funding-arbitrage strategy or automated market maker.
+See [Architecture](ARCHITECTURE.md) and the scoped measurements in
+[Core performance](CORE_PERFORMANCE.md#current-workload-isolation-and-retained-measurements).
+
+### Market evidence and live access
 
 Lag subtracts exact native exchange-event wall nanoseconds from receive-wall
 nanoseconds before projecting milliseconds. Missing timestamps, subscription
