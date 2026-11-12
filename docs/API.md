@@ -103,7 +103,26 @@ Requests reject unknown fields, numeric JSON economics, nonfinite decimals, exce
 | POST | `/proposal-risk` | Hypothetical entry/stop, side and quantity or risk budget; explicit fee assumptions, native constraints and unavailable reasons. Neither an order nor guaranteed maximum loss. |
 | WS | `/stream?session_id=...` | One socket per session. Full Frames at up to 5 Hz. Disconnect destroys the session; reconnection creates an independent session, never steals another tab's state. |
 
+`GET /instruments` returns a strong `ETag` and `Cache-Control: private, no-cache`.
+`If-None-Match` revalidates that exact URL's previously received representation;
+a match returns **304 with no body**, not an empty catalog. Instrument metadata,
+source status/reasons and the preferred source all participate in the validator.
+Unknown source IDs still return 404 before conditional handling. The catalog
+worker owns a bounded **8-scope / 64MiB encoded-response cache**; root and
+source-scoped queries do not evict each other on every poll. JSON encoding and
+hashing remain off the event loop. The UI retains validators only within its
+current lifecycle and exact request URL, reuses data only after a successful
+304, and keeps refresh failures visible. Its polling cadence is unchanged.
+
 ### Native market-data delivery
+
+Live requests capture one bounded immutable, owner-completed prefix, then
+perform paging, valuation and DTO construction on the read worker without
+blocking analytical ingestion. The captured clock, source identity, admission
+and retention floors remain attached to that prefix; final lifecycle checks
+reject obsolete or unavailable sessions. Replay readers remain thread-affine.
+The HTTP market-data and session-frame routes encode completed JSON-safe DTOs
+off the event loop without a second framework traversal.
 
 `POST /market-data` requires the current `session_id` and decimal-string
 `generation`. Optional `after_delivery` defaults to `'0'` (at most 24 decimal

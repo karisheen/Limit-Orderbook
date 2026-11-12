@@ -144,6 +144,55 @@ def trade_ids(page):
     return [item["trade"]["trade_id"] for item in page["trades"]]
 
 
+@pytest.mark.parametrize("limit", (1, 2, 100))
+def test_frozen_live_market_view_matches_owned_pages_after_history_changes(limit):
+    from dataclasses import FrozenInstanceError
+
+    feed = RetainedFeed()
+    feed.deliver(feed.event("before"), feed.event("peer-before", stream="1-trades"))
+    feed.deliver(
+        feed.event(
+            "gap",
+            payload=Gap("shared-gap", affected_streams=("1-trades",)),
+        )
+    )
+    feed.deliver(
+        feed.event("after"),
+        feed.event("peer-after", stream="1-trades"),
+        feed.event("heartbeat", payload=Control("heartbeat")),
+    )
+    requests = [
+        MarketDataRequest(
+            session_id=feed.session.id,
+            generation="1",
+            after_delivery=delivery,
+            after_event=event,
+            limit=limit,
+        )
+        for delivery, event in (("0", -1), ("1", 0), ("999", 0))
+    ]
+    expected = [presentation.market_data(feed.session, request) for request in requests]
+    view = presentation.live_market_snapshot(feed.session)
+    assert [view.query(request) for request in requests] == expected
+    with pytest.raises(FrozenInstanceError):
+        view.highwater = 999
+    with pytest.raises(TypeError):
+        view.trade_history.origins[("future", "clock")] = (1, 2)
+    with pytest.raises(TypeError):
+        view.trade_history.stream_floors["0-trades"] = (999, 0)
+    with pytest.raises(TypeError):
+        view.trade_history.admitted[(999, 0)] = next(
+            iter(view.trade_history.admitted.values())
+        )
+
+    feed.deliver(feed.event("future", epoch=1))
+    feed.trim_raw(2)
+    feed.history.reset()
+    feed.session.source_identity = "different-source"
+    feed.session.generation += 1
+    assert [view.query(request) for request in requests] == expected
+
+
 def test_caught_up_rollover_reports_retirement_without_false_gap(monkeypatch):
     monkeypatch.setattr(presentation, "MAX_TRADE_ROWS", 2)
     feed = RetainedFeed()

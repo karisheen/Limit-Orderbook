@@ -541,7 +541,9 @@ def create_app(
         )
 
     @app.get("/api/v1/instruments")
-    async def instruments(source_id: str | None = Query(default=None, max_length=256)):
+    async def instruments(
+        request: Request, source_id: str | None = Query(default=None, max_length=256)
+    ):
         if source_id is not None:
             runtime.source(source_id)
             selected = runtime.source_instruments.get(source_id, ())
@@ -551,14 +553,21 @@ def create_app(
             {**source, "reasons": list(source["reasons"])}
             for source in runtime.sources.values()
         )
-        content = await runtime._catalog_work(
+        content, etag = await runtime._catalog_work(
             runtime._catalog_response,
             selected,
             sources,
             "live" if runtime.enable_live else runtime.demo_id,
+            source_id,
         )
+        headers = {"ETag": etag, "Cache-Control": "private, no-cache"}
+        candidates = request.headers.get("if-none-match", "").split(",")
+        if any(
+            candidate.strip() in (etag, "W/" + etag, "*") for candidate in candidates
+        ):
+            return Response(status_code=304, headers=headers)
         # Already encoded off-loop; avoid a second recursive framework walk.
-        return Response(content=content, media_type="application/json")
+        return Response(content=content, media_type="application/json", headers=headers)
 
     @app.get("/api/v1/sessions")
     async def sessions():
@@ -584,7 +593,10 @@ def create_app(
 
     @app.get("/api/v1/sessions/{session_id}")
     async def session_frame(session_id: str):
-        return await runtime.get(session_id).frame()
+        snapshot = await runtime.get(session_id).frame()
+        # Native DTOs are already JSON-safe, completed-owner snapshots. Encode
+        # off-loop and bypass FastAPI's second recursive jsonable_encoder walk.
+        return await runtime._catalog_work(JSONResponse, snapshot)
 
     @app.delete("/api/v1/sessions/{session_id}")
     async def delete_session(session_id: str):
@@ -613,7 +625,8 @@ def create_app(
 
     @app.post("/api/v1/market-data")
     async def market_data(request: MarketDataRequest):
-        return await runtime.market_data(request)
+        snapshot = await runtime.market_data(request)
+        return await runtime._catalog_work(JSONResponse, snapshot)
 
     @app.get("/api/v1/recordings")
     async def recordings():
@@ -745,7 +758,7 @@ def create_app(
 
     @app.post("/api/v1/paper/runs")
     async def paper_runs(request: PaperRunsRequest):
-        return await consumer_action(request, "_paper_runs")
+        return await runtime.paper_runs(request)
 
     @app.post("/api/v1/paper/archive")
     async def paper_archive(request: PaperRunRequest):

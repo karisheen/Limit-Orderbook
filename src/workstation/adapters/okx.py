@@ -7,6 +7,10 @@ min/max size constraints remain contracts; ctVal only values base exposure.
 SWAP parser revision okx-v2-native-size corrects the old base-scaled limits;
 historical okx-v1 descriptors remain immutable (see native_order_constraints).
 
+SPOT discovery separates unpublished preopen announcements (unavailable category,
+currencies and size/price rules) from instrument definitions. Complete preopen
+definitions remain unavailable descriptors; no financial fields are inferred.
+
 Public WebSocket uses TLS port 443. Connection-wide notice envelopes are
 informational controls, not subscription acknowledgements or market observations.
 Notice protocol: https://www.okx.com/docs-v5/en/#overview-websocket-notification
@@ -119,6 +123,20 @@ class OKXAdapter:
             if swap and row["ctType"] == "inverse":
                 continue
             symbol = text(row["instId"])
+            # Native preopen announcements can precede publication of the entire
+            # spot definition (including instCategory). They are not yet usable
+            # instruments. Do not infer currencies from instId or invent rules;
+            # complete preopen rows and partially malformed rows still parse below.
+            if (
+                not swap
+                and row.get("state") == "preopen"
+                and row.get("instCategory") == ""
+                and all(
+                    row.get(field) == ""
+                    for field in ("baseCcy", "quoteCcy", "tickSz", "lotSz", "minSz")
+                )
+            ):
+                continue
             multiplier = Decimal("1")
             if swap:
                 if row["ctType"] != "linear":

@@ -67,6 +67,29 @@ def metadata_bytes(*rows):
     return encoded({"code": "0", "msg": "", "data": list(rows)})
 
 
+def spot_announcement(**changes):
+    # Observed in GET /api/v5/public/instruments?instType=SPOT on 2026-11-11.
+    # The focused instId query also returns blank rules with a generated ID code.
+    return (
+        metadata_row(
+            instId="XIBKR-USDT",
+            instIdCode=None,
+            instCategory="",
+            state="preopen",
+            baseCcy="",
+            quoteCcy="",
+            tickSz="",
+            lotSz="",
+            minSz="",
+            maxLmtSz="",
+            maxMktSz="",
+            listTime="1794551400000",
+            ruleType="",
+        )
+        | changes
+    )
+
+
 def setup(*, swap=False, channel="book"):
     adapter = OKXAdapter()
     instrument = adapter.parse_metadata(
@@ -322,6 +345,63 @@ def test_discovery_excludes_inverse_and_noncrypto_without_aliasing_symbols():
         next(item for item in snapshot.instruments if item.base.ticker == "ETH").status
         == "suspended"
     )
+
+
+@pytest.mark.parametrize(
+    "symbol", ("XIBKR-USDT", "XMPWR-USDT", "XMP-USDT", "XGILD-USDT")
+)
+@pytest.mark.parametrize("id_code", (None, 557131))
+def test_spot_announcements_do_not_poison_supported_metadata(symbol, id_code):
+    raw = metadata_bytes(
+        metadata_row(),
+        spot_announcement(instId=symbol, instIdCode=id_code),
+        metadata_row(instId="ETH-USDT", baseCcy="ETH"),
+    )
+    snapshot = OKXAdapter().parse_metadata(raw, fetch_wall_ns=123)
+    assert [item.native_symbol for item in snapshot.instruments] == [
+        "BTC-USDT",
+        "ETH-USDT",
+    ]
+    assert snapshot.payload_hash == sha256(raw).hexdigest()
+    assert all(
+        item.metadata_version == f"{sha256(raw).hexdigest()}:123:okx-v1"
+        for item in snapshot.instruments
+    )
+
+
+@pytest.mark.parametrize("category", ("", "1"))
+def test_complete_preopen_spot_definition_remains_unavailable(category):
+    adapter = OKXAdapter()
+    (instrument,) = adapter.parse_metadata(
+        metadata_bytes(metadata_row(state="preopen", instCategory=category))
+    ).instruments
+    assert instrument.native_symbol == "BTC-USDT"
+    assert instrument.status == "unavailable"
+    assert instrument.base.ticker == "BTC" and instrument.quote.ticker == "USDT"
+    assert instrument.tick_size == D("0.1")
+    key = SubscriptionKey.for_instrument(instrument, channel="book", depth=5)
+    with pytest.raises(ValueError, match="product_unavailable"):
+        adapter.subscription_requests(instrument, key)
+
+
+@pytest.mark.parametrize(
+    "changes",
+    (
+        {"state": "live"},
+        {"state": "suspend"},
+        {"instCategory": "1"},
+        {"instId": ""},
+        {"baseCcy": "XIBKR"},
+        {"quoteCcy": "USDT"},
+        {"tickSz": "0.01"},
+        {"lotSz": "0.00001"},
+        {"minSz": "0.01"},
+        {"baseCcy": None},
+    ),
+)
+def test_incomplete_definitions_outside_native_announcement_boundary_fail(changes):
+    with pytest.raises(ValueError):
+        OKXAdapter().parse_metadata(metadata_bytes(spot_announcement(**changes)))
 
 
 @pytest.mark.parametrize(

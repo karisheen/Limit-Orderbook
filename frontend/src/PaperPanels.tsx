@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import type { Frame } from './api';
 import type {
@@ -180,6 +180,10 @@ const EMPTY_BALANCE: BalanceDraft = { venue: '', asset_id: '', available: '', pr
 const EMPTY_FEE: FeeDraft = { instrument_id: '', fee_bps: '', fee_provenance: '', fee_date: '', fee_asset_id: '' };
 
 export function PaperPanel(props: WorkflowPanelProps & { resumeRun: (id: string, signal: AbortSignal) => Promise<Frame> }) {
+  // Live frames change frequently; catalog-sized option trees do not. Reuse the
+  // fragments so React can skip their children without losing native choices.
+  const instrumentOptions = useMemo(() => <><option value="">Select exact instrument</option>{props.instruments.map(item => <option key={item.instrument_id} value={item.instrument_id}>{venueLabel(item.venue)} · {item.native_symbol} · {item.instrument_id}</option>)}</>, [props.instruments]);
+  const perpetualOptions = useMemo(() => <><option value="">Select exact perpetual</option>{props.instruments.filter(item => item.market_type === 'perpetual').map(item => <option key={item.instrument_id} value={item.instrument_id}>{venueLabel(item.venue)} · {item.native_symbol} · {item.instrument_id}</option>)}</>, [props.instruments]);
   const load = useCallback(async (query: WorkflowQuery, signal: AbortSignal) => {
     const paper = await query<PaperResponse>('/paper/query', detailLimits, signal);
     signal.throwIfAborted();
@@ -303,7 +307,7 @@ export function PaperPanel(props: WorkflowPanelProps & { resumeRun: (id: string,
           <p className="caption">Selected metadata: venue {instrument?.venue ?? 'unavailable'}; base {instrument?.base.asset_id ?? 'unavailable'}; quote {instrument?.quote.asset_id ?? 'unavailable'}; settlement collateral {capability?.settlement_asset_id ?? 'not applicable'}. Perpetual balances fund the exact settlement asset, never spot base inventory. These identifiers do not grant funds. Balance as-of is unspecified; provenance is supplied by you.</p>
           <h3>Explicit sourced and dated fee schedules</h3>
           {fees.map((fee, index) => <div className="paper-draft-row" key={index}>
-            <Field label="Fee instrument"><select required value={fee.instrument_id} onChange={event => setFees(previous => previous.map((row, rowIndex) => rowIndex === index ? { ...row, instrument_id: event.target.value } : row))}><option value="">Select exact instrument</option>{props.instruments.map(item => <option key={item.instrument_id} value={item.instrument_id}>{venueLabel(item.venue)} · {item.native_symbol} · {item.instrument_id}</option>)}</select></Field>
+            <Field label="Fee instrument"><select required value={fee.instrument_id} onChange={event => setFees(previous => previous.map((row, rowIndex) => rowIndex === index ? { ...row, instrument_id: event.target.value } : row))}>{instrumentOptions}</select></Field>
             {(['fee_bps', 'fee_asset_id', 'fee_provenance', 'fee_date'] as const).map(key => <Field key={key} label={{ fee_bps: 'Fee basis points — exact', fee_asset_id: 'Fee asset ID', fee_provenance: 'Fee source / provenance', fee_date: 'Fee source date' }[key]}><input required type={key === 'fee_date' ? 'date' : 'text'} inputMode={key === 'fee_bps' ? 'decimal' : undefined} value={fee[key]} onChange={event => setFees(previous => previous.map((row, rowIndex) => rowIndex === index ? { ...row, [key]: event.target.value } : row))} /></Field>)}
             <button type="button" onClick={() => setFees(previous => previous.filter((_, rowIndex) => rowIndex !== index))}>Remove fee</button>
           </div>)}
@@ -312,7 +316,7 @@ export function PaperPanel(props: WorkflowPanelProps & { resumeRun: (id: string,
           <h3>Explicit perpetual risk and funding assumptions</h3>
           <p className="caption">User models, not exchange risk tiers or guarantees. Leverage 1–1000; maintenance rate must be below 1 / leverage; liquidation penalty rate below 1. Rates are fractions, not basis points. Every model needs provenance and as-of wall ns. Funding must be an explicit no-funding assumption, periodic schedule, or strictly chronological dated events. Boundary times cannot predate the model. Native validation is authoritative; inputs never use browser floating-point economics.</p>
           {models.map((model, index) => <fieldset className="paper-draft-row" key={index}><legend>Perpetual model {index + 1}</legend>
-            <Field label="Risk / funding instrument"><select required value={model.instrument_id} onChange={event => setModels(previous => previous.map((row, rowIndex) => rowIndex === index ? { ...row, instrument_id: event.target.value } : row))}><option value="">Select exact perpetual</option>{props.instruments.filter(item => item.market_type === 'perpetual').map(item => <option key={item.instrument_id} value={item.instrument_id}>{venueLabel(item.venue)} · {item.native_symbol} · {item.instrument_id}</option>)}</select></Field>
+            <Field label="Risk / funding instrument"><select required value={model.instrument_id} onChange={event => setModels(previous => previous.map((row, rowIndex) => rowIndex === index ? { ...row, instrument_id: event.target.value } : row))}>{perpetualOptions}</select></Field>
             {([
               ['leverage', 'Modeled leverage — exact'], ['maintenance_margin_rate', 'Maintenance margin rate — exact'],
               ['liquidation_fee_rate', 'Liquidation penalty rate — exact'], ['risk_provenance', 'Risk model provenance'],

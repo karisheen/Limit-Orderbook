@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ApiError, errorMessage, request, streamUrl } from './api';
+import { ApiError, errorMessage, request, requestCatalog, streamUrl } from './api';
 import type { Catalog, Costs, CostInput, Frame, Mode, ReplayAction, VisualGrid, VisualizationInput, VisualizationAck, GroupedLadder, LadderInput, ProposalRisk, ProposalRiskInput } from './api';
+import type { CatalogSnapshot } from './api';
 import { startupSource } from './workspace';
 import type { WorkspacePreferences } from './workspace';
 import { initialLiveInstrument, selectableInstrument } from './instrument-metadata';
@@ -105,9 +106,16 @@ export function useTerminal(initialPreferences: Pick<WorkspacePreferences, 'sour
       clearTimeout(watchdogTimer);
       watchdogTimer = window.setTimeout(() => retry('No stream frame received for 5 seconds.'), 5000);
     };
+    // Each lifecycle owns only its bootstrap and selected-source catalogs.
+    const catalogs = new Map<string, CatalogSnapshot>();
+    const loadCatalog = async (path: string) => {
+      const next = await requestCatalog(path, AbortSignal.any([abort.signal, AbortSignal.timeout(5000)]), catalogs.get(path));
+      if (scope.active && !reconnecting) catalogs.set(path, next);
+      return next.data;
+    };
     const refreshCatalog = async () => {
       try {
-        const next = await request<Catalog>(`/instruments?source_id=${encodeURIComponent(scope.sourceId ?? '')}`, undefined, AbortSignal.any([abort.signal, AbortSignal.timeout(5000)]));
+        const next = await loadCatalog(`/instruments?source_id=${encodeURIComponent(scope.sourceId ?? '')}`);
         if (!scope.active || reconnecting) return;
         setCatalog(next);
         setCatalogError(null);
@@ -140,7 +148,7 @@ export function useTerminal(initialPreferences: Pick<WorkspacePreferences, 'sour
     };
     const connect = async () => {
       try {
-        const nextCatalog = await request<Catalog>('/instruments', undefined, AbortSignal.any([abort.signal, AbortSignal.timeout(5000)]));
+        const nextCatalog = await loadCatalog('/instruments');
         if (!scope.active) return;
         setCatalog(nextCatalog);
         if (!sourceResolved.current) {
@@ -154,7 +162,7 @@ export function useTerminal(initialPreferences: Pick<WorkspacePreferences, 'sour
           throw new ApiError(`Requested ${options.current.mode} source ${options.current.source_id} is ${preferred?.status ?? 'unavailable'}${preferred?.reasons.length ? `: ${preferred.reasons.join('; ')}` : ''}. Select another source explicitly; no demo substitution was made.`, 409);
         }
         if (options.current.source_id && ((restoringSelection.current && options.current.instrument_id) || (options.current.mode === 'live' && !options.current.instrument_id))) {
-          const sourceCatalog = await request<Catalog>(`/instruments?source_id=${encodeURIComponent(options.current.source_id)}`, undefined, AbortSignal.any([abort.signal, AbortSignal.timeout(5000)]));
+          const sourceCatalog = await loadCatalog(`/instruments?source_id=${encodeURIComponent(options.current.source_id)}`);
           if (!scope.active) return;
           if (options.current.instrument_id && !sourceCatalog.instruments.some(item => item.instrument_id === options.current.instrument_id && (options.current.mode !== 'live' || selectableInstrument(item)))) {
             setPreferenceNotice(`Saved exact instrument is unavailable in this source; using a source-native initial selection.`);

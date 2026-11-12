@@ -17,8 +17,10 @@ evidence after shutdown, not permission to resume against another source clock.
 """
 
 from bisect import bisect_right
+from collections import OrderedDict
 from dataclasses import dataclass, field, fields, is_dataclass, replace
 from decimal import Decimal, ROUND_FLOOR, localcontext
+from hashlib import sha256
 from pathlib import Path
 import sqlite3
 import sys
@@ -62,6 +64,8 @@ from .perpetual import (
 PAPER_SCHEMA_VERSION = 2
 MAX_COMMANDS = 10_000
 MAX_RUNS = 10_000
+MAX_RUN_SUMMARY_CACHE_ENTRIES = 1000
+MAX_RUN_SUMMARY_CACHE_BYTES = 8 * 1024 * 1024
 MAX_INPUTS = 256
 MAX_DELAYED_BOOKS = 4096
 MAX_DELAYED_BOOK_BYTES = 16 * 1024 * 1024
@@ -169,6 +173,18 @@ class PaperRun:
     revision: int
     parent_run_id: str | None = None
     instruments: tuple[Instrument, ...] = ()
+
+
+@dataclass(frozen=True)
+class PaperRunSummary:
+    """Validated historical identity, never configuration or resume authority."""
+
+    run_id: str
+    source_id: str
+    created_at: ClockReading
+    delivery_index: int
+    revision: int
+    parent_run_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -369,49 +385,101 @@ def _later(at: ClockReading, duration: int) -> ClockReading:
 class PaperStore:
     """Worker-owned commands plus a separately queried read-only transition archive."""
 
-    def __init__(self, path: Path):
-        self._db = sqlite3.connect(path, timeout=10)
+    def __init__(self, path: Path, *, read_only: bool = False):
+        self._db = (
+            sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True, timeout=10)
+            if read_only
+            else sqlite3.connect(path, timeout=10)
+        )
         try:
-            self._db.execute("PRAGMA foreign_keys=ON")
-            with self._db:
-                self._db.execute("BEGIN IMMEDIATE")
+            if read_only:
+                # Historical readers never create, migrate, or change pragmas.
                 version = self._db.execute("PRAGMA user_version").fetchone()[0]
-                if version not in (0, 1, PAPER_SCHEMA_VERSION):
+                if version != PAPER_SCHEMA_VERSION:
                     raise ValueError("unsupported paper schema")
-                self._db.execute(
-                    "CREATE TABLE IF NOT EXISTS runs (run_id TEXT PRIMARY KEY, source_id TEXT NOT NULL, revision INTEGER NOT NULL, payload BLOB NOT NULL)"
-                )
-                self._db.execute(
-                    "CREATE TABLE IF NOT EXISTS commands (run_id TEXT NOT NULL REFERENCES runs(run_id), sequence INTEGER NOT NULL, payload BLOB NOT NULL, PRIMARY KEY(run_id,sequence))"
-                )
-                self._db.execute(
-                    "CREATE INDEX IF NOT EXISTS paper_source ON runs(source_id)"
-                )
-                self._db.execute(
-                    "CREATE TABLE IF NOT EXISTS archives (run_id TEXT PRIMARY KEY REFERENCES runs(run_id), revision INTEGER NOT NULL, delivery_index TEXT NOT NULL, clock_id TEXT NOT NULL, mono_ns TEXT NOT NULL, payload BLOB NOT NULL)"
-                )
-                self._db.execute("PRAGMA user_version=2")
+            else:
+                self._db.execute("PRAGMA foreign_keys=ON")
+                with self._db:
+                    self._db.execute("BEGIN IMMEDIATE")
+                    version = self._db.execute("PRAGMA user_version").fetchone()[0]
+                    if version not in (0, 1, PAPER_SCHEMA_VERSION):
+                        raise ValueError("unsupported paper schema")
+                    self._db.execute(
+                        "CREATE TABLE IF NOT EXISTS runs (run_id TEXT PRIMARY KEY, source_id TEXT NOT NULL, revision INTEGER NOT NULL, payload BLOB NOT NULL)"
+                    )
+                    self._db.execute(
+                        "CREATE TABLE IF NOT EXISTS commands (run_id TEXT NOT NULL REFERENCES runs(run_id), sequence INTEGER NOT NULL, payload BLOB NOT NULL, PRIMARY KEY(run_id,sequence))"
+                    )
+                    self._db.execute(
+                        "CREATE INDEX IF NOT EXISTS paper_source ON runs(source_id)"
+                    )
+                    self._db.execute(
+                        "CREATE TABLE IF NOT EXISTS archives (run_id TEXT PRIMARY KEY REFERENCES runs(run_id), revision INTEGER NOT NULL, delivery_index TEXT NOT NULL, clock_id TEXT NOT NULL, mono_ns TEXT NOT NULL, payload BLOB NOT NULL)"
+                    )
+                    self._db.execute("PRAGMA user_version=2")
         except BaseException:
             self._db.close()
             raise
+        self._run_summaries: OrderedDict[str, tuple[bytes, PaperRunSummary, int]] = (
+            OrderedDict()
+        )
+        self._run_summary_bytes = 0
 
-    def list_runs(
+    def list_run_summaries(
         self, *, source_id: str | None = None, limit: int = 100
-    ) -> tuple[PaperRun, ...]:
+    ) -> tuple[PaperRunSummary, ...]:
         if type(limit) is not int or not 1 <= limit <= 1000:
             raise ValueError("paper run query limit must be 1..1000")
         if source_id is not None:
             text(source_id)
         query = (
-            "SELECT payload,revision FROM runs"
+            "SELECT run_id,payload,revision FROM runs"
             + (" WHERE source_id=?" if source_id is not None else "")
             + " ORDER BY rowid DESC LIMIT ?"
         )
         args = (source_id, limit) if source_id is not None else (limit,)
-        return tuple(
-            replace(_decode(row[0], PaperRun), revision=row[1])
-            for row in self._db.execute(query, args)
-        )
+        summaries = []
+        for run_id, payload, revision in self._db.execute(query, args):
+            encoded = payload.encode("utf-8") if isinstance(payload, str) else payload
+            identity = sha256(encoded).digest()
+            cached = self._run_summaries.get(run_id)
+            if cached is not None and cached[0] == identity:
+                summary = cached[1]
+                self._run_summaries.move_to_end(run_id)
+            else:
+                # Validate the ENTIRE durable record, including omitted config
+                # and pinned instruments, before caching only its small summary.
+                # A payload edit invalidates this proof even at the same revision.
+                run = _decode(payload, PaperRun)
+                summary = PaperRunSummary(
+                    run.run_id,
+                    run.source_id,
+                    run.created_at,
+                    run.delivery_index,
+                    run.revision,
+                    run.parent_run_id,
+                )
+                previous = self._run_summaries.pop(run_id, None)
+                if previous is not None:
+                    self._run_summary_bytes -= previous[2]
+                size = (
+                    4096
+                    + _metadata_retained_bytes(summary)
+                    + _metadata_retained_bytes(run_id)
+                )
+                if size <= MAX_RUN_SUMMARY_CACHE_BYTES:
+                    while self._run_summaries and (
+                        len(self._run_summaries) >= MAX_RUN_SUMMARY_CACHE_ENTRIES
+                        or self._run_summary_bytes + size > MAX_RUN_SUMMARY_CACHE_BYTES
+                    ):
+                        _key, evicted = self._run_summaries.popitem(last=False)
+                        self._run_summary_bytes -= evicted[2]
+                    self._run_summaries[run_id] = (identity, summary, size)
+                    self._run_summary_bytes += size
+            # Commands advance the authoritative revision without rewriting the
+            # immutable run payload. Always return this query's database revision.
+            summaries.append(replace(summary, revision=revision))
+        return tuple(summaries)
 
     def archived_snapshot(self, run_id: str) -> PaperSnapshot | None:
         """Historical audit only; never used to seed an active engine projection."""
@@ -530,6 +598,8 @@ class PaperStore:
 
     def close(self) -> None:
         self._db.close()
+        self._run_summaries.clear()
+        self._run_summary_bytes = 0
 
 
 class PaperEngine:
