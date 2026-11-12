@@ -1198,6 +1198,25 @@ establish whether those streams are reachable.
   Binance spot labelled Hyperliquid as a **related perpetual, not the selected
   instrument**; the 5m aggregation displayed OI **1010 / change 10**.
 
+### Publication and CI receipts
+
+- Integration commit `f5ebb6e` was pushed after the mandatory pre-push gate
+  passed again: **1,923 Python / 186 frontend tests**, lint, types and build.
+- [PR #20](https://github.com/karisheen/Limit-Orderbook/pull/20) owns the protected
+  merge and final-head CI receipt.
+- [Initial CI run](https://github.com/karisheen/Limit-Orderbook/actions/runs/43157880197)
+  passed the repository gate but failed one browser assertion: **78 passed /
+  1 failed / 3 skipped**. The focus-isolation test captured `nativeView=orderflow`
+  before the 200ms workspace save settled after switching to book view, then
+  compared it against the correctly persisted `book` view.
+- The corrective test waits for persisted `nativeView=book` before capturing
+  its baseline. All subsequent exact preference equality, focus, hidden-pane
+  and no-leaked-request assertions remain unchanged; no timeout/retry increase
+  or production suppression was added. Required final-head CI must pass before
+  merge; see PR #20 for its final status and merge commit.
+- Corrected focus-isolation scenario: **1 passed** against the isolated actual
+  backend before committing the CI correction.
+
 Temporary verification uses an owned offline server on `127.0.0.1:8003` with
 `/tmp/flow-resume-verify-state`. Earlier probes used port 8001 and
 `/tmp/unified-integration-state`; `/tmp/unified-resume-*` and

@@ -337,6 +337,8 @@ test('focused secondary chart owns price, follow, fit and freeze shortcuts; DOM 
   // Focus real DOM rows and native tape print buttons, not document.body.
   await openMarketView(page, 'Native book & tape');
   await expect(page.getByTestId('grouped-ladder')).toBeVisible();
+  // Workspace persistence is debounced; capture the requested view before testing foreign shortcuts.
+  await expect.poll(() => preferences(page)).toMatchObject({ nativeView: 'book' });
   const beforeForeignFocus = await preferences(page);
   const requests: Record<string, unknown>[] = [];
   const observe = (request: Request) => {
