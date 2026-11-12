@@ -5,16 +5,20 @@ data, exact analytics, historical charts, recording/replay and local research
 workflows. The footprint, book, tape and studies share the same source and native
 instrument as the integrated chart and workflow tools. No exchange order is sent.
 
-[![Order-flow terminal demo](docs/media/orderbook-demo.gif)](docs/media/orderbook-demo.mp4)
+[![Latest features: OI/funding charts and perpetual paper workflows](docs/media/orderbook-demo.gif)](docs/media/orderbook-demo.mp4)
 
-[Watch the 94-second walkthrough (MP4)](docs/media/orderbook-demo.mp4): actual
-Binance BTC/USDT public-market replay showing footprint modes, CVD and volume
-bars, depth, replay candles, native liquidity, book/tape and exact cost estimates.
-A larger highlighted pointer, subtle halo and short click pulses make the
-interactions easy to follow; these overlays exist only in the recording.
-The animated preview links to the full video. This bounded spot replay demo is
-not proof of perpetual workflows, all-provider correctness, latency,
-sustained capacity or trading readiness.
+[Watch the 2-minute 15-second walkthrough (MP4)](docs/media/orderbook-demo.mp4).
+Six captioned chapters show recorded public **Hyperliquid BTC perpetual** data
+with synchronized price/OI/funding, shared intervals, footprint modes, liquidity
+and linked native book inspection. A clearly labeled **synthetic sandbox** then
+demonstrates spot/perpetual scope, indicative aggregates, explicit paper models,
+funding payments, reduce-only closing, archived audits and exact replay.
+
+The 23-second animated preview links to the full video. Paper collateral, fees,
+risk and the accelerated **60-second funding schedule** are explicit simulation
+assumptions—not account funds or observed exchange funding. This bounded replay
+walkthrough is not a guarantee of provider availability, sustained capacity,
+latency or trading readiness.
 
 ## Terminal features
 
