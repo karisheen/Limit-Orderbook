@@ -1,10 +1,11 @@
 """Pure public-feed adapter contracts; network execution belongs to supervision."""
 
+import asyncio
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from ipaddress import ip_address
 import re
-from typing import Protocol
+from typing import Callable, ParamSpec, Protocol, TypeVar
 from urllib.parse import parse_qsl, unquote, urlsplit
 
 from ..book import BookReducer
@@ -26,8 +27,26 @@ from ..events import (
     local_control_ref,
 )
 from ..instruments import Instrument, MetadataSnapshot
+from ..ownership import join_owned
 from ..precision import exact_json_loads, nonnegative_int, text
 from ..quality import Capabilities, SourceMode
+
+
+_P = ParamSpec("_P")
+_T = TypeVar("_T")
+
+
+async def parse_metadata_offloop(
+    parser: Callable[_P, _T], *args: _P.args, **kwargs: _P.kwargs
+) -> _T:
+    """Join one pure parse before proceeding, even when its discovery is cancelled.
+
+    Transport stays on its owning loop. Callers await each page rather than
+    spawning parse fanout; workers must not publish or mutate adapter state.
+    Cancellation discards the result only after the worker has finished.
+    """
+    worker = asyncio.create_task(asyncio.to_thread(parser, *args, **kwargs))
+    return await join_owned(worker)
 
 
 _RFC3339 = re.compile(
@@ -57,6 +76,13 @@ _PUBLIC_QUERY_FIELDS = frozenset(
         "type",
         "startAt",
         "endAt",
+        "endTime",
+        "bar",
+        "after",
+        "instrument_name",
+        "resolution",
+        "start_timestamp",
+        "end_timestamp",
         "instType",
         "instId",
         "sz",

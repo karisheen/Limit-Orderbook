@@ -34,6 +34,7 @@ from .base import (
     DecodedEvent,
     DecodeResult,
     TransportRequest,
+    parse_metadata_offloop,
     parse_rfc3339_ns,
 )
 
@@ -67,10 +68,15 @@ class KrakenAdapter:
 
     async def discover(self) -> MetadataSnapshot:
         raw = await fetch_public(TransportRequest("GET", self.metadata_url))
+        return await parse_metadata_offloop(
+            self.parse_metadata, raw, fetch_wall_ns=time.time_ns()
+        )
+
+    def parse_metadata(self, raw: bytes, *, fetch_wall_ns: int = 0) -> MetadataSnapshot:
         data = exact_json_loads(raw)
         if data["error"]:
             raise ValueError("Kraken metadata error: " + str(data["error"]))
-        digest, now = sha256(raw).hexdigest(), time.time_ns()
+        digest, now = sha256(raw).hexdigest(), fetch_wall_ns
         instruments = []
         for native_id, row in data["result"].items():
             # Dark pools and non-WebSocket products have no public v2 symbol.

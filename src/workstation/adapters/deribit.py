@@ -33,7 +33,7 @@ from ..events import (
 from ..instruments import Instrument, InstrumentId, MetadataSnapshot, OrderConstraints
 from ..precision import DECIMAL_CONTEXT, decimal, exact_json_loads, text
 from ..quality import Capabilities
-from .base import DecodedEvent, DecodeResult, TransportRequest
+from .base import DecodedEvent, DecodeResult, TransportRequest, parse_metadata_offloop
 from .binance import (
     array_field,
     asset_identity,
@@ -110,7 +110,9 @@ class DeribitAdapter:
         from ..transport import fetch_public
 
         raw = await fetch_public(TransportRequest("GET", self.metadata_endpoint))
-        return self.parse_metadata(raw, fetch_wall_ns=time_ns())
+        return await parse_metadata_offloop(
+            self.parse_metadata, raw, fetch_wall_ns=time_ns()
+        )
 
     def parse_metadata(self, raw: bytes, *, fetch_wall_ns: int = 0) -> MetadataSnapshot:
         root = object_field(exact_json_loads(raw))

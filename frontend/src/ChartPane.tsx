@@ -173,7 +173,7 @@ export function ChartPane({ id, title, frame, instrument, connected, preferences
       {p.mode === 'footprint' ? <label title="Show every native price row. Compact representation is explicit when exact numbers do not fit; Inspector retains exact values."><input type="checkbox" checked={p.footprintOverview} onChange={event => update({ footprintOverview: event.target.checked })} />Full native-grid overview</label> : null}
     </div>}
     </div>
-    <MarketCharts view={active ? view : null} receivedAtMs={views.chart.receivedAtMs ?? null} onPaint={telemetry.onPaint} onPresented={onPresented}
+    <MarketCharts view={view} receivedAtMs={views.chart.receivedAtMs ?? null} onPaint={telemetry.onPaint} onPresented={onPresented}
       interactionActive={interactionActive} interactionScope={identity}
       loading={views.chart.loading} error={error} mode={p.mode} contrast={p.contrast} showTrades={p.showTrades} showQuotes={p.showQuotes} timeZone={p.timeZone}
       footprintOverview={p.footprintOverview} priceResetToken={`${identity}:${cropReset}`} quoteUnit={instrument?.instrument_id === view?.instrument_id ? instrument?.quote.ticker : undefined}

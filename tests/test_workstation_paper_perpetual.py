@@ -6,6 +6,7 @@ from decimal import Decimal
 import pytest
 
 from src.workstation.costs import FeeSchedule, InventoryBalance
+from src.workstation.events import Control, Gap
 from src.workstation.instruments import AssetIdentity, synthetic_instrument
 from src.workstation.paper import (
     PaperConfig,
@@ -22,6 +23,7 @@ from src.workstation.paper import (
 from src.workstation.perpetual import PaperFundingEvent
 from src.workstation.precision import DERIVED_DECIMAL_POLICY
 from src.workstation.quality import ClockReading, EligibilityPolicy
+from src.workstation.recording import RecordedBatch
 from src.workstation.wire import to_wire, from_wire, loads
 from test_workstation_paper import observation, deliver
 
@@ -1113,4 +1115,144 @@ def test_partial_liquidation_records_eligibility_transitions_without_clock_churn
     at = move(engine, i, mono=10_400, delivery=4, bid="80", ask="81", bid_size="2")
     assert position(engine, at).quantity == 0
     assert position(engine, at).debt == D("21.6")
+    store.close()
+
+
+@pytest.mark.parametrize(
+    "payload",
+    (
+        Gap("lost_liquidation_path"),
+        Control("disconnect", "lost_transport"),
+        Control("reset", "replacement_book"),
+        Control("source_change", "new_connection"),
+    ),
+)
+def test_perpetual_gap_preserves_exposure_before_missed_funding_and_risk(
+    tmp_path, payload
+):
+    i = instrument()
+    model = PaperFundingModel(
+        i.instrument_id,
+        "events",
+        "explicit boundary funding",
+        1,
+        events=(PaperFundingEvent(150, D(".01")),),
+    )
+    store, engine, stream, book, at = setup(tmp_path, cfg=config(i, funding=model))
+    submit(engine, i, at, "2")
+    prefix = engine.snapshot(at)
+    # A missing interval could have crossed liquidation and funding boundaries.
+    # Even an actually supplied low replacement book cannot reconstruct that path.
+    _, crash_book, batch = observation(
+        i, mono=200, delivery=2, bids=(("80", "10"),), asks=(("81", "10"),)
+    )
+    event = replace(batch.events[0], payload=payload)
+    later = deliver(engine, crash_book, RecordedBatch(2, (event,)))
+    frozen = engine.snapshot(later)
+    assert frozen.at == at and frozen.delivery_index == 1
+    assert frozen.orders == prefix.orders and frozen.fills == prefix.fills
+    assert frozen.balances == prefix.balances
+    assert not frozen.funding_payments and not frozen.liquidations
+    p = frozen.perpetual_positions[0]
+    assert p.quantity == 2
+    assert p.isolated_collateral == prefix.perpetual_positions[0].isolated_collateral
+    assert p.mark_price is None and p.equity is None
+    assert "observation_gap" in p.reasons
+    recovered_at = move(engine, i, mono=300, delivery=3)
+    assert engine.snapshot(recovered_at) == frozen
+    with pytest.raises(PaperError, match="observation_gap"):
+        engine.advance_time(recovered_at)
+    archived = store.archived_snapshot(prefix.run.run_id)
+    assert archived.fills == prefix.fills
+    assert archived.perpetual_positions == frozen.perpetual_positions
+    state = engine.checkpoint()
+    store.close()
+    reopened = PaperStore(tmp_path / "perpetual.sqlite")
+    assert reopened.archived_snapshot(prefix.run.run_id) == archived
+    resumed = PaperEngine(
+        (stream,), reopened, engine.source_id, run_id=prefix.run.run_id
+    )
+    resumed.restore(state)
+    assert resumed.snapshot(recovered_at) == frozen
+    _, recovered_book, _ = observation(i, mono=300, delivery=3)
+    resumed.configure(
+        config(i, cash="500"),
+        now=recovered_at,
+        delivery_index=3,
+        books=(recovered_book,),
+        streams=(stream,),
+    )
+    fresh = resumed.snapshot(recovered_at)
+    assert fresh.run.parent_run_id == prefix.run.run_id
+    assert not fresh.perpetual_positions and not fresh.orders and not fresh.fills
+    assert not fresh.funding_payments and not fresh.liquidations
+    assert free(resumed, recovered_at) == 500
+    assert reopened.archived_snapshot(prefix.run.run_id) == archived
+    reopened.close()
+
+
+def test_unrelated_native_book_loss_does_not_freeze_perpetual_funding(tmp_path):
+    i = instrument()
+    model = PaperFundingModel(
+        i.instrument_id,
+        "events",
+        "explicit boundary funding",
+        1,
+        events=(PaperFundingEvent(150, D(".01")),),
+    )
+    store, engine, stream, book, at = setup(tmp_path, cfg=config(i, funding=model))
+    foreign = replace(
+        i, instrument_id="synthetic:perpetual:ETH-USD", native_symbol="ETH-USD"
+    )
+    other_stream, other_book, _ = observation(foreign)
+    other_stream = replace(other_stream, stream_id="foreign-book-stream")
+    engine.replace_streams((stream, other_stream), books=(book, other_book), now=at)
+    submit(engine, i, at)
+    assert not engine.observation_gap(
+        "foreign_native_gap", affected_keys=frozenset((other_stream.key,)), at=at
+    )
+    later = ClockReading(at.clock_id, 150, 150)
+    engine.advance_time(later)
+    assert engine.frozen_reason is None
+    assert len(engine.snapshot(later).funding_payments) == 1
+    assert position(engine, later).quantity == 1
+    store.close()
+
+
+def test_departed_perpetual_observation_never_rejoins_as_repaired_history(tmp_path):
+    store, engine, stream, book, at = setup(tmp_path)
+    submit(engine, stream.instrument, at)
+    prefix = engine.snapshot(at)
+    later = ClockReading(at.clock_id, 200, 200)
+    engine.replace_streams((), books=(), now=later)
+    frozen = engine.snapshot(later)
+    assert frozen.at == at and frozen.balances == prefix.balances
+    assert frozen.perpetual_positions[0].quantity == 1
+    assert "observation_gap" in frozen.reasons
+    engine.replace_streams((stream,), books=(book,), now=later)
+    assert engine.snapshot(later) == frozen
+    assert not frozen.liquidations and not frozen.funding_payments
+    store.close()
+
+
+def test_gap_boundary_precedes_funding_catchup_preflight(tmp_path):
+    i = instrument()
+    model = PaperFundingModel(
+        i.instrument_id, "periodic", "bounded gap regression", 1, D(".001"), 1, 101
+    )
+    store, engine, _, _, at = setup(tmp_path, cfg=config(i, funding=model))
+    submit(engine, i, at)
+    before = engine.snapshot(at)
+    _, book, batch = observation(i, mono=10**18, delivery=2)
+    gap = replace(batch.events[0], payload=Gap("unobserved_funding_interval"))
+    later = deliver(engine, book, RecordedBatch(2, (gap,)))
+    frozen = engine.snapshot(later)
+    assert "observation_gap" in frozen.reasons
+    assert frozen.at == at and frozen.balances == before.balances
+    assert frozen.fills == before.fills and frozen.delivery_index == 1
+    assert not frozen.funding_payments and not frozen.liquidations
+    saved = engine.checkpoint()
+    engine.freeze()
+    assert engine.checkpoint() == saved
+    assert engine.frozen_reason in store.archived_snapshot(frozen.run.run_id).reasons
     store.close()

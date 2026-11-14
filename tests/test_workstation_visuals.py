@@ -1996,3 +1996,91 @@ def test_visual_and_risk_economics_ignore_ambient_decimal_precision():
         assert risk(base_quantity="123.456") == expected_risk
     with localcontext(DECIMAL_CONTEXT):
         assert D(expected_risk["estimated_loss"]) == D("123.456") * D("10.19")
+
+
+def test_visual_lightweight_flow_matches_full_snapshot_at_predelivery_boundaries(
+    monkeypatch,
+):
+    feed = VisualFeed()
+    engine = feed.history.engine
+    flow_metrics = engine.flow_metrics
+    snapshot = engine.snapshot
+    checked = []
+
+    def selected(instrument_id, now, *, key=None):
+        checkpoint = engine.checkpoint()
+        result = flow_metrics(instrument_id, now, key=key)
+        assert result == tuple(
+            metric
+            for metric in snapshot(instrument_id, now, key=key).metrics
+            if metric.name in ("event_ofi", "cvd_base")
+        )
+        assert engine.checkpoint() == checkpoint
+        checked.append((now.mono_ns, result))
+        return result
+
+    def unexpected(*args, **kwargs):
+        raise AssertionError("visual sampling requested a full analytics snapshot")
+
+    monkeypatch.setattr(engine, "flow_metrics", selected)
+    monkeypatch.setattr(engine, "snapshot", unexpected)
+    feed.quote(0)
+    feed.trade(0, "anchor")
+    feed.trade(SECOND // 2, "buy", quantity="2")
+    feed.quote(3 * SECOND // 4, bids=(("99", "4"), ("97", "3")))
+    feed.trade(2 * SECOND, "future", quantity="1000")
+    sample = next(item for item in feed.history.samples if item.time_ns == SECOND)
+    assert sample.cvd.value == D(2)
+    assert sample.ofi.value == D(3)
+    feed.deliver(feed.event(Gap("trade_gap"), 5 * SECOND // 2, "trades"))
+    feed.heartbeat(3 * SECOND + 1)
+    feed.trade(7 * SECOND // 2, "recovered", side="sell", quantity="3")
+    feed.quote(4 * SECOND)
+    feed.heartbeat(5 * SECOND + 1)
+    feed.deliver(
+        feed.event(Control("heartbeat", "trade_channel_healthy"), 6 * SECOND, "trades")
+    )
+    feed.heartbeat(6 * SECOND + 1)
+    assert {stamp for stamp, _ in checked} == {index * SECOND for index in range(7)}
+    checkpoint = feed.history.checkpoint()
+    expected = feed.query()
+    feed.history.restore(checkpoint)
+    assert feed.history.checkpoint() == checkpoint
+    assert feed.query() == expected
+    assert any(
+        "trade_continuity_reset" in metric.reasons
+        for _, metrics in checked
+        for metric in metrics
+        if metric.name == "cvd_base"
+    )
+    assert any(
+        "quiet_trade_interval_unproven" in metric.reasons
+        for _, metrics in checked
+        for metric in metrics
+        if metric.name == "cvd_base"
+    )
+
+
+def test_trade_admission_gate_is_lazy_but_interval_quality_still_closes(monkeypatch):
+    feed = VisualFeed()
+    engine = feed.history.engine
+    trade_evidence = engine.trade_evidence
+    calls = []
+
+    def gate(instrument_id, now, *, key=None):
+        calls.append(now.mono_ns)
+        return trade_evidence(instrument_id, now, key=key)
+
+    monkeypatch.setattr(engine, "trade_evidence", gate)
+    feed.quote(0)
+    feed.heartbeat(0)
+    assert calls == []
+    feed.trade(0, "anchor")
+    assert calls == [0]
+    feed.trade(0, "anchor")  # Deduplicated prints need no admission gate.
+    assert calls == [0]
+    calls.clear()
+    feed.heartbeat(SECOND)
+    # Even a print-free delivery must freeze both prior interval endpoints.
+    assert calls == [SECOND - 1, 0]
+    assert len(feed.history.trades) == 1

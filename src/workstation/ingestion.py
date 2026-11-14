@@ -8,13 +8,13 @@ loop, and cancellation joins that work before releasing ownership.
 
 import asyncio
 from collections import OrderedDict
+from contextvars import copy_context
 from dataclasses import dataclass, replace
 import random
 import time
 from typing import Callable
 from uuid import uuid4
 
-from websockets.asyncio.client import connect
 from websockets.exceptions import InvalidStatus
 
 from .adapters.base import (
@@ -41,13 +41,20 @@ from .events import (
 from .instruments import Instrument
 from .precision import MAX_MARKET_DATA_BYTES
 from .quality import SourceMode
-from .transport import PublicTransportError, fetch_public, retry_after_seconds
+from .transport import (
+    PublicTransportError,
+    PublicWebSocketConnect,
+    fetch_public,
+    retry_after_seconds,
+)
 
 
-# Small trade transactions have no depth-dependent reducer work. Bound their
-# inline decode input across venues; large trade arrays and every book frame
-# retain worker isolation. This is a service bound, not an input acceptance cap.
-_INLINE_TRADE_BYTES = 4096
+# Bound inline work by input size AND retained reducer state. Small depth-capped
+# books otherwise spend more time handing each frame to/from a worker than
+# decoding it, allowing buffered native bursts to outrun their consumer.
+# These are service bounds only: larger/deeper inputs still run in a worker.
+_INLINE_FRAME_BYTES = 4096
+_INLINE_BOOK_DEPTH = 50
 
 
 class SinkOverflow(RuntimeError):
@@ -313,7 +320,7 @@ class FeedSupervisor:
         stream_id: StreamId | None = None,
         callbacks: FeedCallbacks | None = None,
         config: SupervisorConfig | None = None,
-        ws_connect=connect,
+        ws_connect=PublicWebSocketConnect,
         http_fetch=fetch_public,
         trade_dedup: OrderedDict[tuple[str, str, str, str], None] | None = None,
     ):
@@ -781,14 +788,35 @@ class FeedSupervisor:
             return
         self._pending_ordinal = frame.ingest_ordinal
         queue_exit_ns = time.monotonic_ns()
-        inline = (
-            self.key.channel == "trades" and len(frame.payload) <= _INLINE_TRADE_BYTES
+        inline = len(frame.payload) <= _INLINE_FRAME_BYTES and (
+            self.key.channel == "trades"
+            or (
+                self.key.channel == "book"
+                and type(self.reducer) is BookReducer
+                and self.reducer.truncate_depth
+                and self.reducer.effective_depth is not None
+                and self.reducer.effective_depth <= _INLINE_BOOK_DEPTH
+                and not self.reducer.buffered_events
+                and (
+                    self.reducer.book is None
+                    or (
+                        len(self.reducer.book.bids) <= _INLINE_BOOK_DEPTH
+                        and len(self.reducer.book.asks) <= _INLINE_BOOK_DEPTH
+                    )
+                )
+            )
         )
         interrupted = False
         if inline:
             events, reduction, stages = self._decode_reduce(frame)
         else:
-            work = asyncio.create_task(asyncio.to_thread(self._decode_reduce, frame))
+            # Submit directly: a child Task around to_thread adds another ready
+            # queue turn before dispatch and after completion for every frame.
+            # Preserve to_thread's context propagation and keep the Future owned
+            # through cancellation until the reducer has finished mutating.
+            work = asyncio.get_running_loop().run_in_executor(
+                None, copy_context().run, self._decode_reduce, frame
+            )
             try:
                 events, reduction, stages = await asyncio.shield(work)
             except asyncio.CancelledError:

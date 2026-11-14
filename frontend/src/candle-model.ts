@@ -9,6 +9,15 @@ export type CandleSource = 'session_trades' | 'venue_ohlcv';
 export interface CandleRetention {
   max_trades: number; max_bytes: number; retained_trades: number; retained_bytes: number; truncated: boolean;
 }
+export interface CandleHistoryMetadata {
+  requested_before_ns: string | null;
+  next_before_ns: string | null;
+  state: 'more' | 'exhausted' | 'limited' | 'unavailable' | 'unsupported';
+  pagination: 'time' | 'recent_only';
+  max_bars: number;
+  update_mode: 'poll';
+  poll_interval_ms: number;
+}
 export interface CandleHistory {
   version: '1'; session_id: string; generation: string; source_identity: string; instrument_id: string;
   instrument_ids: string[]; scope: 'primary' | 'aggregate'; venue_label: string; quote_asset_ids: string[];
@@ -17,6 +26,9 @@ export interface CandleHistory {
   time_basis: 'exchange_utc' | 'receive_utc'; fetched_at_ns: string;
   supported_intervals: string[]; candles: PriceCandle[]; reasons: string[];
   volume_unit: string; coverage_start_ns: string | null; coverage_end_ns: string | null;
+  // Required on venue responses; observed history remains causally session-fenced.
+  series_key?: string;
+  history?: CandleHistoryMetadata;
   // These fields are supplied only by the admitted session-trade producer.
   missing_instrument_ids?: string[]; bucket_alignment?: 'utc_calendar_month' | 'utc_epoch_floor';
   highwater?: string; retention?: CandleRetention;
@@ -27,21 +39,20 @@ export const INTERVAL_GROUPS = [
   { label: 'Hours', values: ['1h', '2h', '4h', '6h', '8h', '12h'] },
   { label: 'Days & longer', values: ['1d', '3d', '1w', '1M'] },
 ] as const;
-export interface CandleRange { start: bigint; end: bigint }
 export function candleInstrumentIds(primary: string, instrumentIds: readonly string[]): string[] {
   return [...instrumentIds].sort((a, b) => a === b ? 0 : a === primary ? -1 : b === primary ? 1 : a < b ? -1 : 1);
 }
 export function candleIdentity(frame: Frame | null, interval: string, instrumentIds: readonly string[], source: CandleSource, cohortReady: boolean): string {
   return frame ? JSON.stringify([frame.session_id, frame.generation, frame.source.id, frame.source.mode,
-    frame.selection.instrument_id, interval, source, candleInstrumentIds(frame.selection.instrument_id ?? '', instrumentIds), cohortReady]) : '';
+    frame.selection.instrument_id, interval, source,
+    source === 'venue_ohlcv' ? [frame.selection.instrument_id] : candleInstrumentIds(frame.selection.instrument_id ?? '', instrumentIds),
+    source === 'venue_ohlcv' ? true : cohortReady]) : '';
 }
 export function candleSourceBlock(source: CandleSource, primary: string, instrumentIds: readonly string[], cohortReady: boolean): string | null {
+  if (source === 'venue_ohlcv') return primary ? null : 'Select an exact native primary instrument.';
   if (!cohortReady) return 'Waiting for the selected native trade cohort.';
   if (!primary || !instrumentIds.includes(primary) || instrumentIds.length > 16
     || new Set(instrumentIds).size !== instrumentIds.length) return 'The selected native cohort does not match the active primary.';
-  if (source === 'venue_ohlcv' && instrumentIds.length !== 1) {
-    return 'Venue history is primary-only. Select a single native instrument to view it; an aggregate is never replaced by one venue.';
-  }
   return null;
 }
 export type CandleRequestIdentity = Pick<CandleHistory, 'session_id' | 'generation' | 'instrument_id' | 'interval' | 'source' | 'instrument_ids'>;
@@ -55,36 +66,6 @@ export function matchesCandleHistory(data: CandleHistory, expected: CandleReques
     && data.scope === (expected.instrument_ids.length > 1 ? 'aggregate' : 'primary')
     && (data.source !== 'venue_ohlcv' || expected.instrument_ids.length === 1);
 }
-export function candleRange(candles: readonly PriceCandle[], latest = false): CandleRange | null {
-  if (!candles.length) return null;
-  const last = candles[candles.length - 1]!;
-  const duration = BigInt(last.end_ns) - BigInt(last.start_ns);
-  const first = latest ? candles[Math.max(0, candles.length - 90)]! : candles[0]!;
-  const padding = duration * 3n;
-  return { start: BigInt(first.start_ns) - duration, end: BigInt(last.end_ns) + padding };
-}
-export function fractionAt(time: string | bigint, range: CandleRange): number {
-  return Number(BigInt(time) - range.start) / Number(range.end - range.start);
-}
-export function timeAtFraction(fraction: number, range: CandleRange): bigint {
-  return range.start + BigInt(Math.round(Number(range.end - range.start) * fraction));
-}
-export function panCandles(range: CandleRange, fraction: number): CandleRange {
-  const shift = BigInt(Math.round(Number(range.end - range.start) * fraction));
-  return { start: range.start + shift, end: range.end + shift };
-}
-export function zoomCandles(range: CandleRange, factor: number, anchor: number, candles: readonly PriceCandle[]): CandleRange {
-  if (!candles.length) return range;
-  const last = candles[candles.length - 1]!;
-  const bucket = BigInt(last.end_ns) - BigInt(last.start_ns);
-  const available = BigInt(last.end_ns) - BigInt(candles[0]!.start_ns);
-  const max = available * 3n > bucket * 12n ? available * 3n : bucket * 12n;
-  const proposed = BigInt(Math.round(Number(range.end - range.start) * factor));
-  const span = proposed < bucket * 3n ? bucket * 3n : proposed > max ? max : proposed;
-  const point = timeAtFraction(Math.max(0, Math.min(1, anchor)), range);
-  const start = point - BigInt(Math.round(Number(span) * Math.max(0, Math.min(1, anchor))));
-  return { start, end: start + span };
-}
 // A gap is deliberately not mapped to its nearest bar: absent history stays absent.
 export function candleAtTime(candles: readonly Pick<PriceCandle, 'start_ns' | 'end_ns'>[], time: bigint): number {
   let lo = 0; let hi = candles.length - 1;
@@ -95,45 +76,6 @@ export function candleAtTime(candles: readonly Pick<PriceCandle, 'start_ns' | 'e
     else return mid;
   }
   return -1;
-}
-export function followCandleRange(range: CandleRange, previousEnd: bigint, candles: readonly PriceCandle[]): CandleRange {
-  const end = candles.length ? BigInt(candles[candles.length - 1]!.end_ns) : previousEnd;
-  const shift = end > previousEnd ? end - previousEnd : 0n;
-  return { start: range.start + shift, end: range.end + shift };
-}
-
-/** UTC calendar ticks stay on useful clock boundaries while the viewport moves. */
-export function candleTimeTicks(range: CandleRange, width: number): { time: bigint; label: string }[] {
-  const day = 86_400_000_000_000n;
-  const span = range.end - range.start;
-  const count = Math.max(1, Math.min(12, Math.floor(width / 120)));
-  const target = span / BigInt(count);
-  const times: bigint[] = [];
-  if (target >= 28n * day) {
-    const first = new Date(Number(range.start / 1_000_000n));
-    if (!Number.isFinite(first.getTime())) return [];
-    const months = [1, 3, 6, 12, 24, 60, 120, 240, 600].find(value => BigInt(value) * 28n * day >= target) ?? 1200;
-    let index = Math.floor((first.getUTCFullYear() * 12 + first.getUTCMonth()) / months) * months;
-    for (let attempt = 0; attempt < 16; attempt++, index += months) {
-      const date = new Date(0);
-      date.setUTCFullYear(Math.floor(index / 12), index % 12, 1);
-      if (!Number.isFinite(date.getTime())) break;
-      const time = BigInt(date.getTime()) * 1_000_000n;
-      if (time >= range.end) break;
-      if (time >= range.start) times.push(time);
-    }
-  } else {
-    const step = [60n, 180n, 300n, 900n, 1800n, 3600n, 7200n, 14400n, 21600n, 43200n, 86400n, 172800n, 604800n, 1209600n, 2419200n]
-      .map(seconds => seconds * 1_000_000_000n).find(value => value >= target) ?? 28n * day;
-    const first = range.start - ((range.start % step) + step) % step;
-    for (let time = first; time < range.end && times.length < 16; time += step) if (time >= range.start) times.push(time);
-  }
-  return times.map(time => {
-    const date = new Date(Number(time / 1_000_000n));
-    const iso = Number.isFinite(date.getTime()) ? date.toISOString() : null;
-    return { time, label: !iso ? String(time) : span < day ? iso.slice(11, 16)
-      : target >= day ? iso.slice(0, 10) : iso.slice(5, 16).replace('T', ' ') };
-  });
 }
 
 interface Decimal { value: bigint; places: number }
@@ -207,6 +149,24 @@ export function validateCandles(data: CandleHistory): void {
       throw new Error('Invalid native candle coverage or retention');
     }
   }
+  if (data.source === 'venue_ohlcv') {
+    const history = data.history;
+    const timestamp = (value: unknown) => typeof value === 'string' && /^[1-9]\d*$/.test(value)
+      && BigInt(value) <= 9_223_372_036_854_775_807n;
+    if (typeof data.series_key !== 'string' || !data.series_key || !history
+      || !['more', 'exhausted', 'limited', 'unavailable', 'unsupported'].includes(history.state)
+      || !['time', 'recent_only'].includes(history.pagination)
+      || history.update_mode !== 'poll'
+      || !Number.isSafeInteger(history.max_bars) || history.max_bars < 1
+      || !Number.isSafeInteger(history.poll_interval_ms) || history.poll_interval_ms < 1
+      || history.requested_before_ns !== null && !timestamp(history.requested_before_ns)
+      || history.next_before_ns !== null && !timestamp(history.next_before_ns)
+      || history.next_before_ns !== null && history.requested_before_ns !== null
+        && BigInt(history.next_before_ns) >= BigInt(history.requested_before_ns)
+      || history.state === 'more' && (history.next_before_ns === null || history.pagination !== 'time')) {
+      throw new Error('Invalid venue candle history metadata or cursor');
+    }
+  }
   let previousEnd: bigint | null = null;
   for (const candle of data.candles) {
     if (!/^\d+$/.test(candle.start_ns) || !/^\d+$/.test(candle.end_ns)) throw new Error('Invalid candle timestamp');
@@ -220,6 +180,54 @@ export function validateCandles(data: CandleHistory): void {
     if (low <= 0n || open < low || close < low || high < open || high < close || volume < 0n || typeof candle.closed !== 'boolean') throw new Error('Invalid candle OHLCV envelope');
   }
   if (data.status === 'ready' && !data.candles.length || data.status !== 'ready' && data.candles.length) throw new Error('Inconsistent candle history status');
+}
+
+export const MAX_RETAINED_CANDLES = 10_000;
+
+/** Provider pages may overlap or arrive out of order; the last duplicate in a page wins. */
+export function normalizeCandlePage(data: CandleHistory): CandleHistory {
+  if (data.source === 'session_trades') {
+    validateCandles(data);
+    return data;
+  }
+  const buckets = new Map(data.candles.map(candle => [BigInt(candle.start_ns), candle]));
+  const candles = [...buckets.entries()].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([, candle]) => candle);
+  const normalized = { ...data, candles };
+  validateCandles(normalized);
+  const before = normalized.history?.requested_before_ns;
+  if (before != null && candles.some(candle => BigInt(candle.start_ns) >= BigInt(before))) {
+    throw new Error('Candle page exceeds its exclusive before boundary');
+  }
+  return normalized;
+}
+
+/** Older pages cannot overwrite a newer poll. At the cap, keep every retained bucket. */
+export function mergeCandleHistory(previous: CandleHistory | null, incoming: CandleHistory, older = false, growthPaused = false):
+  { data: CandleHistory; historyLimitReached: boolean } {
+  if (!previous || incoming.source === 'session_trades') {
+    if (incoming.candles.length > MAX_RETAINED_CANDLES) throw new Error('Candle response exceeds retained history limit');
+    return { data: incoming, historyLimitReached: incoming.candles.length === MAX_RETAINED_CANDLES };
+  }
+  if (!matchesCandleHistory(incoming, previous, previous.source_identity)
+    || previous.series_key !== incoming.series_key || previous.time_basis !== incoming.time_basis
+    || previous.volume_unit !== incoming.volume_unit) throw new Error('Candle series identity changed');
+  const buckets = new Map(previous.candles.map(candle => [BigInt(candle.start_ns), candle]));
+  const additions = incoming.candles.filter(candle => !buckets.has(BigInt(candle.start_ns)));
+  const overflow = growthPaused || buckets.size + additions.length > MAX_RETAINED_CANDLES;
+  for (const candle of incoming.candles) {
+    const key = BigInt(candle.start_ns);
+    if (buckets.has(key) ? !older : !overflow) buckets.set(key, candle);
+  }
+  const candles = [...buckets.entries()].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([, candle]) => candle);
+  const data = { ...(older ? previous : incoming), candles,
+    status: candles.length ? 'ready' as const : incoming.status,
+    history: older ? incoming.history : previous.history,
+    coverage_start_ns: candles[0]?.start_ns ?? null,
+    coverage_end_ns: candles[candles.length - 1]?.end_ns ?? null };
+  // A newest poll must not reset the oldest retained page's cursor.
+  if (!previous.candles.length || !older && ['unavailable', 'unsupported'].includes(previous.history?.state ?? '')) data.history = incoming.history;
+  validateCandles(data);
+  return { data, historyLimitReached: overflow || candles.length === MAX_RETAINED_CANDLES };
 }
 export function candleDate(time: string | bigint, full = false): string {
   const date = new Date(Number(BigInt(time) / 1_000_000n));

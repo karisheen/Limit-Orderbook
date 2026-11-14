@@ -44,6 +44,7 @@ from src.workstation.precision import (
     decimal,
     exact_json_loads,
     scaled_decimal,
+    text,
     validate_increment,
 )
 from src.workstation.quality import (
@@ -279,6 +280,28 @@ def test_instrument_wire_preserves_legacy_verified_bytes_and_streaming_provenanc
 def test_authoritative_precision_rejects_unusable_values(value):
     with pytest.raises(ValueError):
         decimal(value)
+
+
+@pytest.mark.parametrize("codepoint", range(32))
+def test_identifier_rejects_control_characters_at_every_boundary(codepoint):
+    for value in (
+        chr(codepoint) + "x",
+        "x" + chr(codepoint),
+        "x" * 511 + chr(codepoint),
+    ):
+        with pytest.raises(ValueError, match="invalid market identifier"):
+            text(value, "market identifier")
+
+
+@pytest.mark.parametrize("value", [" ", "\x7f", "\x85", "\u2028", "BTC/金", "x" * 512])
+def test_identifier_preserves_non_control_unicode_and_length_boundary(value):
+    assert text(value) == value
+
+
+@pytest.mark.parametrize("value", ["", "x" * 513, None, False, 1, b"BTC"])
+def test_identifier_rejects_invalid_type_empty_and_oversize(value):
+    with pytest.raises(ValueError, match="invalid identifier"):
+        text(value)
 
 
 def test_exact_precision_is_independent_of_ambient_decimal_context():
@@ -689,6 +712,85 @@ def test_shared_candidates_preserve_checksum_rollback_and_lexical_updates():
     assert candidates[-1][0][0].quantity == 8
     assert committed.bids[0].quantity == 1
     assert dumps(old) == old_wire
+
+
+@pytest.mark.parametrize("side,price", [("bid", "98"), ("ask", "102")])
+@pytest.mark.parametrize("semantics", ["absolute", "incremental"])
+def test_absent_deletion_reuses_sides_but_preserves_observation(side, price, semantics):
+    candidates = []
+
+    def inspect(bids, asks, events):
+        candidates.append((bids, asks, events))
+
+    instrument, key, reducer, old = healthy(candidate_validator=inspect)
+    old_wire = dumps(old)
+    old_bids, old_asks = reducer._bids, reducer._asks
+    event = envelope(
+        instrument,
+        key,
+        "delta",
+        (LevelChange(side, D(price), D("0"), semantics),),
+        ordinal=2,
+        mono_ns=20,
+    )
+    candidates.clear()
+    result = reducer.apply((event,))
+    assert result.recovery is None and not result.changed
+    assert result.events == (event,)
+    assert result.book is not old
+    assert result.book.revision == old.revision + 1
+    assert result.book.asof == event.ref()
+    assert result.book.quality.last_book_observation_mono_ns == event.receive_mono_ns
+    assert (
+        result.book.quality.last_book_change_mono_ns
+        == old.quality.last_book_change_mono_ns
+    )
+    assert reducer._bids is old_bids and reducer._asks is old_asks
+    assert result.book.bids is old.bids and result.book.asks is old.asks
+    assert candidates == [(old.bids, old.asks, (event,))]
+    assert dumps(old) == old_wire
+    _, _, restored = fixture_core(candidate_validator=inspect)
+    restored.restore(loads(dumps(reducer.checkpoint())))
+    assert restored.checkpoint() == reducer.checkpoint()
+
+
+@pytest.mark.parametrize(
+    "kind,price,checksum,reason",
+    [
+        ("snapshot", "98", None, "invalid_snapshot_quantity"),
+        ("delta", "98.005", None, "price is off increment"),
+        ("delta", "98", ChecksumInfo("synthetic", "wrong"), "checksum_mismatch"),
+    ],
+)
+def test_absent_deletion_still_validates_and_rejects_atomically(
+    kind, price, checksum, reason
+):
+    candidates = []
+
+    def calculate(bids, asks, info):
+        candidates.append((bids, asks))
+        return "match"
+
+    instrument, key, reducer, old = healthy(checksum_calculator=calculate)
+    old_wire = dumps(old)
+    old_bids, old_asks = reducer._bids, reducer._asks
+    event = envelope(
+        instrument,
+        key,
+        kind,
+        (LevelChange("bid", D(price), D("0")),),
+        ordinal=2,
+        checksum=checksum,
+    )
+    result = reducer.apply((event,))
+    assert result.recovery.reason == reason
+    assert result.book.revision == old.revision
+    assert result.book.quality.integrity == "invalid"
+    assert reducer._bids is old_bids and reducer._asks is old_asks
+    assert result.book.bids is old.bids and result.book.asks is old.asks
+    assert dumps(old) == old_wire
+    if checksum is not None:
+        assert candidates == [(old.bids, old.asks)]
 
 
 @pytest.mark.parametrize("truncate", [False, True])
@@ -1843,3 +1945,57 @@ def test_transport_evidence_without_book_observation_does_not_resolve_access():
         ClockReading("synthetic-clock", 1),
     )
     assert not result.eligible and "data_access_unknown" in result.reasons
+
+
+@pytest.mark.parametrize("reject", [False, True])
+def test_mixed_absent_deletions_and_real_writes_keep_transaction_atomic(reject):
+    instrument, key, reducer, old = healthy()
+    old_wire = dumps(old)
+    old_bids, old_asks = reducer._bids, reducer._asks
+    first = envelope(
+        instrument,
+        key,
+        "delta",
+        (
+            LevelChange("bid", D("98"), D("0")),
+            LevelChange("bid", D("99.000"), D("3.0000")),
+            LevelChange("bid", D("97"), D("0")),
+            LevelChange("ask", D("102"), D("0")),
+        ),
+        ordinal=2,
+        mono_ns=20,
+    )
+    second = envelope(
+        instrument,
+        key,
+        "delta",
+        (
+            LevelChange("bid", D("96"), D("0")),
+            LevelChange("ask", D("98" if reject else "103"), D("1" if reject else "0")),
+        ),
+        ordinal=2,
+        event_index=1,
+        mono_ns=20,
+    )
+    result = reducer.apply((first, second))
+    assert result.events == (first, second)
+    assert result.book.asks is old.asks
+    assert reducer._asks is old_asks
+    assert dumps(old) == old_wire
+    if reject:
+        assert result.recovery.reason == "crossed_or_locked"
+        assert not result.changed
+        assert result.book.bids is old.bids
+        assert reducer._bids is old_bids
+        assert result.book.revision == old.revision
+        assert result.book.quality.integrity == "invalid"
+    else:
+        assert result.recovery is None and result.changed
+        assert reducer._bids is not old_bids
+        assert result.book.bids == (Level(D("99.000"), D("3.0000")),)
+        assert str(result.book.bids[0].price) == "99.000"
+        assert str(result.book.bids[0].quantity) == "3.0000"
+        assert result.book.revision == old.revision + 1
+        assert result.book.asof == second.ref()
+        assert result.book.quality.last_book_observation_mono_ns == 20
+        assert result.book.quality.last_book_change_mono_ns == 20

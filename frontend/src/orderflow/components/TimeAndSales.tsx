@@ -69,7 +69,7 @@ export default function TimeAndSales() {
     >
       <div className={`tape ${showVenue ? "with-venue" : ""}`}>
         <div className="tape-head">
-          <span>Time</span>
+          <span>Time (UTC)</span>
           <span>Price</span>
           <span>Size</span>
           {showVenue && <span>Venue</span>}

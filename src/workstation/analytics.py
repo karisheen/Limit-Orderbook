@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from bisect import bisect_right
 from collections import deque
 from collections.abc import Iterable
 from dataclasses import dataclass, replace
@@ -929,8 +930,31 @@ class AnalyticsEngine:
         with localcontext(DECIMAL_CONTEXT):
             return self._snapshot(instrument_id, now, key)
 
+    def flow_metrics(
+        self,
+        instrument_id: str,
+        now: ClockReading,
+        *,
+        key: SubscriptionKey | None = None,
+    ) -> tuple[MetricResult, ...]:
+        """Exact event OFI and base CVD, without unrelated snapshot evidence.
+
+        Uses the full snapshot's formulas, provenance and eligibility gates.
+        Like snapshot(), this reads only completed deliveries; callers choose
+        the source-clock boundary before admitting the next delivery.
+        """
+        if instrument_id not in self._fallback_instruments:
+            raise ValueError("unknown analytics instrument")
+        with localcontext(DECIMAL_CONTEXT):
+            return self._snapshot(instrument_id, now, key, flow_only=True).metrics
+
     def _snapshot(
-        self, instrument_id: str, now: ClockReading, key: SubscriptionKey | None
+        self,
+        instrument_id: str,
+        now: ClockReading,
+        key: SubscriptionKey | None,
+        *,
+        flow_only: bool = False,
     ) -> AnalyticsSnapshot:
         candidates = [
             s
@@ -1043,7 +1067,7 @@ class AnalyticsEngine:
             str(instrument.quote.asset_id) + "/" + str(instrument.base.asset_id)
         )
         native_unit = instrument.quantity_unit + ":" + str(instrument_id)
-        if book is not None and not book_reasons:
+        if not flow_only and book is not None and not book_reasons:
             bid, ask = book.bids[0], book.asks[0]
             mid = (bid.price + ask.price) / 2
             total = bid.quantity + ask.quantity
@@ -1062,6 +1086,8 @@ class AnalyticsEngine:
                 else None,
                 "bid_share": bid.quantity / total if total else None,
             }
+        elif flow_only:
+            values = {}
         else:
             values = dict.fromkeys(
                 (
@@ -1089,7 +1115,7 @@ class AnalyticsEngine:
                 unit,
                 book_reasons or (("zero_denominator",) if value is None else ()),
             )
-        for band in self.config.depth_bps:
+        for band in () if flow_only else self.config.depth_bps:
             for side in ("bid", "ask"):
                 reasons = list(book_reasons)
                 base = quote = ZERO
@@ -1152,7 +1178,9 @@ class AnalyticsEngine:
                 history_reasons.append("book_window_warming")
             if now.mono_ns < state.overflow_until:
                 history_reasons.append("book_history_overflow")
-        for kind in ("event_ofi", "snapshot_best_quote_flow"):
+        for kind in (
+            ("event_ofi",) if flow_only else ("event_ofi", "snapshot_best_quote_flow")
+        ):
             reasons = list(history_reasons)
             samples = (
                 tuple(
@@ -1205,6 +1233,7 @@ class AnalyticsEngine:
             for t in tape
             if start < t.asof.receive_mono_ns and not t.trade.is_subscription_history
         )
+        flow_refs = tuple(t.asof for t in flow[-self.config.max_references :])
         if trade_state:
             anchor = (
                 trade_state.evidence.established_mono_ns
@@ -1235,7 +1264,7 @@ class AnalyticsEngine:
                 ),
                 ZERO,
             )
-            for side in ("buy", "sell", "unknown")
+            for side in (() if flow_only else ("buy", "sell", "unknown"))
         }
         for side in totals:
             metric(
@@ -1246,7 +1275,7 @@ class AnalyticsEngine:
                 trade_state=trade_state,
                 trade_metric=True,
                 rolling=True,
-                refs=(t.asof for t in flow),
+                refs=flow_refs,
             )
             metric(
                 f"observed_trade_{side}_notional",
@@ -1257,7 +1286,7 @@ class AnalyticsEngine:
                 trade_metric=True,
                 rolling=True,
                 observed=True,
-                refs=(t.asof for t in flow),
+                refs=flow_refs,
             )
         cvd = sum(
             (
@@ -1275,9 +1304,20 @@ class AnalyticsEngine:
             trade_state=trade_state,
             trade_metric=True,
             rolling=True,
-            refs=(t.asof for t in flow),
+            refs=flow_refs,
             formula="receive-window-known-aggressor-buy-minus-sell-v1",
         )
+        if flow_only:
+            return AnalyticsSnapshot(
+                str(instrument_id),
+                state.key if state else key,
+                book.asof if book else trade_state.asof if trade_state else None,
+                tuple(metrics),
+                (),
+                (),
+                (),
+                tuple(dict.fromkeys(book_reasons + tuple(trade_reasons))),
+            )
         metric(
             "cvd_quote",
             totals["buy"] - totals["sell"],
@@ -1286,7 +1326,7 @@ class AnalyticsEngine:
             trade_state=trade_state,
             trade_metric=True,
             rolling=True,
-            refs=(t.asof for t in flow),
+            refs=flow_refs,
         )
         metric(
             "observed_cvd_base",
@@ -1297,7 +1337,7 @@ class AnalyticsEngine:
             trade_metric=True,
             rolling=True,
             observed=True,
-            refs=(t.asof for t in flow),
+            refs=flow_refs,
         )
         profile: dict[Decimal, list[Decimal]] = {}
         if not observed_reasons:
@@ -1318,7 +1358,7 @@ class AnalyticsEngine:
             trade_metric=True,
             rolling=True,
             observed=True,
-            refs=(t.asof for t in flow),
+            refs=flow_refs,
         )
         display = (
             tuple(d for d in state.display if start < d.end_mono_ns <= now.mono_ns)
@@ -1383,13 +1423,23 @@ class AnalyticsEngine:
                     (trade.trade.price, trade.trade.taker_side), []
                 ).append(trade)
         for item in display:
-            matched = tuple(
-                t
-                for t in flow_by_price_side.get(
-                    (item.price, "sell" if item.side == "bid" else "buy"), ()
-                )
-                if item.start_mono_ns < t.asof.receive_mono_ns <= item.end_mono_ns
+            price_trades = flow_by_price_side.get(
+                (item.price, "sell" if item.side == "bid" else "buy"), ()
             )
+            # _trade_event clears the tape on receive-clock regression, so
+            # non-history buckets are ordered. Preserve (start, end], equal-time
+            # delivery order and Decimal summation order without rescanning every
+            # print at this price for every displayed-level transition.
+            first = bisect_right(
+                price_trades, item.start_mono_ns, key=lambda t: t.asof.receive_mono_ns
+            )
+            last = bisect_right(
+                price_trades,
+                item.end_mono_ns,
+                lo=first,
+                key=lambda t: t.asof.receive_mono_ns,
+            )
+            matched = price_trades[first:last]
             executed = sum(
                 (t.base_quantity for t in matched if t.base_quantity is not None), ZERO
             )

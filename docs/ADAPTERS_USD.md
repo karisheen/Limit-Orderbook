@@ -23,6 +23,29 @@ candle history is a separate REST service (`CandleService`), not a book/trade
 subscription or a source of replayable missing trades. Native session candles
 instead aggregate admitted public prints and retain gaps/partial coverage.
 
+The terminal's LIVE Auto preference explicitly selects this primary-only
+exchange-UTC Ticker history independently of the observed-flow cohort;
+demo/replay Auto remains on admitted receive-UTC session trades. Explicit
+venue history in replay is current external data, not recorded-prefix evidence.
+The service accepts exclusive candle-start `before_ns` paging, returns an
+exact-metadata `series_key` and `history` capability/state, and advertises
+five-second polling with overlap reconciliation, not a native candle stream.
+Source/session/generation still fence publication.
+
+Coinbase `advanced-trade` spot uses only public
+`/api/v3/brokerage/market/products/{id}/candles`, bounded seconds-based start/end
+ranges and at most **350 bars/page**. Supported intervals are
+`1m,5m,15m,30m,1h,2h,4h,6h,1d`; no Exchange-API or derivative substitution.
+Kraken `spot-v2` uses `/0/public/OHLC` and exact native pair identity, with
+`1m,5m,15m,30m,1h,4h,1d,1w`. It is explicitly **recent_only / limited**:
+upstream retains at most **720** recent entries including its uncommitted
+bucket; this service returns at most **500** and does not issue older HTTP
+requests. This is a retention limit, not proof of historical exhaustion.
+Kraken's 21600-minute interval is fifteen days, not a calendar month.
+The complete [provider matrix](VISUALIZATION.md#explicit-primary-only-venue-ohlcv)
+and [API](API.md#explicit-venue-ohlcv) document response/cache caps, cancellation
+and unavailable states separately from source trade retention.
+
 Financial readiness is independently gated by `quality.evaluate`: comparison,
 depth walks and paper fills require verified pinned metadata, valid noncrossed
 depth, an admitted source mode, a compatible clock and fresh observations.
@@ -86,11 +109,22 @@ raw exact event flow or event OFI, and neither supplies a checksum.
 implemented REST book or trade fallback**: a bounded HTTP book cannot bootstrap
 the unlimited stream as full depth.
 
-There is no integrated Deribit reference/context, OI/funding-history or optional
-venue-candle-history channel. Admitted public prints can still form session
-candles. Supported inverse economics in the paper engine require separate
-verified metadata, usable source evidence, explicit risk/funding assumptions and
-native collateral; public feed support is never account eligibility or exchange
+There is no integrated Deribit reference/context or OI/funding-history channel.
+Separate `CandleService` venue history does support `jsonrpc-v2` **only** for
+inverse USD-quoted, base-settled `BTC-PERPETUAL` and `ETH-PERPETUAL`, through
+`/api/v2/public/get_tradingview_chart_data`. Supported resolutions map to
+`1m,3m,5m,15m,30m,1h,2h,6h,12h,1d`; bounded millisecond start/end ranges
+return at most **500 bars/page here** and support exclusive-start older paging.
+Native `volume` is already base quantity, unlike quote `cost`; it must not be
+converted again using inverse contract size or candle close. This chart source
+excludes block trades/RFQ and does not promise complete execution volume.
+Empty windows and access failures do not silently become proven exhaustion.
+This exchange-UTC history is separate from admitted receive-UTC session candles
+and supplies neither missing recorded trades nor historical book evidence.
+
+Supported inverse economics in the paper engine require separate verified
+metadata, usable source evidence, explicit risk/funding assumptions and native
+collateral; public feed support is never account eligibility or exchange
 execution permission.
 
 ## Offline acceptance coverage and limits
@@ -123,3 +157,6 @@ retained as evidence, not bypassed through authentication or another venue.
 - [Deribit grouped bounded books](https://docs.deribit.com/subscriptions/orderbook/bookinstrument_namegroupdepthinterval)
 - [Deribit ungrouped snapshot/delta books](https://docs.deribit.com/subscriptions/orderbook/bookinstrument_nameinterval)
 - [Deribit public trade channel](https://docs.deribit.com/subscriptions/trades/tradesinstrument_nameinterval)
+- [Coinbase Advanced public candles](https://docs.cdp.coinbase.com/api-reference/advanced-trade-api/rest-api/public/get-public-product-candles)
+- [Kraken recent OHLC and retention](https://docs.kraken.com/api/docs/rest-api/get-ohlc-data/)
+- [Deribit chart data and volume exclusions](https://docs.deribit.com/api-reference/market-data/public-get_tradingview_chart_data)

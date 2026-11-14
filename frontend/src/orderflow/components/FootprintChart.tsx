@@ -11,6 +11,8 @@ import { Button, Panel, Segmented } from "@/components/ui/Primitives";
 import { showTooltip, hideTooltip } from "./GlobalTooltip";
 import IndicatorsMenu from "./IndicatorsMenu";
 import type { FootprintCandle, FootprintLevel, VolumeProfile } from "@/lib/types/market";
+import { FootprintLiquidity, useFootprintLiquidity, useFootprintLayerHost } from "../../FootprintLiquidity";
+import { footprintTimeSlices, retainedLargePrints, suppressPrintCollisions, printInspection, type PrintBadge } from "../../footprint-layers";
 
 // ─── Footprint Chart ─────────────────────────────────────────────
 // Price × time × executed volume. Each column is one candle; each row is
@@ -96,6 +98,11 @@ export default function FootprintChart() {
     () => (currentCandle ? [...candles, currentCandle] : candles),
     [candles, currentCandle]
   );
+  const liquidity = useFootprintLiquidity(ind.restingLiquidity, allCandles);
+  const prints = useMemo(() => ind.largePrints
+    ? retainedLargePrints(liquidity.trades, liquidity.instrumentIds, ind.largePrintMinimum) : [],
+  [ind.largePrints, ind.largePrintMinimum, liquidity.trades, liquidity.instrumentIds]);
+  const badgeRef = useRef<PrintBadge[]>([]);
 
   const viewRef = useRef<View>({ scrollX: 0, scrollY: 0, rowH: 18, colW: 112, followX: true, followY: true });
   const mouseRef = useRef<{ x: number; y: number } | null>(null);
@@ -110,6 +117,7 @@ export default function FootprintChart() {
       ctx.fillStyle = p.bgPanel;
       ctx.fillRect(0, 0, W, H);
       layoutRef.current = null;
+      badgeRef.current = [];
       if (allCandles.length === 0) return;
 
       // ── Price ladder bounds ──
@@ -163,6 +171,31 @@ export default function FootprintChart() {
       ctx.beginPath();
       ctx.rect(plotL, plotT, plotW, plotH);
       ctx.clip();
+
+      // Historical sampled resting depth is independent of the executed-volume heatmap.
+      // Preserve the native time interval in each observed bucket; never bridge gaps.
+      if (ind.restingLiquidity && liquidity.active) {
+        let draws = 0;
+        for (const tile of liquidity.tiles) {
+          const y = priceY(tile.price + tile.step) + rowH / 2;
+          const height = tile.step / tick * rowH;
+          if (y + height < plotT || y > plotB) continue;
+          for (const slice of footprintTimeSlices(allCandles, tile.start, tile.end)) {
+            const left = colX(slice.index) + slice.from * colW;
+            const right = colX(slice.index) + slice.to * colW;
+            if (right < plotL || left > plotR) continue;
+            for (const [quantity, color] of [[tile.bid, p.buy], [tile.ask, p.sell]] as const) {
+              const size = quantity === null ? 0 : Number(quantity);
+              if (!Number.isFinite(size) || size <= 0) continue;
+              ctx.fillStyle = withAlpha(color, ind.restingOpacity * Math.min(1, size / ind.restingCeiling));
+              ctx.fillRect(left, y, right - left, height);
+              draws++;
+            }
+            if (draws >= 20000) break;
+          }
+          if (draws >= 20000) break;
+        }
+      }
 
       // ── Traded-volume heatmap (session volume by price) ──
       if (showHeatmap && volumeProfile && volumeProfile.levels.length) {
@@ -291,6 +324,39 @@ export default function FootprintChart() {
         ctx.setLineDash([]);
       }
 
+      // Each bubble is a retained native print, never a per-level max/aggregate.
+      if (ind.largePrints) {
+        ctx.font = monoFont(9, 600);
+        const candidates: PrintBadge[] = [];
+        for (const print of prints) {
+          const slice = footprintTimeSlices(allCandles, print.time, print.time + 1)[0];
+          if (!slice) continue;
+          const x = colX(slice.index) + slice.from * colW;
+          const y = priceY(print.price) + rowH / 2;
+          const radius = Math.min(14, 4 + Math.sqrt(print.quantity / Math.max(ind.largePrintMinimum, 0.00000001)));
+          const width = Math.max(radius * 2, ctx.measureText(venueLabel(print.venue)).width + 10);
+          if (x - width / 2 < plotL || x + width / 2 > plotR || y - radius < plotT || y + radius > plotB) continue;
+          candidates.push({ print, x, y, radius, width });
+        }
+        badgeRef.current = suppressPrintCollisions(candidates);
+        for (const badge of badgeRef.current) {
+          const color = badge.print.side === "buy" ? p.buy : badge.print.side === "sell" ? p.sell : p.neutral;
+          ctx.fillStyle = withAlpha(color, 0.28);
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(badge.x, badge.y, badge.radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = p.bgPanel;
+          ctx.fillRect(badge.x - badge.width / 2, badge.y - 6, badge.width, 12);
+          ctx.fillStyle = p.text;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(venueLabel(badge.print.venue), badge.x, badge.y);
+        }
+      }
+
       // ── Crosshair lines ──
       const mouse = mouseRef.current;
       const inPlot = mouse && mouse.x >= plotL && mouse.x <= plotR && mouse.y >= plotT && mouse.y <= plotB && !dragRef.current;
@@ -415,10 +481,11 @@ export default function FootprintChart() {
       ctx.textAlign = "center";
       ctx.fillText(`TICK ${formatPriceValue(tick, priceDecimals(tick))}`, plotR + AXIS_W / 2, HEADER_H / 2 + 1);
     },
-    [allCandles, tickSize, volumeProfile, session, ticker, mode, showProfile, showHeatmap, ind, decimals]
+    [allCandles, tickSize, volumeProfile, session, ticker, mode, showProfile, showHeatmap, ind, decimals, liquidity.active, liquidity.tiles, prints]
   );
 
   const { containerRef, canvasRef, redraw } = useCanvas(draw);
+  useFootprintLayerHost(containerRef, liquidity.observeHost);
 
   // Wheel: scroll / zoom. Attached natively so preventDefault works.
   useEffect(() => {
@@ -468,6 +535,12 @@ export default function FootprintChart() {
     redraw();
     const layout = layoutRef.current;
     if (!layout) return hideTooltip();
+    const badge = ind.largePrints ? badgeRef.current.find(item => Math.abs(x - item.x) <= item.width / 2 && Math.abs(y - item.y) <= Math.max(6, item.radius)) : undefined;
+    if (badge) {
+      setCrosshair(badge.print.time, badge.print.price);
+      showTooltip(`${venueLabel(badge.print.venue)} · individual native trade`, printInspection(badge.print).join("\n"), e);
+      return;
+    }
     const { plotL, plotR, plotT, plotB, colX } = layout;
     const colW = viewRef.current.colW;
     const first = colX(0);
@@ -552,7 +625,7 @@ export default function FootprintChart() {
             onClick={() => setHeatmapVisible("tradedVolume", !showHeatmap)}
             title="Traded-volume heatmap by price (executed volume, not resting liquidity)"
           >
-            Heatmap
+            Executed heatmap
           </Button>
           <Button className="chip" onClick={resetView} title="Follow the live candle and last price (double-click chart)">
             ⟲ Live
@@ -564,6 +637,15 @@ export default function FootprintChart() {
           {ind.vwap && <span><i className="lg" style={{ background: ind.vwapColor ?? "var(--vwap)" }} />VWAP{ind.vwapBands ? " ±1σ ±2σ" : ""}</span>}
           {(ind.sessionPoc || ind.valueArea) && <span><i className="lg" style={{ background: ind.pocColor ?? "var(--poc)" }} />POC / VA {Math.round(ind.valueAreaPct * 100)}%</span>}
           {ind.stackedImbalances && <span><i className="lg lg-stack-buy" /><i className="lg lg-stack-sell" />Stacked ≥{ind.stackedLevels} @ {ind.imbalanceRatio}×</span>}
+          {showHeatmap && <span>Executed volume · session price profile (not resting depth)</span>}
+          {ind.restingLiquidity && <FootprintLiquidity state={liquidity} ceiling={ind.restingCeiling} opacity={ind.restingOpacity} />}
+          {ind.largePrints && <span data-testid="footprint-print-status">Large prints ≥{ind.largePrintMinimum} base · retained individual trades · overlapping badges suppressed · no liquidation feed{prints.length === 0 ? " · No matching retained native trades" : ` · ${prints.length} candidates (up to 200)`}</span>}
+          {ind.largePrints && prints.length > 0 && <details>
+            <summary>Inspect retained large prints</summary>
+            <ul style={{ maxHeight: 160, overflow: "auto", color: "var(--text)", background: "var(--bg-panel)", padding: 12 }}>
+              {prints.map(print => <li key={print.id} style={{ whiteSpace: "pre-wrap", marginBottom: 8 }}>{printInspection(print).join("\n")}</li>)}
+            </ul>
+          </details>}
           <span className="legend-hint">Drag to pan · Wheel scroll · ⌘/Ctrl+wheel row zoom · Alt+wheel column width · Double-click to follow</span>
         </div>
       }

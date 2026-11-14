@@ -374,6 +374,248 @@ def test_buffered_trade_burst_reaches_consumer_without_queue_loss():
     asyncio.run(scenario())
 
 
+@pytest.mark.parametrize("venue,depth", [("kraken", 25), ("bybit", 50)])
+def test_buffered_native_book_burst_retains_every_boundary_and_full_depth(
+    monkeypatch, venue, depth
+):
+    """Tiny native books must not wait on executor handoffs behind a burst."""
+    from collections import OrderedDict
+    import json
+    import zlib
+
+    from src.workstation.adapters.bybit import BybitAdapter
+    from src.workstation.adapters.kraken import KrakenAdapter
+    from src.workstation.ingestion import decode_frame, normalize_events
+
+    async def scenario():
+        adapter = KrakenAdapter() if venue == "kraken" else BybitAdapter()
+        instrument = synthetic_instrument(
+            venue=venue,
+            api_family="spot-v2" if venue == "kraken" else "v5-spot",
+            native_symbol="BTC/USD" if venue == "kraken" else "BTCUSDT",
+        )
+        key = SubscriptionKey.for_instrument(instrument, depth=depth)
+        bids = [[str(10000 - level), "1.000"] for level in range(depth)]
+        asks = [[str(11000 + level), "1.000"] for level in range(depth)]
+        payloads = []
+        for index in range(1024):
+            # Alternate exact top-level quantities while retaining every tail.
+            bids[0][1] = "1.000" if index % 2 == 0 else "2.000"
+            incoming_bids = bids if index == 0 else bids[:1]
+            incoming_asks = asks if index == 0 else []
+            if venue == "kraken":
+                crc_text = "".join(
+                    value.replace(".", "").lstrip("0")
+                    for side in (asks, bids)
+                    for level in side[:10]
+                    for value in level
+                )
+                body = {
+                    "channel": "book",
+                    "type": "snapshot" if index == 0 else "update",
+                    "data": [
+                        {
+                            "symbol": instrument.native_symbol,
+                            "bids": [
+                                {"price": price, "qty": qty}
+                                for price, qty in incoming_bids
+                            ],
+                            "asks": [
+                                {"price": price, "qty": qty}
+                                for price, qty in incoming_asks
+                            ],
+                            "checksum": zlib.crc32(crc_text.encode()) & 0xFFFFFFFF,
+                        }
+                    ],
+                }
+            else:
+                body = {
+                    "topic": f"orderbook.{depth}.{instrument.native_symbol}",
+                    "type": "snapshot" if index == 0 else "delta",
+                    "ts": 1700000000000 + index,
+                    "data": {
+                        "s": instrument.native_symbol,
+                        "u": 100 + index * 2,
+                        "seq": 500 + index * 3,
+                        "b": incoming_bids,
+                        "a": incoming_asks,
+                    },
+                }
+            payloads.append(json.dumps(body, separators=(",", ":")).encode())
+
+        raw, events, books, processed = [], [], [], []
+        complete, hold_open = asyncio.Event(), asyncio.Event()
+        peer_counts = []
+
+        class BufferedSocket:
+            def __init__(self):
+                self.messages = iter(payloads)
+
+            def __aiter__(self):
+                return self
+
+            async def __anext__(self):
+                payload = next(self.messages, None)
+                if payload is None:
+                    await hold_open.wait()
+                    raise StopAsyncIteration
+                return payload
+
+        def received(batch, book):
+            if isinstance(batch[0].payload, BookUpdate):
+                processed.append((batch, book))
+                if len(processed) == len(payloads):
+                    complete.set()
+
+        feed = FeedSupervisor(
+            adapter,
+            instrument,
+            key,
+            callbacks=FeedCallbacks(
+                raw=raw.append,
+                events=events.extend,
+                book=books.append,
+                processed=received,
+            ),
+            config=SupervisorConfig(queue_count=16),
+        )
+        feed._start_epoch(False)
+
+        def unexpected_dispatch(*args):
+            raise AssertionError("bounded native book dispatched to a worker")
+
+        monkeypatch.setattr(
+            asyncio.get_running_loop(), "run_in_executor", unexpected_dispatch
+        )
+
+        async def peer():
+            while not complete.is_set():
+                peer_counts.append(feed.processed_frames)
+                await asyncio.sleep(0)
+
+        reader = asyncio.create_task(
+            feed._reader(
+                BufferedSocket(), adapter.ws_endpoint(instrument, key), feed.epoch
+            )
+        )
+        consumer = asyncio.create_task(
+            feed._consume(time.monotonic(), require_ack=False)
+        )
+        observer = asyncio.create_task(peer())
+        finished = asyncio.create_task(complete.wait())
+        try:
+            done, _ = await asyncio.wait(
+                (consumer, finished), timeout=10, return_when=asyncio.FIRST_COMPLETED
+            )
+            if consumer in done:
+                await consumer
+            assert finished in done
+            assert [frame.payload for frame in raw] == payloads
+            assert feed.processed_frames == len(payloads)
+            assert feed.queue.empty() and feed.queued_bytes == 0
+            assert feed.queue_highwater_count <= 2
+            assert feed.capture_complete and not feed._fault.is_set()
+            assert len(peer_counts) > 1
+            assert all(
+                right - left <= 1 for left, right in zip(peer_counts, peer_counts[1:])
+            )
+            delivered = [
+                event for event in events if isinstance(event.payload, BookUpdate)
+            ]
+            assert len(delivered) == len(books) == len(processed) == len(raw)
+            replay = adapter.new_reducer(instrument, key)
+            replay.reset(feed.epoch, feed.segment_id)
+            dedup = OrderedDict()
+            for frame, event, book, transaction in zip(
+                raw, delivered, books, processed, strict=True
+            ):
+                decoded = decode_frame(
+                    adapter, instrument, key, frame, feed.segment_id, feed.source_mode
+                )
+                reduction = replay.apply(decoded)
+                assert reduction.recovery is None
+                (expected,) = normalize_events(
+                    decoded, reduction.events, dedup, feed.config.dedup_capacity
+                )
+                assert event == replace(
+                    expected,
+                    process_start_mono_ns=event.process_start_mono_ns,
+                    process_end_mono_ns=event.process_end_mono_ns,
+                    publish_mono_ns=event.publish_mono_ns,
+                )
+                assert event.raw_ref == frame.ref()
+                assert book == reduction.book
+                assert transaction == ((event,), book)
+                assert len(book.bids) == len(book.asks) == depth
+                assert book.quality.integrity == "valid"
+        finally:
+            for task in (reader, consumer, observer, finished):
+                task.cancel()
+            await asyncio.gather(
+                reader, consumer, observer, finished, return_exceptions=True
+            )
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    "depth,truncate,payload_size,expected_inline",
+    [
+        (50, True, 4096, True),
+        (50, True, 4097, False),
+        (51, True, 2, False),
+        (50, False, 2, False),
+        (None, False, 2, False),
+    ],
+)
+def test_book_dispatch_bounds_preserve_worker_context(
+    depth, truncate, payload_size, expected_inline
+):
+    from contextvars import ContextVar
+    import threading
+
+    marker = ContextVar("ingestion_dispatch_marker")
+
+    async def scenario():
+        owner = threading.get_ident()
+        observed = []
+
+        class BoundedAdapter(FixtureAdapter):
+            def new_reducer(self, instrument, key):
+                reducer = super().new_reducer(instrument, key)
+                reducer.truncate_depth = truncate
+                return reducer
+
+            def decode(self, frame, instrument, key):
+                observed.append((threading.get_ident(), marker.get()))
+                return super().decode(frame, instrument, key)
+
+        instrument = synthetic_instrument()
+        key = SubscriptionKey.for_instrument(instrument, depth=depth)
+        feed = FeedSupervisor(BoundedAdapter(), instrument, key)
+        feed._start_epoch(False)
+        frame = feed.boundary.frame(
+            feed.stream_id,
+            feed.connection_id,
+            feed.epoch,
+            "ws",
+            "endpoint",
+            b"x" * payload_size,
+        )
+        token = marker.set("owner-context")
+        try:
+            await feed._process(frame)
+        finally:
+            marker.reset(token)
+        assert len(observed) == 1
+        assert (observed[0][0] == owner) is expected_inline
+        assert observed[0][1] == "owner-context"
+        assert feed.processed_frames == 1
+        assert feed.book.quality.integrity == "valid"
+
+    asyncio.run(scenario())
+
+
 def test_trade_stop_drains_queued_input_before_boundary():
     import json
     from pathlib import Path
@@ -567,6 +809,252 @@ def test_capture_overflow_marks_capture_incomplete():
         assert feed.queue.empty()
 
     asyncio.run(scenario())
+
+
+def test_native_websocket_trust_load_is_single_nonblocking_and_cancel_safe(monkeypatch):
+    import ssl
+    from threading import Event, get_ident
+
+    from src.workstation import transport
+
+    release = Event()
+    create_context = ssl.create_default_context
+    loads = []
+    opened = []
+    transport._cached_websocket_ssl_context.cache_clear()
+    monkeypatch.setattr(transport, "get_proxy", lambda uri: None)
+
+    async def scenario():
+        loop = asyncio.get_running_loop()
+        loop_thread = get_ident()
+        entered = asyncio.Event()
+        observed = [[] for _ in range(34)]
+        feeds = [
+            supervisor(callbacks=FeedCallbacks(events=events.extend))
+            for events in observed
+        ]
+
+        def blocked_context():
+            loads.append(get_ident())
+            loop.call_soon_threadsafe(entered.set)
+            assert release.wait(5), "trust initialization blocked the event loop"
+            return create_context()
+
+        async def socket_boundary(factory, **kwargs):
+            # Execute native connect through its actual TLS/SNI setup, not an
+            # injected supervisor connector. Only external socket I/O is stopped.
+            opened.append(kwargs)
+            assert kwargs["host"] == "fixture.example"
+            assert kwargs["server_hostname"] == "fixture.example"
+            assert kwargs["ssl"].check_hostname
+            assert kwargs["ssl"].verify_mode == ssl.CERT_REQUIRED
+            raise OSError("socket boundary")
+
+        monkeypatch.setattr(ssl, "create_default_context", blocked_context)
+        monkeypatch.setattr(loop, "create_connection", socket_boundary)
+        tasks = [asyncio.create_task(feed._ws_session()) for feed in feeds]
+        try:
+            await asyncio.wait_for(entered.wait(), 2)
+            for _ in range(5):
+                await asyncio.sleep(0)
+            assert loads == [loads[0]] and loads[0] != loop_thread
+            assert not opened
+            assert all(not task.done() for task in tasks)
+            cancelled_epoch = feeds[0].epoch
+            cancelled_events = tuple(observed[0])
+            tasks[0].cancel()
+            await asyncio.sleep(0)
+            tasks[0].cancel()
+            await asyncio.sleep(0)
+            assert not tasks[0].done()
+            release.set()
+            outcomes = await asyncio.gather(*tasks, return_exceptions=True)
+            assert isinstance(outcomes[0], asyncio.CancelledError)
+            assert all(
+                isinstance(outcome, OSError) and str(outcome) == "socket boundary"
+                for outcome in outcomes[1:]
+            )
+            assert len(opened) == 33
+            assert feeds[0].epoch == cancelled_epoch
+            assert tuple(observed[0]) == cancelled_events
+            assert feeds[0].book is None and feeds[0].queue.empty()
+            assert not any(feed._producer_tasks for feed in feeds)
+            # A subsequent native connection attempt reuses the completed trust
+            # load, even after one concurrent session was repeatedly cancelled.
+            with pytest.raises(OSError, match="socket boundary"):
+                await feeds[1]._ws_session()
+            assert len(opened) == 34
+            assert len(loads) == 1
+            assert all(options["ssl"] is opened[0]["ssl"] for options in opened)
+            assert not transport._WS_SSL_PENDING
+        finally:
+            release.set()
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            for feed in feeds:
+                await feed._shutdown()
+
+    try:
+        asyncio.run(scenario())
+    finally:
+        release.set()
+        transport._cached_websocket_ssl_context.cache_clear()
+
+
+def test_injected_websocket_connector_keeps_its_own_tls_policy(monkeypatch):
+    from src.workstation import transport
+
+    async def unexpected_trust():
+        raise AssertionError("injected connectors own their trust configuration")
+
+    monkeypatch.setattr(transport, "_websocket_ssl_context", unexpected_trust)
+    socket = FixtureSocket([b"reject"])
+
+    # Deliberately no **kwargs: don't add ssl/proxy options to injected clients.
+    def connector(
+        endpoint,
+        *,
+        max_size,
+        max_queue,
+        open_timeout,
+        ping_interval,
+        ping_timeout,
+        close_timeout,
+    ):
+        assert endpoint == "wss://fixture.example/ws"
+        return socket
+
+    async def scenario():
+        feed = supervisor(ws_connect=connector, config=fast_config())
+        with pytest.raises(FeedFault, match="subscription_rejected"):
+            await feed._ws_session()
+        assert socket.opened and socket.closed
+
+    asyncio.run(scenario())
+
+
+@pytest.fixture(scope="module")
+def native_websocket_certificate(tmp_path_factory):
+    """Local-only TLS peer; no external certificates, sockets or services."""
+    import subprocess
+
+    directory = tmp_path_factory.mktemp("native-websocket-tls")
+    certificate = directory / "certificate.pem"
+    key = directory / "key.pem"
+    config = directory / "openssl.cnf"
+    config.write_text(
+        "[req]\ndistinguished_name=dn\nx509_extensions=ext\nprompt=no\n"
+        "[dn]\nCN=fixture.example\n[ext]\nsubjectAltName=DNS:fixture.example\n"
+        "basicConstraints=critical,CA:TRUE\n"
+        "keyUsage=critical,digitalSignature,keyEncipherment,keyCertSign\n"
+        "subjectKeyIdentifier=hash\nauthorityKeyIdentifier=keyid:always\n"
+    )
+    subprocess.run(
+        [
+            "openssl",
+            "req",
+            "-x509",
+            "-newkey",
+            "rsa:2048",
+            "-nodes",
+            "-days",
+            "2",
+            "-config",
+            str(config),
+            "-out",
+            str(certificate),
+            "-keyout",
+            str(key),
+        ],
+        check=True,
+        capture_output=True,
+        timeout=15,
+    )
+    return certificate, key
+
+
+@pytest.mark.parametrize("security", ["trusted", "untrusted", "wrong_hostname"])
+def test_native_websocket_session_enforces_environment_trust_and_hostname(
+    monkeypatch, tmp_path, native_websocket_certificate, security
+):
+    import ssl
+
+    from websockets.asyncio.server import serve
+
+    from src.workstation import transport
+
+    certificate, key = native_websocket_certificate
+    server_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    server_context.load_cert_chain(certificate, key)
+    server_names = []
+    server_context.set_servername_callback(
+        lambda socket, hostname, context: server_names.append(hostname)
+    )
+    # Avoid ambient CA directories so the negative case has no trust anchor.
+    monkeypatch.setenv("SSL_CERT_DIR", str(tmp_path))
+    monkeypatch.setenv(
+        "SSL_CERT_FILE",
+        str(tmp_path / "missing.pem") if security == "untrusted" else str(certificate),
+    )
+    monkeypatch.setattr(transport, "get_proxy", lambda uri: None)
+    transport._cached_websocket_ssl_context.cache_clear()
+    hostname = "wrong.example" if security == "wrong_hostname" else "fixture.example"
+
+    class LocalAdapter(FixtureAdapter):
+        def ws_endpoint(self, instrument, key):
+            return f"wss://{hostname}/ws"
+
+    async def scenario():
+        received = asyncio.Event()
+
+        async def server(ws):
+            await ws.recv()
+            await ws.send(b"ok")
+            await ws.wait_closed()
+
+        async with serve(server, "127.0.0.1", 0, ssl=server_context) as listener:
+            port = listener.sockets[0].getsockname()[1]
+            loop = asyncio.get_running_loop()
+            create_connection = loop.create_connection
+
+            async def local_connection(factory, **kwargs):
+                # Change only routing. The native endpoint still determines SNI
+                # and certificate hostname validation at the real TLS handshake.
+                assert kwargs["server_hostname"] == hostname
+                kwargs["host"], kwargs["port"] = "127.0.0.1", port
+                return await create_connection(factory, **kwargs)
+
+            monkeypatch.setattr(loop, "create_connection", local_connection)
+            feed = supervisor(
+                adapter=LocalAdapter(),
+                callbacks=FeedCallbacks(
+                    processed=lambda events, book: (
+                        received.set() if book is not None else None
+                    )
+                ),
+            )
+            task = asyncio.create_task(feed._ws_session())
+            try:
+                if security == "trusted":
+                    await asyncio.wait_for(received.wait(), 5)
+                    assert feed.book is not None
+                    assert not task.done()
+                else:
+                    with pytest.raises(ssl.SSLCertVerificationError):
+                        await asyncio.wait_for(task, 5)
+                    assert not received.is_set()
+                    assert feed.book is None
+                assert server_names == [hostname]
+            finally:
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+                await feed._shutdown()
+
+    try:
+        asyncio.run(scenario())
+    finally:
+        transport._cached_websocket_ssl_context.cache_clear()
 
 
 def test_heartbeat_only_and_ack_only_do_not_establish_valid_book():
@@ -1446,6 +1934,10 @@ def test_cancellation_joins_inflight_decode_before_owner_stops():
         task.cancel()
         await asyncio.sleep(0)
         assert not task.done()
+        task.cancel()
+        await asyncio.sleep(0)
+        assert not task.done()
+        assert feed._pending_ordinal == frame.ingest_ordinal
         release.set()
         (result,) = await asyncio.gather(task, return_exceptions=True)
         assert isinstance(result, asyncio.CancelledError)

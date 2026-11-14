@@ -663,14 +663,7 @@ class BookReducer:
                         change.quantity,
                         incremental=change.quantity_semantics == "incremental",
                     )
-                    if change.side == "bid":
-                        if bids is self._bids:
-                            bids = bids.copy()
-                        side = bids
-                    else:
-                        if asks is self._asks:
-                            asks = asks.copy()
-                        side = asks
+                    side = bids if change.side == "bid" else asks
                     if snapshot:
                         identity = change.side, change.price
                         if identity in seen:
@@ -690,6 +683,20 @@ class BookReducer:
                                 else Decimal(0)
                             )
                         decimal(quantity, nonnegative=True)
+                    # A deletion of an absent price is still validated and
+                    # observed, but does not mutate a candidate. Defer the side
+                    # copy until an actual write; immutable publication can then
+                    # reuse the committed tuple for a wholly unchanged side.
+                    if quantity == 0 and change.price not in side:
+                        continue
+                    if change.side == "bid":
+                        if bids is self._bids:
+                            bids = bids.copy()
+                        side = bids
+                    else:
+                        if asks is self._asks:
+                            asks = asks.copy()
+                        side = asks
                     if quantity == 0:
                         side.pop(change.price, None)
                     else:

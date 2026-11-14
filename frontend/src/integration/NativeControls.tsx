@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { label, milliseconds, venueLabel } from '../format';
-import { presetLayout } from '../workspace';
-import type { WorkspacePreferences } from '../workspace';
-import { terminalIncidents } from '../terminal-incident';
+import { searchPickerGroups } from '../picker-search';
+import { terminalDiagnosticReasons, terminalIncidents } from '../terminal-incident';
 import { Details, Empty, Panel, Reasons, Value } from '../WorkflowUI';
 import { ReplayControls } from './NativeWidgets';
 import { NativeRecording } from './NativeRecording';
@@ -16,7 +15,7 @@ export function NativeControls() {
   const { terminal, preferences: p, updatePreferences: update, instrument: selected, instruments, connected, usable,
     selectInstrument: selectContextInstrument, selectSource: changeSource, workspace } = useNativeTerminal();
   const { catalog, frame } = terminal;
-  const { storageError, slots, saveSlot, loadSlot } = workspace;
+  const { storageError } = workspace;
   const capabilityNotice = metadataNotice(frame, instruments);
   const evidence = nativeReadinessEvidence(frame);
   const [query, setQuery] = useState('');
@@ -24,8 +23,6 @@ export function NativeControls() {
   const [quote, setQuote] = useState('');
   const [market, setMarket] = useState('');
   const [instrumentPage, setInstrumentPage] = useState(0);
-  const [slot, setSlot] = useState(0);
-  const [slotNotice, setSlotNotice] = useState('');
   const controls = useRef<HTMLElement | null>(null);
   const search = useRef<HTMLInputElement | null>(null);
   const watchlist = useRef<HTMLDetailsElement | null>(null);
@@ -39,8 +36,9 @@ export function NativeControls() {
     cohorts: [...new Map(instruments.map(item => [JSON.stringify([item.quote.asset_id, item.market_type]), item])).entries()],
   }), [instruments]);
   const filtered = useMemo(() => {
-    const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    return instruments.filter(item => (!venue || item.venue === venue) && (!quote || item.quote.asset_id === quote) && (!market || item.market_type === market) && terms.every(term => [item.instrument_id, item.native_symbol, item.venue, venueLabel(item.venue), item.base.ticker, item.quote.ticker, item.market_type].join(' ').toLowerCase().includes(term)));
+    const options = instruments.filter(item => (!venue || item.venue === venue) && (!quote || item.quote.asset_id === quote) && (!market || item.market_type === market))
+      .map(item => ({ label: item.native_symbol, keywords: [item.instrument_id, item.venue, venueLabel(item.venue), item.base.ticker, item.quote.ticker, item.market_type].join(' '), instrument: item }));
+    return searchPickerGroups(options, query).flatMap(group => group.options.map(option => option.instrument));
   }, [instruments, venue, quote, market, query]);
   const pageCount = Math.max(1, Math.ceil(filtered.length / instrumentPageSize));
   const page = Math.min(instrumentPage, pageCount - 1);
@@ -99,7 +97,7 @@ export function NativeControls() {
     return () => window.removeEventListener('keydown', keydown);
   }, [update, closeDetails]);
   const liveSource = catalog?.sources.find(source => source.mode === 'live' && source.status === 'ready');
-  const qualityReasons = [...new Set([...(frame?.health.reasons ?? []), ...(frame?.source.reasons ?? []), ...(frame?.book?.quality.reason_codes ?? [])])];
+  const { selectedReasons: qualityReasons, providerReasons } = terminalDiagnosticReasons(frame);
   const incidents = terminalIncidents({ terminalError: terminal.error, frameError: frame?.error ?? null,
     catalogError: terminal.catalogError, storageError, connection: terminal.connection, status: frame?.status ?? null,
     ready: frame?.health.ready ?? false, qualityReasons, synthetic: frame?.source.synthetic ?? false });
@@ -112,12 +110,16 @@ export function NativeControls() {
     details.open = true;
     details.querySelector<HTMLElement>(':scope > summary')?.focus();
   };
+  const providerDiagnostics = <details className="all-provider-diagnostics"><summary>All-provider availability diagnostics</summary>
+    <p className="caption">Provider-wide discovery and availability, not selected-market health. An unavailable provider does not establish failure of the selected book or trade stream.</p>
+    <p className="caption">HTTP 451 means the provider reports unavailability for legal reasons. HTTP 403 means the provider refused access. Neither response alone identifies your location or a more specific cause; inspect the raw provider response below.</p>
+    <Details title="Raw all-provider reasons · current live source" value={providerReasons} />
+    <Details title="Available source descriptors & raw provider reasons" value={catalog?.sources ?? []} />
+  </details>;
   return <section ref={controls} className="native-controls native-surface" aria-label="Native session controls">
     <div className="native-controls-toolbar">
       <details className="workspace-configuration"><summary>Source / workspace</summary><div className="workspace-configuration-body">
       <label className="source-control">Source<select aria-label="Data source" title={frame?.source.label} value={frame?.source.id ?? p.source?.id ?? ''} disabled={!catalog} onChange={event => { const source = catalog?.sources.find(item => item.id === event.target.value); if (source?.status === 'ready') changeSource(source); }}>{!frame && <option value="">Choose source…</option>}{catalog?.sources.map(source => <option key={source.id} value={source.id} disabled={source.status !== 'ready'} title={[source.label, ...source.reasons].join('; ')}>{abbreviateCaptureLabel(source.label)} · {source.mode} · {source.status}{source.synthetic ? ' · SYNTHETIC' : ''}{source.reasons.length ? ` · ${source.reasons.join('; ')}` : ''}</option>)}</select></label>
-      <label>Preset<select aria-label="Workspace preset" value={p.preset} onChange={event => { update(presetLayout(event.target.value as WorkspacePreferences['preset'])); }}><option value="balanced">Balanced</option><option value="analysis">Analysis</option><option value="ladder">DOM focus</option></select></label>
-      <details className="workspace-slots"><summary>Workspaces</summary><div className="workspace-slot-controls"><label>Slot<select aria-label="Workspace slot" value={slot} onChange={event => { setSlot(Number(event.target.value)); setSlotNotice(''); }}>{slots.map((saved, index) => <option key={index} value={index}>Slot {index + 1}{saved ? ' · saved' : ' · empty'}</option>)}</select></label><button onClick={() => { saveSlot(slot); setSlotNotice(`Slot ${slot + 1} captured`); }}>Save workspace</button><button disabled={!slots[slot]} onClick={() => { loadSlot(slot); window.dispatchEvent(new Event('terminal-clear-cursor')); setSlotNotice(`Slot ${slot + 1} loaded`); }}>Load workspace</button><span role="status">{slotNotice}</span></div></details>
       </div></details>
       <span className="status muted" title="Transport connection only; source readiness and pane freshness are separate.">Transport: {terminal.connection}</span><button onClick={terminal.reconnect} aria-label="Reconnect terminal">Reconnect</button>
       <NativeRecording />
@@ -152,24 +154,27 @@ export function NativeControls() {
         <p className="caption">Limit Orderbook · exact public-market workstation</p>
         {terminal.preferenceNotice && <p role="status" className="caption" data-testid="source-preference-notice">{terminal.preferenceNotice}</p>}
         <p>{frame?.source.recording ? 'Recorded capture · playback' : 'Not recording'}</p>
-        <p className="caption">Current source, feed and readiness reasons</p>
+        <p className="caption">Selected-market evidence reasons</p>
         <p className="caption">Catalog symbols are subscription candidates, not received data. Book and trade observations are independent, retained evidence, not freshness guarantees. Verified session-pinned metadata does not guarantee financial support. Aggregate charts and studies are indicative, never execution inputs; costs and paper target the exact native primary.</p>
-        {qualityReasons.length ? <Reasons reasons={qualityReasons} /> : <p className="caption">No source quality reasons reported.</p>}
+        <div data-testid="selected-market-reasons">{qualityReasons.length ? <Reasons reasons={qualityReasons} /> : <p className="caption">No selected-market quality reasons reported.</p>}</div>
         {frame?.book && <p className="caption" data-testid="native-depth">Native retained depth: {frame.book.quality.coverage.retained_bid_levels} bid / {frame.book.quality.coverage.retained_ask_levels} ask levels · frame shows {frame.book.bids.length} / {frame.book.asks.length}. Grouped DOM and chart rows are presentation buckets, not a count of individual orders.</p>}
         <dl className="metadata"><dt>Native feed mode</dt><dd>{frame?.book?.quality.source_mode ?? 'Awaiting evidence'}</dd><dt>Recorded source mode</dt><dd>{frame?.book?.quality.recorded_source_mode ?? '—'}</dd><dt>Capture complete</dt><dd>{frame?.book ? String(frame.book.quality.capture_complete) : 'Unknown'}</dd><dt>Coverage</dt><dd>{frame?.book?.quality.coverage.full_depth ? 'Full depth' : 'Bounded / unknown outside scope'}</dd><dt>Source state</dt><dd>{frame?.source.status ?? 'Loading'}</dd><dt>Settlement</dt><dd>{selected?.settlement?.ticker ?? 'None declared'}</dd><dt>Tick / lot</dt><dd><Value value={selected?.tick_size} /> / <Value value={selected?.lot_size} /></dd><dt>Execution access</dt><dd>{selected?.execution_access ?? 'Unknown'}</dd></dl>
         {frame?.book && (frame.book.presentation.bids_omitted > 0 || frame.book.presentation.asks_omitted > 0) && <p className="caption">Frame carries the first {frame.book.presentation.depth_limit} levels per side. Native reconstruction, grouped ladder and cost walks retain full source depth.</p>}
         <Details title="Exact instrument metadata" value={selected ?? null} /><Details title="Source & capture descriptor" value={frame?.source ?? null} />
         <Details title="Session-pinned metadata identity" value={frame?.selection ?? null} />
-        <Details title="Available source readiness & reasons" value={catalog?.sources ?? []} /><Details title={`Live ingestion evidence · ${frame?.telemetry.ingestion.length ?? 0} streams`} value={frame?.telemetry.ingestion ?? []} />
-        <Details title="All terminal incidents and exact causes" value={{ incidents, qualityReasons }} />
+        {providerDiagnostics}
+        <Details title={`Live ingestion evidence · ${frame?.telemetry.ingestion.length ?? 0} streams`} value={frame?.telemetry.ingestion ?? []} />
+        <Details title="All terminal incidents and exact causes" value={{ incidents, selectedMarketReasons: qualityReasons }} />
       </div></details>
     </div>
     {capabilityNotice && <p className="caption warning" role="status" data-testid="metadata-capability-notice">{capabilityNotice}</p>}
     {frame?.replay && <ReplayControls frame={frame} busy={terminal.busy || !connected} replay={terminal.replay} />}
     <details ref={diagnostics} className="diagnostics"><summary>Diagnostics</summary>
-      <Details title="All terminal incidents and exact causes" value={{ incidents, qualityReasons }} />
+      <Details title="All terminal incidents and exact causes" value={{ incidents, selectedMarketReasons: qualityReasons }} />
+      <p className="caption">Selected-market evidence reasons</p>
       <Reasons reasons={qualityReasons} />
-      <p className="caption">Transport connection and browser rendering timings do not establish market-data freshness. Analytical queue overflow requires investigation of native ingestion; reconnecting does not fix capacity.</p>
+      {providerDiagnostics}
+      <p className="caption">Transport connection and browser rendering timings do not establish market-data freshness. Analytical queue overflow is loss of analytical history and requires investigation of native ingestion; reconnecting cannot recover missing observations or fix capacity. Reselection starts fresh observed history, not recovery of the missing period, and resets analytical views. No automatic reset is performed; inspect paper and capture state before any deliberate reselection.</p>
       <footer className="telemetry"><span>Session {frame?.session_id.slice(0, 8) ?? '—'} · generation {frame?.generation ?? '—'}</span><span>Queue {frame?.telemetry.queue_depth ?? '—'} / high {frame?.telemetry.queue_highwater ?? '—'}</span><span>Coalesced {frame?.telemetry.coalesced ?? '—'} · overflow {frame?.telemetry.overflows ?? '—'}</span><span title="ACKs evicted from the bounded server buffer">ACK expired {frame?.telemetry.ack_expired ?? '—'}</span><span>Observer {milliseconds(frame?.telemetry.observer_duration_ms)}</span><span title="Two paint opportunities; not GPU completion">Receive→paint {milliseconds(frame?.telemetry.browser_receive_to_paint_ms)}</span><span title="Conservative round-trip upper bound">Publish→ACK ≤ {milliseconds(frame?.telemetry.publish_to_ack_upper_bound_ms)}</span></footer><Details title={`Live ingestion evidence · ${frame?.telemetry.ingestion.length ?? 0} streams`} value={frame?.telemetry.ingestion ?? []} /></details>
   </section>;
 }

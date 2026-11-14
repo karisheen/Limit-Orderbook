@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ApiError, errorMessage, request, requestCatalog, streamUrl } from './api';
+import { ApiError, combineCatalog, errorMessage, MUTATION_TIMEOUT_MS, REQUEST_TIMEOUT_MS, request, requestCatalog, selectedCatalogPath, streamUrl } from './api';
 import type { Catalog, Costs, CostInput, Frame, Mode, ReplayAction, VisualGrid, VisualizationInput, VisualizationAck, GroupedLadder, LadderInput, ProposalRisk, ProposalRiskInput } from './api';
 import type { CatalogSnapshot } from './api';
 import { startupSource } from './workspace';
@@ -14,6 +14,7 @@ interface Mutation { scope: SessionScope; controller: AbortController; deferred:
 export interface TerminalController {
   catalog: Catalog | null;
   catalogError: string | null;
+  metadataError: string | null;
   preferenceNotice: string | null;
   frame: Frame | null;
   connection: string;
@@ -36,6 +37,7 @@ export function useTerminal(initialPreferences: Pick<WorkspacePreferences, 'sour
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [presentation, setPresentation] = useState<Presentation | null>(null);
   const [catalogError, setCatalogError] = useState<string | null>(null);
+  const [metadataError, setMetadataError] = useState<string | null>(null);
   const [connection, setConnection] = useState('Connecting');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -71,6 +73,9 @@ export function useTerminal(initialPreferences: Pick<WorkspacePreferences, 'sour
     setConnection('Connecting');
     setError(null);
     setCatalogError(null);
+    setMetadataError(null);
+    // Never lend a replacement session another source's instrument metadata.
+    setCatalog(previous => previous ? { ...previous, instruments: [] } : null);
 
     const closeSession = (id: string) => {
       void fetch(`/api/v1/sessions/${encodeURIComponent(id)}`, { method: 'DELETE', keepalive: true }).catch(() => undefined);
@@ -106,27 +111,32 @@ export function useTerminal(initialPreferences: Pick<WorkspacePreferences, 'sour
       clearTimeout(watchdogTimer);
       watchdogTimer = window.setTimeout(() => retry('No stream frame received for 5 seconds.'), 5000);
     };
-    // Each lifecycle owns only its bootstrap and selected-source catalogs.
+    // Directory and selected metadata validate independently, by exact URL.
     const catalogs = new Map<string, CatalogSnapshot>();
     const loadCatalog = async (path: string) => {
       const next = await requestCatalog(path, AbortSignal.any([abort.signal, AbortSignal.timeout(5000)]), catalogs.get(path));
       if (scope.active && !reconnecting) catalogs.set(path, next);
       return next.data;
     };
+    const scheduleCatalogRefresh = () => {
+      catalogTimer = window.setTimeout(() => { void refreshCatalog(); }, 3000);
+    };
     const refreshCatalog = async () => {
-      try {
-        const next = await loadCatalog(`/instruments?source_id=${encodeURIComponent(scope.sourceId ?? '')}`);
-        if (!scope.active || reconnecting) return;
-        setCatalog(next);
-        setCatalogError(null);
-      } catch (cause) {
-        if (scope.active && !reconnecting) {
-          setCatalog(previous => previous ? { ...previous, instruments: [] } : previous);
-          setCatalogError(`Source catalog refresh failed: ${errorMessage(cause)}`);
-        }
-      } finally {
-        if (scope.active && !reconnecting) catalogTimer = window.setTimeout(() => { void refreshCatalog(); }, 3000);
-      }
+      const path = selectedCatalogPath(scope.sourceId!);
+      const [directory, metadata] = await Promise.allSettled([loadCatalog('/sources'), loadCatalog(path)]);
+      if (!scope.active || reconnecting) return;
+      // A failed refresh leaves the last confirmed representation intact.
+      // A successful empty metadata body, in contrast, remains authoritative.
+      const sources = catalogs.get('/sources')?.data;
+      const instruments = catalogs.get(path)?.data;
+      if (sources && instruments) setCatalog(previous => combineCatalog(sources, instruments, previous));
+      const sourceError = directory.status === 'rejected'
+        ? `Source directory is stale; refresh failed: ${errorMessage(directory.reason)}` : null;
+      const instrumentError = metadata.status === 'rejected'
+        ? `Selected metadata is stale; catalog refresh failed: ${errorMessage(metadata.reason)}` : null;
+      setMetadataError(instrumentError);
+      setCatalogError([sourceError, instrumentError].filter(Boolean).join(' ') || null);
+      scheduleCatalogRefresh();
     };
     const accept = (next: Presentation) => {
       if (!scope.active || reconnecting || next.frame.session_id !== scope.sessionId) return;
@@ -148,7 +158,7 @@ export function useTerminal(initialPreferences: Pick<WorkspacePreferences, 'sour
     };
     const connect = async () => {
       try {
-        const nextCatalog = await loadCatalog('/instruments');
+        const nextCatalog = await loadCatalog('/sources');
         if (!scope.active) return;
         setCatalog(nextCatalog);
         if (!sourceResolved.current) {
@@ -161,9 +171,11 @@ export function useTerminal(initialPreferences: Pick<WorkspacePreferences, 'sour
         if (!preferred || preferred.status !== 'ready') {
           throw new ApiError(`Requested ${options.current.mode} source ${options.current.source_id} is ${preferred?.status ?? 'unavailable'}${preferred?.reasons.length ? `: ${preferred.reasons.join('; ')}` : ''}. Select another source explicitly; no demo substitution was made.`, 409);
         }
-        if (options.current.source_id && ((restoringSelection.current && options.current.instrument_id) || (options.current.mode === 'live' && !options.current.instrument_id))) {
-          const sourceCatalog = await loadCatalog(`/instruments?source_id=${encodeURIComponent(options.current.source_id)}`);
-          if (!scope.active) return;
+        const sourceId = preferred.id;
+        const sourceCatalog = await loadCatalog(selectedCatalogPath(sourceId));
+        if (!scope.active) return;
+        setCatalog(previous => combineCatalog(nextCatalog, sourceCatalog, previous));
+        if ((restoringSelection.current && options.current.instrument_id) || (options.current.mode === 'live' && !options.current.instrument_id)) {
           if (options.current.instrument_id && !sourceCatalog.instruments.some(item => item.instrument_id === options.current.instrument_id && (options.current.mode !== 'live' || selectableInstrument(item)))) {
             setPreferenceNotice(`Saved exact instrument is unavailable in this source; using a source-native initial selection.`);
             delete options.current.instrument_id;
@@ -176,13 +188,16 @@ export function useTerminal(initialPreferences: Pick<WorkspacePreferences, 'sour
         }
         restoringSelection.current = false;
         // Keep creation observable: a late response still needs its server session released.
-        const first = await request<Frame>('/sessions', options.current);
+        const first = await request<Frame>('/sessions', options.current, undefined, undefined, undefined, { timeoutMs: null });
         scope.sessionId = first.session_id;
         if (!scope.active || reconnecting) { closeSession(first.session_id); return; }
         scope.sourceId = first.source.id;
         options.current.source_id = first.source.id;
         options.current.mode = first.source.mode;
-        await refreshCatalog();
+        // Startup already loaded this exact source once; do not immediately
+        // download/revalidate it again before opening the presentation stream.
+        if (first.source.id !== sourceId) throw new ApiError('Created session belongs to an unexpected source.', 409);
+        scheduleCatalogRefresh();
         if (!scope.active || reconnecting) { closeSession(first.session_id); return; }
         accept({ frame: first, receivedAt: performance.now(), acknowledge: false });
         ws = new WebSocket(streamUrl(first.session_id));
@@ -281,9 +296,11 @@ export function useTerminal(initialPreferences: Pick<WorkspacePreferences, 'sour
     actionPending.current = operation;
     setBusy(true);
     setError(null);
+    const deadline = AbortSignal.timeout(MUTATION_TIMEOUT_MS);
+    const ownedSignal = AbortSignal.any([operation.controller.signal, deadline, ...(signal ? [signal] : [])]);
     try {
-      const next = await request<Frame>(path, { session_id: active.session_id, generation: active.generation, ...payload }, signal ? AbortSignal.any([signal, operation.controller.signal]) : operation.controller.signal);
-      if (actionPending.current !== operation || !scope.active || current.current?.session_id !== active.session_id) return null;
+      const next = await request<Frame>(path, { session_id: active.session_id, generation: active.generation, ...payload }, ownedSignal);
+      if (ownedSignal.aborted || actionPending.current !== operation || !scope.active || current.current?.session_id !== active.session_id) return null;
       const prior = current.current;
       if (BigInt(next.generation) < BigInt(prior.generation) ||
         (next.generation === prior.generation && BigInt(next.frame_id) < BigInt(prior.frame_id))) return null;
@@ -292,7 +309,11 @@ export function useTerminal(initialPreferences: Pick<WorkspacePreferences, 'sour
       setPresentation({ frame: next, receivedAt: performance.now(), acknowledge: false });
       return next;
     } catch (cause) {
-      if (actionPending.current === operation && scope.active && !operation.controller.signal.aborted && !signal?.aborted) setError(errorMessage(cause));
+      if (actionPending.current === operation && scope.active && !operation.controller.signal.aborted && !signal?.aborted) {
+        setError(deadline.aborted
+          ? `Mutation response timed out after ${MUTATION_TIMEOUT_MS / 1000} seconds. Outcome is ambiguous: the server may have committed it. Inspect current selection, replay or paper run state before any deliberate retry. No automatic retry or session replacement was made.`
+          : errorMessage(cause));
+      }
       return null;
     } finally {
       if (actionPending.current === operation) {
@@ -328,20 +349,24 @@ export function useTerminal(initialPreferences: Pick<WorkspacePreferences, 'sour
     retries.current = 0;
     setRevision(value => value + 1);
   }, []);
-  const query = useCallback(async <T extends object>(path: string, input: object, signal: AbortSignal, onReceive?: (receivedAtMs: number) => void, owner: string | AbortSignal = path): Promise<T> => {
+  const query = useCallback(async <T extends object>(path: string, input: object, signal: AbortSignal, onReceive?: (receivedAtMs: number) => void, owner: string | AbortSignal = path, timeoutMs = 10_000): Promise<T> => {
     const active = current.current;
     if (!active || !lifecycle.current?.connected || active.status === 'seeking') throw new ApiError('No current presentation is available for this query.', 409);
     queries.current.get(owner)?.abort();
     const controller = new AbortController();
     queries.current.set(owner, controller);
     try {
-      const result = await request<T>(path, { session_id: active.session_id, generation: active.generation, ...input }, AbortSignal.any([signal, controller.signal, AbortSignal.timeout(10000)]), undefined, onReceive);
+      const result = await request<T>(path, { session_id: active.session_id, generation: active.generation, ...input }, AbortSignal.any([signal, controller.signal]), undefined, onReceive, { timeoutMs });
       if (controller.signal.aborted || !lifecycle.current?.connected || current.current?.session_id !== active.session_id || current.current.generation !== active.generation || ('generation' in result && result.generation !== active.generation)) {
         throw new ApiError('Response belongs to obsolete source, selection or replay evidence. Request again.', 409);
       }
       return result;
     } finally { if (queries.current.get(owner) === controller) queries.current.delete(owner); }
   }, []);
+  // Durable workflow/capture ownership gets a 30s response deadline; short-lived
+  // analytical queries keep their 10s bound. Neither path retries mutations.
+  const workflow = useCallback(<T extends object>(path: string, input: object, signal: AbortSignal, onReceive?: (receivedAtMs: number) => void, owner?: string | AbortSignal) =>
+    query<T>(path, input, signal, onReceive, owner, REQUEST_TIMEOUT_MS), [query]);
   const costs = useCallback((input: CostInput, signal: AbortSignal) => query<Costs>('/costs', input, signal), [query]);
   // Each pane owns its visualization and paint ACK; siblings must not cancel each other.
   // All owners still participate in the same lifecycle-wide abort and generation fences.
@@ -350,5 +375,5 @@ export function useTerminal(initialPreferences: Pick<WorkspacePreferences, 'sour
   const ladder = useCallback((input: LadderInput, signal: AbortSignal) => query<GroupedLadder>('/ladder', input, signal), [query]);
   const proposalRisk = useCallback((input: ProposalRiskInput, signal: AbortSignal) => query<ProposalRisk>('/proposal-risk', input, signal), [query]);
 
-  return { catalog, catalogError, preferenceNotice, frame: presentation?.frame ?? null, connection, error, busy, reconnect, select, replay, resumePaper, workflow: query, source, costs, visualization, acknowledgeVisualization, ladder, proposalRisk };
+  return { catalog, catalogError, metadataError, preferenceNotice, frame: presentation?.frame ?? null, connection, error, busy, reconnect, select, replay, resumePaper, workflow, source, costs, visualization, acknowledgeVisualization, ladder, proposalRisk };
 }

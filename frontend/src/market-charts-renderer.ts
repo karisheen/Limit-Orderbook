@@ -1,24 +1,34 @@
 import type { VisualGrid } from './api';
 import { chartTimeTicks } from './chart-time';
 import type { ChartTimeZone } from './chart-time';
-import { CHART_LIMITS, COLORS, boundedSize, intensity, liquidityTileKey, plotArea, plotNumber, priceCellIndex, priceRowProjector, saturation, sideColor, timeAt, timeFraction } from './market-charts-model';
+import { CHART_LIMITS, boundedSize, intensity, liquidityRasterRows, liquidityTileKey, plotArea, plotNumber, priceCellIndex, priceRowProjector, saturation, timeAt, timeFraction } from './market-charts-model';
 import type { ChartCursor, ChartMode, ChartRowViewport, PlotArea } from './market-charts-model';
+import { THEMES } from './orderflow/lib/theme';
 
 type Column = VisualGrid['columns'][number];
 type Surface = { canvas: HTMLCanvasElement; context: CanvasRenderingContext2D };
+type LiquidityTile = { canvas: HTMLCanvasElement; raster?: { top: number; unknown: [boolean, boolean][] } };
 type FootprintBucket = { left: number; laneWidth: number; compact: boolean };
-export type RenderReport = { duration: number; tiles: number; allocated: number; dirty: number; trades: number; omittedTrades: number; omittedCells: number; pixelWidth: number; pixelHeight: number; compactFootprint: boolean };
+export type RenderReport = { duration: number; tiles: number; allocated: number; dirty: number; trades: number; omittedTrades: number; omittedCells: number; pixelWidth: number; pixelHeight: number; compactFootprint: boolean; compactLiquidity: boolean };
 export type RenderOptions = { mode: ChartMode; contrast: number; showTrades: boolean; showQuotes: boolean; timeZone: ChartTimeZone; rowViewport: ChartRowViewport; quoteUnit?: string };
 
 const FOOTPRINT_LANES = [
-  [0, 'sell_base', COLORS.sell, 'SELL'],
-  [1, 'buy_base', COLORS.buy, 'BUY'],
-  [2, 'unknown_base', COLORS.unknown, '?'],
+  [0, 'sell_base', 'sell', 'SELL'],
+  [1, 'buy_base', 'buy', 'BUY'],
+  [2, 'unknown_base', 'unknown', '?'],
 ] as const;
 
-/** One immutable two-side column tile. At most 640 × 2 × 256 RGBA pixels. */
+const PALETTE_TOKENS = {
+  background: '--bg-panel', missing: '--bg-panel-alt', hatch: '--border',
+  grid: '--grid', text: '--text-secondary', cursor: '--text-primary',
+  bid: '--buy', ask: '--sell', buy: '--buy', sell: '--sell',
+  unknown: '--text-secondary', metric: '--vwap', warning: '--warn',
+} as const;
+type ChartPalette = Record<keyof typeof PALETTE_TOKENS, string>;
+
+/** Bounded two-side column tiles; compact rasters include a fractional-edge pixel. */
 export class MarketRenderer {
-  private readonly tiles = new Map<string, HTMLCanvasElement>();
+  private readonly tiles = new Map<string, LiquidityTile>();
   private readonly base: Surface;
   private readonly overlay: Surface;
   private readonly cursor: Surface;
@@ -29,6 +39,8 @@ export class MarketRenderer {
   private identity = '';
   private size = boundedSize(1, 1, 1);
   private allocated = 0;
+  private colors = Object.fromEntries(Object.entries(PALETTE_TOKENS).map(([key, token]) => [key, THEMES.dark[token]])) as ChartPalette;
+  private font = '"Geist Mono", ui-monospace, monospace';
 
   constructor(base: HTMLCanvasElement, overlay: HTMLCanvasElement, cursor: HTMLCanvasElement) {
     const surface = (canvas: HTMLCanvasElement): Surface => {
@@ -45,7 +57,23 @@ export class MarketRenderer {
     };
     this.overlay = transparent(overlay);
     this.cursor = transparent(cursor);
+    this.updateTheme();
   }
+
+  /** Theme changes invalidate colored tiles, never source identity or the viewport. */
+  updateTheme(): boolean {
+    const style = getComputedStyle(this.base.canvas);
+    const colors = Object.fromEntries(Object.entries(PALETTE_TOKENS).map(([key, token]) => [key, style.getPropertyValue(token).trim() || THEMES.dark[token]])) as ChartPalette;
+    const font = style.getPropertyValue('--font-mono').trim() || this.font;
+    if (font === this.font && Object.keys(colors).every(key => colors[key as keyof ChartPalette] === this.colors[key as keyof ChartPalette])) return false;
+    this.colors = colors;
+    this.font = font;
+    this.clearTiles();
+    this.drawn.clear();
+    this.geometry = '';
+    return true;
+  }
+
 
   resize(width: number, height: number, dpr: number) {
     const next = boundedSize(width, height, dpr);
@@ -69,14 +97,14 @@ export class MarketRenderer {
     if (cached) {
       this.tiles.delete(key);
       this.tiles.set(key, cached);
-      return cached;
+      return cached.canvas;
     }
     const canvas = document.createElement('canvas');
     canvas.width = 2;
     canvas.height = Math.max(1, Math.min(CHART_LIMITS.rows, view.rows));
     const context = canvas.getContext('2d');
     if (!context) throw new Error('Unable to allocate liquidity tile.');
-    context.fillStyle = COLORS.background;
+    context.fillStyle = this.colors.background;
     context.fillRect(0, 0, 2, canvas.height);
     for (let row = 0; row < canvas.height; row++) {
       const cell = column.cells[row];
@@ -87,21 +115,62 @@ export class MarketRenderer {
         const sourceSide = occupiedSide ?? side;
         const value = sourceSide === 0 ? bid : ask;
         context.globalAlpha = value == null ? 1 : value * value;
-        context.fillStyle = value == null ? COLORS.missing : sourceSide === 0 ? COLORS.bid : COLORS.ask;
+        context.fillStyle = value == null ? this.colors.missing : sourceSide === 0 ? this.colors.bid : this.colors.ask;
         context.fillRect(side, canvas.height - row - 1, 1, 1);
       }
     }
     context.globalAlpha = 1;
-    this.tiles.set(key, canvas);
+    this.cacheTile(key, { canvas });
+    return canvas;
+  }
+
+  private compactTile(view: VisualGrid, column: Column, contrast: number, first: number, count: number, topPx: number, heightPx: number): LiquidityTile {
+    const key = JSON.stringify([liquidityTileKey(view, column, contrast), this.colors.bid, this.colors.ask, this.colors.background, this.colors.missing, first, count, topPx, heightPx]);
+    const cached = this.tiles.get(key);
+    if (cached) {
+      this.tiles.delete(key);
+      this.tiles.set(key, cached);
+      return cached;
+    }
+    const { top, rows } = liquidityRasterRows(column.eligible ? column.cells : [], first, count, topPx, heightPx, contrast);
+    const canvas = document.createElement('canvas');
+    canvas.width = 2;
+    canvas.height = rows.length;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Unable to allocate compact liquidity tile.');
+    context.fillStyle = this.colors.background;
+    context.fillRect(0, 0, 2, canvas.height);
+    const unknown: [boolean, boolean][] = [];
+    for (let row = 0; row < rows.length; row++) {
+      const { bid, ask, bidUnknown, askUnknown } = rows[row]!;
+      const occupiedSide = bid != null && bid > 0 && ask === 0 && !askUnknown ? 0 : ask != null && ask > 0 && bid === 0 && !bidUnknown ? 1 : null;
+      const mask: [boolean, boolean] = [bidUnknown, askUnknown];
+      for (let side = 0; side < 2; side++) {
+        const sourceSide = occupiedSide ?? side;
+        const value = sourceSide === 0 ? bid : ask;
+        mask[side] = sourceSide === 0 ? bidUnknown : askUnknown;
+        context.globalAlpha = value == null ? 1 : value * value;
+        context.fillStyle = value == null ? this.colors.missing : sourceSide === 0 ? this.colors.bid : this.colors.ask;
+        context.fillRect(side, row, 1, 1);
+      }
+      unknown.push(mask);
+    }
+    context.globalAlpha = 1;
+    const tile = { canvas, raster: { top, unknown } };
+    this.cacheTile(key, tile);
+    return tile;
+  }
+
+  private cacheTile(key: string, tile: LiquidityTile) {
+    this.tiles.set(key, tile);
     this.allocated++;
     while (this.tiles.size > CHART_LIMITS.tiles) {
       const oldest = this.tiles.keys().next().value as string | undefined;
       if (oldest === undefined) break;
       const evicted = this.tiles.get(oldest);
-      if (evicted) { evicted.width = 0; evicted.height = 0; }
+      if (evicted) { evicted.canvas.width = 0; evicted.canvas.height = 0; }
       this.tiles.delete(oldest);
     }
-    return canvas;
   }
 
   render(view: VisualGrid, options: RenderOptions): RenderReport {
@@ -122,13 +191,14 @@ export class MarketRenderer {
     const geometry = JSON.stringify([this.width, this.height, this.size.ratio, view.grid_id, view.start_ns, view.end_ns, view.price_min, view.rows, first, count, options.mode, saturation(options.contrast), options.timeZone, options.quoteUnit]);
     let dirty = 0;
     let compactFootprint = false;
+    const compactLiquidity = options.mode === 'heatmap' && area.height * this.size.ratio < count;
     let footprintBuckets: Map<string, FootprintBucket> | undefined;
     let footprintLanes = 2;
     if (options.mode === 'heatmap') {
       const current = new Map(columns.map(column => [column.id, liquidityTileKey(view, column, options.contrast)]));
       const reset = geometry !== this.geometry || [...this.drawn.keys()].some(id => !current.has(id));
       if (reset) {
-        ctx.fillStyle = COLORS.background;
+        ctx.fillStyle = this.colors.background;
         ctx.fillRect(0, 0, this.width, this.height);
         this.missing(ctx, area.x, area.y, area.width, area.height);
       }
@@ -140,10 +210,31 @@ export class MarketRenderer {
         const width = x(column.end_ns) - left;
         if (width <= 0 || left >= area.x + area.width || left + width <= area.x) continue;
         ctx.clearRect(left, area.y, width, area.height);
-        const tile = this.tile(view, column, options.contrast);
-        ctx.drawImage(tile, 0, view.rows - first - count, 2, count, left, area.y, width, area.height);
+        const tile = compactLiquidity ? this.compactTile(view, column, options.contrast, first, count, area.y * this.size.ratio, area.height * this.size.ratio) : null;
+        if (tile?.raster) {
+          // One source raster row per backing pixel: no nearest-neighbor row loss.
+          ctx.drawImage(tile.canvas, left, tile.raster.top / this.size.ratio, width, tile.canvas.height / this.size.ratio);
+        } else {
+          const nativeTile = this.tile(view, column, options.contrast);
+          ctx.drawImage(nativeTile, 0, view.rows - first - count, 2, count, left, area.y, width, area.height);
+        }
         if (!column.eligible) this.missing(ctx, left, area.y, width, area.height);
-        else {
+        else if (tile?.raster) {
+          // Hatch every unknown contributor, including pixels with a known maximum.
+          // Do not erase that observed maximum with the missing-depth background.
+          const { top, unknown } = tile.raster;
+          for (let side = 0; side < 2; side++) {
+            let start = -1;
+            for (let row = 0; row <= unknown.length; row++) {
+              const missing = row < unknown.length && unknown[row]![side];
+              if (missing && start < 0) start = row;
+              if (!missing && start >= 0) {
+                this.missing(ctx, left + side * width / 2, (top + start) / this.size.ratio, width / 2, (row - start) / this.size.ratio, false);
+                start = -1;
+              }
+            }
+          }
+        } else {
           // Unknown side depth is hatched; observed zero keeps the unmarked canvas.
           // Coalesce adjacent unknown rows so bounded tiles do not create a path per cell.
           const height = area.height / count;
@@ -164,7 +255,7 @@ export class MarketRenderer {
       ctx.restore();
       this.drawn = current;
     } else {
-      ctx.fillStyle = COLORS.background;
+      ctx.fillStyle = this.colors.background;
       ctx.fillRect(0, 0, this.width, this.height);
       ctx.save();
       ctx.beginPath(); ctx.rect(area.x, area.y, area.width, area.height); ctx.clip();
@@ -172,7 +263,7 @@ export class MarketRenderer {
         this.missing(ctx, area.x, area.y, area.width, area.height);
         for (const column of columns) {
           const available = options.mode === 'candles' ? column.candle?.eligible : options.mode === 'cvd' || options.mode === 'ofi' ? column[options.mode]?.eligibility.eligible : column.eligible;
-          if (available) { ctx.fillStyle = COLORS.background; ctx.fillRect(x(column.time_ns), area.y, x(column.end_ns) - x(column.time_ns), area.height); }
+          if (available) { ctx.fillStyle = this.colors.background; ctx.fillRect(x(column.time_ns), area.y, x(column.end_ns) - x(column.time_ns), area.height); }
         }
       }
       if (options.mode === 'candles') {
@@ -181,7 +272,7 @@ export class MarketRenderer {
           if (!candle?.eligible) continue;
           const middle = (x(column.time_ns) + x(column.end_ns)) / 2;
           const width = Math.max(1, Math.min(18, (x(column.end_ns) - x(column.time_ns)) * 0.65));
-          ctx.strokeStyle = ctx.fillStyle = priceRow(candle.close) >= priceRow(candle.open) ? COLORS.buy : COLORS.sell;
+          ctx.strokeStyle = ctx.fillStyle = priceRow(candle.close) >= priceRow(candle.open) ? this.colors.buy : this.colors.sell;
           ctx.beginPath(); ctx.moveTo(middle, y(candle.high)); ctx.lineTo(middle, y(candle.low)); ctx.stroke();
           ctx.fillRect(middle - width / 2, Math.min(y(candle.open), y(candle.close)), width, Math.max(1, Math.abs(y(candle.close) - y(candle.open))));
         }
@@ -216,8 +307,8 @@ export class MarketRenderer {
           buckets.set(time, bucket);
           return bucket;
         };
-        ctx.font = '11px ui-monospace, monospace';
-        ctx.strokeStyle = '#242a2f'; ctx.lineWidth = 1;
+        ctx.font = `11px ${this.font}`;
+        ctx.strokeStyle = this.colors.grid; ctx.lineWidth = 1;
         ctx.beginPath();
         for (let row = 0; row <= count; row++) {
           const py = area.y + row * rowHeight;
@@ -230,7 +321,7 @@ export class MarketRenderer {
           const candle = column.candle;
           if (candle?.eligible) {
             const middle = left + 5;
-            ctx.strokeStyle = ctx.fillStyle = priceRow(candle.close) >= priceRow(candle.open) ? COLORS.buy : COLORS.sell;
+            ctx.strokeStyle = ctx.fillStyle = priceRow(candle.close) >= priceRow(candle.open) ? this.colors.buy : this.colors.sell;
             ctx.beginPath(); ctx.moveTo(middle, y(candle.high)); ctx.lineTo(middle, y(candle.low)); ctx.stroke();
             ctx.fillRect(middle - 2, Math.min(y(candle.open), y(candle.close)), 4, Math.max(1, Math.abs(y(candle.close) - y(candle.open))));
           }
@@ -242,13 +333,14 @@ export class MarketRenderer {
           for (const [side, field, color] of FOOTPRINT_LANES) {
             if (side >= lanes) break;
             const value = cell[field];
+            const laneColor = this.colors[color];
             const strength = intensity(value, options.contrast) ?? 0;
-            ctx.fillStyle = color;
+            ctx.fillStyle = laneColor;
             ctx.globalAlpha = plotNumber(value) === 0 ? 0 : 0.08 + strength * 0.3;
             ctx.fillRect(left + side * laneWidth, top + 1, Math.max(0, laneWidth - Math.min(1, laneWidth / 2)), Math.max(1, rowHeight - 2));
             ctx.globalAlpha = 1;
             const fits = !compact && ctx.measureText(value).width <= laneWidth - 6;
-            ctx.fillStyle = plotNumber(value) === 0 ? '#68747d' : color;
+            ctx.fillStyle = plotNumber(value) === 0 ? this.colors.text : laneColor;
             if (fits) {
               ctx.fillText(value, left + (side + 1) * laneWidth - 4, top + rowHeight / 2);
             } else {
@@ -264,7 +356,7 @@ export class MarketRenderer {
         const rowHeight = area.height / count;
         for (const cell of view.profile.slice(0, CHART_LIMITS.rows)) {
           [cell.buy_base, cell.sell_base, cell.unknown_base].forEach((value, side) => {
-            ctx.fillStyle = [COLORS.buy, COLORS.sell, COLORS.unknown][side] ?? COLORS.unknown;
+            ctx.fillStyle = [this.colors.buy, this.colors.sell, this.colors.unknown][side] ?? this.colors.unknown;
             ctx.fillRect(area.x, y(cell.price) - rowHeight + side * rowHeight / 3, (intensity(value, options.contrast) ?? 0) * area.width, Math.max(1, rowHeight / 3 - 0.5));
           });
         }
@@ -279,27 +371,27 @@ export class MarketRenderer {
     this.axes(view, options, x, area);
     const trades = this.overlays(view, options, columns, x, y, area);
     if (footprintBuckets) {
-      ctx.font = '11px ui-monospace, monospace'; ctx.textAlign = 'center';
+      ctx.font = `11px ${this.font}`; ctx.textAlign = 'center';
       for (const { left, laneWidth, compact } of footprintBuckets.values()) {
         if (compact) continue;
         for (const [side, , color, label] of FOOTPRINT_LANES) {
           if (side >= footprintLanes) break;
           const px = left + (side + 0.5) * laneWidth;
           if (ctx.measureText(label).width > laneWidth - 6) continue;
-          ctx.fillStyle = color;
+          ctx.fillStyle = this.colors[color];
           ctx.fillText(label, px, 11);
         }
       }
       ctx.textAlign = 'left';
     }
-    return { duration: performance.now() - started, tiles: this.tiles.size, allocated: this.allocated, dirty, trades, omittedTrades: Math.max(0, view.trades.length - CHART_LIMITS.trades), omittedCells: options.mode === 'footprint' ? Math.max(0, view.footprints.length - CHART_LIMITS.footprints) : 0, pixelWidth: this.size.pixelWidth, pixelHeight: this.size.pixelHeight, compactFootprint };
+    return { duration: performance.now() - started, tiles: this.tiles.size, allocated: this.allocated, dirty, trades, omittedTrades: Math.max(0, view.trades.length - CHART_LIMITS.trades), omittedCells: options.mode === 'footprint' ? Math.max(0, view.footprints.length - CHART_LIMITS.footprints) : 0, pixelWidth: this.size.pixelWidth, pixelHeight: this.size.pixelHeight, compactFootprint, compactLiquidity };
   }
 
-  private missing(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number) {
+  private missing(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, background = true) {
     ctx.save();
     ctx.beginPath(); ctx.rect(x, y, width, height); ctx.clip();
-    ctx.fillStyle = COLORS.missing; ctx.fillRect(x, y, width, height);
-    ctx.strokeStyle = '#30363c'; ctx.lineWidth = 1;
+    if (background) { ctx.fillStyle = this.colors.missing; ctx.fillRect(x, y, width, height); }
+    ctx.strokeStyle = this.colors.hatch; ctx.lineWidth = 1;
     ctx.beginPath();
     for (let offset = -height; offset < width; offset += 18) { ctx.moveTo(x + offset, y + height); ctx.lineTo(x + offset + height, y); }
     ctx.stroke(); ctx.restore();
@@ -310,9 +402,9 @@ export class MarketRenderer {
     for (const column of columns) { const metric = column[mode]; if (metric?.eligibility.eligible) bound = Math.max(bound, Math.abs(plotNumber(metric.value) ?? 0)); }
     const extent = bound || 1;
     const y = (value: number) => area.y + area.height / 2 - value / extent * (area.height / 2 - 14);
-    ctx.strokeStyle = COLORS.grid; ctx.beginPath(); ctx.moveTo(area.x, y(0)); ctx.lineTo(area.x + area.width, y(0)); ctx.stroke();
-    ctx.fillStyle = COLORS.text; ctx.font = '10px ui-monospace, monospace'; ctx.fillText(`+${extent.toPrecision(4)}`, area.x + 3, area.y + 12); ctx.fillText(`−${extent.toPrecision(4)}`, area.x + 3, area.y + area.height - 3);
-    ctx.strokeStyle = mode === 'cvd' ? COLORS.buy : '#a6b7c4'; ctx.lineWidth = 1.5;
+    ctx.strokeStyle = this.colors.grid; ctx.beginPath(); ctx.moveTo(area.x, y(0)); ctx.lineTo(area.x + area.width, y(0)); ctx.stroke();
+    ctx.fillStyle = this.colors.text; ctx.font = `11px ${this.font}`; ctx.fillText(`+${extent.toPrecision(4)}`, area.x + 3, area.y + 12); ctx.fillText(`−${extent.toPrecision(4)}`, area.x + 3, area.y + area.height - 3);
+    ctx.strokeStyle = mode === 'cvd' ? this.colors.buy : this.colors.metric; ctx.lineWidth = 1.5;
     let previous: Column | undefined;
     ctx.beginPath();
     for (const column of columns) {
@@ -331,10 +423,10 @@ export class MarketRenderer {
   private axes(view: VisualGrid, options: RenderOptions, x: (time: string) => number, area: PlotArea) {
     const { mode, contrast, timeZone, rowViewport: { first, count }, quoteUnit } = options;
     const ctx = this.base.context;
-    ctx.fillStyle = COLORS.background;
+    ctx.fillStyle = this.colors.background;
     ctx.fillRect(area.x + area.width, 0, this.width - area.x - area.width, this.height);
     ctx.fillRect(0, area.y + area.height, this.width, this.height - area.y - area.height);
-    ctx.font = '11px ui-monospace, monospace'; ctx.fillStyle = COLORS.text;
+    ctx.font = `11px ${this.font}`; ctx.fillStyle = this.colors.text;
     if (mode !== 'cvd' && mode !== 'ofi') {
       if (quoteUnit) ctx.fillText(quoteUnit, area.x + area.width + 7, 11);
       const stride = Math.max(1, Math.ceil(count / Math.max(2, Math.floor(area.height / (mode === 'footprint' ? 20 : 42)))));
@@ -355,8 +447,8 @@ export class MarketRenderer {
       ctx.textAlign = 'center';
       for (const tick of chartTimeTicks(view, area.width, timeZone)) {
         const px = x(tick.time_ns);
-        ctx.font = `${tick.kind === 'time' ? '' : 'bold '}11px ui-monospace, monospace`;
-        ctx.fillStyle = tick.kind === 'discontinuity' ? '#efbe72' : COLORS.text;
+        ctx.font = `${tick.kind === 'time' ? '' : 'bold '}11px ${this.font}`;
+        ctx.fillStyle = tick.kind === 'discontinuity' ? this.colors.warning : this.colors.text;
         const halfLabel = tick.label.length * 7 / 2;
         const labelX = Math.max(area.x + halfLabel, Math.min(area.x + area.width - halfLabel, px));
         ctx.fillText(tick.label, labelX, area.y + area.height + 17);
@@ -373,7 +465,7 @@ export class MarketRenderer {
     ctx.save(); ctx.beginPath(); ctx.rect(area.x, area.y, area.width, area.height); ctx.clip();
     if (options.showQuotes) {
       for (const side of ['best_bid', 'best_ask'] as const) {
-        ctx.strokeStyle = side === 'best_bid' ? COLORS.bid : COLORS.ask; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+        ctx.strokeStyle = side === 'best_bid' ? this.colors.bid : this.colors.ask; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
         let previous: Column | undefined;
         ctx.beginPath();
         for (const column of columns) {
@@ -394,7 +486,7 @@ export class MarketRenderer {
         const px = x(trade.time_ns); const py = y(trade.price);
         if (px < area.x || px > area.x + area.width || py < area.y || py > area.y + area.height) continue;
         const radius = 2 + 7 * Math.sqrt(intensity(trade.base_quantity, options.contrast) ?? 0);
-        ctx.strokeStyle = sideColor(trade.taker_side); ctx.fillStyle = ctx.strokeStyle; ctx.lineWidth = 1;
+        ctx.strokeStyle = trade.taker_side === 'buy' ? this.colors.buy : trade.taker_side === 'sell' ? this.colors.sell : this.colors.unknown; ctx.fillStyle = ctx.strokeStyle; ctx.lineWidth = 1;
         ctx.setLineDash(trade.is_subscription_history ? [2, 2] : []);
         ctx.beginPath();
         if (trade.taker_side !== 'buy' && trade.taker_side !== 'sell') {
@@ -412,8 +504,8 @@ export class MarketRenderer {
       if (options.showQuotes && view.clock_id && newestColumn?.eligible && newestColumn.asof?.clock_id === view.clock_id &&
         BigInt(newestColumn.time_ns) < end && BigInt(newestColumn.end_ns) > start &&
         BigInt(newestColumn.asof.receive_mono_ns) <= now && BigInt(newestColumn.asof.receive_mono_ns) <= end) {
-        if (newestColumn.best_bid !== null) markers.push({ price: newestColumn.best_bid, label: 'B', color: COLORS.bid, execution: false });
-        if (newestColumn.best_ask !== null) markers.push({ price: newestColumn.best_ask, label: 'A', color: COLORS.ask, execution: false });
+        if (newestColumn.best_bid !== null) markers.push({ price: newestColumn.best_bid, label: 'B', color: this.colors.bid, execution: false });
+        if (newestColumn.best_ask !== null) markers.push({ price: newestColumn.best_ask, label: 'A', color: this.colors.ask, execution: false });
       }
       let latest: VisualGrid['trades'][number] | undefined;
       if (options.showTrades) {
@@ -423,9 +515,9 @@ export class MarketRenderer {
           if (!latest || time > BigInt(latest.time_ns)) latest = trade;
         }
       }
-      if (latest) markers.push({ price: latest.price, label: 'T', color: sideColor(latest.taker_side), execution: true });
+      if (latest) markers.push({ price: latest.price, label: 'T', color: latest.taker_side === 'buy' ? this.colors.buy : latest.taker_side === 'sell' ? this.colors.sell : this.colors.unknown, execution: true });
       const visible = markers.filter(marker => y(marker.price) >= area.y && y(marker.price) <= area.y + area.height).sort((a, b) => y(a.price) - y(b.price));
-      ctx.font = '11px ui-monospace, monospace';
+      ctx.font = `11px ${this.font}`;
       let previousY = area.y - 16;
       for (const [index, marker] of visible.entries()) {
         const py = y(marker.price);
@@ -435,7 +527,7 @@ export class MarketRenderer {
         ctx.setLineDash(marker.execution ? [] : [2, 2]);
         ctx.beginPath(); ctx.moveTo(area.x + area.width - 16, py); ctx.lineTo(area.x + area.width, py); ctx.lineTo(area.x + area.width + 4, labelY); ctx.stroke();
         ctx.setLineDash([]);
-        ctx.fillStyle = COLORS.background; ctx.fillRect(area.x + area.width + 5, labelY - 8, 94, 15);
+        ctx.fillStyle = this.colors.background; ctx.fillRect(area.x + area.width + 5, labelY - 8, 94, 15);
         ctx.fillStyle = marker.color; ctx.fillText(`${marker.label} ${marker.price}`, area.x + area.width + 7, labelY + 4);
       }
     }
@@ -450,7 +542,7 @@ export class MarketRenderer {
     const px = area.x + timeFraction(cursor.time_ns, view.start_ns, view.end_ns) * area.width;
     if (mode !== 'profile' && (px < area.x || px > area.x + area.width)) return;
     ctx.save(); ctx.beginPath(); ctx.rect(area.x, area.y, area.width, area.height); ctx.clip();
-    ctx.strokeStyle = '#e2e9f3'; ctx.lineWidth = 1; ctx.setLineDash([3, 4]);
+    ctx.strokeStyle = this.colors.cursor; ctx.lineWidth = 1; ctx.setLineDash([3, 4]);
     ctx.beginPath();
     if (mode !== 'profile') { ctx.moveTo(px, area.y); ctx.lineTo(px, area.y + area.height); }
     const row = cursor.price == null ? -1 : priceCellIndex(view, cursor.price);
@@ -472,7 +564,7 @@ export class MarketRenderer {
     this.geometry = ''; this.drawn.clear(); this.clearTiles();
   }
   private clearTiles() {
-    for (const tile of this.tiles.values()) { tile.width = 0; tile.height = 0; }
+    for (const { canvas } of this.tiles.values()) { canvas.width = 0; canvas.height = 0; }
     this.tiles.clear();
   }
   dispose() {

@@ -14,6 +14,11 @@ SQLite stores intent plus a separately queried read-only transition archive.
 Reset never adopts archived state: it reconstructs balances, reservations, fills
 and P&L from commands and the delivered prefix. Archives preserve live audit
 evidence after shutdown, not permission to resume against another source clock.
+Once frozen, an archive retains that accounting frontier and failure evidence;
+explicit reconstruction never replaces it with a later or unfrozen projection.
+Observation gaps freeze the last complete accounting prefix, including its clock
+and pending orders. Current-book recovery is not evidence of missed execution,
+funding or liquidation paths; only an explicitly configured new run starts fresh.
 """
 
 from bisect import bisect_right
@@ -22,6 +27,7 @@ from dataclasses import dataclass, field, fields, is_dataclass, replace
 from decimal import Decimal, ROUND_FLOOR, localcontext
 from hashlib import sha256
 from pathlib import Path
+import json
 import sqlite3
 import sys
 from uuid import uuid4
@@ -35,7 +41,7 @@ from .costs import (
     _validate_price,
     walk_book,
 )
-from .events import EventEnvelopeRef, SubscriptionKey
+from .events import Control, EventEnvelope, EventEnvelopeRef, Gap, SubscriptionKey
 from .instruments import AssetId, Instrument, InstrumentId, native_order_constraints
 from .precision import (
     DECIMAL_CONTEXT,
@@ -524,6 +530,14 @@ class PaperStore:
                     and snapshot.delivery_index == int(delivery)
                     and at.mono_ns == int(mono)
                 ):
+                    # A freeze adds evidence at the unchanged accounting frontier.
+                    # It must be durable without fabricating a later transition.
+                    if "paper_frozen" not in snapshot.reasons:
+                        return False
+                archived = self._db.execute(
+                    "SELECT payload FROM archives WHERE run_id=?", (run.run_id,)
+                ).fetchone()
+                if "paper_frozen" in _decode(archived[0], PaperSnapshot).reasons:
                     return False
             # Serialize only after transactional stale/backward rejection.
             payload = _encode(snapshot)
@@ -733,7 +747,124 @@ class PaperEngine:
         """Retain the last valid prefix while the owner continues non-paper data."""
         if reason != "funding_catchup_limit":
             raise ValueError("unsupported paper freeze reason")
+        if self._frozen_reason is not None:
+            return
         self._frozen_reason = reason
+        self._archive_dirty = True
+        self._flush_archive()
+
+    def observation_gap(
+        self,
+        reason: str,
+        *,
+        affected_keys: frozenset[SubscriptionKey] | None = None,
+        at: ClockReading | None = None,
+    ) -> bool:
+        """Owner-only loss boundary; never advance or infer missing accounting.
+
+        Global analytical loss fences every activated run. Scoped loss matters
+        only to native book dependencies of pending orders or open perpetuals.
+        Spot inventory marks alone are not path-dependent accounting. Provenance
+        lives in the existing durable frozen reason, not a new wire schema.
+        """
+        text(reason)
+        if self._frozen_reason is not None:
+            return True
+        if self._run is None or not self._activated:
+            return False
+        if affected_keys is not None:
+            required = {
+                order.request.instrument_id
+                for order in self._orders.values()
+                if order.status == "pending"
+            }
+            required.update(
+                position.instrument_id
+                for position in self._perpetual_positions.values()
+                if position.quantity
+            )
+            if not any(
+                key in self._active and key.instrument_id in required
+                for key in affected_keys
+            ):
+                return False
+        provenance = {
+            "reason": reason,
+            "affected_keys": (
+                None
+                if affected_keys is None
+                else sorted(
+                    (
+                        {
+                            "venue": key.venue,
+                            "api_family": key.api_family,
+                            "instrument_id": str(key.instrument_id),
+                            "channel": key.channel,
+                            "depth": key.depth,
+                            "aggregation": key.aggregation,
+                        }
+                        for key in affected_keys
+                    ),
+                    key=lambda key: json.dumps(key, sort_keys=True),
+                )
+            ),
+            "at": (
+                None
+                if at is None
+                else {
+                    "clock_id": at.clock_id,
+                    "mono_ns": at.mono_ns,
+                    "wall_ns": at.wall_ns,
+                }
+            ),
+        }
+        self._frozen_reason = "observation_gap:" + json.dumps(
+            provenance, sort_keys=True, separators=(",", ":")
+        )
+        self._archive_dirty = True
+        self._flush_archive()
+        return True
+
+    def _event_gap(self, event: EventEnvelope, delivery: int) -> bool:
+        payload = event.payload
+        if isinstance(payload, Gap):
+            if not payload.continuity_lost:
+                return False
+            streams = frozenset((event.stream_id, *payload.affected_streams))
+            keys = frozenset(
+                stream.key
+                for stream in self._streams
+                if stream.stream_id in streams
+                and (stream.stream_id != event.stream_id or stream.key == event.key)
+            )
+            reason = (
+                f"canonical_gap:{payload.reason_code}"
+                f":missing={payload.first_missing_ordinal}-{payload.last_missing_ordinal}"
+            )
+        elif isinstance(payload, Control) and payload.kind in (
+            "reset",
+            "disconnect",
+            "source_change",
+            "rejection",
+        ):
+            keys = frozenset(
+                stream.key
+                for stream in self._streams
+                if stream.stream_id == event.stream_id and stream.key == event.key
+            )
+            reason = f"canonical_{payload.kind}:{payload.reason_code}"
+        else:
+            return False
+        return self.observation_gap(
+            f"{reason}:delivery={delivery}:stream={event.stream_id}"
+            f":session={event.session_id}:segment={event.segment_id}"
+            f":connection={event.connection_id}:epoch={event.connection_epoch}"
+            f":ordinal={event.ingest_ordinal}:event={event.event_index}",
+            affected_keys=keys,
+            at=ClockReading(
+                event.clock_id, event.receive_mono_ns, event.receive_wall_ns
+            ),
+        )
 
     def configure(
         self,
@@ -999,6 +1130,8 @@ class PaperEngine:
         self._flush_archive()
 
     def on_batch(self, batch: RecordedBatch, books: tuple[Book, ...], clock) -> None:
+        if self._frozen_reason is not None:
+            return
         now = clock.reading
         if now is None:
             return
@@ -1012,8 +1145,34 @@ class PaperEngine:
                 now = replace(
                     now, wall_ns=source.wall_ns + now.mono_ns - source.mono_ns
                 )
-        self._funding_capacity_guard(now, command_cutoff=batch.delivery_index)
+        discontinuity = (
+            self._at is not None and self._at.clock_id != now.clock_id
+        ) or any(
+            isinstance(event.payload, Gap)
+            and event.payload.continuity_lost
+            or isinstance(event.payload, Control)
+            and event.payload.kind
+            in ("reset", "disconnect", "source_change", "rejection")
+            for event in batch.events
+        )
+        # Keep healthy-delivery funding preflight atomic. A discontinuity instead
+        # replays only the already-complete prefix before checking dependencies.
+        if not discontinuity:
+            self._funding_capacity_guard(now, command_cutoff=batch.delivery_index)
         self._replay_commands(batch.delivery_index - 1)
+        if discontinuity:
+            if any(
+                self._event_gap(event, batch.delivery_index) for event in batch.events
+            ):
+                return
+            if self._at is not None and self._at.clock_id != now.clock_id:
+                if self.observation_gap(
+                    "source_clock_changed",
+                    affected_keys=frozenset(self._active),
+                    at=now,
+                ):
+                    return
+            self._funding_capacity_guard(now, command_cutoff=batch.delivery_index)
         if (
             self._at is not None
             and self._at.clock_id == now.clock_id
@@ -1039,6 +1198,8 @@ class PaperEngine:
         books: tuple[Book, ...],
         now: ClockReading,
     ) -> None:
+        if self._frozen_reason is not None:
+            return
         if self._at is not None and now.clock_id != self._at.clock_id:
             raise PaperError("cohort_clock_mismatch")
         self._cursor_guard(now, self._delivery)
@@ -1048,6 +1209,13 @@ class PaperEngine:
             > MAX_INPUTS
         ):
             raise PaperError("stream_metadata_limit")
+        departed = self._active - {
+            stream.key for stream in streams if stream.key.channel == "book"
+        }
+        if departed and self.observation_gap(
+            "observation_departure", affected_keys=frozenset(departed), at=now
+        ):
+            return
         self._funding_capacity_guard(now)
         self._advance(now, inclusive=False)
         self._streams = tuple(streams)
@@ -1535,6 +1703,8 @@ class PaperEngine:
         reasons: list[str] = []
         if self._frozen_reason is not None:
             reasons.extend(("paper_frozen", self._frozen_reason))
+            if self._frozen_reason.startswith("observation_gap:"):
+                reasons.append("observation_gap")
         if self._run is None:
             reasons.append("not_configured")
         elif self.store._revision(self._run.run_id) != self._run.revision:

@@ -6,11 +6,14 @@ Venue history preserves its own exchange-time boundaries and is never merged.
 """
 
 from collections import OrderedDict
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from decimal import Decimal, localcontext
+import asyncio
+from hashlib import sha256
 import json
 import time
+import sys
 from urllib.parse import quote, urlencode
 
 from .adapters.base import TransportRequest
@@ -31,6 +34,9 @@ MAX_LIMIT = 500
 MAX_CACHE = 32
 MAX_CONCURRENT = 4
 CACHE_SECONDS = 5
+MAX_CACHE_BYTES = 8 * 1024 * 1024
+MAX_CACHE_BARS = 10_000
+MAX_WAITERS = 64
 FIXED_SECONDS = {
     "1m": 60,
     "3m": 180,
@@ -85,6 +91,27 @@ KUCOIN_INTERVALS = {
     "1w": "1week",
     "1M": "1month",
 }
+# Select UTC variants explicitly; default daily/monthly bars can be UTC+8.
+OKX_INTERVALS = {
+    **{
+        key: key.replace("h", "H")
+        for key in ("1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h")
+    },
+    **{key: key.upper() + "utc" for key in ("6h", "12h", "1d", "3d", "1w", "1M")},
+}
+BITGET_INTERVALS = {
+    **{key: key.replace("m", "min") for key in ("1m", "3m", "5m", "15m", "30m")},
+    "1h": "1h",
+    "4h": "4h",
+    **{key: key.upper() + "utc" for key in ("6h", "12h", "1d", "3d", "1w", "1M")},
+}
+DERIBIT_INTERVALS = {
+    **{
+        key: str(FIXED_SECONDS[key] // 60)
+        for key in ("1m", "3m", "5m", "15m", "30m", "1h", "2h", "6h", "12h")
+    },
+    "1d": "1D",
+}
 FAMILIES = {
     "binance-global": "spot-v3",
     "binance-us": "spot-v3",
@@ -97,6 +124,42 @@ FAMILIES = {
 
 
 def supported_intervals(instrument: Instrument) -> tuple[str, ...]:
+    if instrument.venue == "okx":
+        if (instrument.market_type, instrument.api_family) == ("spot", "v5-spot"):
+            return tuple(OKX_INTERVALS)
+        if (
+            (instrument.market_type, instrument.api_family) == ("perpetual", "v5-swap")
+            and not instrument.inverse
+            and instrument.settlement == instrument.quote
+            and instrument.contract_value_currency == instrument.base.asset_id
+        ):
+            return tuple(OKX_INTERVALS)
+        return ()
+    if instrument.venue == "bitget":
+        if (instrument.market_type, instrument.api_family) == ("spot", "v2-spot"):
+            return tuple(BITGET_INTERVALS)
+        if (
+            (instrument.market_type, instrument.api_family)
+            == ("perpetual", "v2-usdt-futures")
+            and not instrument.inverse
+            and instrument.quote.asset_id == "USDT"
+            and instrument.settlement == instrument.quote
+        ):
+            return tuple(BITGET_INTERVALS)
+        return ()
+    if instrument.venue == "deribit":
+        if (
+            instrument.api_family == "jsonrpc-v2"
+            and instrument.market_type == "perpetual"
+            and instrument.inverse
+            and instrument.native_symbol in ("BTC-PERPETUAL", "ETH-PERPETUAL")
+            and instrument.native_symbol == f"{instrument.base.asset_id}-PERPETUAL"
+            and instrument.contract_value_currency == instrument.quote.asset_id
+            and instrument.settlement == instrument.base
+            and instrument.quote.asset_id == "USD"
+        ):
+            return tuple(DERIBIT_INTERVALS)
+        return ()
     if instrument.market_type == "perpetual":
         if (instrument.venue, instrument.api_family) == ("binance-global", "usdm-v1"):
             return BINANCE_INTERVALS
@@ -160,13 +223,18 @@ def bucket_end(start_ns: int, interval: str) -> int:
 def request_start(now_ns: int, interval: str, count: int) -> int:
     if interval == "1M":
         now = datetime.fromtimestamp(now_ns // SECOND, timezone.utc)
-        index = now.year * 12 + now.month - count
+        index = max(1970 * 12, now.year * 12 + now.month - count)
         year, month = divmod(index, 12)
         return (
             int(datetime(year, month + 1, 1, tzinfo=timezone.utc).timestamp()) * SECOND
         )
     seconds = FIXED_SECONDS[interval]
-    return max(0, (now_ns // (seconds * SECOND) - count + 1) * seconds * SECOND)
+    # Include the native week/multiday bucket regardless of its epoch origin.
+    alignment = min(seconds, 86400)
+    periods = count if seconds > 86400 else count - 1
+    return max(
+        0, (now_ns // (alignment * SECOND) * alignment - periods * seconds) * SECOND
+    )
 
 
 @dataclass(frozen=True)
@@ -178,6 +246,7 @@ class Candle:
     low: Decimal
     close: Decimal
     volume: Decimal
+    confirmed: bool | None = None
 
     def wire(self, now_ns: int) -> dict:
         return {
@@ -189,11 +258,13 @@ class Candle:
                 )
                 for name in ("open", "high", "low", "close", "volume")
             },
-            "closed": self.end_ns <= now_ns,
+            "closed": self.end_ns <= now_ns and self.confirmed is not False,
         }
 
 
-def candle(start, values, interval: str, *, scale: int, native_end=None) -> Candle:
+def candle(
+    start, values, interval: str, *, scale: int, native_end=None, confirmed=None
+) -> Candle:
     start_ns = integer(start) * scale
     end_ns = bucket_end(start_ns, interval)
     if native_end is not None and (integer(native_end) + 1) * scale != end_ns:
@@ -202,15 +273,24 @@ def candle(start, values, interval: str, *, scale: int, native_end=None) -> Cand
     volume = decimal(values[4], nonnegative=True)
     if not low <= opening <= high or not low <= close <= high:
         raise ValueError("invalid candle OHLC envelope")
-    return Candle(start_ns, end_ns, opening, high, low, close, volume)
+    return Candle(start_ns, end_ns, opening, high, low, close, volume, confirmed)
 
 
 def native_request(
-    instrument: Instrument, interval: str, limit: int, now_ns: int
+    instrument: Instrument,
+    interval: str,
+    limit: int,
+    now_ns: int,
+    before_ns: int | None = None,
 ) -> TransportRequest:
     venue, symbol = instrument.venue, instrument.native_symbol
     if interval not in supported_intervals(instrument):
         raise ValueError("unsupported candle interval or instrument")
+    if venue == "kraken" and before_ns is not None:
+        raise ValueError("Kraken candles are recent-only")
+    limit = min(limit, page_limit(instrument, before_ns))
+    end = min(now_ns, before_ns - 1) if before_ns is not None else now_ns
+    start = request_start(end, interval, limit)
     if venue.startswith("binance-"):
         host = (
             BinanceGlobalAdapter.rest_host
@@ -223,6 +303,8 @@ def native_request(
             else f"{host}/api/v3/klines"
         )
         params = {"symbol": symbol, "interval": interval, "limit": limit}
+        if before_ns is not None:
+            params["endTime"] = end // 1_000_000
     elif venue == "coinbase":
         count = min(limit, 350)
         endpoint = (
@@ -233,8 +315,8 @@ def native_request(
         params = {
             "granularity": COINBASE_INTERVALS[interval],
             "limit": count,
-            "start": request_start(now_ns, interval, count) // SECOND,
-            "end": now_ns // SECOND,
+            "start": start // SECOND,
+            "end": end // SECOND,
         }
     elif venue == "kraken":
         if instrument.native_asset_id is None:
@@ -253,13 +335,47 @@ def native_request(
             "interval": BYBIT_INTERVALS[interval],
             "limit": limit,
         }
+        if before_ns is not None:
+            params["end"] = end // 1_000_000
     elif venue == "kucoin":
         endpoint = "https://api.kucoin.com/api/v1/market/candles"
         params = {
             "symbol": symbol,
             "type": KUCOIN_INTERVALS[interval],
-            "startAt": request_start(now_ns, interval, limit) // SECOND,
-            "endAt": now_ns // SECOND,
+            "startAt": start // SECOND,
+            "endAt": end // SECOND,
+        }
+    elif venue == "okx":
+        endpoint = "https://www.okx.com/api/v5/market/" + (
+            "history-candles" if before_ns is not None else "candles"
+        )
+        params = {"instId": symbol, "bar": OKX_INTERVALS[interval], "limit": limit}
+        if before_ns is not None:
+            # OKX's `after` is exclusive, unlike inclusive endTime providers.
+            params["after"] = (end // 1_000_000) + 1
+    elif venue == "bitget":
+        linear = instrument.api_family == "v2-usdt-futures"
+        endpoint = (
+            "https://api.bitget.com/api/v2/"
+            + ("mix" if linear else "spot")
+            + "/market/"
+            + ("history-candles" if before_ns is not None else "candles")
+        )
+        granularity = BITGET_INTERVALS[interval]
+        if linear and interval in ("1m", "3m", "5m", "15m", "30m", "1h", "4h"):
+            granularity = interval.replace("h", "H")
+        params = {"symbol": symbol, "granularity": granularity, "limit": limit}
+        if linear:
+            params["productType"] = "USDT-FUTURES"
+        if before_ns is not None:
+            params["endTime"] = (end // 1_000_000) + 1
+    elif venue == "deribit":
+        endpoint = "https://www.deribit.com/api/v2/public/get_tradingview_chart_data"
+        params = {
+            "instrument_name": symbol,
+            "resolution": DERIBIT_INTERVALS[interval],
+            "start_timestamp": start // 1_000_000,
+            "end_timestamp": end // 1_000_000,
         }
     else:
         return TransportRequest(
@@ -271,9 +387,8 @@ def native_request(
                     "req": {
                         "coin": symbol,
                         "interval": interval,
-                        "startTime": request_start(now_ns, interval, limit)
-                        // 1_000_000,
-                        "endTime": now_ns // 1_000_000,
+                        "startTime": start // 1_000_000,
+                        "endTime": end // 1_000_000,
                     },
                 },
                 separators=(",", ":"),
@@ -284,7 +399,12 @@ def native_request(
 
 
 def parse_native(
-    payload: bytes, instrument: Instrument, interval: str, limit: int, now_ns: int
+    payload: bytes,
+    instrument: Instrument,
+    interval: str,
+    limit: int,
+    now_ns: int,
+    before_ns: int | None = None,
 ) -> tuple[Candle, ...]:
     root = exact_json_loads(payload, max_bytes=2 * 1024 * 1024)
     venue = instrument.venue
@@ -312,6 +432,28 @@ def parse_native(
         if root["code"] != "200000":
             raise ValueError("KuCoin candle endpoint rejected request")
         rows = root["data"]
+    elif venue in ("okx", "bitget"):
+        if root["code"] != ("0" if venue == "okx" else "00000"):
+            raise ValueError("native candle endpoint rejected request")
+        rows = root["data"]
+    elif venue == "deribit":
+        if root.get("jsonrpc") != "2.0" or "error" in root:
+            raise ValueError("Deribit candle endpoint rejected request")
+        result = root["result"]
+        if result["status"] not in ("ok", "no_data"):
+            raise ValueError("invalid Deribit candle status")
+        names = ("ticks", "open", "high", "low", "close", "volume", "cost")
+        arrays = [
+            result.get(name, []) if result["status"] == "no_data" else result[name]
+            for name in names
+        ]
+        if any(not isinstance(values, list) for values in arrays) or any(
+            len(values) != len(arrays[0]) for values in arrays
+        ):
+            raise ValueError("invalid Deribit candle arrays")
+        if result["status"] == "no_data" and arrays[0]:
+            raise ValueError("inconsistent Deribit no_data")
+        rows = list(zip(*arrays))
     else:
         rows = root
     if not isinstance(rows, list) or len(rows) > 1500:
@@ -337,6 +479,28 @@ def parse_native(
             item = candle(
                 row[0], [row[1], row[3], row[4], row[2], row[5]], interval, scale=SECOND
             )
+        elif venue == "okx":
+            if len(row) != 9 or row[8] not in ("0", "1"):
+                raise ValueError("invalid OKX candle schema")
+            # vol is contracts for swaps; volCcy is the native base volume.
+            volume = row[6] if instrument.market_type == "perpetual" else row[5]
+            item = candle(
+                row[0],
+                [*row[1:5], volume],
+                interval,
+                scale=1_000_000,
+                confirmed=row[8] == "1",
+            )
+        elif venue in ("bitget", "deribit"):
+            expected = (
+                8 if venue == "bitget" and instrument.market_type == "spot" else 7
+            )
+            if len(row) != expected:
+                raise ValueError("invalid native candle schema")
+            # Both APIs publish base volume, including Deribit's inverse products.
+            # Deribit cost is quote volume, NOT contracts or base quantity.
+            decimal(row[6], nonnegative=True)
+            item = candle(row[0], row[1:6], interval, scale=1_000_000)
         else:
             if row["s"] != instrument.native_symbol or row["i"] != interval:
                 raise ValueError("wrong Hyperliquid candle identity")
@@ -356,6 +520,8 @@ def parse_native(
         for previous, current in zip(output, output[1:])
     ):
         raise ValueError("duplicate or overlapping native candles")
+    if before_ns is not None:
+        output = [item for item in output if item.start_ns < before_ns]
     return tuple(output[-limit:])
 
 
@@ -400,103 +566,319 @@ def response(
     }
 
 
+def page_limit(instrument: Instrument, before_ns: int | None = None) -> int:
+    if instrument.venue == "coinbase":
+        return 350
+    if instrument.venue == "okx":
+        return 300
+    if instrument.venue == "bitget" and before_ns is not None:
+        return 200
+    return MAX_LIMIT
+
+
+def series_key(instrument: Instrument, interval: str) -> str:
+    identity = {
+        "instrument": asdict(instrument),
+        "interval": interval,
+        "alignment": "native-utc0"
+        if instrument.venue in ("okx", "bitget")
+        else "native-exchange",
+        "time_basis": "exchange_utc",
+        "schema": 1,
+    }
+    encoded = json.dumps(identity, sort_keys=True, separators=(",", ":"), default=str)
+    return sha256(encoded.encode()).hexdigest()
+
+
+@dataclass
+class _Flight:
+    task: asyncio.Task
+    waiters: int = 0
+
+
 class CandleService:
-    """No wait queue or detached tasks: overload is explicit; cancellation propagates."""
+    """Bounded page LRU and single-flight HTTP; the last waiter owns cancellation.
+
+    Capacity counts native requests, not their coalesced consumers. A cancelled
+    sole consumer drains its transport before releasing capacity; another
+    consumer's cancellation cannot poison the shared request or neutral cache.
+    """
 
     def __init__(self):
-        self.cache: OrderedDict[tuple, tuple[float, tuple[Candle, ...], int]] = (
-            OrderedDict()
-        )
+        # Store immutable wire bytes: callers cannot mutate another session's page.
+        self.cache: OrderedDict[tuple, tuple[float, bytes, int, int]] = OrderedDict()
+        self.cache_bytes = 0
+        self.cache_bars = 0
+        self.inflight: dict[tuple, _Flight] = {}
         self.active = 0
 
     async def query(
-        self, instrument: Instrument, interval: str, limit: int = 300
+        self,
+        instrument: Instrument,
+        interval: str,
+        limit: int = 300,
+        *,
+        before_ns: str | None = None,
     ) -> dict:
         if type(limit) is not int or not 1 <= limit <= MAX_LIMIT:
             raise ValueError("invalid candle limit")
-        supported = supported_intervals(instrument)
+        if before_ns is not None and (
+            not isinstance(before_ns, str)
+            or not before_ns.isascii()
+            or not before_ns.isdigit()
+            or before_ns.startswith("0")
+            or len(before_ns) > 19
+            or int(before_ns) > 2**63 - 1
+        ):
+            raise ValueError("invalid candle boundary")
+        before = int(before_ns) if before_ns is not None else None
         now = time.time_ns()
-        options = dict(source="venue_ohlcv", now_ns=now, supported=supported)
+        supported = supported_intervals(instrument)
+        identity = series_key(instrument, interval)
         if interval not in supported:
-            return response(
+            return self._response(
                 instrument,
                 interval,
                 (),
-                **options,
+                limit,
+                now,
+                before,
+                identity,
+                state="unsupported",
+                unavailable=True,
                 reasons=(
                     "unsupported_interval" if supported else "unsupported_instrument",
                 ),
-                unavailable=True,
             )
-        key = (instrument, interval, limit)
-        cached = self.cache.get(key)
-        if cached and time.monotonic() - cached[0] < CACHE_SECONDS:
-            self.cache.move_to_end(key)
-            return response(
-                instrument,
-                interval,
-                cached[1],
-                **{**options, "now_ns": cached[2]},
-                reasons=self._reasons(instrument, limit),
-            )
-        if self.active >= MAX_CONCURRENT:
-            return response(
+        if instrument.venue == "kraken" and before is not None:
+            return self._response(
                 instrument,
                 interval,
                 (),
-                **options,
-                reasons=("candle_capacity",),
-                unavailable=True,
+                limit,
+                now,
+                before,
+                identity,
+                state="limited",
+                reasons=("kraken_recent_only_720",),
             )
-        self.active += 1
+        key = (identity, interval, limit, before)
+        cached = self.cache.get(key)
+        if cached is not None:
+            if time.monotonic() - cached[0] < CACHE_SECONDS:
+                self.cache.move_to_end(key)
+                return json.loads(cached[1])
+            self._evict(key)
+        flight = self.inflight.get(key)
+        if flight is None:
+            if self.active >= MAX_CONCURRENT:
+                return self._response(
+                    instrument,
+                    interval,
+                    (),
+                    limit,
+                    now,
+                    before,
+                    identity,
+                    state="unavailable",
+                    unavailable=True,
+                    reasons=("candle_capacity",),
+                )
+            self.active += 1
+            task = asyncio.create_task(
+                self._fetch(instrument, interval, limit, now, before, identity, key)
+            )
+            flight = _Flight(task)
+            self.inflight[key] = flight
+            task.add_done_callback(lambda done: self._finished(key, done))
+        if flight.waiters >= MAX_WAITERS:
+            return self._response(
+                instrument,
+                interval,
+                (),
+                limit,
+                now,
+                before,
+                identity,
+                state="unavailable",
+                unavailable=True,
+                reasons=("candle_capacity",),
+            )
+        flight.waiters += 1
+        try:
+            return json.loads(await asyncio.shield(flight.task))
+        finally:
+            flight.waiters -= 1
+            if not flight.waiters and not flight.task.done():
+                # Stop new waiters joining a task whose cancellation has begun.
+                if self.inflight.get(key) is flight:
+                    del self.inflight[key]
+                flight.task.cancel()
+                await asyncio.gather(flight.task, return_exceptions=True)
+
+    def _finished(self, key, task):
+        self.active -= 1
+        flight = self.inflight.get(key)
+        if flight is not None and flight.task is task:
+            del self.inflight[key]
+
+    def _evict(self, key):
+        _, _, size, count = self.cache.pop(key)
+        self.cache_bytes -= size
+        self.cache_bars -= count
+
+    async def _fetch(self, instrument, interval, limit, now, before, identity, key):
+        successful = False
         try:
             payload = await fetch_public(
-                native_request(instrument, interval, limit, now), attempts=1
+                native_request(instrument, interval, limit, now, before), attempts=1
             )
             fetched = time.time_ns()
-            candles = parse_native(payload, instrument, interval, limit, fetched)
-            # Only successful, uncancelled native results populate the neutral cache.
-            self.cache[key] = (time.monotonic(), candles, fetched)
-            self.cache.move_to_end(key)
-            while len(self.cache) > MAX_CACHE:
-                self.cache.popitem(last=False)
-            return response(
+            candles = parse_native(
+                payload,
+                instrument,
+                interval,
+                min(limit, page_limit(instrument, before)),
+                fetched,
+                before,
+            )
+            result = self._response(
                 instrument,
                 interval,
                 candles,
-                **{**options, "now_ns": fetched},
-                reasons=self._reasons(instrument, limit),
+                limit,
+                fetched,
+                before,
+                identity,
             )
+            successful = True
         except PublicTransportError as exc:
-            return response(
+            result = self._response(
                 instrument,
                 interval,
                 (),
-                **options,
-                reasons=(exc.reason,),
+                limit,
+                now,
+                before,
+                identity,
+                state="unsupported" if exc.reason == "unsupported" else "unavailable",
                 unavailable=True,
+                reasons=(exc.reason,),
             )
         except (ValueError, KeyError, TypeError, IndexError, OverflowError):
-            return response(
+            result = self._response(
                 instrument,
                 interval,
                 (),
-                **options,
-                reasons=("invalid_native_candles",),
+                limit,
+                now,
+                before,
+                identity,
+                state="unavailable",
                 unavailable=True,
+                reasons=("invalid_native_candles",),
             )
-        finally:
-            self.active -= 1
+        encoded = json.dumps(result, separators=(",", ":")).encode()
+        current = asyncio.current_task()
+        if successful and current is not None and not current.cancelling():
+            count = len(result["candles"])
+            # Include per-entry/key overhead as well as immutable response bytes.
+            size = (
+                sys.getsizeof(encoded)
+                + sys.getsizeof(key)
+                + 256
+                + sum(sys.getsizeof(part) for part in key)
+            )
+            if size <= MAX_CACHE_BYTES and count <= MAX_CACHE_BARS and MAX_CACHE > 0:
+                while self.cache and (
+                    len(self.cache) >= MAX_CACHE
+                    or self.cache_bytes + size > MAX_CACHE_BYTES
+                    or self.cache_bars + count > MAX_CACHE_BARS
+                ):
+                    self._evict(next(iter(self.cache)))
+                self.cache[key] = (time.monotonic(), encoded, size, count)
+                self.cache_bytes += size
+                self.cache_bars += count
+        return encoded
 
     @staticmethod
-    def _reasons(instrument, limit):
-        reasons = [
-            "native_history_may_have_gaps",
-            "closed_is_time_boundary_not_completeness",
-        ]
-        if instrument.venue == "coinbase" and limit > 350:
-            reasons.append("venue_limit_350")
-        return tuple(reasons)
+    def _response(
+        instrument,
+        interval,
+        candles,
+        limit,
+        now,
+        before,
+        identity,
+        *,
+        state=None,
+        unavailable=False,
+        reasons=None,
+    ):
+        supported = supported_intervals(instrument)
+        maximum = page_limit(instrument, before)
+        if reasons is None:
+            reasons = [
+                "native_history_may_have_gaps",
+                "closed_is_time_boundary_not_completeness",
+            ]
+            if limit > maximum:
+                reasons.append(f"venue_limit_{maximum}")
+            if instrument.venue == "deribit":
+                reasons.append("deribit_excludes_block_trades")
+            if instrument.venue == "hyperliquid":
+                reasons.append("hyperliquid_recent_5000")
+        else:
+            reasons = list(reasons)
+        next_before = None
+        if state is None:
+            if instrument.venue == "kraken":
+                state = "limited"
+                reasons.append("kraken_recent_only_720")
+            else:
+                end = min(now, before - 1) if before is not None else now
+                start = request_start(end, interval, min(limit, maximum))
+                next_before = candles[0].start_ns if candles else start
+                if instrument.venue == "hyperliquid" and not candles:
+                    # Retention is 5000 native candles, not 5000 elapsed intervals:
+                    # sparse series must not be truncated by an invented time floor.
+                    state = "limited"
+                if state is None:
+                    if next_before <= 0:
+                        state = "exhausted"
+                    elif not candles and instrument.venue not in (
+                        "coinbase",
+                        "kucoin",
+                        "deribit",
+                    ):
+                        # End-only APIs do not prove there are no earlier trades.
+                        state = "limited"
+                        reasons.append("provider_history_boundary_unknown")
+                    else:
+                        state = "more"
+        if state != "more" or (before is not None and next_before >= before):
+            next_before = None
+        result = response(
+            instrument,
+            interval,
+            candles,
+            source="venue_ohlcv",
+            now_ns=now,
+            supported=supported,
+            reasons=reasons,
+            unavailable=unavailable,
+        )
+        result["series_key"] = identity
+        result["history"] = {
+            "requested_before_ns": None if before is None else str(before),
+            "next_before_ns": None if next_before is None else str(next_before),
+            "state": state,
+            "pagination": "recent_only" if instrument.venue == "kraken" else "time",
+            "max_bars": maximum,
+            "update_mode": "poll",
+            "poll_interval_ms": CACHE_SECONDS * 1000,
+        }
+        return result
 
 
 def session_bucket(stamp: int, interval: str) -> tuple[int, int]:

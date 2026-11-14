@@ -30,7 +30,13 @@ from ..instruments import (
 )
 from ..precision import decimal, exact_json_loads, nonnegative_int, text
 from ..quality import Capabilities
-from .base import DecodeError, DecodedEvent, DecodeResult, TransportRequest
+from .base import (
+    DecodeError,
+    DecodedEvent,
+    DecodeResult,
+    TransportRequest,
+    parse_metadata_offloop,
+)
 
 
 def object_field(value):
@@ -131,19 +137,28 @@ async def discover_metadata_families(adapter, *, timeout=30):
     results = await asyncio.gather(
         *(one(family) for family in adapter.metadata_families)
     )
-    adapter.discovery_evidence = tuple(result[1] for result in results)
     snapshots = [snapshot for snapshot, _, _ in results if snapshot is not None]
-    adapter.discovery_snapshots = tuple(snapshots)
     if not snapshots:
+        adapter.discovery_evidence = tuple(result[1] for result in results)
         raise next(error for _, _, error in results if error is not None)
     if len(snapshots) == 1:
-        return snapshots[0]
-    return metadata_snapshot(
-        ";".join(snapshot.source for snapshot in snapshots),
-        "\n".join(snapshot.payload_hash for snapshot in snapshots).encode(),
-        max(snapshot.fetch_wall_ns for snapshot in snapshots),
-        (instrument for snapshot in snapshots for instrument in snapshot.instruments),
-    )
+        combined = snapshots[0]
+    else:
+        combined = await parse_metadata_offloop(
+            lambda: metadata_snapshot(
+                ";".join(snapshot.source for snapshot in snapshots),
+                "\n".join(snapshot.payload_hash for snapshot in snapshots).encode(),
+                max(snapshot.fetch_wall_ns for snapshot in snapshots),
+                (
+                    instrument
+                    for snapshot in snapshots
+                    for instrument in snapshot.instruments
+                ),
+            )
+        )
+    adapter.discovery_evidence = tuple(result[1] for result in results)
+    adapter.discovery_snapshots = tuple(snapshots)
+    return combined
 
 
 def validate_key(instrument, key, venue, api_family, *, market_type="spot"):
@@ -435,7 +450,9 @@ class _BinanceAdapter:
 
         request = TransportRequest("GET", f"{self.rest_host}/api/v3/exchangeInfo")
         raw = await fetch_public(request)
-        return self.parse_metadata(raw, fetch_wall_ns=time_ns())
+        return await parse_metadata_offloop(
+            self.parse_metadata, raw, fetch_wall_ns=time_ns()
+        )
 
     def parse_metadata(self, raw: bytes, *, fetch_wall_ns: int = 0) -> MetadataSnapshot:
         data = object_field(exact_json_loads(raw))
@@ -728,7 +745,9 @@ class BinanceGlobalAdapter(_BinanceAdapter):
         else:
             raise ValueError("unsupported metadata API family")
         raw = await fetch_public(TransportRequest("GET", endpoint))
-        return self.parse_metadata(raw, fetch_wall_ns=time_ns(), api_family=family)
+        return await parse_metadata_offloop(
+            self.parse_metadata, raw, fetch_wall_ns=time_ns(), api_family=family
+        )
 
     def capabilities(self, instrument, key):
         if instrument.api_family == _USDM.api_family:

@@ -9,7 +9,7 @@ from ..events import BookUpdate, RawFrame, SequenceInfo, SubscriptionKey, Trade
 from ..instruments import Instrument, InstrumentId, MetadataSnapshot, OrderConstraints
 from ..precision import decimal, exact_json_loads, text
 from ..quality import Capabilities
-from .base import DecodedEvent, DecodeResult, TransportRequest
+from .base import DecodedEvent, DecodeResult, TransportRequest, parse_metadata_offloop
 from .binance import (
     array_field,
     asset_identity,
@@ -34,7 +34,9 @@ class KuCoinAdapter:
         raw = await fetch_public(
             TransportRequest("GET", f"{self.rest_host}/api/v2/symbols")
         )
-        return self.parse_metadata(raw, fetch_wall_ns=time_ns())
+        return await parse_metadata_offloop(
+            self.parse_metadata, raw, fetch_wall_ns=time_ns()
+        )
 
     def parse_metadata(self, raw: bytes, *, fetch_wall_ns: int = 0) -> MetadataSnapshot:
         root = object_field(exact_json_loads(raw))

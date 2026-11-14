@@ -1040,6 +1040,25 @@ def test_execution_evidence_matching_preserves_price_side_and_open_interval():
     assert pulling.trade_references == (bid_match.ref(),)
 
 
+def test_execution_interval_includes_all_end_time_prints_in_delivery_order():
+    feed = Feed()
+    feed.quote(1, bids=(("99", "5"),))
+    feed.trade(1, "excluded-start", side="sell", quantity="100", price="99")
+    inside = feed.trade(4, "inside", side="sell", quantity="1", price="99")
+    end_first = feed.trade(5, "end-first", side="sell", quantity="0.5", price="99")
+    end_second = feed.trade(5, "end-second", side="sell", quantity="0.25", price="99")
+    feed.quote(5, bids=(("99", "2"),))
+    feed.trade(6, "excluded-later", side="sell", quantity="100", price="99")
+    feed.quote(11, bids=(("99", "2"),))
+    metric = feed.metrics(11)["pulling_evidence_heuristic"]
+    assert metric.value == D("1.25")
+    assert metric.trade_references == (
+        inside.ref(),
+        end_first.ref(),
+        end_second.ref(),
+    )
+
+
 def test_published_persistence_is_immutable_and_checkpoint_replays_exactly():
     feed = Feed()
     feed.quote(1, bids=(("99", "5"),))
@@ -1099,3 +1118,156 @@ def test_depth_evidence_changes_with_book_but_not_query_freshness_or_restore():
     assert "incomplete_depth_band" in partial.reasons
     feed.engine.restore(checkpoint)
     assert feed.snapshot(1) == first
+
+
+@pytest.mark.parametrize("exact", (False, True))
+def test_lightweight_flow_matches_full_snapshot_through_continuity_transitions(exact):
+    feed = Feed(
+        exact=exact,
+        config=AnalyticsConfig(
+            window_ns=10,
+            retention_ns=100,
+            max_trades=3,
+            tape_limit=3,
+            max_book_samples=2,
+            max_references=2,
+            policy=EligibilityPolicy(max_age_ns=15),
+        ),
+    )
+
+    def parity(stamp, clock_id="synthetic-clock"):
+        now = ClockReading(clock_id, stamp)
+        before = feed.engine.checkpoint()
+        with localcontext() as context:
+            context.prec = 3
+            selected = feed.engine.flow_metrics(
+                feed.instrument.instrument_id, now, key=feed.keys["book"]
+            )
+        assert tuple(metric.name for metric in selected) == ("event_ofi", "cvd_base")
+        full = feed.engine.snapshot(
+            feed.instrument.instrument_id, now, key=feed.keys["book"]
+        )
+        expected = tuple(
+            metric
+            for metric in full.metrics
+            if metric.name in ("event_ofi", "cvd_base")
+        )
+        assert selected == expected
+        assert dumps(selected, decimal_policy=DERIVED_DECIMAL_POLICY) == dumps(
+            expected, decimal_policy=DERIVED_DECIMAL_POLICY
+        )
+        assert feed.engine.checkpoint() == before
+        return {metric.name: metric for metric in selected}
+
+    parity(0)
+    feed.quote(1)
+    parity(1)
+    feed.trade(1, "anchor")
+    feed.trade(2, "history", quantity="999", history=True)
+    feed.trade(3, "buy", quantity="2.123456789")
+    feed.trade(3, "buy", quantity="2.123456789")
+    feed.trade(4, "sell", side="sell", quantity="0.123456789")
+    feed.quote(5, bids=(("99", "3.123456789"),))
+    parity(5)
+    feed.trade(11, "unknown", side="unknown", quantity="9")
+    parity(11)
+    parity(5)  # Backward queries cannot acquire future evidence.
+    parity(11, "different-source-clock")
+    feed.quote(12, bids=(("100", "2"),))
+    parity(12)
+    feed.quote(13, bids=(("100", "3"),))
+    parity(13)
+    assert "quiet_trade_interval_unproven" in parity(22)["cvd_base"].reasons
+    feed.deliver(feed.event(Control("heartbeat", "trade_channel_healthy"), 22))
+    assert parity(22)["cvd_base"].value == 0
+    feed.deliver(feed.event(Gap("trade_gap"), 23))
+    assert "trade_continuity_reset" in parity(23)["cvd_base"].reasons
+    feed.trade(24, "recovery")
+    assert "trade_window_warming" in parity(24)["cvd_base"].reasons
+    feed.book = None
+    feed.deliver(feed.event(Gap("sequence_gap"), 25, "book"))
+    assert "no_book" in parity(25)["event_ofi"].reasons
+    feed.quote(26)
+    assert "book_window_warming" in parity(26)["event_ofi"].reasons
+    parity(50)  # Quiet source ages out without a new delivery.
+    feed.deliver(
+        feed.event(Trade("epoch", "epoch", D(100), D(2), taker_side="buy"), 51, epoch=1)
+    )
+    parity(51)
+    feed.deliver(
+        feed.event(
+            Trade("clock", "clock", D(100), D(3), taker_side="sell"),
+            52,
+            epoch=1,
+            clock_id="new-source-clock",
+        )
+    )
+    parity(52, "new-source-clock")
+    parity(52)
+
+
+def test_lightweight_flow_skips_depth_and_display_evidence_without_changing_checkpoint(
+    monkeypatch,
+):
+    from src.workstation import analytics
+
+    feed = Feed()
+    feed.quote(1)
+    feed.quote(5, bids=(("99", "3"), ("98", "7")))
+    feed.trade(1, "anchor")
+    feed.trade(11, "execution", quantity="2")
+    state = feed.engine._books[feed.keys["book"]]
+    assert not state.depth_totals
+    assert state.frozen_standing is None
+    before = feed.engine.checkpoint()
+
+    def unexpected(*args, **kwargs):
+        raise AssertionError(
+            "lightweight flow requested unrelated depth/display evidence"
+        )
+
+    with monkeypatch.context() as patch:
+        patch.setattr(analytics, "_valuation", unexpected)
+        patch.setattr(analytics._StandingEvidence, "freeze", unexpected)
+        selected = feed.engine.flow_metrics(
+            feed.instrument.instrument_id, ClockReading("synthetic-clock", 11)
+        )
+    assert not state.depth_totals
+    assert state.frozen_standing is None
+    assert feed.engine.checkpoint() == before
+    restored = AnalyticsEngine(feed.streams, feed.config)
+    restored.restore(before)
+    full = restored.snapshot(
+        feed.instrument.instrument_id, ClockReading("synthetic-clock", 11)
+    )
+    assert selected == tuple(
+        metric for metric in full.metrics if metric.name in ("event_ofi", "cvd_base")
+    )
+    assert restored.checkpoint() == before
+
+
+def test_lightweight_flow_preserves_pinned_metadata_and_selection_errors():
+    verified = synthetic_instrument()
+    feed = Feed(instrument=streaming_instrument(verified), trade_instrument=verified)
+    feed.quote(1)
+    feed.trade(1, "anchor")
+    feed.trade(11, "execution")
+    now = ClockReading("synthetic-clock", 11)
+    selected = feed.engine.flow_metrics(
+        verified.instrument_id, now, key=feed.keys["book"]
+    )
+    assert selected == tuple(
+        metric
+        for metric in feed.engine.snapshot(
+            verified.instrument_id, now, key=feed.keys["book"]
+        ).metrics
+        if metric.name in ("event_ofi", "cvd_base")
+    )
+    foreign_key = SubscriptionKey.for_instrument(
+        synthetic_instrument(base="OTHER"), channel="book"
+    )
+    for method in (feed.engine.snapshot, feed.engine.flow_metrics):
+        with pytest.raises(ValueError, match="unknown analytics instrument"):
+            method("missing", now)
+        with pytest.raises(ValueError, match="analytics key/instrument mismatch"):
+            method(verified.instrument_id, now, key=foreign_key)

@@ -2,13 +2,29 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { Catalog, Mode, VisualGrid } from './api';
 import type { ChartTimeZone } from './chart-time';
+import { gridPreset, migrateShellGrid, validateGrid } from './grid/layout';
+import type { GridLayout } from './grid/layout';
 
 export type ChartMode = 'heatmap' | 'candles' | 'footprint' | 'profile' | 'cvd' | 'ofi';
 export type ChartSettings = Pick<WorkspacePreferences, 'mode' | 'contrast' | 'showTrades' | 'showQuotes' | 'footprintOverview' | 'timeZone' | 'priceStep' | 'bucket' | 'rangeSeconds' | 'range' | 'follow' | 'followSpanNs' | 'paused' | 'priceOffset'>;
 export type ChartTimeIntent = { kind: 'pin'; range: { start_ns: string; end_ns: string } } | { kind: 'follow'; span_ns: string | null; rangeSeconds?: number };
 export type PaneId = 'heatmap' | 'flow' | 'dom' | 'tape';
+export interface PriceChartPreferences {
+  source: 'auto' | 'session_trades' | 'venue_ohlcv';
+  scale: 'linear' | 'log';
+  autoScale: boolean;
+  rightOffset: number;
+  positioning: boolean;
+}
+export type LayoutSettings = Pick<WorkspacePreferences, 'grid' | 'nativeView' | 'desktopView' | 'candleInterval' | 'priceChart' | 'preset' | 'leftWidth' | 'rightWidth' | 'rightWidthMode' | 'bottomHeight' | 'leftOpen' | 'rightOpen' | 'bottomOpen' | 'mode' | 'contrast' | 'showTrades' | 'showQuotes' | 'footprintOverview' | 'timeZone' | 'priceStep' | 'bucket' | 'rangeSeconds' | 'followSpanNs' | 'priceOffset' | 'domRows' | 'domPriceStep' | 'domUnit' | 'domCumulative' | 'secondary' | 'chartSplit' | 'tapeSplit' | 'links' | 'rangeLinked' | 'tapeRows' | 'tapeSide'>;
+export interface NamedWorkspaceLayout { name: string; settings: LayoutSettings }
+export const MAX_LAYOUTS = 12;
+export const MAX_LAYOUT_NAME = 40;
 export interface WorkspacePreferences {
-  version: 1; source: { mode: Mode; id: string } | null; sourceExplicit: boolean; instrument: string;
+  version: 2; source: { mode: Mode; id: string } | null; sourceExplicit: boolean; instrument: string;
+  priceChart: PriceChartPreferences;
+  grid: GridLayout;
+  layouts: NamedWorkspaceLayout[];
   desktopView: 'price' | 'orderflow'; candleInterval: string;
   nativeView?: 'footprint' | 'price' | 'orderflow' | 'book';
   preset: 'balanced' | 'analysis' | 'ladder'; leftWidth: number; rightWidth: number; bottomHeight: number;
@@ -32,7 +48,9 @@ const secondaryDefaults: ChartSettings = {
   follow: true, followSpanNs: null, paused: false, priceOffset: 0,
 };
 const defaults: WorkspacePreferences = {
-  version: 1, source: null, sourceExplicit: false, instrument: '', preset: 'balanced', leftWidth: 222, rightWidth: 360, rightWidthMode: 'auto', bottomHeight: 248,
+  version: 2, source: null, sourceExplicit: false, instrument: '', preset: 'balanced', leftWidth: 222, rightWidth: 360, rightWidthMode: 'auto', bottomHeight: 248,
+  priceChart: { source: 'auto', scale: 'linear', autoScale: true, rightOffset: 5, positioning: false },
+  grid: gridPreset('balanced'), layouts: [],
   desktopView: 'price', candleInterval: '1h', nativeView: 'footprint',
   leftOpen: false, rightOpen: true, bottomOpen: false, mode: 'heatmap', contrast: 1,
   showTrades: true, showQuotes: true, footprintOverview: false, timeZone: 'UTC', priceStep: '', bucket: '1000000000', rangeSeconds: 180,
@@ -114,7 +132,7 @@ export function retainedChartRange(view: VisualGrid, mode: ChartMode): { start_n
   return { start_ns: start.toString(), end_ns: end.toString() };
 }
 export function validatePreferences(value: unknown, nested = false): WorkspacePreferences {
-  if (!value || typeof value !== 'object' || !('version' in value) || value.version !== 1) return { ...defaults };
+  if (!value || typeof value !== 'object' || !('version' in value) || (value.version !== 1 && value.version !== 2)) return { ...defaults, grid: gridPreset('balanced'), priceChart: { ...defaults.priceChart }, layouts: [] };
   const p = value as Record<string, unknown>;
   const next = { ...defaults };
   if (p.desktopView === 'price' || p.desktopView === 'orderflow') next.desktopView = p.desktopView;
@@ -122,6 +140,15 @@ export function validatePreferences(value: unknown, nested = false): WorkspacePr
   // Legacy Price action was the default, not evidence of an intentional choice.
   else if (p.desktopView === 'orderflow') next.nativeView = 'orderflow';
   if (typeof p.candleInterval === 'string' && candleIntervals.includes(p.candleInterval)) next.candleInterval = p.candleInterval;
+  const price = p.priceChart && typeof p.priceChart === 'object' ? p.priceChart as Record<string, unknown> : {};
+  next.priceChart = {
+    source: price.source === 'session_trades' || price.source === 'venue_ohlcv' ? price.source : 'auto',
+    scale: price.scale === 'log' ? 'log' : 'linear',
+    autoScale: typeof price.autoScale === 'boolean' ? price.autoScale : true,
+    rightOffset: bounded(price.rightOffset, 0, 50, 5),
+    positioning: price.positioning === true,
+  };
+  next.grid = validateGrid(p.grid);
   for (const key of ['leftOpen', 'rightOpen', 'bottomOpen', 'showTrades', 'showQuotes', 'footprintOverview', 'follow', 'paused', 'domFrozen', 'domCumulative', 'tapeFrozen', 'rangeLinked'] as const) if (typeof p[key] === 'boolean') next[key] = p[key];
   next.leftWidth = Math.round(bounded(p.leftWidth, 180, 360, defaults.leftWidth));
   next.rightWidth = Math.round(bounded(p.rightWidth, 250, 500, defaults.rightWidth));
@@ -166,11 +193,37 @@ export function validatePreferences(value: unknown, nested = false): WorkspacePr
     ? chartSettings(validatePreferences({ ...secondaryDefaults, ...p.secondary, version: 1 }, true))
     : { ...secondaryDefaults };
   if (!['footprint', 'candles'].includes(next.secondary.mode)) next.secondary.mode = 'footprint';
+  if (!nested && Array.isArray(p.layouts)) {
+    const names = new Set<string>();
+    next.layouts = [];
+    for (const item of p.layouts.slice(0, MAX_LAYOUTS)) {
+      if (!item || typeof item !== 'object') continue;
+      const name = layoutName(item.name);
+      if (!name || names.has(name.toLocaleLowerCase())) continue;
+      names.add(name.toLocaleLowerCase());
+      next.layouts.push({ name, settings: layoutSettings(validatePreferences({ ...item.settings, version: 2, layouts: [] })) });
+    }
+  }
   return next;
 }
 export function loadPreferences(): WorkspacePreferences {
-  try { const raw = localStorage.getItem(preferenceKey); return raw && raw.length <= 8192 ? validatePreferences(JSON.parse(raw)) : { ...defaults }; }
-  catch { return { ...defaults }; }
+  try {
+    const raw = localStorage.getItem(preferenceKey);
+    let parsed: unknown = null;
+    try { if (raw && raw.length <= 131072) parsed = JSON.parse(raw); }
+    catch { /* Independently valid shell preferences and saved slots can still migrate. */ }
+    const preferences = validatePreferences(parsed);
+    if (!parsed || typeof parsed !== 'object' || !('grid' in parsed)) {
+      let panels: unknown;
+      try {
+        const legacy = localStorage.getItem('limit-orderbook.orderflow.ui-preferences');
+        if (legacy && legacy.length <= 32768) panels = JSON.parse(legacy)?.state?.panels;
+      } catch { /* Invalid legacy shell preferences do not prevent workspace startup. */ }
+      preferences.grid = migrateShellGrid(panels, preferences.rightWidth, preferences.bottomHeight);
+    }
+    if (!parsed || typeof parsed !== 'object' || !('layouts' in parsed)) preferences.layouts = migrateWorkspaceSlots(loadWorkspaceSlots());
+    return preferences;
+  } catch { return validatePreferences(null); }
 }
 export function startupSource(catalog: Catalog, saved: Pick<WorkspacePreferences, 'source' | 'sourceExplicit' | 'instrument'>, search: string) {
   const override = new URLSearchParams(search).get('source');
@@ -190,15 +243,9 @@ export function validateWorkspaceSlots(value: unknown): (WorkspacePreferences | 
   const slots = Array.isArray(value) ? value : [];
   return Array.from({ length: 4 }, (_, index) => {
     const slot: unknown = slots[index];
-    return slot && typeof slot === 'object' && 'version' in slot && slot.version === 1
+    return slot && typeof slot === 'object' && 'version' in slot && (slot.version === 1 || slot.version === 2)
       ? { ...validatePreferences(slot), source: null, sourceExplicit: false, instrument: '' } : null;
   });
-}
-export function applyWorkspaceSlot(current: WorkspacePreferences, saved: WorkspacePreferences): WorkspacePreferences {
-  const validated = validatePreferences(saved);
-  return { ...validated, source: current.source, sourceExplicit: current.sourceExplicit, instrument: current.instrument,
-    range: null, follow: true, paused: false, domFrozen: false, tapeFrozen: false,
-    secondary: { ...validated.secondary, range: null, follow: true, paused: false } };
 }
 function loadWorkspaceSlots() {
   try {
@@ -206,13 +253,59 @@ function loadWorkspaceSlots() {
     return validateWorkspaceSlots(raw && raw.length <= 32768 ? JSON.parse(raw) : null);
   } catch { return validateWorkspaceSlots(null); }
 }
+export function layoutName(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const name = value.trim();
+  for (let index = 0; index < name.length; index++) {
+    const code = name.charCodeAt(index);
+    if (code < 32 || code === 127) return null;
+  }
+  return name.length > 0 && name.length <= MAX_LAYOUT_NAME ? name : null;
+}
+export function layoutSettings(p: WorkspacePreferences): LayoutSettings {
+  return {
+    grid: validateGrid(p.grid), nativeView: p.nativeView, desktopView: p.desktopView, candleInterval: p.candleInterval,
+    priceChart: { ...p.priceChart }, preset: p.preset, leftWidth: p.leftWidth, rightWidth: p.rightWidth,
+    rightWidthMode: p.rightWidthMode, bottomHeight: p.bottomHeight, leftOpen: p.leftOpen, rightOpen: p.rightOpen, bottomOpen: p.bottomOpen,
+    mode: p.mode, contrast: p.contrast, showTrades: p.showTrades, showQuotes: p.showQuotes, footprintOverview: p.footprintOverview,
+    timeZone: p.timeZone, priceStep: p.priceStep, bucket: p.bucket, rangeSeconds: p.rangeSeconds, followSpanNs: p.followSpanNs, priceOffset: p.priceOffset,
+    domRows: p.domRows, domPriceStep: p.domPriceStep, domUnit: p.domUnit, domCumulative: p.domCumulative,
+    secondary: { ...p.secondary, range: null, follow: true, paused: false }, chartSplit: p.chartSplit, tapeSplit: p.tapeSplit,
+    links: { ...p.links }, rangeLinked: p.rangeLinked, tapeRows: p.tapeRows, tapeSide: p.tapeSide,
+  };
+}
+export function applyLayoutSettings(current: WorkspacePreferences, settings: LayoutSettings): WorkspacePreferences {
+  // A layout can change presentation, never the session, selected market, or clock position.
+  const safe = layoutSettings(validatePreferences({ ...settings, version: 2, layouts: [] }));
+  return { ...current, ...safe, priceChart: { ...safe.priceChart, source: current.priceChart.source },
+    range: current.range, follow: current.follow, paused: current.paused, domFrozen: current.domFrozen, tapeFrozen: current.tapeFrozen,
+    secondary: { ...safe.secondary, range: current.secondary.range, follow: current.secondary.follow, paused: current.secondary.paused } };
+}
+export function migrateWorkspaceSlots(slots: readonly (WorkspacePreferences | null)[]): NamedWorkspaceLayout[] {
+  return slots.flatMap((saved, index) => saved ? [{ name: `Workspace ${index + 1}`, settings: layoutSettings({
+    ...saved, grid: migrateShellGrid(undefined, saved.rightWidth, saved.bottomHeight),
+  }) }] : []);
+}
+export type LayoutCommand = { kind: 'save'; name: string } | { kind: 'load' | 'delete'; name: string } | { kind: 'rename'; name: string; nextName: string };
+export function changeWorkspaceLayout(current: WorkspacePreferences, command: LayoutCommand): { preferences: WorkspacePreferences; error: string | null } {
+  const name = layoutName(command.kind === 'rename' ? command.nextName : command.name);
+  if (!name) return { preferences: current, error: `Use a layout name of 1–${MAX_LAYOUT_NAME} characters without control characters.` };
+  const index = current.layouts.findIndex(item => item.name === command.name);
+  if (command.kind !== 'save' && index < 0) return { preferences: current, error: 'Choose a saved layout.' };
+  if (command.kind === 'load') return { preferences: applyLayoutSettings(current, current.layouts[index]!.settings), error: null };
+  if (command.kind === 'delete') return { preferences: { ...current, layouts: current.layouts.filter((_, i) => i !== index) }, error: null };
+  const duplicate = current.layouts.findIndex(item => item.name.toLocaleLowerCase() === name.toLocaleLowerCase());
+  if (duplicate >= 0 && (command.kind === 'save' || duplicate !== index)) return { preferences: current, error: 'A layout with that name already exists. Choose a different name.' };
+  if (command.kind === 'save' && current.layouts.length >= MAX_LAYOUTS) return { preferences: current, error: `At most ${MAX_LAYOUTS} layouts can be saved. Delete one first.` };
+  const layouts = command.kind === 'rename' ? current.layouts.map((item, i) => i === index ? { ...item, name } : item)
+    : [...current.layouts, { name, settings: layoutSettings(current) }];
+  return { preferences: { ...current, layouts }, error: null };
+}
 export interface WorkspaceState {
   preferences: WorkspacePreferences;
   setPreferences: Dispatch<SetStateAction<WorkspacePreferences>>;
   storageError: string | null;
-  slots: (WorkspacePreferences | null)[];
-  saveSlot: (index: number) => void;
-  loadSlot: (index: number) => void;
+  changeLayout: (command: LayoutCommand) => string | null;
 }
 
 export function useWorkspacePreferences(): WorkspaceState {
@@ -220,7 +313,6 @@ export function useWorkspacePreferences(): WorkspaceState {
   const latestPreferences = useRef(preferences);
   useLayoutEffect(() => { latestPreferences.current = preferences; }, [preferences]);
   const [storageError, setStorageError] = useState<string | null>(null);
-  const [slots, setSlots] = useState(loadWorkspaceSlots);
   useEffect(() => {
     const save = () => {
       try { localStorage.setItem(preferenceKey, JSON.stringify(validatePreferences(latestPreferences.current))); setStorageError(null); }
@@ -231,37 +323,15 @@ export function useWorkspacePreferences(): WorkspaceState {
     window.addEventListener('pagehide', save);
     return () => { clearTimeout(timer); window.removeEventListener('pagehide', save); };
   }, [preferences]);
-  const saveSlot = (index: number) => {
-    if (!Number.isInteger(index) || index < 0 || index >= 4) return;
-    const next = validateWorkspaceSlots(slots.map((slot, i) => i === index ? preferences : slot));
-    setSlots(next);
-    try { localStorage.setItem(workspaceSlotsKey, JSON.stringify(next)); setStorageError(null); }
-    catch { setStorageError('Workspace slots cannot be saved in this browser. This session remains usable.'); }
+  const changeLayout = (command: LayoutCommand) => {
+    const result = changeWorkspaceLayout(latestPreferences.current, command);
+    latestPreferences.current = result.preferences;
+    setPreferences(result.preferences);
+    return result.error;
   };
-  const loadSlot = (index: number) => {
-    const saved = slots[index];
-    if (saved) setPreferences(current => applyWorkspaceSlot(current, saved));
-  };
-  return { preferences, setPreferences, storageError, slots, saveSlot, loadSlot };
-}
-export function presetLayout(preset: WorkspacePreferences['preset']): Partial<WorkspacePreferences> {
-  return preset === 'analysis' ? { preset, leftWidth: 200, rightWidth: 300, rightWidthMode: 'manual', bottomHeight: 260, chartSplit: 50, tapeSplit: 55, leftOpen: false, rightOpen: true, bottomOpen: true }
-    : preset === 'ladder' ? { preset, leftWidth: 200, rightWidth: 420, rightWidthMode: 'manual', bottomHeight: 200, chartSplit: 55, tapeSplit: 72, leftOpen: false, rightOpen: true, bottomOpen: false }
-      : { preset, leftWidth: 222, rightWidth: 360, rightWidthMode: 'auto', bottomHeight: 248, chartSplit: 52, tapeSplit: 60, leftOpen: false, rightOpen: true, bottomOpen: false };
+  return { preferences, setPreferences, storageError, changeLayout };
 }
 
-export function workspaceGeometry(preferences: Pick<WorkspacePreferences, 'rightWidth' | 'rightWidthMode' | 'leftOpen' | 'leftWidth'>, viewportWidth: number) {
-  const stacked = viewportWidth < 966;
-  const watchlistWidth = preferences.leftOpen && viewportWidth > 1100 ? preferences.leftWidth + 6 : 0;
-  // Manual layouts retain the persisted 250–500 range; only auto sizing needs 320.
-  const min = preferences.rightWidthMode === 'auto' ? 320 : 250;
-  const max = Math.max(min, Math.min(500, viewportWidth - watchlistWidth - 6 - 640));
-  const automatic = viewportWidth <= 1440
-    ? 336 + (Math.max(1280, viewportWidth) - 1280) * 24 / 160
-    : 360 + (Math.min(1920, viewportWidth) - 1440) * 60 / 480;
-  const requested = preferences.rightWidthMode === 'auto' ? automatic : preferences.rightWidth;
-  return { rightWidth: Math.round(Math.min(max, Math.max(min, requested))), min, max, stacked };
-}
 export function mergeVisualGrid(previous: VisualGrid | null, next: VisualGrid): VisualGrid {
   if (next.replace || !previous || previous.grid_id !== next.grid_id || previous.generation !== next.generation) return next;
   const columns = new Map(previous.columns.map(column => [column.id, column]));

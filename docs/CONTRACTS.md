@@ -508,17 +508,20 @@ inputs. Full request and response contracts are in
 
 ### Unified native candle contract
 
-Strict `CandleRequest` selects `source:"session_trades"` by default in every
-mode, optionally explicit `venue_ohlcv`. Its optional bounded `instrument_ids`
-is primary-only when empty; an explicit cohort must contain the primary,
-have no duplicates and belong to active pinned same-base/same-market streams.
-At most 16 IDs are accepted; canonical output is primary first, then sorted peers.
-Aggregate `instrument_ids`, `scope`, `venue_label` and `quote_asset_ids` describe
-the actual requested cohort, not a single-venue label. Cross-quote aggregation
-is indicative, with no conversion or financial use.
+Strict `CandleRequest` retains the protocol default `source:"session_trades"`
+in every mode; `venue_ohlcv` is the other explicit source. Terminal Auto
+explicitly chooses venue Ticker history in LIVE and Observed flow in demo/replay.
+For observed flow, optional bounded `instrument_ids` is primary-only when empty;
+an explicit cohort must contain the primary, have no duplicates and belong to
+active pinned same-base/same-market streams. At most 16 IDs are accepted;
+canonical output is primary first, then sorted peers. Aggregate `instrument_ids`,
+`scope`, `venue_label` and `quote_asset_ids` describe the actual cohort.
+Cross-quote aggregation is indicative, with no conversion or financial use.
+Ticker history instead normalizes to the exact primary independently of the
+observed cohort; changing the cohort never relabels a single-venue ticker.
 
-Native admitted trades drive both Price Action and Footprint/studies at the
-same selected cohort/global interval. The fifteen intervals are
+Observed Price Action and Footprint/studies use admitted native trades and the
+same selected cohort/global interval. The fifteen observed intervals are
 `1m,3m,5m,15m,30m,1h,2h,4h,6h,8h,12h,1d,3d,1w,1M`.
 Fixed buckets floor projected UTC nanoseconds against Unix epoch (including
 Thursday-origin weeks); calendar months run UTC first-to-next-first.
@@ -535,13 +538,36 @@ trade times of returned bars define coverage, not bucket edges. Boundaries,
 source/clock changes, retention and seek reconstruction fence obsolete data.
 Frontend source/generation/cohort/interval changes fence obsolete responses.
 
-Venue OHLCV is an explicitly separate primary-only exchange-UTC query, not
-startup input, a replay-prefix substitute or automatic fallback. Exact native
-family/market/interval support and access failures stay visible; provider bucket
-alignment may differ from native epoch flooring. Binance spot/USD-M and Bybit
-spot/linear select their own real native families, not a spot substitution.
-All fields, bounds and optional-history limitations are in
-[API](API.md#unified-native-candles-and-explicit-venue-history).
+Venue OHLCV is a separate primary-only exchange-UTC query, never a replay-prefix
+substitute or fallback for missing observed flow. Explicit venue use in replay
+warns that current external history is not recorded evidence; Auto in replay
+does not fetch it. Native family/market/interval support and access failures stay
+visible. Returned native bucket alignment is not session epoch flooring.
+Exchange-time candles cannot share receive-time positioning/liquidity merely
+because timestamps look alike; an explicit compatible clock mapping is required.
+
+Optional `before_ns` is a positive decimal-string nanosecond timestamp bounded
+by signed 64-bit maximum, valid only for venue history. It excludes candle
+**starts** at or after the boundary. A venue `series_key` identifies exact
+instrument metadata/family, interval, alignment and time basis independently of
+session; source/session/generation remain separate publication fences.
+`history` supplies requested/next boundaries, `state` (`more`, `exhausted`,
+`limited`, `unavailable`, `unsupported`), `pagination` (`time`, `recent_only`),
+the page `max_bars`, `update_mode:"poll"` and `poll_interval_ms:5000`.
+Older cursors strictly decrease. Short/empty pages do not prove exhaustion;
+provider retention limits and unavailable history remain distinct.
+
+The client uses bounded five-second newest-page polling, not a claimed native
+candle subscription. Backfill and reconnect overlap reconcile exact bucket keys,
+forming-bar revisions and provider corrections without fabricated gaps or
+snapping a detached viewport forward. The mounted query caps retained history
+at 10,000 bars and pauses growth explicitly instead of evicting visible history.
+Same-series failures retain bars with stale/error state; identity changes clear
+obsolete evidence. Observed retention remains independently capped at 10,000
+admitted trades / 8 MiB and replay seeks rebuild only the causal prefix.
+Provider support, response/cache bounds and field semantics are in
+[API](API.md#unified-native-candles-and-explicit-venue-history) and
+[VISUALIZATION](VISUALIZATION.md#explicit-primary-only-venue-ohlcv).
 
 
 ### Managed capture lifecycle

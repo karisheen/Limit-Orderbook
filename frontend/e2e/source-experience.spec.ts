@@ -14,6 +14,90 @@ async function demoCatalog(page: Page) {
   return { catalog, demo: demo! };
 }
 
+test('startup loads only the source directory and selected metadata; status refresh retains conditional metadata', async ({ page }) => {
+  const { demo } = await demoCatalog(page);
+  const instrumentUrls: string[] = [];
+  const metadataStatuses: number[] = [];
+  let changeStatus = false;
+  let directoryRefreshes = 0;
+  page.on('request', request => {
+    if (new URL(request.url()).pathname === '/api/v1/instruments') instrumentUrls.push(request.url());
+  });
+  page.on('response', response => {
+    if (new URL(response.url()).pathname === '/api/v1/instruments') metadataStatuses.push(response.status());
+  });
+  await page.route('**/api/v1/sources', async route => {
+    const response = await route.fetch({ headers: { ...route.request().headers(), 'if-none-match': '' } });
+    const directory = await response.json() as Catalog;
+    expect(directory.instruments).toEqual([]);
+    if (changeStatus) {
+      directory.sources = directory.sources.map(source => ({ ...source, reasons: [...source.reasons, 'fault_injected_directory_only_change'] }));
+      directoryRefreshes++;
+    }
+    const headers = response.headers();
+    delete headers.etag;
+    delete headers['content-length'];
+    await route.fulfill({ response, headers, json: directory });
+  });
+  const created = creation(page);
+  await page.goto(`/?source=${encodeURIComponent(demo.id)}`);
+  const frame = await (await created).json() as Frame;
+  await expect(page.locator('.status')).toContainText('Connected');
+  expect(instrumentUrls).toHaveLength(1);
+  expect(metadataStatuses).toEqual([200]);
+  changeStatus = true;
+  await expect.poll(() => directoryRefreshes).toBeGreaterThan(0);
+  await expect.poll(() => metadataStatuses.length).toBeGreaterThan(1);
+  expect(metadataStatuses.slice(1).every(status => status === 304)).toBe(true);
+  for (const url of instrumentUrls) {
+    expect(new URL(url).searchParams.get('source_id')).toBe(demo.id);
+    expect(new URL(url).searchParams.get('include_sources')).toBe('false');
+  }
+  await expect(page.locator('.diagnostics')).toContainText('fault_injected_directory_only_change');
+  const retained = await (await page.request.get(`/api/v1/sessions/${frame.session_id}`)).json() as Frame;
+  expect(retained.selection).toEqual(frame.selection);
+  expect(retained.generation).toBe(frame.generation);
+});
+
+test('diagnostics recovery inspection separates provider scope without resetting session ownership', async ({ page }) => {
+  const { demo } = await demoCatalog(page);
+  const mutations: string[] = [];
+  page.on('request', request => {
+    if (request.method() === 'POST' && /\/api\/v1\/(?:subscriptions|replay|paper\/|recordings)/.test(request.url())) mutations.push(request.url());
+  });
+  const created = creation(page);
+  await page.goto(`/?source=${encodeURIComponent(demo.id)}`);
+  const initial = await (await created).json() as Frame;
+  await expect(page.locator('.status')).toContainText('Connected');
+  await page.getByTestId('terminal-incident').getByRole('button', { name: /^Diagnostics/ }).click();
+  const diagnostics = page.locator('.diagnostics');
+  await expect(diagnostics).toHaveAttribute('open', '');
+  await expect(diagnostics).toContainText('Selected-market evidence reasons');
+  await expect(diagnostics).toContainText('Analytical queue overflow is loss of analytical history');
+  await expect(diagnostics).toContainText('reconnecting cannot recover missing observations or fix capacity');
+  await expect(diagnostics).toContainText('Reselection starts fresh observed history, not recovery of the missing period');
+  await expect(diagnostics).toContainText('inspect paper and capture state before any deliberate reselection');
+  await expect(diagnostics.getByRole('button', { name: /reconnect|reset|recover|reselect/i })).toHaveCount(0);
+  const providers = diagnostics.locator('.all-provider-diagnostics');
+  await providers.getByText('All-provider availability diagnostics', { exact: true }).click();
+  await expect(providers).toContainText('not selected-market health');
+  await expect(providers).toContainText('HTTP 451 means the provider reports unavailability for legal reasons');
+  await expect(providers).toContainText('HTTP 403 means the provider refused access');
+  await expect(providers).toContainText('Neither response alone identifies your location');
+  await providers.getByText('Available source descriptors & raw provider reasons', { exact: true }).click();
+  await expect(providers.locator('pre').last()).toBeVisible();
+  await expect(providers.locator('pre').last()).toContainText('"reasons":');
+  await page.getByText('Source & instrument details', { exact: true }).click();
+  await expect(page.getByTestId('selected-market-reasons')).toBeVisible();
+  await expect(page.getByTestId('selected-market-reasons').locator('.all-provider-diagnostics')).toHaveCount(0);
+  const retained = await (await page.request.get(`/api/v1/sessions/${initial.session_id}`)).json() as Frame;
+  expect(retained.session_id).toBe(initial.session_id);
+  expect(retained.generation).toBe(initial.generation);
+  expect(retained.selection).toEqual(initial.selection);
+  expect(retained.replay?.cursor).toEqual(initial.replay?.cursor);
+  expect(mutations).toEqual([]);
+});
+
 test('paused fixture supports scale recovery and independent replay controls', async ({ page, context }) => {
   const { demo } = await demoCatalog(page);
   let plays = 0;
@@ -344,15 +428,19 @@ test('network launch migrates automatic legacy demo to actual public live with a
   expect(frame.source.synthetic).toBe(false);
   await page.getByText('Source & instrument details', { exact: true }).click();
   await expect(page.getByTestId('source-preference-notice')).toBeVisible();
+  const providerDiagnostics = page.locator('.source-inspector .all-provider-diagnostics');
+  await providerDiagnostics.getByText('All-provider availability diagnostics', { exact: true }).click();
+  await providerDiagnostics.getByText('Raw all-provider reasons · current live source', { exact: true }).click();
+  for (const reason of frame.source.reasons) await expect(providerDiagnostics.locator('pre').first()).toContainText(reason);
+  await expect(page.getByTestId('selected-market-reasons')).toBeVisible();
+  await expect(page.locator('.source-readiness')).toHaveAttribute('title', /^Selected native book only/);
   await page.getByText('Source & instrument details', { exact: true }).click();
   await expect(page.locator('[data-testid="terminal-incident"][data-incident="synthetic"]')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Play synthetic demo', exact: true })).toHaveCount(0);
   await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Native book & tape', exact: true }).click();
   await expect(page.getByTestId('grouped-ladder').locator('tr.bid').first()).toBeInViewport();
   await expect(page.getByTestId('grouped-ladder').locator('tr.ask').last()).toBeInViewport();
-  await page.locator('.workspace-configuration > summary').click();
-  await page.getByLabel('Workspace preset').selectOption('ladder');
-  await page.locator('.workspace-configuration > summary').click();
+  await page.getByLabel('Layout preset', { exact: true }).selectOption('execution');
   await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Native book & tape', exact: true }).click();
   await expect(page.getByTestId('grouped-ladder').locator('tr.bid').first()).toBeInViewport();
   await expect(page.getByTestId('grouped-ladder').locator('tr.ask').last()).toBeInViewport();

@@ -185,7 +185,7 @@ export function NativeChartArea({ footprint }: { footprint: ReactNode }) {
           const view = chartViews[next]![0]; selectView(view); document.getElementById(`native-view-${view}`)?.focus();
         }}>{name}</button>)}
     </nav>
-    <div id="native-footprint" className="native-footprint" role="tabpanel" aria-labelledby="native-view-footprint" hidden={nativeView !== 'footprint'}>{footprint}</div>
+    <div id="native-footprint" className="native-footprint" role="tabpanel" aria-labelledby="native-view-footprint" hidden={nativeView !== 'footprint'}>{nativeView === 'footprint' && footprint}</div>
     <div id="native-chart-content" className="native-chart-content native-surface" role="tabpanel" aria-labelledby={`native-view-${nativeView}`} hidden={nativeView === 'footprint'}>
     <nav className="market-pane-tabs" role="tablist" aria-label="Market panes" hidden={!narrow}>
       {marketPanes.map(([id, name], index) => <button key={id} id={`market-tab-${id}`} role="tab" tabIndex={selectedPane === id ? 0 : -1} aria-selected={selectedPane === id} aria-controls={`market-panel-${id}`} onClick={() => selectPane(id)}
@@ -198,9 +198,10 @@ export function NativeChartArea({ footprint }: { footprint: ReactNode }) {
           document.getElementById(`market-tab-${pane}`)?.focus();
         }}>{name}</button>)}
     </nav>
+      {/* Visibility suspends native queries and paint, not pane-owned frozen evidence. */}
       <div className="native-chart-workspace" data-testid="workspace" data-maximized={maximized ?? ''}>
       <section id="market-panel-price" className="price-workspace" role="tabpanel" aria-labelledby={narrow ? 'market-tab-price' : 'native-view-price'} data-interaction-pane="price" data-interaction-active={interactionPane === 'price'} hidden={!paneVisible('price')}>
-        <PriceChart frame={frame} instrument={selected} instrumentIds={instrumentIds} cohortReady={cohortReady} connected={usable} active={paneVisible('price')} interval={p.candleInterval} onIntervalChange={candleInterval => update({ candleInterval })} maximized={maximized === 'price'} onMaximize={() => toggleMaximize('price')} />
+        <PriceChart frame={frame} instrument={selected} instrumentIds={instrumentIds} cohortReady={cohortReady} connected={connected} active={paneVisible('price')} interval={p.candleInterval} preferences={p.priceChart} onPreferencesChange={value => setPreferences(previous => ({ ...previous, priceChart: { ...previous.priceChart, ...value } }))} maximized={maximized === 'price'} onMaximize={() => toggleMaximize('price')} />
       </section>
       <section id="orderflow-workspace" className="chart-stack native-linked-charts" role={narrow ? undefined : 'tabpanel'} aria-labelledby={narrow ? undefined : 'native-view-orderflow'} aria-label="Market visualizations" hidden={!paneVisible('heatmap') && !paneVisible('flow')}>
         <div id="market-panel-heatmap" role={narrow ? 'tabpanel' : undefined} aria-labelledby={narrow ? 'market-tab-heatmap' : undefined} className="chart-slot primary-chart" data-interaction-pane="heatmap" data-interaction-active={interactionPane === 'heatmap'} hidden={!paneVisible('heatmap')}><ChartPane {...chartProps} key={`heatmap:${fence}`} id="heatmap" title="Liquidity" preferences={p} update={update} linked={p.links.heatmap} onLinked={() => toggleLink('heatmap')} timeLinked={p.rangeLinked} onTimeChange={intent => changeChartTime('heatmap', intent)} onTimeLinked={intent => toggleTimeLink('heatmap', intent)} interactionActive={interactionPane === 'heatmap'} maximized={maximized === 'heatmap'} onMaximize={() => toggleMaximize('heatmap')} active={paneVisible('heatmap')} /></div>

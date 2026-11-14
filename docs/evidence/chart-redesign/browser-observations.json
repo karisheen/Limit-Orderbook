@@ -1,0 +1,549 @@
+{
+  "scope": "Finite actual-browser chart redesign observations; gate receipts are maintained in docs/CHART_REDESIGN_PLAN.md.",
+  "market": {
+    "provider": "Binance Global",
+    "instrument": "BTCUSDT spot",
+    "interval": "1h",
+    "initial": {
+      "status": "ready",
+      "bars": 300,
+      "first": {
+        "start_ns": "1793552400000000000",
+        "end_ns": "1793556000000000000",
+        "open": "78150",
+        "high": "78172.7",
+        "low": "77964",
+        "close": "77980.54",
+        "volume": "180.65604",
+        "closed": true
+      },
+      "last": {
+        "start_ns": "1794628800000000000",
+        "end_ns": "1794632400000000000",
+        "open": "66755.91",
+        "high": "67225.93",
+        "low": "66456",
+        "close": "67189.55",
+        "volume": "1422.68824",
+        "closed": false
+      },
+      "history": {
+        "requested_before_ns": null,
+        "next_before_ns": "1793552400000000000",
+        "state": "more",
+        "pagination": "time",
+        "max_bars": 500,
+        "update_mode": "poll",
+        "poll_interval_ms": 5000
+      },
+      "session": "ed574e78d4be45d3aea4ccf4b649f54d",
+      "generation": "1"
+    },
+    "prepend": {
+      "pages": [
+        300,
+        300
+      ],
+      "loaded": 900,
+      "detached": "false",
+      "before": "2026-11-04 04:00:00 UTC\nO\n76496.05\nH\n77595.64\nL\n76434.11\nC\n77390.01\nVol\n1000.78114 BTC\nClosed bar",
+      "after": "2026-11-04 04:00:00 UTC\nO\n76496.05\nH\n77595.64\nL\n76434.11\nC\n77390.01\nVol\n1000.78114 BTC\nClosed bar",
+      "sameBar": true
+    },
+    "formingUpdate": {
+      "sameFormingBucket": true,
+      "forming": true,
+      "changed": true,
+      "retainedInspection": true,
+      "before": {
+        "start_ns": "1794628800000000000",
+        "end_ns": "1794632400000000000",
+        "open": "66755.91",
+        "high": "67225.93",
+        "low": "66456",
+        "close": "67072.01",
+        "volume": "1556.56946",
+        "closed": false
+      },
+      "after": {
+        "start_ns": "1794628800000000000",
+        "end_ns": "1794632400000000000",
+        "open": "66755.91",
+        "high": "67225.93",
+        "low": "66456",
+        "close": "67082.76",
+        "volume": "1557.82485",
+        "closed": false
+      }
+    },
+    "rollover": {
+      "loadedBefore": 900,
+      "loadedAfter": 901,
+      "newBucketStartNs": "1794632400000000000"
+    },
+    "collectorIncident": "analytical_queue_overflow remained visible while independent ticker history continued polling and backfill"
+  },
+  "themes": [
+    {
+      "width": 1440,
+      "theme": "Midnight",
+      "overflow": false,
+      "plot": {
+        "width": 1420,
+        "height": 314
+      },
+      "background": "#111215",
+      "canvasPixel": [
+        17,
+        18,
+        21,
+        255
+      ],
+      "panes": {
+        "chartPaneCount": "2",
+        "positioningPaneCount": "0"
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "Daylight",
+      "overflow": false,
+      "plot": {
+        "width": 1420,
+        "height": 314
+      },
+      "background": "#fbfcfe",
+      "canvasPixel": [
+        251,
+        252,
+        254,
+        255
+      ],
+      "panes": {
+        "chartPaneCount": "2",
+        "positioningPaneCount": "0"
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "Forest",
+      "overflow": false,
+      "plot": {
+        "width": 1420,
+        "height": 314
+      },
+      "background": "#0c1a11",
+      "canvasPixel": [
+        12,
+        26,
+        17,
+        255
+      ],
+      "panes": {
+        "chartPaneCount": "2",
+        "positioningPaneCount": "0"
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "Neon",
+      "overflow": false,
+      "plot": {
+        "width": 1420,
+        "height": 314
+      },
+      "background": "#0b0b24",
+      "canvasPixel": [
+        11,
+        11,
+        36,
+        255
+      ],
+      "panes": {
+        "chartPaneCount": "2",
+        "positioningPaneCount": "0"
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "Graphite",
+      "overflow": false,
+      "plot": {
+        "width": 1420,
+        "height": 314
+      },
+      "background": "#26262a",
+      "canvasPixel": [
+        38,
+        38,
+        42,
+        255
+      ],
+      "panes": {
+        "chartPaneCount": "2",
+        "positioningPaneCount": "0"
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "Paper",
+      "overflow": false,
+      "plot": {
+        "width": 1420,
+        "height": 314
+      },
+      "background": "#f2f2f2",
+      "canvasPixel": [
+        242,
+        242,
+        242,
+        255
+      ],
+      "panes": {
+        "chartPaneCount": "2",
+        "positioningPaneCount": "0"
+      }
+    },
+    {
+      "width": 1280,
+      "theme": "Midnight",
+      "overflow": false,
+      "plot": {
+        "width": 1260,
+        "height": 260
+      },
+      "background": "#111215",
+      "canvasPixel": [
+        17,
+        18,
+        21,
+        255
+      ],
+      "panes": {
+        "chartPaneCount": "2",
+        "positioningPaneCount": "0"
+      }
+    },
+    {
+      "width": 1280,
+      "theme": "Daylight",
+      "overflow": false,
+      "plot": {
+        "width": 1260,
+        "height": 260
+      },
+      "background": "#fbfcfe",
+      "canvasPixel": [
+        251,
+        252,
+        254,
+        255
+      ],
+      "panes": {
+        "chartPaneCount": "2",
+        "positioningPaneCount": "0"
+      }
+    },
+    {
+      "width": 1280,
+      "theme": "Forest",
+      "overflow": false,
+      "plot": {
+        "width": 1260,
+        "height": 260
+      },
+      "background": "#0c1a11",
+      "canvasPixel": [
+        12,
+        26,
+        17,
+        255
+      ],
+      "panes": {
+        "chartPaneCount": "2",
+        "positioningPaneCount": "0"
+      }
+    },
+    {
+      "width": 1280,
+      "theme": "Neon",
+      "overflow": false,
+      "plot": {
+        "width": 1260,
+        "height": 260
+      },
+      "background": "#0b0b24",
+      "canvasPixel": [
+        11,
+        11,
+        36,
+        255
+      ],
+      "panes": {
+        "chartPaneCount": "2",
+        "positioningPaneCount": "0"
+      }
+    },
+    {
+      "width": 1280,
+      "theme": "Graphite",
+      "overflow": false,
+      "plot": {
+        "width": 1260,
+        "height": 260
+      },
+      "background": "#26262a",
+      "canvasPixel": [
+        38,
+        38,
+        42,
+        255
+      ],
+      "panes": {
+        "chartPaneCount": "2",
+        "positioningPaneCount": "0"
+      }
+    },
+    {
+      "width": 1280,
+      "theme": "Paper",
+      "overflow": false,
+      "plot": {
+        "width": 1260,
+        "height": 260
+      },
+      "background": "#f2f2f2",
+      "canvasPixel": [
+        242,
+        242,
+        242,
+        255
+      ],
+      "panes": {
+        "chartPaneCount": "2",
+        "positioningPaneCount": "0"
+      }
+    },
+    {
+      "width": 390,
+      "theme": "Midnight",
+      "overflow": false,
+      "plot": {
+        "width": 370,
+        "height": 300
+      },
+      "background": "#111215",
+      "canvasPixel": [
+        17,
+        18,
+        21,
+        255
+      ],
+      "panes": {
+        "chartPaneCount": "2",
+        "positioningPaneCount": "0"
+      }
+    },
+    {
+      "width": 390,
+      "theme": "Daylight",
+      "overflow": false,
+      "plot": {
+        "width": 370,
+        "height": 300
+      },
+      "background": "#fbfcfe",
+      "canvasPixel": [
+        251,
+        252,
+        254,
+        255
+      ],
+      "panes": {
+        "chartPaneCount": "2",
+        "positioningPaneCount": "0"
+      }
+    },
+    {
+      "width": 390,
+      "theme": "Forest",
+      "overflow": false,
+      "plot": {
+        "width": 370,
+        "height": 300
+      },
+      "background": "#0c1a11",
+      "canvasPixel": [
+        12,
+        26,
+        17,
+        255
+      ],
+      "panes": {
+        "chartPaneCount": "2",
+        "positioningPaneCount": "0"
+      }
+    },
+    {
+      "width": 390,
+      "theme": "Neon",
+      "overflow": false,
+      "plot": {
+        "width": 370,
+        "height": 300
+      },
+      "background": "#0b0b24",
+      "canvasPixel": [
+        11,
+        11,
+        36,
+        255
+      ],
+      "panes": {
+        "chartPaneCount": "2",
+        "positioningPaneCount": "0"
+      }
+    },
+    {
+      "width": 390,
+      "theme": "Graphite",
+      "overflow": false,
+      "plot": {
+        "width": 370,
+        "height": 300
+      },
+      "background": "#26262a",
+      "canvasPixel": [
+        38,
+        38,
+        42,
+        255
+      ],
+      "panes": {
+        "chartPaneCount": "2",
+        "positioningPaneCount": "0"
+      }
+    },
+    {
+      "width": 390,
+      "theme": "Paper",
+      "overflow": false,
+      "plot": {
+        "width": 370,
+        "height": 300
+      },
+      "background": "#f2f2f2",
+      "canvasPixel": [
+        242,
+        242,
+        242,
+        255
+      ],
+      "panes": {
+        "chartPaneCount": "2",
+        "positioningPaneCount": "0"
+      }
+    }
+  ],
+  "touch": {
+    "touchPanDetached": true,
+    "pinchDispatched": true,
+    "chartVisible": true,
+    "overflow": false
+  },
+  "positioningDemo": {
+    "source": "Explicitly synthetic native Hyperliquid BTC perpetual demo",
+    "openInterest": "1260",
+    "openInterestUnit": "base",
+    "fundingRate": "0.00002",
+    "fundingInterval": "1h",
+    "paneResizing": {
+      "before": [
+        149.609375,
+        1,
+        29.59375,
+        1,
+        29.59375,
+        1,
+        30.1875,
+        28.015625
+      ],
+      "after": [
+        94.390625,
+        1,
+        54.390625,
+        1,
+        60,
+        1,
+        30.1875,
+        28.03125
+      ]
+    }
+  },
+  "footprintDemo": {
+    "source": "Explicitly synthetic native Coinbase BTC-USD demo",
+    "eligibleRetainedDepthColumns": 129,
+    "projectedHistoricalTiles": 256,
+    "retainedIndividualPrintCandidates": 129,
+    "missingDepthIsBlank": true
+  },
+  "gridPointerResizing": {
+    "before": {
+      "cells": [
+        {
+          "id": "chart",
+          "w": 12,
+          "h": 12,
+          "x": 0,
+          "y": 0
+        }
+      ]
+    },
+    "after": {
+      "cells": [
+        {
+          "id": "chart",
+          "w": 12,
+          "h": 10,
+          "x": 0,
+          "y": 0
+        }
+      ]
+    }
+  },
+  "performanceSample": {
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+    "dpr": 1.25,
+    "viewport": [
+      1440,
+      900
+    ],
+    "frames": 239,
+    "p50FrameOpportunityMs": 16.69999999999891,
+    "p95FrameOpportunityMs": 16.700000000000728,
+    "maxFrameOpportunityMs": 16.80000000000109,
+    "longTasks": 0,
+    "maxLongTaskMs": 0,
+    "heapBefore": 66390529,
+    "heapAfter": 39341689,
+    "canvasCount": 11,
+    "canvasBackingBytes": 4091104,
+    "loaded": "300 loaded bars"
+  },
+  "screenshots": {
+    "live-price-1440-dark.png": "Actual public historical candles; collector incident remains disclosed.",
+    "live-price-1440-light.png": "Same native ticker product, Daylight theme.",
+    "live-price-1280-dark.png": "Native ticker at 1280x800.",
+    "live-price-390-dark.png": "Native ticker at 390x844; no horizontal document overflow.",
+    "observed-demo-footprint-1440.png": "Synthetic native replay prefix with historical depth and native individual-print badges.",
+    "observed-demo-positioning-1440.png": "Synthetic native perpetual prefix with resizable price/volume/OI/funding panes."
+  },
+  "limitations": [
+    "Samples/screenshots were collected at different times; this is not a controlled before/after benchmark.",
+    "Frame opportunities are not GPU completion, exchange latency or throughput qualification.",
+    "Heap measurements include the application and garbage collection; they do not prove leak freedom.",
+    "The performance sample used 300 bars, not the 10000-bar cap or a maximum replay load.",
+    "Live endpoint behavior was sampled for Binance spot, not certified for every supported provider.",
+    "Synthetic screenshots are not public market evidence."
+  ]
+}

@@ -43,16 +43,35 @@ export class NativeMarketBridge {
   private refreshVenues = false;
   private sourceIdentities = new Map<string, NativeMarketTrade["source_identity"]>();
   private displayTimeMs: number | null = null;
+  private retentionKey = "";
+  private retainedDirty = true;
+  private retainedInstrumentIds: string[] = [];
+  private studyMetadataKey = "";
+  private bookKey = "";
+  private projectedBooks = new Map<string, NormalizedOrderBook>();
+  private aggregate: TerminalStore["aggregatedBook"] = null;
+  private band: { bidVolume: number; askVolume: number } | null = null;
+  private bookReasons: string[] = [];
+  private profileArea = NaN;
 
   constructor(private readonly store: StoreApi<TerminalStore>) { this.studies = new DisplayStudies(store); }
 
   reset(scope: DisplayScope | null): void {
     const previous = this.scope;
+    // Optional mode omission retains the prior explicit mode; an actual mode
+    // transition is a source fence, even if a caller reuses its generation.
+    if (scope && scope.sourceMode === undefined && previous) scope = { ...scope, sourceMode: previous.sourceMode };
     if (previous?.sessionId === scope?.sessionId && previous?.generation === scope?.generation &&
-        previous?.sourceId === scope?.sourceId && previous?.primary.instrument_id === scope?.primary.instrument_id &&
+        previous?.sourceId === scope?.sourceId && previous?.sourceMode === scope?.sourceMode &&
+        previous?.primary.instrument_id === scope?.primary.instrument_id &&
         previous?.primary.base.asset_id === scope?.primary.base.asset_id && previous?.primary.market_type === scope?.primary.market_type &&
         previous?.primary.quote.asset_id === scope?.primary.quote.asset_id) {
+      const metadataChanged = JSON.stringify(previous?.primary) !== JSON.stringify(scope?.primary);
       this.scope = scope;
+      if (metadataChanged && scope) {
+        this.instruments.set(scope.primary.instrument_id, scope.primary);
+        this.rebuild();
+      }
       return;
     }
     this.scope = scope;
@@ -67,6 +86,16 @@ export class NativeMarketBridge {
     this.configuration = "";
     this.depthCohort = "";
     this.tickInstrument = "";
+    this.retentionKey = "";
+    this.retainedDirty = true;
+    this.retainedInstrumentIds = [];
+    this.studyMetadataKey = "";
+    this.bookKey = "";
+    this.projectedBooks = new Map();
+    this.aggregate = null;
+    this.band = null;
+    this.bookReasons = [];
+    this.profileArea = NaN;
     this.sourceIdentities.clear();
     this.studies = new DisplayStudies(this.store);
     this.store.getState().resetMarketData();
@@ -85,16 +114,21 @@ export class NativeMarketBridge {
 
   configure(): void {
     const s = this.store.getState();
-    const key = JSON.stringify([s.venue, s.selectedVenues, s.timeframe, s.tickSize, s.imbalanceThreshold, s.valueAreaPct]);
-    if (key === this.configuration) return;
-    this.configuration = key;
-    this.rebuild();
+    const key = JSON.stringify([s.venue, s.selectedVenues, s.timeframe, s.tickSize, s.imbalanceThreshold]);
+    if (key !== this.configuration) {
+      this.configuration = key;
+      this.rebuild();
+    } else if (s.valueAreaPct !== this.profileArea) {
+      this.publish([]);
+    }
   }
 
   private rebuild(): void {
     this.studies = new DisplayStudies(this.store);
     this.store.getState().resetTradeStudies();
-    this.publish(this.retained);
+    this.retainedDirty = true;
+    this.profileArea = NaN;
+    this.publish(this.retained, true);
   }
 
   accept(page: NativeMarketData): boolean {
@@ -124,9 +158,13 @@ export class NativeMarketBridge {
       this.retained = [];
       this.cursor = { ...START };
       this.sourceIdentities.clear();
+      this.retainedDirty = true;
+      this.retentionKey = "";
     }
-    const selected = new Set(this.cohort().map(instrument => instrument.instrument_id));
-    let rebuild = rewind || JSON.stringify([...selected].sort()) !== this.depthCohort;
+    const cohort = this.cohort();
+    const selected = new Set(cohort.map(instrument => instrument.instrument_id));
+    const metadataKey = JSON.stringify(cohort);
+    let rebuild = rewind || metadataKey !== this.studyMetadataKey;
     // Floors are inclusive retirement cursors, independent of pagination and
     // whether this client has already caught up. Never discard healthy peers.
     const retained = (trade: NativeMarketTrade): boolean => {
@@ -135,11 +173,16 @@ export class NativeMarketBridge {
         compareCursor(trade.cursor, page.retention.floor) > 0 &&
         (!streamFloor || compareCursor(trade.cursor, streamFloor) > 0);
     };
-    const previousCount = this.retained.length;
-    this.retained = this.retained.filter(retained);
-    if (this.retained.length !== previousCount) {
-      rebuild = true;
-      this.reasons.add("Native retention floors limit study history");
+    const retentionKey = JSON.stringify([[...admitted].sort(), page.retention.floor, page.retention.stream_floors]);
+    if (retentionKey !== this.retentionKey) {
+      this.retentionKey = retentionKey;
+      const previousCount = this.retained.length;
+      this.retained = this.retained.filter(retained);
+      if (this.retained.length !== previousCount) {
+        this.retainedDirty = true;
+        rebuild = true;
+        this.reasons.add("Native retention floors limit study history");
+      }
     }
     const fresh: NativeMarketTrade[] = [];
     // Native boundaries and trades share one cursor order; an epoch boundary can
@@ -157,6 +200,7 @@ export class NativeMarketBridge {
           this.reasons.add(`Native trade ${event.kind} (${instrument.venue}): ${event.reason}; affected stream studies restarted`);
         }
         this.retained = this.retained.filter(trade => trade.stream_id !== event.stream_id);
+        this.retainedDirty = true;
         this.sourceIdentities.delete(event.stream_id);
         rebuild ||= visible;
       } else {
@@ -170,16 +214,19 @@ export class NativeMarketBridge {
             this.reasons.add(`Native trade source identity changed (${instrument.venue}); affected stream studies restarted`);
           }
           this.retained = this.retained.filter(trade => trade.stream_id !== event.stream_id);
+          this.retainedDirty = true;
           rebuild ||= visible;
         }
         this.sourceIdentities.set(event.stream_id, identity);
         this.retained.push(event);
+        this.retainedDirty = true;
         fresh.push(event);
       }
     }
     if (compareCursor(page.cursor, this.cursor) > 0) this.cursor = page.cursor;
     if (this.retained.length > MAX_RETAINED_TRADES) {
       this.retained = this.retained.slice(-MAX_RETAINED_TRADES);
+      this.retainedDirty = true;
       this.reasons.add("Display study window limited to latest 100,000 native trades");
       rebuild = true;
     }
@@ -228,7 +275,7 @@ export class NativeMarketBridge {
       bids: project(book.bids), asks: project(book.asks), native: book };
   }
 
-  private publish(trades: NativeMarketTrade[]): void {
+  private publish(trades: NativeMarketTrade[], rebuilding = false): void {
     const primary = this.scope?.primary;
     if (!primary) return;
     const cohort = this.cohort();
@@ -236,8 +283,13 @@ export class NativeMarketBridge {
     if (cohortKey !== this.depthCohort) {
       this.depthCohort = cohortKey;
       this.store.getState().resetDepthHistory();
+      this.retainedDirty = true;
+      this.bookKey = "";
     }
     const selected = new Map(cohort.map(instrument => [instrument.instrument_id, instrument]));
+    this.studyMetadataKey = JSON.stringify(cohort);
+    const previousCandle = this.studies.candle;
+    let studiesChanged = rebuilding;
     const completedBars: FlowBar[] = [], plotted: NormalizedTrade[] = [];
     let unknown = this.store.getState().displayStatus.unknownSideTrades;
     let history = this.store.getState().displayStatus.historyTrades;
@@ -256,59 +308,93 @@ export class NativeMarketBridge {
       }
       plotted.push(trade);
       // History has no trustworthy live ordering. Show it on tape, never invent historical CVD.
-      if (!native.trade.is_subscription_history) this.studies.apply(trade, completedBars);
+      if (!native.trade.is_subscription_history) {
+        this.studies.apply(trade, completedBars);
+        studiesChanged = true;
+      }
     }
     this.studies.advance(this.displayTimeMs);
-    const books = new Map<string, NormalizedOrderBook>();
-    const connections: VenueConnection[] = [];
-    const qualityReasons = new Set<string>();
-    for (const native of this.books) {
-      const instrument = selected.get(native.instrument_id);
-      if (!instrument) continue;
-      const q = native.quality;
-      for (const reason of [...q.reason_codes, ...(native.eligibility?.reasons ?? [])]) qualityReasons.add(reason);
-      if (!q.coverage.full_depth) qualityReasons.add("Partial native depth coverage");
-      if (native.presentation.bids_omitted || native.presentation.asks_omitted) qualityReasons.add("Native depth presentation truncated");
-      if (!q.capture_complete) qualityReasons.add("Native capture incomplete");
-      const book = this.plotBook(native, instrument);
-      if (book) books.set(instrument.instrument_id, book);
-      connections.push({ venue: instrument.venue,
-        status: native.eligibility?.eligible && book ? "live" : "stale",
-        lastHeartbeat: book?.timestamp ?? 0, reconnectAttempts: 0,
-        stateFlag: `${q.source_mode}${q.recorded_source_mode ? `/${q.recorded_source_mode}` : ""} · ${q.lifecycle} · ${q.integrity}`,
+    this.studies.flush();
+    const candlesChanged = studiesChanged || previousCandle !== this.studies.candle;
+    const state = this.store.getState();
+    // Include complete native evidence, not only revision: quality, eligibility,
+    // exact provenance and metadata can change independently of depth revision.
+    const bookKey = JSON.stringify([cohort, this.books]);
+    const booksChanged = bookKey !== this.bookKey;
+    let connections: VenueConnection[] | undefined;
+    if (booksChanged) {
+      this.bookKey = bookKey;
+      const books = new Map<string, NormalizedOrderBook>();
+      const nextConnections: VenueConnection[] = [];
+      const qualityReasons = new Set<string>();
+      for (const native of this.books) {
+        const instrument = selected.get(native.instrument_id);
+        if (!instrument) continue;
+        const q = native.quality;
+        for (const reason of [...q.reason_codes, ...(native.eligibility?.reasons ?? [])]) qualityReasons.add(reason);
+        if (!q.coverage.full_depth) qualityReasons.add("Partial native depth coverage");
+        if (native.presentation.bids_omitted || native.presentation.asks_omitted) qualityReasons.add("Native depth presentation truncated");
+        if (!q.capture_complete) qualityReasons.add("Native capture incomplete");
+        const book = this.plotBook(native, instrument);
+        if (book) books.set(instrument.instrument_id, book);
+        nextConnections.push({ venue: instrument.venue,
+          status: native.eligibility?.eligible && book ? "live" : "stale",
+          lastHeartbeat: book?.timestamp ?? 0, reconnectAttempts: 0,
+          stateFlag: `${q.source_mode}${q.recorded_source_mode ? `/${q.recorded_source_mode}` : ""} · ${q.lifecycle} · ${q.integrity}`,
+        });
+      }
+      if (cohort.some(instrument => instrument.quote.asset_id !== primary.quote.asset_id)) qualityReasons.add("Indicative cross-quote aggregation; native quotes are not converted");
+      if (cohort.length > 1) qualityReasons.add("Display cohort only; costs and paper use native primary");
+      if (!books.size) qualityReasons.add("No eligible native depth in selected display cohort");
+      this.projectedBooks = books;
+      this.aggregate = aggregateBooks(books);
+      this.band = this.aggregate ? computeBandObi(books, this.aggregate) : null;
+      this.bookReasons = [...qualityReasons];
+      if (JSON.stringify(Object.fromEntries(nextConnections.map(connection => [connection.venue, connection]))) !==
+          JSON.stringify(state.connections)) connections = nextConnections;
+    }
+    const qualityReasons = [...this.bookReasons];
+    if (history) qualityReasons.push("Subscription history is tape-only, excluded from ordered studies");
+    if (unknown) qualityReasons.push("Unknown aggressor side contributes volume, not signed delta");
+    const { candle, session, liveBar } = this.studies;
+    const profileChanged = candlesChanged || state.valueAreaPct !== this.profileArea;
+    this.profileArea = state.valueAreaPct;
+    const aggregate = this.aggregate, band = this.band;
+    if (plotted.length || candlesChanged || profileChanged || booksChanged) {
+      state.applyMarketDataBatch({
+        trades: plotted, orderBook: this.projectedBooks.get(primary.instrument_id) ?? null, aggregatedBook: aggregate,
+        candle: candlesChanged ? (candle ? { ...candle } : null) : state.currentCandle,
+        volumeProfile: profileChanged
+          ? (state.candles.length || candle
+            ? computeVolumeProfile(candle ? [...state.candles, candle] : state.candles, state.valueAreaPct) : null)
+          : state.volumeProfile,
+        ticker: studiesChanged ? (session ? { venue: primary.venue, symbol: displaySymbol(primary), price: session.last,
+          open: session.open, high: session.high, low: session.low, change: session.last - session.open,
+          changePct: session.open ? (session.last / session.open - 1) * 100 : 0, volume: session.volume,
+          timestamp: liveBar?.time ?? session.startTime } : null) : state.ticker,
+        obi: band && aggregate ? { timestamp: aggregate.timestamp, value: computeOBI(band.bidVolume, band.askVolume), ...band } : null,
+        flowBars: completedBars,
+        liveBar: studiesChanged ? (liveBar ? { ...liveBar } : null) : state.liveBar,
+        session: studiesChanged ? (session ? { ...session } : null) : state.session,
+        connections,
       });
     }
-    if (cohort.some(instrument => instrument.quote.asset_id !== primary.quote.asset_id)) qualityReasons.add("Indicative cross-quote aggregation; native quotes are not converted");
-    if (cohort.length > 1) qualityReasons.add("Display cohort only; costs and paper use native primary");
-    if (!books.size) qualityReasons.add("No eligible native depth in selected display cohort");
-    if (history) qualityReasons.add("Subscription history is tape-only, excluded from ordered studies");
-    if (unknown) qualityReasons.add("Unknown aggressor side contributes volume, not signed delta");
-    const aggregate = aggregateBooks(books);
-    const band = aggregate ? computeBandObi(books, aggregate) : null;
-    const { candle, session, liveBar } = this.studies;
-    const state = this.store.getState();
-    state.applyMarketDataBatch({
-      trades: plotted, orderBook: books.get(primary.instrument_id) ?? null, aggregatedBook: aggregate,
-      candle: candle ? { ...candle } : null,
-      volumeProfile: state.candles.length || candle
-        ? computeVolumeProfile(candle ? [...state.candles, candle] : state.candles, state.valueAreaPct) : null,
-      ticker: session ? { venue: primary.venue, symbol: displaySymbol(primary), price: session.last,
-        open: session.open, high: session.high, low: session.low, change: session.last - session.open,
-        changePct: session.open ? (session.last / session.open - 1) * 100 : 0, volume: session.volume,
-        timestamp: liveBar?.time ?? session.startTime } : null,
-      obi: band && aggregate ? { timestamp: aggregate.timestamp, value: computeOBI(band.bidVolume, band.askVolume), ...band } : null,
-      flowBars: completedBars, liveBar: liveBar ? { ...liveBar } : null, session: session ? { ...session } : null, connections,
-    });
+    if (this.retainedDirty) {
+      this.retainedInstrumentIds = [...new Set(this.retained
+        .filter(trade => selected.has(trade.instrument_id) && !trade.trade.is_subscription_history)
+        .map(trade => trade.instrument_id))];
+      this.retainedDirty = false;
+    }
     const displayStatus: DisplayStatus = { reasons: [...this.reasons, ...qualityReasons],
       primaryInstrumentId: primary.instrument_id, instrumentIds: cohort.map(instrument => instrument.instrument_id),
-      retainedTradeInstrumentIds: [...new Set(this.retained
-        .filter(trade => selected.has(trade.instrument_id) && !trade.trade.is_subscription_history)
-        .map(trade => trade.instrument_id))],
+      retainedTradeInstrumentIds: this.retainedInstrumentIds,
       displayTimeMs: this.displayTimeMs,
       gap: this.gap, unknownSideTrades: unknown, historyTrades: history,
       lagObservation: this.scope?.sourceMode === "replay" ? "recorded" : this.scope?.sourceMode === "demo" ? "synthetic" :
         this.scope?.sourceMode === "live" ? "live" : "unknown" };
-    this.store.setState({ displayStatus, connections: Object.fromEntries(connections.map(connection => [connection.venue, connection])) });
+    if (JSON.stringify(displayStatus) !== JSON.stringify(this.store.getState().displayStatus)) {
+      this.store.setState({ displayStatus });
+    }
   }
 }
 

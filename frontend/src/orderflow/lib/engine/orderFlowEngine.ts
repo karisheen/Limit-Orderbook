@@ -204,24 +204,41 @@ export function applyTradeToCandle(
 }
 
 // ----------------------------------------------------------
-// Apply Z-Score to all levels in a candle
+// Baseline statistics retain the original two-pass arithmetic/order.
+// Callers invalidate when historical level volumes or membership change.
 // ----------------------------------------------------------
+export interface ZScoreBaseline {
+  count: number;
+  mean: number;
+  std: number;
+}
+
+export function computeZScoreBaseline(levels: FootprintLevel[]): ZScoreBaseline {
+  let sum = 0;
+  for (const level of levels) sum += level.totalVolume;
+  const mean = levels.length ? sum / levels.length : 0;
+  let variance = 0;
+  for (const level of levels) variance += (level.totalVolume - mean) ** 2;
+  return { count: levels.length, mean, std: levels.length ? Math.sqrt(variance / levels.length) : 0 };
+}
+
 export function applyZScores(
   candle: FootprintCandle,
-  allLevels: FootprintLevel[]
+  baseline: ZScoreBaseline,
+  prices?: Iterable<number>
 ): void {
-  if (allLevels.length < 2) return;
-
-  const volumes = allLevels.map((l) => l.totalVolume);
-  const mean = volumes.reduce((a, b) => a + b, 0) / volumes.length;
-  const variance = volumes.reduce((a, b) => a + (b - mean) ** 2, 0) / volumes.length;
-  const std = Math.sqrt(variance);
-
-  if (std === 0) return;
-
-  for (const level of candle.levels.values()) {
-    level.zScore = (level.totalVolume - mean) / std;
-    level.isHighVolume = level.zScore >= 2;
+  if (baseline.count < 2 || baseline.std === 0) return;
+  if (prices) {
+    for (const price of prices) {
+      const level = candle.levels.get(price)!;
+      level.zScore = (level.totalVolume - baseline.mean) / baseline.std;
+      level.isHighVolume = level.zScore >= 2;
+    }
+  } else {
+    for (const level of candle.levels.values()) {
+      level.zScore = (level.totalVolume - baseline.mean) / baseline.std;
+      level.isHighVolume = level.zScore >= 2;
+    }
   }
 }
 

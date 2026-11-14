@@ -29,7 +29,13 @@ from ..instruments import (
 from ..precision import decimal, exact_json_loads, nonnegative_int, text
 from ..quality import Capabilities, Coverage
 from ..transport import fetch_public
-from .base import DecodeError, DecodedEvent, DecodeResult, TransportRequest
+from .base import (
+    DecodeError,
+    DecodedEvent,
+    DecodeResult,
+    TransportRequest,
+    parse_metadata_offloop,
+)
 
 INFO_URL = "https://api.hyperliquid.xyz/info"
 WS_URL = "wss://api.hyperliquid.xyz/ws"
@@ -156,9 +162,11 @@ class HyperliquidAdapter:
             _request("meta", **({"dex": self.dex} if self.dex else {}))
         )
         raw_parts = [raw_spot, raw_meta]
-        spot, meta = (
-            _object(exact_json_loads(raw_spot)),
-            _object(exact_json_loads(raw_meta)),
+        spot, meta = await parse_metadata_offloop(
+            lambda: (
+                _object(exact_json_loads(raw_spot)),
+                _object(exact_json_loads(raw_meta)),
+            )
         )
         # Older meta responses omit collateralToken; obtain it, never guess collateral.
         if "collateralToken" not in meta:
@@ -166,30 +174,39 @@ class HyperliquidAdapter:
                 _request("metaAndAssetCtxs", **({"dex": self.dex} if self.dex else {}))
             )
             raw_parts.append(raw_context)
-            contexts = _array(exact_json_loads(raw_context))
-            if len(contexts) != 2:
-                raise ValueError("invalid metadata/context response")
-            meta = _object(contexts[0])
+            meta = await parse_metadata_offloop(self._context_metadata, raw_context)
         dex_index = 0
         if self.dex:
             raw_dex = await fetch_public(_request("perpDexs"))
             raw_parts.append(raw_dex)
-            matches = [
-                i
-                for i, item in enumerate(_array(exact_json_loads(raw_dex)))
-                if isinstance(item, dict) and item.get("name") == self.dex
-            ]
-            if len(matches) != 1 or matches[0] == 0:
-                raise ValueError("unresolved DEX index")
-            dex_index = matches[0]
-        digest = sha256(b"\x00".join(raw_parts)).hexdigest()
-        return self.parse_metadata(
-            meta,
-            spot,
-            fetch_wall_ns=time_ns(),
-            payload_hash=digest,
-            dex_index=dex_index,
+            dex_index = await parse_metadata_offloop(self._dex_index, raw_dex)
+        fetched = time_ns()
+        return await parse_metadata_offloop(
+            lambda: self.parse_metadata(
+                meta,
+                spot,
+                fetch_wall_ns=fetched,
+                payload_hash=sha256(b"\x00".join(raw_parts)).hexdigest(),
+                dex_index=dex_index,
+            )
         )
+
+    @staticmethod
+    def _context_metadata(raw: bytes):
+        contexts = _array(exact_json_loads(raw))
+        if len(contexts) != 2:
+            raise ValueError("invalid metadata/context response")
+        return _object(contexts[0])
+
+    def _dex_index(self, raw: bytes) -> int:
+        matches = [
+            i
+            for i, item in enumerate(_array(exact_json_loads(raw)))
+            if isinstance(item, dict) and item.get("name") == self.dex
+        ]
+        if len(matches) != 1 or matches[0] == 0:
+            raise ValueError("unresolved DEX index")
+        return matches[0]
 
     def parse_metadata(
         self,

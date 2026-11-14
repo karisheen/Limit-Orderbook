@@ -1,6 +1,6 @@
 # Workstation architecture and decisions
 
-Status: **living architecture synchronized with the native candles, perpetual-paper and live-reliability implementation; not certification of current-head performance or operational readiness.** The baseline audit and milestone-era ADR rationale below remain historical. The M4 cutover replaced the duplicate legacy engine with a thin native-API client; subsequent implementation is summarized here. Acceptance is tracked in [UPGRADE_BACKLOG.md](UPGRADE_BACKLOG.md); implemented interfaces are in [CONTRACTS.md](CONTRACTS.md) and [API.md](API.md). Dated checks and delivery receipts belong in [OMP_UPGRADE_HANDOFF.md](OMP_UPGRADE_HANDOFF.md), not an implied fresh pass.
+Status: **living architecture with finite local stabilization acceptance, not execution certification or an unconditional performance guarantee.** See [STABILITY_REVIEW](STABILITY_REVIEW.md) for measured defects, fixes, gates and remaining limits, and [QUICKSTART](QUICKSTART.md) for operation. The baseline audit and milestone-era ADR rationale below remain historical. The M4 cutover replaced the duplicate legacy engine with a thin native-API client. Implemented interfaces are in [CONTRACTS](CONTRACTS.md) and [API](API.md); historical receipts are not implied fresh passes.
 
 ## Current runtime ownership and transport
 
@@ -9,7 +9,30 @@ Status: **living architecture synchronized with the native candles, perpetual-pa
   browsers and managed recorders lease its subscriptions rather than opening
   competing collectors. Each `ClientSession` has a dedicated executor for
   replay readers and mutable analytics/context/alerts/paper observers.
-  Cancellation joins owned work before resources or in-flight evidence release.
+  `join_owned` joins work under AnyIO cancel-scope and asyncio shielding before
+  resources/in-flight evidence release, including repeated cancellation. The
+  waiter still receives cancellation and worker errors remain observable.
+  One persistent analytical drain dispatches up to 128 already-admitted deliveries
+  per busy turn in order, without waiting to fill a batch. Bootstrap remains
+  limited to 32 per turn. Queue capacity is unchanged; larger busy turns amortize
+  dispatch overhead while preserving individual transactions.
+  Stop requests join the detached batch, including lock waits and failure
+  freezing; only an idle queue wait is directly cancelled.
+- Native ingress runs small trade transactions and strictly bounded small book
+  transactions inline, with per-frame fairness. Small books require ≤4096 raw
+  bytes, an exact truncating base reducer with effective depth ≤50, no buffered
+  protocol work, and current sides ≤50. Deep, unbounded, subclassed or larger
+  inputs retain worker isolation. These select execution placement, not accepted
+  input size, subscribed depth or analytical completeness.
+- WebSocket default TLS contexts initialize off-loop with coalesced, bounded,
+  environment-sensitive reuse, including secure proxies. System/environment
+  trust, certificate/hostname checks and routing remain intact. HTTP retains its
+  separate verified `trust_env=False` policy. Trust loading must not stall
+  already-running feeds when a connection starts or reconnects.
+- Metadata discovery keeps transport awaits on the owning loop, while exact
+  decoding, instrument construction and aggregate snapshot assembly run off-loop.
+  Cancellation joins parser ownership; discarded late family results do not
+  become published metadata.
 - The required analytical queue admits at most **256 deliveries / 128 MiB**,
   including detached in-flight work. `_LiveBookBudget` counts shared immutable
   books, side tuples and levels once across their retained references, including
@@ -21,9 +44,13 @@ Status: **living architecture synchronized with the native candles, perpetual-pa
   reads historical paper summaries and projects frozen live market queries.
   A separate visual worker supports presentation work; these workers are not
   additional feed or financial-state owners. The catalog encoded-response LRU
-  is bounded to **8 scopes / 64 MiB**. Its metadata/readiness-sensitive strong
-  ETags permit bodyless 304 responses. React's URL-local validators remain
-  lifecycle-scoped; an unrelated scope or failed refresh is not validation.
+  is bounded to **8 scopes / 64 MiB**. `GET /api/v1/sources` returns the Catalog-shaped
+  source directory with no instruments. Selected metadata uses
+  `/api/v1/instruments?source_id=...&include_sources=false`; its ETag excludes
+  unrelated source status. Default `include_sources=true` remains the full API
+  representation. Cache identity includes scope/projection; URL-local browser
+  validators never cross representations. Directory and metadata freshness/errors
+  remain independent, while unchanged metadata objects retain their identities.
 - `market_presentation.live_market_snapshot` captures a `LiveMarketView` of
   the completed prefix on the analytical owner. It shares immutable books and
   events, but copies admission, clock-origin and retention maps read-only.
@@ -42,6 +69,36 @@ Status: **living architecture synchronized with the native candles, perpetual-pa
   Funding/OI history uses admitted Hyperliquid context, not venue-history
   backfill, and related-underlying context keeps its own identity. Streamlit
   exposes a narrower HTTP observation subset, not a second engine.
+- The browser resolves a source from the directory before loading selected
+  metadata, avoiding an all-source metadata bootstrap transfer. Native cursor
+  drains depend on semantic evidence identity, not equivalent catalog objects;
+  genuine metadata/source/session/generation changes still fence them. Telemetry
+  updates do not require rebuilding metadata/cohort indexes.
+- Selection/replay/paper-resume response waits have a **15-second browser
+  deadline**. Settlement releases busy/deferred presentation and reports ambiguity;
+  server execution may already have committed. No automatic mutation retry or
+  session replacement follows that deadline.
+
+### Continuity and failure ownership
+
+Analytical overflow remains terminal for market analytics. Before discarding an
+admitted backlog or replacing a lost baseline, the runtime signals paper loss on
+its owner; the last complete accounting prefix and durable gap provenance remain.
+Quiet reselection without lost required evidence is not automatically a gap.
+Paper's owner-only `observation_gap(reason, affected_keys=None, at=None)` treats
+global loss separately from affected native book dependencies of pending orders
+and open perpetual positions. Scoped unrelated trade-only gaps do not freeze all
+accounts. Current recovered depth cannot establish missing liquidation/fill paths.
+Only explicit new configuration starts new accounting; market recovery never
+silently thaws the old run.
+
+Terminal frame eligibility is checked after worker completion as well as before
+dispatch, preventing an in-flight view from reviving actionable terminal evidence.
+Replay records failed observer operations and prevents publication/continuation
+from a partial prefix until explicit seek/reset reconstructs all consumers. This
+is failure fencing, not rollback. Capture stop/finalization retains service
+ownership until work joins; capture scopes and registry leases remain independent
+of one analytical client's failure.
 
 Native Python remains authoritative for exact Decimal economics, quality,
 replay, analytics and the simulated ledger. Verified pinned metadata and native
@@ -51,6 +108,83 @@ this environment's last observed network; provider denial is not bypassed.
 There is no Rust HFT engine, funding-arbitrage strategy, automated market making
 or exchange order execution. The [performance record](CORE_PERFORMANCE.md#current-workload-isolation-and-retained-measurements)
 scopes the measured isolation changes to their finite workloads.
+
+### Hybrid chart ownership
+
+TradingView Lightweight Charts **5.3.0**, pinned in the frontend manifest and
+lockfile, renders standard price candles, volume and compatible optional
+positioning panes. React owns lifecycle, controls, provenance and exact accessible
+inspection; a typed series adapter converts bounded plotting coordinates only.
+The library supplies rendering, not market data or the full TradingView indicator
+product. Apache-2.0 license/NOTICE and TradingView attribution are retained with
+the distributed frontend. Specialized liquidity, footprint and flow rendering
+remain native and share the terminal's six-theme tokens.
+
+The default source preference is `auto`: live resolves to exact-primary
+`venue_ohlcv`, demo/replay to selected-cohort `session_trades`. Explicit choices
+persist. Ticker requests normalize to the primary before gating/identity; cohort
+changes never relabel single-venue history as aggregate. Exchange-time ticker
+buckets and projected receive-time observed flow are different products.
+Explicit external ticker queries in replay are current public history, not
+causal replay evidence; automatic replay never fetches it.
+
+Venue history carries a stable `series_key` covering instrument metadata, family,
+interval, native alignment and clock basis, independent of session identity.
+Session/generation fences still govern publication. Exclusive `before_ns` candle
+start boundaries support older pages; capability/status metadata distinguishes
+`more`, `exhausted`, `limited`, `unavailable` and `unsupported`, including
+`time` versus `recent_only` pagination. Short/empty pages alone do not prove
+exhaustion. Updates are deliberate **5-second polling**, not streaming.
+The frontend merges sorted exact buckets and overlapping corrections, coalesces
+older-page requests and fences selection changes and reconnect recovery.
+Its **10,000-bar mounted-query cap** pauses growth without evicting visible
+history; resumption is an explicit history reset, not an automatic rolling loss.
+
+One global interval controls price and interval-based observed studies; native
+provider alignment and supported intervals remain explicit. Price preferences
+persist source, linear/log scale, autoscale, right offset and optional positioning.
+Observed Hyperliquid OI/funding is opt-in, keeps declared units and selected or
+explicitly related-instrument identity, and is not plotted on exchange time.
+Missing/incompatible positioning does not allocate empty panes. Price inspection
+does not forge a clock mapping to liquidity/book cursors.
+
+Named editable grid layouts extend versioned workspace preferences rather than
+introducing another market-state store. Layouts contain geometry and display
+settings, never source/instrument/cohort/session ownership. Migration preserves
+existing source/timeframe choices and workspace slots; applying a layout retains
+the current source choice and temporal/freeze state without selecting another market. Edit mode
+provides bounded drag/resize and keyboard geometry controls with collision rejection;
+narrow screens stack panels and hidden charts suspend work. The normal native
+book/tape surface is not duplicated.
+
+Optional footprint resting liquidity reads eligible retained native visual-grid
+evidence for the exact selected primary, projects only a proven source clock
+and leaves unknown spans blank. Its user-selected quantity ceiling is stable;
+it never reconstructs history from the current book. Individual large-print
+venue badges retain exact native trade references, separate from aggregate
+footprint volume. Scope/clock mismatches clear overlays, and bounded rendering
+and hidden-pane query gating constrain presentation work.
+
+Successfully painted native view/mode/crop owns cursor pixels and pixel-linked
+readouts; incoming unpainted data cannot replace that evidence. Inspector bodies
+mount lazily with disclosure settings retained separately. Shared canvas callbacks
+isolate failures and expose the failed panel instead of blocking siblings or
+silently displaying valid-looking stale pixels. Theme, DPR and visibility changes
+invalidate presentation event-by-event; backing size and transform update together.
+Offscreen/hidden presentation suspends without dropping analytical events, and
+re-entry paints current retained evidence. Exact Price readouts use stable
+scrollable geometry rather than resizing the plot as cursor values change.
+
+The display bridge retains unchanged derived identities and batches necessary
+study reconstruction/publication. Cached baseline statistics invalidate on real
+history changes. Retention-floor/stream-gap pruning, late trades, quality changes
+and source-frontier candle closure remain evidence changes, even on empty pages.
+These reduce redundant browser work, not native financial computation or collection.
+
+See [operator controls](TERMINAL.md#integrated-native-charts) and the
+[implementation/verification record](CHART_REDESIGN_PLAN.md). Browser navigation,
+provider behavior and performance remain verification gates, not claims supplied
+by the renderer dependency.
 
 
 ## Actual baseline audit
@@ -157,7 +291,7 @@ Use “best observed comparable bid/ask,” not NBBO. Native USD/USDT/USDC and s
 
 **Decision:** use an independently implemented native Canvas2D tiled heatmap primitive with React HTML controls/tables, not thousands of SVG nodes or a candlestick chart masquerading as liquidity history. Native browser Canvas has no chart-package dependency/version to pin; record browser build and renderer revision in every benchmark. The concrete Canvas-versus-SVG M0 spike and inputs live with SPIKE_METHOD. This choice is conditional on measured dense-grid behavior; no FPS or latency is asserted here.
 
-Reviewed alternative: TradingView Lightweight Charts has [Apache-2.0 license](https://github.com/tradingview/lightweight-charts/blob/master/LICENSE) and [custom series/series/pane primitives](https://tradingview.github.io/lightweight-charts/docs/plugins/intro), including custom Canvas rendering. It could supply candles and axes but is not itself the required historical liquidity implementation. It is not installed/adopted in M0, and no third-party example code/assets are copied. If chosen for auxiliary panes, pin an exact reviewed release and lockfile plus its license/NOTICE/attribution before integration; do not add an unpinned “latest.” WebGL is an alternative only if Canvas measured limits warrant its resource/context-loss complexity. Existing Plotly stays legacy-only.
+At M0, TradingView Lightweight Charts was reviewed but not adopted. The current hybrid design adopts **5.3.0** for standard price/volume and compatible optional positioning panes, retaining its Apache-2.0 license, NOTICE and attribution. It does not replace the native historical liquidity implementation described here. See [the pinned release](https://github.com/tradingview/lightweight-charts/tree/v5.3.0) and [series/pane primitives](https://tradingview.github.io/lightweight-charts/docs/plugins/intro). WebGL remains an alternative only if measured Canvas limits warrant its resource/context-loss complexity; no upstream benchmark establishes this terminal's performance.
 
 Spike/acceptance plan: declare hardware/OS/browser/device pixel ratio, seeded dataset hash, grid shape, depth/venues/assets, burst rate and renderer commit; compare cold draw, incremental column update, pan/zoom/recenter, trade overlays and linked cursor. Record p50/p95/p99 frame/update latency, publish-to-render, long tasks, CPU/memory, cache allocations and input responsiveness at normal and 2x recorded peak. Run real Chromium at 1440x900 and 1280x800; inspect streaming/reconnect/empty/partial/replay screenshots, not a single static happy state. Preserve viewport while data arrives. M0 small draw timings do not certify the full terminal or GPU resource behavior. Keep the <=250ms p95 publish-to-render target explicit until measured.
 

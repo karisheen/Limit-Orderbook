@@ -14,6 +14,7 @@ export function formatCompact(value: number, digits = 1): string {
   if (abs >= 100) return `${sign}${abs.toFixed(0)}`;
   if (abs >= 1) return `${sign}${abs.toFixed(abs >= 10 ? 1 : 2)}`;
   if (abs === 0) return "0";
+  if (abs < 0.0001) return `${sign}${abs.toExponential(digits)}`;
   return `${sign}${abs.toFixed(abs >= 0.01 ? 3 : 4)}`;
 }
 
@@ -57,18 +58,19 @@ export function formatPriceValue(price: number, decimals: number): string {
   });
 }
 
+/** UTC, matching ticker candles, native inspectors and the terminal clock. */
 export function formatClock(timestamp: number, withMs = false): string {
   const d = new Date(timestamp);
-  const hh = d.getHours().toString().padStart(2, "0");
-  const mm = d.getMinutes().toString().padStart(2, "0");
-  const ss = d.getSeconds().toString().padStart(2, "0");
+  const hh = d.getUTCHours().toString().padStart(2, "0");
+  const mm = d.getUTCMinutes().toString().padStart(2, "0");
+  const ss = d.getUTCSeconds().toString().padStart(2, "0");
   if (!withMs) return `${hh}:${mm}:${ss}`;
-  return `${hh}:${mm}:${ss}.${d.getMilliseconds().toString().padStart(3, "0")}`;
+  return `${hh}:${mm}:${ss}.${d.getUTCMilliseconds().toString().padStart(3, "0")}`;
 }
 
 export function formatHM(timestamp: number): string {
   const d = new Date(timestamp);
-  return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+  return `${d.getUTCHours().toString().padStart(2, "0")}:${d.getUTCMinutes().toString().padStart(2, "0")}`;
 }
 
 export function formatDuration(ms: number): string {

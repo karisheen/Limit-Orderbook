@@ -9,6 +9,8 @@ import {
   type ReactNode,
   type SelectHTMLAttributes,
 } from "react";
+import { CANVAS_FAILURE_EVENT, CANVAS_RETRY_EVENT, type CanvasFailure } from "@/lib/session/canvasScheduler";
+import { hideTooltip } from "../GlobalTooltip";
 
 export function Button({ className = "", ...props }: ButtonHTMLAttributes<HTMLButtonElement>) {
   return <button type="button" className={`ui-button ${className}`} {...props} />;
@@ -80,8 +82,28 @@ export function Panel({
   className?: string;
   bodyClassName?: string;
 }) {
+  const panelRef = useRef<HTMLElement>(null);
+  const [failures, setFailures] = useState<Map<HTMLElement, string>>(() => new Map());
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+    const failure = (event: Event) => {
+      const { host, message } = (event as CustomEvent<CanvasFailure>).detail;
+      if (message !== null) hideTooltip();
+      setFailures((previous) => {
+        if (message === null && !previous.has(host)) return previous;
+        if (message !== null && previous.get(host) === message) return previous;
+        const next = new Map(previous);
+        if (message === null) next.delete(host);
+        else next.set(host, message);
+        return next;
+      });
+    };
+    panel.addEventListener(CANVAS_FAILURE_EVENT, failure);
+    return () => panel.removeEventListener(CANVAS_FAILURE_EVENT, failure);
+  }, []);
   return (
-    <section className={`panel ${className}`} aria-label={title}>
+    <section ref={panelRef} data-canvas-panel className={`panel ${className}`} aria-label={title}>
       <header className="panel-header">
         <div className="panel-heading">
           {icon && <span className="panel-icon">{icon}</span>}
@@ -95,7 +117,19 @@ export function Panel({
         </div>
         {actions && <div className="panel-actions">{actions}</div>}
       </header>
-      <div className={`panel-body ${bodyClassName}`}>{children}</div>
+      <div className={`panel-body ${bodyClassName}`}>
+        {children}
+        {failures.size > 0 && (
+          <div className="panel-render-error" role="alert">
+            <strong>{title} could not be drawn</strong>
+            <span>Chart pixels are unavailable. Market data collection continues.</span>
+            {[...failures.values()].map((message, index) => <span key={index}>{message}</span>)}
+            <Button onClick={() => {
+              for (const host of failures.keys()) host.dispatchEvent(new Event(CANVAS_RETRY_EVENT));
+            }}>Retry drawing</Button>
+          </div>
+        )}
+      </div>
       {footer && <footer className="panel-footer">{footer}</footer>}
     </section>
   );

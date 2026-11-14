@@ -18,6 +18,7 @@
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {
+    "lightweight-charts": "5.3.0",
     "lucide-react": "1.59.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",

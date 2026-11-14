@@ -22,7 +22,7 @@ from ..precision import (
     validate_increment,
 )
 from ..quality import Capabilities
-from .base import DecodedEvent, DecodeResult, TransportRequest
+from .base import DecodedEvent, DecodeResult, TransportRequest, parse_metadata_offloop
 from .binance import (
     array_field,
     asset_identity,
@@ -60,18 +60,20 @@ class BitgetAdapter:
             raw = await fetch_public(
                 TransportRequest("GET", self._metadata_endpoint(market))
             )
-            snapshot = self.parse_metadata(
-                raw, market_type=market, fetch_wall_ns=time_ns()
+            snapshot = await parse_metadata_offloop(
+                self.parse_metadata, raw, market_type=market, fetch_wall_ns=time_ns()
             )
             payloads.append(raw)
             instruments.extend(snapshot.instruments)
-        return metadata_snapshot(
-            "|".join(
-                self._metadata_endpoint(market) for market in ("spot", "perpetual")
-            ),
-            b"\n".join(payloads),
-            snapshot.fetch_wall_ns,
-            instruments,
+        return await parse_metadata_offloop(
+            lambda: metadata_snapshot(
+                "|".join(
+                    self._metadata_endpoint(market) for market in ("spot", "perpetual")
+                ),
+                b"\n".join(payloads),
+                snapshot.fetch_wall_ns,
+                instruments,
+            )
         )
 
     @staticmethod

@@ -3,24 +3,8 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { applyTheme, type Theme } from "@/lib/theme";
-import type { HeatmapSettings, PanelVisibility, ToolProfile } from "@/lib/types/market";
+import type { HeatmapSettings, PanelVisibility } from "@/lib/types/market";
 
-// Workspace presets. Each profile is a starting layout; panels stay
-// individually toggleable from the Panels menu.
-export const PROFILE_PANELS: Record<ToolProfile, PanelVisibility> = {
-  "order-flow": {
-    footprint: true, volumeProfile: true, heatmap: false, orderBook: true, obi: true,
-    timeSales: true, cvd: true, volumeZ: true, volatility: false, depthOfMarket: false,
-  },
-  liquidity: {
-    footprint: true, volumeProfile: true, heatmap: true, orderBook: true, obi: true,
-    timeSales: false, cvd: false, volumeZ: false, volatility: false, depthOfMarket: true,
-  },
-  volatility: {
-    footprint: true, volumeProfile: true, heatmap: false, orderBook: false, obi: false,
-    timeSales: true, cvd: false, volumeZ: true, volatility: true, depthOfMarket: false,
-  },
-};
 
 export type FootprintMode = "bidask" | "delta" | "volume";
 
@@ -41,6 +25,11 @@ export interface IndicatorSettings {
   ohlcStrip: boolean;
   summaryRows: boolean;
   lastPrice: boolean;
+  restingLiquidity: boolean;
+  restingOpacity: number;
+  restingCeiling: number;
+  largePrints: boolean;
+  largePrintMinimum: number;
 }
 
 export const DEFAULT_INDICATORS: IndicatorSettings = {
@@ -60,19 +49,22 @@ export const DEFAULT_INDICATORS: IndicatorSettings = {
   ohlcStrip: true,
   summaryRows: true,
   lastPrice: true,
+  restingLiquidity: false,
+  restingOpacity: 0.3,
+  restingCeiling: 10,
+  largePrints: false,
+  largePrintMinimum: 1,
 };
 
 interface UIStore {
-  toolProfile: ToolProfile;
-  panels: PanelVisibility;
+  panels: Pick<PanelVisibility, "volumeProfile" | "heatmap">;
   theme: Theme;
   heatmap: HeatmapSettings;
   footprintMode: FootprintMode;
   indicators: IndicatorSettings;
   setIndicator: <K extends keyof IndicatorSettings>(key: K, value: IndicatorSettings[K]) => void;
   resetIndicators: () => void;
-  setToolProfile: (profile: ToolProfile) => void;
-  setPanelVisible: (panel: keyof PanelVisibility, visible: boolean) => void;
+  setPanelVisible: (panel: "volumeProfile" | "heatmap", visible: boolean) => void;
   setTheme: (theme: Theme) => void;
   setHeatmapVisible: (mode: keyof HeatmapSettings, visible: boolean) => void;
   setFootprintMode: (mode: FootprintMode) => void;
@@ -81,18 +73,13 @@ interface UIStore {
 export const useUIStore = create<UIStore>()(
   persist(
     (set) => ({
-      toolProfile: "order-flow",
-      panels: PROFILE_PANELS["order-flow"],
+      panels: { volumeProfile: true, heatmap: false },
       theme: "dark",
       heatmap: { tradedVolume: false },
       footprintMode: "bidask",
       indicators: DEFAULT_INDICATORS,
       setIndicator: (key, value) => set((state) => ({ indicators: { ...state.indicators, [key]: value } })),
       resetIndicators: () => set({ indicators: DEFAULT_INDICATORS }),
-      setToolProfile: (toolProfile) => {
-        const panels = PROFILE_PANELS[toolProfile];
-        set({ toolProfile, panels, heatmap: { tradedVolume: panels.heatmap } });
-      },
       setPanelVisible: (panel, visible) =>
         set((state) => ({
           panels: { ...state.panels, [panel]: visible },
@@ -111,26 +98,37 @@ export const useUIStore = create<UIStore>()(
     }),
     {
       name: "limit-orderbook.orderflow.ui-preferences",
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => localStorage),
       // Hydrated manually after mount to keep SSR markup stable.
       skipHydration: true,
       partialize: (state) => ({
-        toolProfile: state.toolProfile,
         panels: state.panels,
         theme: state.theme,
         heatmap: state.heatmap,
         footprintMode: state.footprintMode,
         indicators: state.indicators,
       }),
-      migrate: () => ({}) as UIStore,
+      // Additive migration: preserve existing chart/theme/indicator settings.
+      // Workspace owns shell layout and reads legacy panel visibility before hydration.
+      migrate: (persisted) => (persisted ?? {}) as UIStore,
       merge: (persisted, current) => {
         const saved = (persisted ?? {}) as Partial<UIStore>;
         return {
           ...current,
-          ...saved,
-          panels: { ...current.panels, ...(saved.panels ?? {}) },
-          indicators: { ...DEFAULT_INDICATORS, ...(saved.indicators ?? {}) },
+          theme: saved.theme ?? current.theme,
+          heatmap: { ...current.heatmap, ...(saved.heatmap ?? {}) },
+          footprintMode: saved.footprintMode ?? current.footprintMode,
+          panels: {
+            volumeProfile: saved.panels?.volumeProfile ?? current.panels.volumeProfile,
+            heatmap: saved.panels?.heatmap ?? current.panels.heatmap,
+          },
+          indicators: {
+            ...DEFAULT_INDICATORS, ...(saved.indicators ?? {}),
+            restingOpacity: Number.isFinite(saved.indicators?.restingOpacity) ? Math.max(0.05, Math.min(1, saved.indicators!.restingOpacity)) : DEFAULT_INDICATORS.restingOpacity,
+            restingCeiling: Number.isFinite(saved.indicators?.restingCeiling) && saved.indicators!.restingCeiling > 0 ? saved.indicators!.restingCeiling : DEFAULT_INDICATORS.restingCeiling,
+            largePrintMinimum: Number.isFinite(saved.indicators?.largePrintMinimum) && saved.indicators!.largePrintMinimum >= 0 ? saved.indicators!.largePrintMinimum : DEFAULT_INDICATORS.largePrintMinimum,
+          },
         };
       },
     }

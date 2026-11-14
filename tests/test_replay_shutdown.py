@@ -1,6 +1,7 @@
 """Production owner shutdown must finish captured input before WebSocket close."""
 
 import asyncio
+from decimal import Decimal
 from functools import partial
 import json
 import threading
@@ -11,10 +12,15 @@ import pytest
 from src.workstation import ingestion
 from src.workstation.adapter_catalog import AdapterCatalog
 from src.workstation.adapters.hyperliquid import HyperliquidAdapter
+from src.workstation.demo import create_demo
 from src.workstation.events import BookUpdate, Control, Gap, SubscriptionKey
 from src.workstation.ingestion import FeedSupervisor, SupervisorConfig
 from src.workstation.recording import Recorder, RecorderLimits, RecordingReader
-from src.workstation.replay import ReplaySession
+from src.workstation.replay import (
+    DeliveryDigestObserver,
+    ReplayFailedError,
+    ReplaySession,
+)
 from src.workstation.subscriptions import RecorderBinding, SubscriptionRegistry
 
 
@@ -343,5 +349,89 @@ def test_browser_attach_then_binding_stop_drains_before_transport_close(
             await asyncio.gather(*pending, return_exceptions=True)
             await registry.close()
             await recorder.finalize()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("paced", [False, True])
+def test_playback_cancellation_between_deliveries_keeps_complete_prefix(
+    tmp_path, paced
+):
+    async def scenario():
+        with await create_demo(tmp_path, duration_seconds=1) as capture:
+            observer = DeliveryDigestObserver()
+            session = ReplaySession(capture.reader, observers=(observer,))
+            expected_observer = DeliveryDigestObserver()
+            expected = ReplaySession(capture.reader, observers=(expected_observer,))
+            task = asyncio.create_task(
+                session.play(Decimal("1e-30")) if paced else session.run_to_end()
+            )
+            try:
+                await asyncio.sleep(0)
+                assert observer.batch_count == 1
+                task.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await task
+                assert not session.failed and session.status == "paused"
+                assert not session._playing and session._pacer is None
+                expected.step()
+                assert session.state_hash == expected.state_hash
+                assert session.clock.state_hash == expected.clock.state_hash
+                assert session.step() == expected.step()
+                assert session.state_hash == expected.state_hash
+            finally:
+                task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+                session.close()
+                expected.close()
+            assert session._iterator is None and session._pending is None
+
+    asyncio.run(scenario())
+
+
+def test_cancelled_observer_rebuild_closes_iterator_and_requires_explicit_reset(
+    tmp_path,
+):
+    class CancelObserver(DeliveryDigestObserver):
+        observer_id = "cancel_during_rebuild"
+        armed = False
+
+        def on_batch(self, batch, books, clock):
+            super().on_batch(batch, books, clock)
+            if self.armed and batch.delivery_index == 2:
+                raise asyncio.CancelledError("observer rebuild interrupted")
+
+    async def scenario():
+        with await create_demo(tmp_path, duration_seconds=1) as capture:
+            early = DeliveryDigestObserver()
+            late = CancelObserver()
+            session = ReplaySession(capture.reader, observers=(early, late))
+            try:
+                session.step(3)
+                expected_hash = session.state_hash
+                expected_clock = session.clock.state_hash
+                late.armed = True
+                with pytest.raises(asyncio.CancelledError):
+                    session.seek_delivery(3)
+                assert session.failed and session.status == "failed"
+                assert early.batch_count == 2
+                assert session._iterator is None and session._pending is None
+                with pytest.raises(ReplayFailedError):
+                    session.books()
+                with pytest.raises(ReplayFailedError):
+                    session.step()
+                session.close()
+                assert session.failed
+                late.armed = False
+                session.seek(0)
+                assert not session.failed
+                assert early.batch_count == 0
+                session.seek_delivery(3)
+                assert session.state_hash == expected_hash
+                assert session.clock.state_hash == expected_clock
+                assert early.batch_count == 3
+            finally:
+                session.close()
+            assert session._iterator is None and session._pending is None
 
     asyncio.run(scenario())

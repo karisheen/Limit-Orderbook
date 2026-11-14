@@ -13,6 +13,7 @@ from src.workstation.adapter_catalog import AdapterCatalog
 from src.workstation.adapters.hyperliquid import HyperliquidAdapter
 from src.workstation.events import BookUpdate, Control, Gap, SubscriptionKey
 from src.workstation.ingestion import FeedSupervisor, SupervisorConfig
+from src.workstation.ownership import join_owned
 from src.workstation.quality import ClockReading, evaluate
 from src.workstation.recording import Recorder, RecorderLimits, RecordingReader
 from src.workstation.replay import ReplaySession
@@ -420,7 +421,10 @@ def test_client_lock_survives_queued_operations_and_cancelled_waiter(tmp_path):
     asyncio.run(scenario())
 
 
-def test_stop_cancellation_joins_owner_finalizes_and_preserves_other_lease(tmp_path):
+@pytest.mark.parametrize("owned_wait", (False, True))
+def test_stop_cancellation_joins_owner_finalizes_and_preserves_other_lease(
+    tmp_path, owned_wait
+):
     async def scenario():
         registry, instruments = registry_fixture(tmp_path)
         key = SubscriptionKey.for_instrument(instruments["BTC"])
@@ -433,10 +437,13 @@ def test_stop_cancellation_joins_owner_finalizes_and_preserves_other_lease(tmp_p
             await owner.emit(snapshot())
             owner.allow_stop.clear()
             stopping = asyncio.create_task(binding.stop())
+            if owned_wait:
+                stopping = asyncio.create_task(join_owned(stopping))
             await asyncio.wait_for(owner.stopping.wait(), 5)
-            stopping.cancel()
-            await asyncio.sleep(0)
-            assert not stopping.done()
+            for _ in range(3 if owned_wait else 1):
+                stopping.cancel()
+                await asyncio.sleep(0)
+                assert not stopping.done()
             owner.allow_stop.set()
             with pytest.raises(asyncio.CancelledError):
                 await stopping

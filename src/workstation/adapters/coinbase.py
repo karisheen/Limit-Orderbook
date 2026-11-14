@@ -34,6 +34,7 @@ from .base import (
     DecodedEvent,
     DecodeResult,
     TransportRequest,
+    parse_metadata_offloop,
     parse_rfc3339_ns,
 )
 
@@ -98,31 +99,46 @@ class CoinbaseAdapter:
             raw = await fetch_public(
                 TransportRequest("GET", self.metadata_url + "?" + urlencode(params))
             )
-            data = exact_json_loads(raw)
-            rows = data["products"]
-            if not isinstance(rows, list):
-                raise ValueError("invalid Advanced products")
+            has_next, cursor = await parse_metadata_offloop(
+                self._metadata_page, raw, seen, products
+            )
             pages.append(raw)
-            for row in rows:
-                symbol = text(row["product_id"])
-                if symbol in seen:
-                    raise ValueError("duplicate Advanced product/pagination loop")
-                seen.add(symbol)
-                products.append(row)
-            pagination = data.get("pagination", {})
-            if pagination.get("has_next") is False or (
-                not pagination.get("has_next") and len(rows) < 1000
-            ):
+            if not has_next:
                 break
-            cursor = pagination.get("next_cursor")
-            if cursor is not None:
-                text(cursor)
         else:
             raise ValueError("Advanced product pagination limit exceeded")
+        return await parse_metadata_offloop(
+            self._metadata_snapshot, pages, products, time.time_ns()
+        )
+
+    @staticmethod
+    def _metadata_page(raw: bytes, seen: set[str], products: list[dict]):
+        data = exact_json_loads(raw)
+        rows = data["products"]
+        if not isinstance(rows, list):
+            raise ValueError("invalid Advanced products")
+        for row in rows:
+            symbol = text(row["product_id"])
+            if symbol in seen:
+                raise ValueError("duplicate Advanced product/pagination loop")
+            seen.add(symbol)
+            products.append(row)
+        pagination = data.get("pagination", {})
+        if pagination.get("has_next") is False or (
+            not pagination.get("has_next") and len(rows) < 1000
+        ):
+            return False, None
+        cursor = pagination.get("next_cursor")
+        if cursor is not None:
+            text(cursor)
+        return True, cursor
+
+    def _metadata_snapshot(
+        self, pages: list[bytes], products: list[dict], now: int
+    ) -> MetadataSnapshot:
         digest = sha256(
             b"".join(len(raw).to_bytes(8, "big") + raw for raw in pages)
         ).hexdigest()
-        now = time.time_ns()
         instruments = []
         for row in products:
             if row.get("product_type", "SPOT") != "SPOT":

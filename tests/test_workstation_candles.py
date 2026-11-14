@@ -848,3 +848,691 @@ def test_history_checkpoint_restores_retention_and_exact_clock_state(monkeypatch
     feed.history.restore(empty)
     assert feed.history.checkpoint() == empty
     assert not feed.history.trades and not feed.history.admitted
+
+
+def added_product(venue, *, linear=False):
+    product = instrument()
+    family = {
+        "okx": "v5-swap" if linear else "v5-spot",
+        "bitget": "v2-usdt-futures" if linear else "v2-spot",
+        "deribit": "jsonrpc-v2",
+    }[venue]
+    inverse = venue == "deribit"
+    quote = AssetIdentity("USD" if inverse else "USDT", "USD" if inverse else "USDT")
+    return replace(
+        product,
+        instrument_id=f"{venue}:{family}:BTC",
+        venue=venue,
+        api_family=family,
+        native_symbol="BTC-PERPETUAL"
+        if inverse
+        else ("BTC-USDT-SWAP" if linear else "BTC-USDT")
+        if venue == "okx"
+        else "BTCUSDT",
+        quote=quote,
+        settlement=product.base if inverse else quote if linear else None,
+        market_type="perpetual" if linear or inverse else "spot",
+        inverse=inverse,
+        quantity_unit="contracts" if inverse or venue == "okx" and linear else "base",
+        contract_multiplier=Decimal("10")
+        if inverse
+        else Decimal("0.01")
+        if linear
+        else Decimal("1"),
+        contract_value_currency=quote.asset_id
+        if inverse
+        else product.base.asset_id
+        if linear
+        else None,
+    )
+
+
+def added_payload(product, starts=(START,), *, confirmed="1"):
+    rows = []
+    for stamp in starts:
+        row = [str(stamp // 1_000_000), PRICE, "101", "99", "100.5", "0.125"]
+        if product.venue == "okx":
+            # Swap vol is contracts. Neither quote turnover nor contracts is base.
+            row += [
+                "0.00125" if product.market_type == "perpetual" else "12.5",
+                "12.5",
+                confirmed,
+            ]
+        elif product.venue == "bitget":
+            row += ["12.5"]
+            if product.market_type == "spot":
+                row += ["12.5"]
+        else:
+            row += ["12.5"]
+        rows.append(row)
+    if product.venue == "deribit":
+        names = ("ticks", "open", "high", "low", "close", "volume", "cost")
+        result = {
+            name: [row[index] for row in rows] for index, name in enumerate(names)
+        }
+        result.update(status="ok" if rows else "no_data")
+        return json.dumps({"jsonrpc": "2.0", "result": result}).encode()
+    return json.dumps(
+        {
+            "code": "0" if product.venue == "okx" else "00000",
+            "data": rows,
+        }
+    ).encode()
+
+
+@pytest.mark.parametrize(
+    "venue,linear",
+    (
+        ("okx", False),
+        ("okx", True),
+        ("bitget", False),
+        ("bitget", True),
+        ("deribit", False),
+    ),
+)
+def test_added_providers_exact_native_volume_and_schema(venue, linear):
+    product = added_product(venue, linear=linear)
+    raw = added_payload(product, (START, START - HOUR))
+    result = parse_native(raw, product, "1h", 300, START + HOUR)
+    assert [item.start_ns for item in result] == [START - HOUR, START]
+    assert result[0].wire(START)["open"] == PRICE
+    expected = "0.00125" if venue == "okx" and linear else "0.125"
+    assert result[0].wire(START)["volume"] == expected
+    # Native numeric JSON tokens also remain exact; no float conversion.
+    raw = raw.replace(('"' + PRICE + '"').encode(), PRICE.encode())
+    assert parse_native(raw, product, "1h", 300, START)[0].open == Decimal(PRICE)
+    with pytest.raises(ValueError, match="duplicate"):
+        parse_native(added_payload(product, (START, START)), product, "1h", 300, START)
+    with pytest.raises(ValueError, match="future"):
+        parse_native(added_payload(product), product, "1h", 300, START - 1)
+    broken = json.loads(added_payload(product))
+    if venue == "deribit":
+        broken["result"]["volume"] = []
+    else:
+        broken["data"][0].pop()
+    with pytest.raises(ValueError, match="schema|arrays"):
+        parse_native(json.dumps(broken).encode(), product, "1h", 300, START)
+    if venue == "okx":
+        pending = parse_native(
+            added_payload(product, confirmed="0"),
+            product,
+            "1h",
+            300,
+            START + HOUR,
+        )
+        assert not pending[0].wire(START + HOUR)["closed"]
+
+
+@pytest.mark.parametrize(
+    "venue,linear,path,granularity",
+    (
+        ("okx", False, "/api/v5/market/history-candles", "1H"),
+        ("okx", True, "/api/v5/market/history-candles", "1H"),
+        ("bitget", False, "/api/v2/spot/market/history-candles", "1h"),
+        ("bitget", True, "/api/v2/mix/market/history-candles", "1H"),
+        ("deribit", False, "/api/v2/public/get_tradingview_chart_data", "60"),
+    ),
+)
+def test_added_providers_native_paging_parameters(venue, linear, path, granularity):
+    product = added_product(venue, linear=linear)
+    older = native_request(product, "1h", 500, START + HOUR, START)
+    url = urlsplit(older.endpoint_id)
+    params = parse_qs(url.query)
+    assert url.path == path
+    if venue == "okx":
+        assert params == {
+            "instId": [product.native_symbol],
+            "bar": [granularity],
+            "limit": ["300"],
+            "after": [str(START // 1_000_000)],
+        }
+    elif venue == "bitget":
+        assert params["symbol"] == [product.native_symbol]
+        assert params["granularity"] == [granularity]
+        assert params["limit"] == ["200"]
+        assert params["endTime"] == [str(START // 1_000_000)]
+        assert params.get("productType") == (["USDT-FUTURES"] if linear else None)
+    else:
+        assert params == {
+            "instrument_name": [product.native_symbol],
+            "resolution": ["60"],
+            "start_timestamp": [str((START - 500 * HOUR) // 1_000_000)],
+            "end_timestamp": [str(START // 1_000_000 - 1)],
+        }
+    latest = urlsplit(native_request(product, "1h", 300, START).endpoint_id)
+    if venue != "deribit":
+        assert latest.path.endswith("/candles")
+        assert "after" not in parse_qs(latest.query)
+        assert "endTime" not in parse_qs(latest.query)
+
+
+@pytest.mark.parametrize("venue", tuple(FAMILIES))
+def test_existing_provider_older_boundary_parameters_and_exclusion(venue):
+    product = instrument(venue)
+    if venue == "kraken":
+        with pytest.raises(ValueError, match="recent-only"):
+            native_request(product, "1h", 20, START + HOUR, START)
+        return
+    request = native_request(product, "1h", 20, START + HOUR, START)
+    params = parse_qs(urlsplit(request.endpoint_id).query)
+    if venue.startswith("binance-"):
+        assert params["endTime"] == [str(START // 1_000_000 - 1)]
+    elif venue == "bybit":
+        assert params["end"] == [str(START // 1_000_000 - 1)]
+    elif venue == "coinbase":
+        assert params["end"] == [str(START // SECOND - 1)]
+        assert params["start"] == [str((START - 20 * HOUR) // SECOND)]
+    elif venue == "kucoin":
+        assert params["endAt"] == [str(START // SECOND - 1)]
+    else:
+        assert json.loads(request.body)["req"]["endTime"] == START // 1_000_000 - 1
+    parsed = parse_native(
+        payload(venue, (START, START - HOUR, START - 2 * HOUR)),
+        product,
+        "1h",
+        1,
+        START + HOUR,
+        START,
+    )
+    assert [item.start_ns for item in parsed] == [START - HOUR]
+
+
+@pytest.mark.parametrize("venue", ("okx", "bitget"))
+def test_utc_calendar_and_native_week_are_not_rebucketed(venue):
+    product = added_product(venue)
+    february, march, monday = (
+        1706745600 * SECOND,
+        1709251200 * SECOND,
+        1699833600 * SECOND,
+    )
+    for interval, stamp, expected_end, native_bar in (
+        ("1M", february, march, "1Mutc"),
+        ("1w", monday, monday + 7 * 86400 * SECOND, "1Wutc"),
+    ):
+        params = parse_qs(
+            urlsplit(native_request(product, interval, 300, march).endpoint_id).query
+        )
+        assert params["bar" if venue == "okx" else "granularity"] == [native_bar]
+        result = parse_native(
+            added_payload(product, (stamp,)), product, interval, 300, march
+        )
+        assert (result[0].start_ns, result[0].end_ns) == (stamp, expected_end)
+    with pytest.raises(ValueError, match="calendar"):
+        parse_native(
+            added_payload(product, (february - 8 * HOUR,)), product, "1M", 300, march
+        )
+
+
+def test_candle_request_exclusive_boundary_validation():
+    from pydantic import ValidationError
+    from src.workstation.api import CandleRequest
+
+    base = dict(session_id="abc", generation="1", interval="1h")
+    for value in ("0", "-1", "+1", "01", "1.0", " 1", "１", str(2**63), 1):
+        with pytest.raises(ValidationError):
+            CandleRequest(**base, source="venue_ohlcv", before_ns=value)
+    with pytest.raises(ValidationError, match="venue_ohlcv"):
+        CandleRequest(**base, before_ns=str(START))
+    assert CandleRequest(
+        **base, source="venue_ohlcv", before_ns=str(START)
+    ).before_ns == str(START)
+    assert CandleRequest(**base).before_ns is None
+
+
+def test_history_pages_overlap_corrections_identity_and_empty_states(monkeypatch):
+    async def scenario():
+        service = CandleService()
+        calls = []
+        raw = [payload("binance-global", (START - HOUR, START))]
+        monkeypatch.setattr(module.time, "time_ns", lambda: START + HOUR // 2)
+
+        async def fetch(request, **kwargs):
+            calls.append(request)
+            return raw[0]
+
+        monkeypatch.setattr(module, "fetch_public", fetch)
+        product = instrument("binance-global")
+        recent = await service.query(product, "1h")
+        assert recent["history"] == {
+            "requested_before_ns": None,
+            "next_before_ns": str(START - HOUR),
+            "state": "more",
+            "pagination": "time",
+            "max_bars": 500,
+            "update_mode": "poll",
+            "poll_interval_ms": 5000,
+        }
+        raw[0] = payload("binance-global", (START - HOUR, START - 2 * HOUR))
+        older = await service.query(product, "1h", before_ns=str(START - HOUR))
+        assert older["series_key"] == recent["series_key"]
+        assert [bar["start_ns"] for bar in older["candles"]] == [str(START - 2 * HOUR)]
+        assert older["history"]["next_before_ns"] == str(START - 2 * HOUR)
+        assert len(calls) == 2
+        await service.query(product, "1h", before_ns=str(START - HOUR))
+        assert len(calls) == 2
+        changed = await service.query(replace(product, metadata_version="new"), "1h")
+        assert changed["series_key"] != recent["series_key"]
+        raw[0] = b"[]"
+        empty = await service.query(product, "1h", before_ns=str(START - 2 * HOUR))
+        assert empty["status"] == "empty" and empty["history"]["state"] == "limited"
+        assert empty["history"]["next_before_ns"] is None
+        raw[0] = b'{"candles":[]}'
+        gap = await service.query(instrument("coinbase"), "1h", before_ns=str(START))
+        assert gap["history"]["state"] == "more"
+        assert int(gap["history"]["next_before_ns"]) < START
+        # The epoch, not a short page, is a provable lower boundary.
+        raw[0] = payload("binance-global", (0,))
+        epoch = await service.query(product, "1h", before_ns=str(HOUR))
+        assert epoch["history"]["state"] == "exhausted"
+        assert epoch["candles"][0]["start_ns"] == "0"
+
+    asyncio.run(scenario())
+
+
+def test_provider_retention_limits_and_errors_are_not_exhaustion(monkeypatch):
+    async def scenario():
+        service = CandleService()
+        calls = []
+        raw = [payload("kraken")]
+        monkeypatch.setattr(module.time, "time_ns", lambda: START)
+
+        async def fetch(request, **kwargs):
+            calls.append(request)
+            return raw[0]
+
+        monkeypatch.setattr(module, "fetch_public", fetch)
+        kraken = await service.query(instrument("kraken"), "1h")
+        assert kraken["history"]["pagination"] == "recent_only"
+        assert kraken["history"]["state"] == "limited" and kraken["candles"]
+        older = await service.query(instrument("kraken"), "1h", before_ns=str(START))
+        assert older["history"]["state"] == "limited" and len(calls) == 1
+        sparse_start = START - 6000 * HOUR
+        raw[0] = payload("hyperliquid", (sparse_start,))
+        sparse = await service.query(
+            instrument(), "1h", before_ns=str(sparse_start + HOUR)
+        )
+        assert sparse["history"]["state"] == "more"
+        assert sparse["candles"][0]["start_ns"] == str(sparse_start)
+        assert "hyperliquid_recent_5000" in sparse["reasons"]
+        raw[0] = b"[]"
+        limited = await service.query(instrument(), "1h", before_ns=str(sparse_start))
+        assert limited["history"]["state"] == "limited" and len(calls) == 3
+        assert limited["history"]["next_before_ns"] is None
+        for product, interval in (
+            (added_product("deribit"), "1w"),
+            (replace(added_product("okx", linear=True), inverse=True), "1h"),
+            (
+                replace(
+                    added_product("bitget", linear=True), api_family="v2-coin-futures"
+                ),
+                "1h",
+            ),
+            (replace(added_product("deribit"), native_symbol="BTC-30DEC"), "1h"),
+        ):
+            result = await service.query(product, interval)
+            assert result["history"]["state"] == "unsupported"
+        assert len(calls) == 3
+
+        async def denied(request, **kwargs):
+            raise PublicTransportError("rate_limited", status=429)
+
+        monkeypatch.setattr(module, "fetch_public", denied)
+        failed = await service.query(
+            instrument("binance-global"), "1h", before_ns=str(START)
+        )
+        assert failed["history"]["state"] == "unavailable"
+        assert failed["status"] == "unavailable" and failed["reasons"] == [
+            "rate_limited"
+        ]
+        assert failed["history"]["next_before_ns"] is None
+
+    asyncio.run(scenario())
+
+
+def test_single_flight_waiter_cancellation_capacity_and_detached_cleanup(monkeypatch):
+    async def scenario():
+        service = CandleService()
+        entered, release, drained = asyncio.Event(), asyncio.Event(), asyncio.Event()
+        calls = 0
+        monkeypatch.setattr(module, "MAX_CONCURRENT", 1)
+        monkeypatch.setattr(module, "MAX_WAITERS", 2)
+
+        async def fetch(request, **kwargs):
+            nonlocal calls
+            calls += 1
+            entered.set()
+            await release.wait()
+            return payload("binance-global")
+
+        monkeypatch.setattr(module, "fetch_public", fetch)
+        product = instrument("binance-global")
+        first = asyncio.create_task(service.query(product, "1h"))
+        await entered.wait()
+        second = asyncio.create_task(service.query(product, "1h"))
+        await asyncio.sleep(0)
+        assert (await service.query(product, "1h"))["reasons"] == ["candle_capacity"]
+        assert (await service.query(product, "1h", 1))["reasons"] == ["candle_capacity"]
+        first.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await first
+        assert calls == 1 and service.active == 1
+        release.set()
+        result = await second
+        assert result["status"] == "ready" and service.active == 0
+        result["candles"].clear()
+        assert (await service.query(product, "1h"))["candles"]
+        assert calls == 1
+
+        entered.clear()
+        release.clear()
+
+        async def cancelling(request, **kwargs):
+            entered.set()
+            try:
+                await release.wait()
+            finally:
+                await drained.wait()
+
+        monkeypatch.setattr(module, "fetch_public", cancelling)
+        sole = asyncio.create_task(service.query(product, "1h", 2))
+        await entered.wait()
+        sole.cancel()
+        await asyncio.sleep(0)
+        assert service.active == 1
+        assert (await service.query(product, "1h", 2))["reasons"] == ["candle_capacity"]
+        drained.set()
+        with pytest.raises(asyncio.CancelledError):
+            await sole
+        assert not service.inflight and service.active == 0
+        assert len(service.cache) == 1  # Only the earlier uncancelled success.
+
+    asyncio.run(scenario())
+
+
+def test_cache_byte_and_bar_bounds_evict_without_mutable_leaks(monkeypatch):
+    async def scenario():
+        service = CandleService()
+        calls = 0
+
+        async def fetch(request, **kwargs):
+            nonlocal calls
+            calls += 1
+            return payload("binance-global", (START - HOUR, START))
+
+        monkeypatch.setattr(module, "fetch_public", fetch)
+        product = instrument("binance-global")
+        await service.query(product, "1h", 2)
+        one_page_bytes = service.cache_bytes
+        monkeypatch.setattr(module, "MAX_CACHE_BYTES", one_page_bytes * 2 + 100)
+        for limit in (3, 4, 5):
+            await service.query(product, "1h", limit)
+            assert service.cache_bytes <= module.MAX_CACHE_BYTES
+        assert len(service.cache) == 2 and service.cache_bars == 4
+        previous = calls
+        await service.query(product, "1h", 2)
+        assert calls == previous + 1  # The evicted page remains refetchable.
+        monkeypatch.setattr(module, "MAX_CACHE_BARS", 3)
+        await service.query(product, "1h", 6)
+        assert service.cache_bars == 2 and len(service.cache) == 1
+        monkeypatch.setattr(module, "MAX_CACHE_BYTES", 1)
+        uncached = CandleService()
+        assert (await uncached.query(product, "1h"))["status"] == "ready"
+        assert not uncached.cache and uncached.cache_bytes == uncached.cache_bars == 0
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("status", ("unavailable", "error"))
+def test_venue_history_survives_collector_failure_without_reviving_observed(
+    tmp_path, monkeypatch, status
+):
+    from src.workstation.api import CandleRequest
+    from src.workstation.runtime import ClientSession, RuntimeFailure, TerminalRuntime
+
+    async def scenario():
+        runtime = TerminalRuntime(state_dir=tmp_path)
+        session = ClientSession(runtime, "live", "live")
+        runtime.sessions[session.id] = session
+        product = instrument("binance-global")
+        feed = NativeFeed(product)
+        calls = []
+
+        async def fetch(request, **kwargs):
+            assert session.active_requests == 1
+            assert session.status == status and not session.health()["ready"]
+            calls.append(request)
+            return payload("binance-global", (START - HOUR,))
+
+        monkeypatch.setattr(module, "fetch_public", fetch)
+        try:
+            await session.work(
+                session._initialize_live,
+                feed.streams,
+                str(product.instrument_id),
+                (),
+                "recorded-clock",
+            )
+            session.status = "ready"
+            event = feed.event(0)
+            for _ in range(session.live_queue.maxsize + 1):
+                session._enqueue_live((event,), ())
+            assert session.status == "unavailable"
+            assert "analytical_queue_overflow" in session.error
+            assert session.telemetry["overflows"] == 1
+            session.status = status
+            error, evidence = session.error, session.health_evidence
+            queued = session.live_queue.qsize()
+            identity = session.source_identity
+            base = dict(
+                session_id=session.id,
+                generation=str(session.generation),
+                interval="1h",
+                instrument_ids=[str(product.instrument_id)],
+            )
+            for before in (None, str(START)):
+                result = await runtime.candles(
+                    CandleRequest(**base, source="venue_ohlcv", before_ns=before)
+                )
+                assert result["status"] == "ready"
+                assert result["source"] == "venue_ohlcv"
+                assert result["session_id"] == session.id
+                assert result["generation"] == base["generation"]
+                assert result["source_identity"] == identity
+                assert result["instrument_ids"] == [str(product.instrument_id)]
+                assert result["history"]["requested_before_ns"] == before
+                assert [bar["start_ns"] for bar in result["candles"]] == [
+                    str(START - HOUR)
+                ]
+                assert result["candles"][0]["open"] == PRICE
+                assert session.status == status and session.error == error
+                assert session.health_evidence is evidence
+                assert session.live_queue.qsize() == queued
+                assert session.active_requests == session.active_work == 0
+            assert len(calls) == 2
+            assert "endTime" not in parse_qs(urlsplit(calls[0].endpoint_id).query)
+            assert parse_qs(urlsplit(calls[1].endpoint_id).query)["endTime"] == [
+                str(START // 1_000_000 - 1)
+            ]
+            with pytest.raises(
+                RuntimeFailure, match="analytical_queue_overflow"
+            ) as failure:
+                await runtime.candles(CandleRequest(**base))
+            assert failure.value.status == 503
+            with pytest.raises(RuntimeFailure, match="analytical_queue_overflow"):
+                session.check(base["generation"])
+            venue = CandleRequest(**base, source="venue_ohlcv")
+            for transient in ("loading", "seeking"):
+                session.status = transient
+                with pytest.raises(RuntimeFailure, match=transient) as failure:
+                    await runtime.candles(venue)
+                assert failure.value.status == 409
+            session.status = status
+            session.generation += 1
+            with pytest.raises(RuntimeFailure, match="obsolete session generation"):
+                await runtime.candles(venue)
+            await session.close()
+            with pytest.raises(RuntimeFailure, match="unknown session") as failure:
+                await runtime.candles(venue)
+            assert failure.value.status == 404
+            assert len(calls) == 2
+        finally:
+            await runtime.close()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("status", ("ready", "unavailable", "error"))
+@pytest.mark.parametrize(
+    "fence", ("generation", "source_identity", "source_id", "instrument")
+)
+def test_older_history_runtime_publication_fences(tmp_path, monkeypatch, fence, status):
+    from src.workstation.api import CandleRequest
+    from src.workstation.runtime import ClientSession, RuntimeFailure, TerminalRuntime
+
+    async def scenario():
+        runtime = TerminalRuntime(state_dir=tmp_path)
+        session = ClientSession(runtime, "live", "live")
+        runtime.sessions[session.id] = session
+        product = instrument("binance-global")
+        feed = NativeFeed(product)
+        entered, release = asyncio.Event(), asyncio.Event()
+        calls = []
+
+        async def fetch(request, **kwargs):
+            calls.append(request)
+            entered.set()
+            await release.wait()
+            return payload("binance-global", (START - HOUR,))
+
+        monkeypatch.setattr(module, "fetch_public", fetch)
+        try:
+            await session.work(
+                session._initialize_live,
+                feed.streams,
+                str(product.instrument_id),
+                (),
+                "recorded-clock",
+            )
+            session.live_clock = ReplayClock()
+            session.status = status
+            request = CandleRequest(
+                session_id=session.id,
+                generation="1",
+                interval="1h",
+                source="venue_ohlcv",
+                before_ns=str(START),
+            )
+            pending = asyncio.create_task(runtime.candles(request))
+            await entered.wait()
+            assert parse_qs(urlsplit(calls[0].endpoint_id).query)["endTime"] == [
+                str(START // 1_000_000 - 1)
+            ]
+            if fence == "generation":
+                session.generation += 1
+            elif fence == "instrument":
+                session.streams = tuple(
+                    replace(
+                        spec,
+                        instrument=replace(
+                            spec.instrument, metadata_version="replacement-metadata"
+                        ),
+                    )
+                    for spec in session.streams
+                )
+            else:
+                setattr(session, fence, "replacement-source")
+            release.set()
+            with pytest.raises(RuntimeFailure, match="generation|source changed"):
+                await pending
+        finally:
+            release.set()
+            await runtime.close()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    "venue,linear",
+    (
+        ("okx", False),
+        ("okx", True),
+        ("bitget", False),
+        ("bitget", True),
+        ("deribit", False),
+    ),
+)
+def test_added_provider_pages_exclude_boundary_and_report_native_failures(
+    monkeypatch, venue, linear
+):
+    async def scenario():
+        product = added_product(venue, linear=linear)
+        service = CandleService()
+        raw = [added_payload(product, (START, START - HOUR))]
+        calls = []
+        monkeypatch.setattr(module.time, "time_ns", lambda: START + HOUR)
+
+        async def fetch(request, **kwargs):
+            calls.append(request)
+            return raw[0]
+
+        monkeypatch.setattr(module, "fetch_public", fetch)
+        page = await service.query(product, "1h", 500, before_ns=str(START))
+        assert page["status"] == "ready"
+        assert (
+            page["history"]["max_bars"]
+            == {"okx": 300, "bitget": 200, "deribit": 500}[venue]
+        )
+        assert page["history"]["requested_before_ns"] == str(START)
+        assert page["history"]["next_before_ns"] == str(START - HOUR)
+        assert [bar["start_ns"] for bar in page["candles"]] == [str(START - HOUR)]
+        error = (
+            {"jsonrpc": "2.0", "error": {"code": 10001}}
+            if venue == "deribit"
+            else {"code": "500", "data": []}
+        )
+        raw[0] = json.dumps(error).encode()
+        for _ in range(2):
+            failed = await service.query(product, "1h", before_ns=str(START - HOUR))
+            assert failed["status"] == "unavailable"
+            assert failed["history"]["state"] == "unavailable"
+            assert failed["reasons"] == ["invalid_native_candles"]
+        assert len(calls) == 3  # Errors do not poison the successful neutral cache.
+
+    asyncio.run(scenario())
+
+
+def test_polling_replaces_forming_correction_and_closes_at_rollover(monkeypatch):
+    async def scenario():
+        service = CandleService()
+        wall, monotonic = [START + HOUR // 2], [100.0]
+        raw = [payload("binance-global")]
+        monkeypatch.setattr(module.time, "time_ns", lambda: wall[0])
+        monkeypatch.setattr(module.time, "monotonic", lambda: monotonic[0])
+
+        async def fetch(request, **kwargs):
+            return raw[0]
+
+        monkeypatch.setattr(module, "fetch_public", fetch)
+        product = instrument("binance-global")
+        initial = await service.query(product, "1h")
+        assert not initial["candles"][0]["closed"]
+        revised = json.loads(raw[0])
+        revised[0][4] = "100.75"
+        raw[0] = json.dumps(revised).encode()
+        monotonic[0] += 5
+        correction = await service.query(product, "1h")
+        assert correction["candles"][0]["close"] == "100.75"
+        assert correction["series_key"] == initial["series_key"]
+        wall[0] = START + HOUR
+        monotonic[0] += 5
+        rows = json.loads(payload("binance-global", (START + HOUR,)))
+        raw[0] = json.dumps(revised + rows).encode()
+        rollover = await service.query(product, "1h")
+        assert [bar["start_ns"] for bar in rollover["candles"]] == [
+            str(START),
+            str(START + HOUR),
+        ]
+        assert [bar["closed"] for bar in rollover["candles"]] == [True, False]
+        assert rollover["candles"][0]["close"] == "100.75"
+
+    asyncio.run(scenario())
