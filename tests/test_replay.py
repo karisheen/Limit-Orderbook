@@ -39,6 +39,7 @@ from src.workstation.replay import (
     DeliveryDigestObserver,
     ReplayClock,
     ReplayCursor,
+    ReplayFailedError,
     ReplaySession,
 )
 from src.workstation.streaming_bootstrap import streaming_snapshot
@@ -708,6 +709,11 @@ def test_incompatible_checkpoint_falls_back_or_rejects_explicitly(
             session.seek(3)
         assert session.checkpoint_status.startswith("incompatible:")
         assert session.cursor == ReplayCursor()
+        assert session.failed
+        with pytest.raises(ReplayFailedError):
+            session.books()
+        session.seek(0)
+        assert not session.failed
         assert session.books() == ()
 
 
@@ -1481,3 +1487,296 @@ def test_original_processing_observations_survive_raw_buffering_and_checkpoint_s
                 assert fingerprint(session) == expected
             trajectories.append(trajectory)
     assert trajectories[0] == trajectories[1]
+
+
+class FailingReplayObserver(DeliveryDigestObserver):
+    """Inject failure only after the real earlier observers have consumed input."""
+
+    observer_id = "late_failure"
+
+    def __init__(self):
+        self.fail_delivery = None
+        self.reset_error = None
+        self.error = RuntimeError("late observer failed")
+        super().__init__()
+
+    def reset(self):
+        super().reset()
+        if self.reset_error is not None:
+            raise self.reset_error
+
+    def on_batch(self, batch, books, clock):
+        super().on_batch(batch, books, clock)
+        if batch.delivery_index == self.fail_delivery:
+            raise self.error
+
+
+@pytest.mark.parametrize("mode", ["raw", "normalized"])
+@pytest.mark.parametrize("operation", ["step", "play", "run_to_end"])
+@pytest.mark.parametrize("error_type", [RuntimeError, asyncio.CancelledError])
+def test_late_observer_failure_fences_partial_prefix_until_explicit_rebuild(
+    capture, mode, operation, error_type
+):
+    early = DeliveryDigestObserver()
+    late = FailingReplayObserver()
+    with replay(capture, mode=mode, observers=(early, late)) as session:
+        session.step(2)
+        expected = fingerprint(session)
+        expected_observer = early.checkpoint()
+        session.seek(0)
+        late.fail_delivery = 2
+        late.error = error_type("late observer failed")
+        with pytest.raises(error_type) as failure:
+            if operation == "step":
+                session.step(5)
+            elif operation == "play":
+                asyncio.run(session.play(D("1000000")))
+            else:
+                asyncio.run(session.run_to_end())
+        assert failure.value is late.error
+        assert session.failure is late.error
+        assert session.failed and session.status == "failed"
+        # These diagnostic fields demonstrate partial mutation, not rollback.
+        assert session.cursor.delivery_index == 2
+        assert early.batch_count == 2
+        assert session._iterator is None and session._pending is None
+        for query in (
+            session.require_healthy,
+            session.books,
+            lambda: session.book_hash,
+            lambda: session.state_hash,
+            session.step,
+            session.next_delay_ns,
+            lambda: session.set_speed(D("2")),
+        ):
+            with pytest.raises(
+                ReplayFailedError, match="explicit seek/reset"
+            ) as blocked:
+                query()
+            assert blocked.value.__cause__ is late.error
+        for continuation in (session.play, session.run_to_end):
+            with pytest.raises(ReplayFailedError):
+                asyncio.run(continuation())
+        session.pause()
+        session.close()
+        assert session.status == "failed"
+        assert early.checkpoint() == expected_observer
+        with pytest.raises(ValueError):
+            session.seek_delivery(999)
+        assert session.failure is late.error
+        # The caller explicitly fixes its observer and requests reconstruction.
+        late.fail_delivery = None
+        session.seek_delivery(2)
+        assert not session.failed and session.failure is None
+        assert session.status == "paused"
+        assert fingerprint(session) == expected
+        assert early.checkpoint() == expected_observer
+        assert session.step()[0] == capture.batches[2]
+
+
+@pytest.mark.parametrize("mode", ["raw", "normalized"])
+def test_selection_style_rebuild_failure_cannot_publish_previous_or_partial_state(
+    capture, mode
+):
+    early = DeliveryDigestObserver()
+    late = FailingReplayObserver()
+    with replay(capture, mode=mode, observers=(early, late)) as session:
+        session.step(4)
+        expected = fingerprint(session)
+        selected_delivery = session.cursor.delivery_index
+        late.fail_delivery = 2
+        with pytest.raises(RuntimeError, match="late observer failed"):
+            session.seek_delivery(selected_delivery)
+        assert session.failed
+        assert session.cursor.delivery_index == 2
+        assert early.batch_count == 2
+        with pytest.raises(ReplayFailedError):
+            session.books()
+        # A failed reset must not clear the original fence either.
+        late.reset_error = RuntimeError("observer reset failed")
+        with pytest.raises(RuntimeError, match="observer reset failed"):
+            session.seek(0)
+        assert session.failure is late.reset_error
+        assert session.status == "failed"
+        with pytest.raises(ReplayFailedError):
+            session.step()
+        late.reset_error = None
+        late.fail_delivery = None
+        session.seek_delivery(selected_delivery)
+        assert fingerprint(session) == expected
+        assert early.batch_count == selected_delivery
+        assert not session.failed
+
+
+@pytest.mark.parametrize("mode", ["raw", "normalized"])
+def test_explicit_rebuild_after_late_failure_replays_paper_fills_exactly_once(
+    tmp_path, mode
+):
+    from src.workstation.costs import FeeSchedule, InventoryBalance
+    from src.workstation.paper import (
+        PaperConfig,
+        PaperEngine,
+        PaperFee,
+        PaperOrderRequest,
+        PaperStore,
+    )
+
+    instrument = next(
+        item
+        for item in streaming_snapshot().instruments
+        if item.venue == "bybit"
+        and item.api_family == "v5-spot"
+        and item.native_symbol == "BTCUSDT"
+    )
+    instrument = replace(
+        instrument,
+        metadata_status="verified",
+        metadata_version="synthetic-replay-paper-v1",
+        metadata_asof_wall_ns=123,
+        status="active",
+        tick_size=D("0.01"),
+        lot_size=D("0.001"),
+        constraints=replace(
+            instrument.constraints, price_rule="fixed_tick", size_rule="fixed_lot"
+        ),
+    )
+    key = SubscriptionKey.for_instrument(instrument, depth=50)
+    reducer = BybitAdapter().new_reducer(instrument, key)
+    spec = StreamSpec(
+        StreamId("paper-replay-book"),
+        instrument,
+        key,
+        reducer.adapter_revision,
+        reducer.config_hash,
+    )
+    frames = tuple(
+        replace(
+            raw(
+                spec,
+                ordinal,
+                {
+                    "topic": "orderbook.50.BTCUSDT",
+                    "type": "snapshot",
+                    "ts": 1700000000000 + ordinal,
+                    "data": {
+                        "s": "BTCUSDT",
+                        "u": ordinal + 10,
+                        "seq": ordinal + 20,
+                        "b": [["99", "2"]],
+                        "a": [["100", "2"]],
+                    },
+                },
+            ),
+            endpoint_id="wss://stream.bybit.com/v5/public/spot",
+        )
+        for ordinal in (1, 2, 3)
+    )
+    captured = record(tmp_path / "capture", (spec,), frames)
+    store = PaperStore(tmp_path / "paper.sqlite")
+    paper = PaperEngine((spec,), store, "synthetic:replay-failure")
+    late = FailingReplayObserver()
+    try:
+        with replay(captured, mode=mode, observers=(paper, late)) as session:
+            session.step()
+            now = session.clock.source_reading
+            run_id = paper.configure(
+                PaperConfig(
+                    (
+                        InventoryBalance(
+                            instrument.venue, instrument.quote.asset_id, D("1000")
+                        ),
+                    ),
+                    (
+                        PaperFee(
+                            instrument.instrument_id,
+                            FeeSchedule(
+                                D("0"),
+                                provenance="synthetic regression",
+                                asof_wall_ns=1,
+                            ),
+                        ),
+                    ),
+                    order_latency_ns=10,
+                ),
+                now=now,
+                delivery_index=1,
+            )
+            order = paper.submit(
+                PaperOrderRequest(instrument.instrument_id, "buy", D("1")),
+                now=now,
+                delivery_index=1,
+            )
+            assert order.status == "pending"
+            session.step()
+            expected = paper.snapshot(session.clock.source_reading)
+            expected_hash = fingerprint(session)
+            assert expected.orders[0].status == "filled"
+            assert len(expected.fills) == 1
+            assert expected.fills[0].quantity == D("1")
+            expected_reservations = tuple(paper._reservations.values())
+            expected_archive = replace(
+                expected,
+                reasons=(*expected.reasons, "archived_not_live_projection"),
+            )
+            assert store.archived_snapshot(run_id) == expected_archive
+            session.seek_delivery(1)
+            pending = paper.snapshot(session.clock.source_reading)
+            assert pending.orders[0].status == "pending"
+            late.fail_delivery = 2
+            with pytest.raises(RuntimeError, match="late observer failed"):
+                session.step()
+            # Paper has advanced before the later failure: never pretend rollback.
+            assert paper.snapshot(session.clock.source_reading) == expected
+            with pytest.raises(ReplayFailedError):
+                session.step()
+            assert paper.snapshot(session.clock.source_reading) == expected
+            assert tuple(paper._reservations.values()) == expected_reservations
+            assert store.archived_snapshot(run_id) == expected_archive
+            late.fail_delivery = None
+            session.seek_delivery(2)
+            assert fingerprint(session) == expected_hash
+            assert paper.snapshot(session.clock.source_reading) == expected
+            assert tuple(paper._reservations.values()) == expected_reservations
+            assert store.archived_snapshot(run_id) == expected_archive
+            session.seek(0)
+            assert not paper.snapshot(None).fills
+            assert not paper._reservations
+            session.seek_delivery(2)
+            assert fingerprint(session) == expected_hash
+            assert paper.snapshot(session.clock.source_reading) == expected
+            assert tuple(paper._reservations.values()) == expected_reservations
+            assert store.archived_snapshot(run_id) == expected_archive
+
+            # A durable freeze is historical evidence, even when an explicit
+            # reset reconstructs this run successfully beyond that frontier.
+            paper.freeze()
+            frozen = store.archived_snapshot(run_id)
+            assert frozen == replace(
+                expected_archive,
+                reasons=(
+                    "paper_frozen",
+                    "funding_catchup_limit",
+                    "archived_not_live_projection",
+                ),
+            )
+            session.seek(0)
+            assert not paper.snapshot(None).fills
+            assert not paper._reservations
+            session.seek_delivery(2)
+            assert paper.snapshot(session.clock.source_reading) == expected
+            assert tuple(paper._reservations.values()) == expected_reservations
+            assert store.archived_snapshot(run_id) == frozen
+            session.step()
+            rebuilt = paper.snapshot(session.clock.source_reading)
+            assert rebuilt.delivery_index > frozen.delivery_index
+            assert rebuilt.balances == expected.balances
+            assert rebuilt.orders == expected.orders
+            assert rebuilt.fills == expected.fills
+            assert rebuilt.positions == expected.positions
+            assert rebuilt.perpetual_positions == expected.perpetual_positions
+            assert rebuilt.funding_payments == expected.funding_payments
+            assert rebuilt.liquidations == expected.liquidations
+            assert tuple(paper._reservations.values()) == expected_reservations
+            assert store.archived_snapshot(run_id) == frozen
+    finally:
+        store.close()

@@ -321,3 +321,63 @@ test('unified chart tabs support keyboard selection across reference and native 
       && getComputedStyle(element).outlineStyle !== 'none')).toBe(true);
   }
 });
+
+test('closed Inspector bodies are absent and reopening preserves exact disclosures and navigation', async ({ page }) => {
+  await openDemo(page);
+  const pane = page.getByTestId('chart-pane-heatmap');
+  await expect(pane.getByTestId('market-charts')).toHaveAttribute('data-painted-view-id', /.+/);
+  await pane.getByTestId('view-freeze').click();
+  const inspector = pane.locator('.m4-chart-inspector');
+  await expect(inspector.locator('table, select, pre')).toHaveCount(0);
+  const open = async () => {
+    await pane.getByRole('button', { name: 'Liquidity settings', exact: true }).click();
+    await pane.getByRole('button', { name: 'Liquidity Inspector', exact: true }).click();
+  };
+  await open();
+  await expect(inspector.locator('table, select, pre')).toHaveCount(0);
+  await inspector.locator('.m4-chart-guide > summary').click();
+  await inspector.locator('.m4-chart-readout > summary').click();
+  await inspector.locator('.m4-clock-mapping > summary').click();
+  await expect(inspector.getByLabel('Exact visible price row')).toBeVisible();
+  await expect(inspector.locator('.m4-clock-mapping pre')).toBeVisible();
+  const bounds = await pane.getByTestId('market-charts').getAttribute('data-start-ns');
+  await pane.getByRole('button', { name: 'Close Chart Inspector', exact: true }).click();
+  await expect(inspector.locator('table, select, pre')).toHaveCount(0);
+  await open();
+  for (const selector of ['.m4-chart-guide', '.m4-chart-readout', '.m4-clock-mapping']) {
+    await expect(inspector.locator(selector)).toHaveAttribute('open', '');
+  }
+  await expect(inspector.getByLabel('Exact visible price row')).toBeVisible();
+  await expect(pane.getByTestId('market-charts')).toHaveAttribute('data-start-ns', bounds!);
+  await expect(pane.getByTestId('view-freeze')).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('one pointer owns chart pan and foreign cancellation cannot commit or cancel it', async ({ page }) => {
+  await openDemo(page);
+  const pane = page.getByTestId('chart-pane-heatmap');
+  const chart = pane.getByTestId('market-charts');
+  const plot = pane.locator('.m4-chart-plot');
+  await expect(chart).toHaveAttribute('data-painted-view-id', /.+/);
+  await pane.getByTestId('view-freeze').click();
+  const before = await chart.getAttribute('data-start-ns');
+  const bounds = (await plot.boundingBox())!;
+  await plot.evaluate(element => element.addEventListener('pointerdown', event => {
+    if (event instanceof PointerEvent) element.setAttribute('data-test-pointer', String(event.pointerId));
+  }, { once: true }));
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+  await page.mouse.down();
+  await expect(plot).toHaveAttribute('data-dragging', 'true');
+  await plot.dispatchEvent('pointerdown', { pointerId: 99, isPrimary: false, button: 0, clientX: bounds.x + 10, clientY: bounds.y + 10 });
+  await plot.dispatchEvent('pointercancel', { pointerId: 99, isPrimary: false });
+  await plot.dispatchEvent('pointerup', { pointerId: 99, isPrimary: false, clientX: bounds.x + 200, clientY: bounds.y + 200 });
+  await expect(plot).toHaveAttribute('data-dragging', 'true');
+  await expect(chart).toHaveAttribute('data-start-ns', before!);
+  await plot.evaluate(element => {
+    const pointerId = Number(element.getAttribute('data-test-pointer'));
+    element.dispatchEvent(new PointerEvent('pointercancel', { pointerId, isPrimary: true, bubbles: true }));
+  });
+  await expect(plot).not.toHaveAttribute('data-dragging', 'true');
+  await page.mouse.move(bounds.x + bounds.width / 2 + 60, bounds.y + bounds.height / 2);
+  await page.mouse.up();
+  await expect(chart).toHaveAttribute('data-start-ns', before!);
+});

@@ -1,0 +1,45 @@
+.grid-workspace { display: flex; flex: 1 1 0; flex-direction: column; gap: 6px; min-width: 0; min-height: 0; overflow: hidden; isolation: isolate; }
+/* Layout controls overlay panels, but remain below the shell's source/watchlist controls. */
+.grid-toolbar { position: relative; z-index: 1; display: flex; flex: none; align-items: center; flex-wrap: wrap; gap: 6px; padding: 5px 7px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-panel); font-size: 11px; }
+.grid-toolbar label { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
+.grid-toolbar input, .grid-toolbar select { min-width: 0; max-width: 100%; }
+.grid-toolbar small, .grid-coordinates, .grid-inspection-note { color: var(--text-muted); font-size: 10px; }
+.grid-toolbar button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.grid-saved { position: relative; }
+.grid-saved summary { cursor: pointer; padding: 5px; }
+.grid-saved-controls { position: absolute; z-index: 1; top: 100%; left: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: min(480px, calc(100vw - 36px)); max-height: 55vh; overflow: auto; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-panel); box-shadow: 0 12px 36px var(--shadow); }
+.grid-saved-controls small { flex-basis: 100%; }
+.grid-notice { flex: 1 1 180px; min-width: 0; }
+.grid-inspection-note { margin: 0; padding: 0 7px; }
+/* The measured surface fits 12 logical rows; minimum row height and custom extents can still scroll. */
+.grid-surface { display: grid; isolation: isolate; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-rows: var(--grid-row-height, 24px); align-content: start; gap: 6px; min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; flex: 1; padding: 1px; }
+.grid-panel { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; border-radius: var(--radius); }
+.grid-panel-content { display: flex; flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
+.grid-panel-content > * { flex: 1; min-width: 0; }
+.grid-panel[data-grid-panel="chart"] > .grid-panel-content { overflow: auto; }
+.grid-panel-tools { display: flex; flex: none; align-items: center; flex-wrap: wrap; gap: 3px; padding: 4px; background: var(--bg-panel); border: 1px dashed var(--accent); font-size: 10px; }
+.grid-panel-tools button { padding: 3px 5px; font-size: 10px; }
+.grid-panel-tools > button:first-child, .grid-panel-tools > button:nth-child(2) { touch-action: none; }
+.grid-direction-controls { display: flex; flex-wrap: wrap; gap: 4px; }
+.grid-panel-tools button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.grid-panel-tools > button:first-child { cursor: grab; }
+.grid-panel-tools > button:nth-child(2) { cursor: nwse-resize; }
+.grid-coordinates { margin-inline-start: auto; }
+.grid-panel-tools button:focus-visible, .grid-toolbar :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.grid-drag-preview { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; border: 2px dashed var(--accent); background: var(--bg-active); opacity: .55; z-index: 25; }
+.grid-empty { grid-column: 1 / -1; padding: 16px; color: var(--text-muted); }
+@media (max-width: 965px) {
+  .grid-workspace { flex: none; overflow: visible; }
+  .grid-surface { display: flex; flex-direction: column; overflow: visible; }
+  .terminal:has(> .grid-workspace) { height: auto; min-height: 100vh; overflow: visible; }
+  .grid-panel { flex: none; min-height: 260px; height: 320px; }
+  .grid-panel[data-grid-panel="chart"] { height: 620px; }
+  .grid-panel[data-grid-panel="obi"] { height: 220px; min-height: 220px; }
+  .grid-saved { position: static; }
+  .grid-saved-controls { left: 0; width: 100%; }
+  .grid-panel-tools { max-height: 180px; overflow-y: auto; }
+  .grid-panel-tools button { min-width: 44px; min-height: 44px; touch-action: pan-y; }
+  .grid-panel-tools > button:first-child, .grid-panel-tools > button:nth-child(2) { cursor: default; touch-action: pan-y; }
+  .grid-direction-controls { flex-basis: 100%; }
+  .grid-toolbar small { flex-basis: 100%; }
+}

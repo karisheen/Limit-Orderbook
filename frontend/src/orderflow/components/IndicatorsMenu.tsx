@@ -123,6 +123,26 @@ export default function IndicatorsMenu() {
           {toggle("lastPrice", "Last price line")}
         </MenuSection>
 
+        <MenuSection title="Historical resting liquidity">
+          {toggle("restingLiquidity", "Resting liquidity", "Primary native historical depth behind the footprint; unknown spans stay blank")}
+          <Row label="Opacity">
+            <input aria-label="Resting liquidity opacity" type="range" min="0.05" max="1" step="0.05" value={ind.restingOpacity}
+              onChange={(event) => set("restingOpacity", Number(event.target.value))} />
+          </Row>
+          <Row label="Stable quantity ceiling">
+            <input aria-label="Resting quantity ceiling" className="ui-input" type="number" min="0.00000001" step="any" value={ind.restingCeiling}
+              style={{ width: 100 }} onChange={(event) => { const value = Number(event.target.value); if (Number.isFinite(value) && value > 0) set("restingCeiling", value); }} />
+          </Row>
+        </MenuSection>
+
+        <MenuSection title="Retained individual trades">
+          {toggle("largePrints", "Large prints", "Native trade bubbles with venue text; not liquidation events")}
+          <Row label="Minimum base size">
+            <input aria-label="Large print minimum size" className="ui-input" type="number" min="0" step="any" value={ind.largePrintMinimum}
+              style={{ width: 100 }} onChange={(event) => { const value = Number(event.target.value); if (Number.isFinite(value) && value >= 0) set("largePrintMinimum", value); }} />
+          </Row>
+        </MenuSection>
+
         <div className="menu-footer">
           <button type="button" className="ui-button chip" onClick={reset} disabled={!changed}>
             Reset to defaults

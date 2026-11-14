@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { errorMessage, request } from '../api';
+import { ApiError, errorMessage, request } from '../api';
 import type { ManagedRecording, RecordingMutationResponse, RecordingsResponse } from '../workflow-api';
 import { Reasons } from '../WorkflowUI';
 import { useNativeTerminal } from './NativeContext';
-import { ownedSessionRecording } from './nativeWorkspace';
+import { ownedSessionRecording, settledRecordingStop } from './nativeWorkspace';
 import { venueLabel } from '../format';
 
 export function NativeRecording() {
@@ -13,6 +13,8 @@ export function NativeRecording() {
   const [captureScope, setCaptureScope] = useState<ManagedRecording['scope']>('instrument');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [listingError, setListingError] = useState<string | null>(null);
+  const ambiguousStop = useRef<{ id: string; message: string } | null>(null);
   const operation = useRef<AbortController | null>(null);
   const listing = useRef<AbortController | null>(null);
   const [revision, setRevision] = useState(0);
@@ -23,8 +25,16 @@ export function NativeRecording() {
     const refresh = async () => {
       try {
         const result = await request<RecordingsResponse>('/recordings', undefined, controller.signal);
-        if (!controller.signal.aborted) setRecordings(result.recordings);
-      } catch (cause) { if (!controller.signal.aborted) setError(errorMessage(cause)); }
+        if (!controller.signal.aborted) {
+          setRecordings(result.recordings);
+          setListingError(null);
+          const stopped = ambiguousStop.current;
+          if (stopped && settledRecordingStop(result.recordings, stopped.id)) {
+            ambiguousStop.current = null;
+            setError(current => current === stopped.message ? null : current);
+          }
+        }
+      } catch (cause) { if (!controller.signal.aborted) setListingError(errorMessage(cause)); }
       finally { if (!controller.signal.aborted) timer = window.setTimeout(() => void refresh(), 3000); }
     };
     void refresh();
@@ -34,6 +44,8 @@ export function NativeRecording() {
     operation.current?.abort();
     setPending(false);
     setError(null);
+    setListingError(null);
+    ambiguousStop.current = null;
     setCaptureScope('instrument');
     return () => operation.current?.abort();
   }, [fence]);
@@ -47,6 +59,7 @@ export function NativeRecording() {
     operation.current = controller;
     setPending(true);
     setError(null);
+    ambiguousStop.current = null;
     try {
       // Durable reconnect/finalization is not a ten-second analytical query.
       // The owner fence still aborts obsolete requests; the server joins cleanup.
@@ -58,7 +71,14 @@ export function NativeRecording() {
       setRecordings(result.recordings);
       setRevision(value => value + 1);
     } catch (cause) {
-      if (!controller.signal.aborted) { setError(errorMessage(cause)); setRevision(value => value + 1); }
+      if (!controller.signal.aborted) {
+        const message = errorMessage(cause);
+        if (action === 'stop' && ownedId && cause instanceof ApiError && cause.status === 408) {
+          ambiguousStop.current = { id: ownedId, message };
+        }
+        setError(message);
+        setRevision(value => value + 1);
+      }
     } finally { if (!controller.signal.aborted) setPending(false); }
   };
   return <details className="native-recording" aria-busy={pending}><summary>Recordings</summary><div className="native-control-body">
@@ -69,6 +89,7 @@ export function NativeRecording() {
     <button disabled={pending} onClick={() => setRevision(value => value + 1)}>Refresh recordings</button>
     {frame?.source.mode !== 'live' && <p className="caption">Recording is available for public live data only.</p>}
     {error && <p role="alert" className="error">{error}</p>}
+    {listingError && listingError !== error && <p role="alert" className="error">{listingError}</p>}
     {!recordings.length && <p className="caption">No managed recordings.</p>}
     {recordings.map(item => {
       const source = catalog?.sources.find(candidate => candidate.id === item.source_id);

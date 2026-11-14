@@ -458,9 +458,11 @@ def test_runtime_cancel_and_speed_restart_keep_next_delivery(
             assert owner.play_task is None
             assert observer.deliveries == [1]
             assert session.status == "paused"
+            assert owner.status == "paused"
             # Runtime controls stop/restart the pacing owner. A restarted task
             # anchors a full next interval at its new speed, as before.
             session.set_speed(D("2"))
+            owner.status = "playing"
             monkeypatch.setattr(runtime_module.asyncio, "sleep", timing.sleep)
             await runtime_module.ClientSession._play(owner)
             assert observer.times == pytest.approx([0, 1, 1.5, 2])

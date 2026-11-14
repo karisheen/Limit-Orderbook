@@ -836,16 +836,29 @@ This slice adds `tests/test_workstation_api.py` and `tests/test_workstation_api_
 ## Unified native candles and explicit venue history
 
 `POST /api/v1/candles` takes strict `CandleRequest` fields:
-`{session_id,generation,interval,limit?,source?,instrument_ids?}`.
-`source` defaults to `session_trades` in **live, demo and replay**; the only other
-value is explicit `venue_ohlcv`. `interval` is case-sensitive, 1–8 characters,
-matching `^[1-9][0-9]*[mhdwM]$`; `limit` is an integer 1–500, default 300.
+`{session_id,generation,interval,limit?,source?,instrument_ids?,before_ns?}`.
+The protocol default remains `source:"session_trades"` in every mode; the other
+value is `venue_ohlcv`. The terminal's **Auto** preference explicitly selects
+Ticker history (`venue_ohlcv`) in LIVE and Observed flow (`session_trades`) in
+demo/replay. This presentation default does not change the protocol default.
+`interval` is case-sensitive, 1–8 characters, matching
+`^[1-9][0-9]*[mhdwM]$`; `limit` is an integer 1–500, default 300.
 `instrument_ids` defaults to `[]`, at most 16 unique nonempty strings of at most
 256 characters. Empty/omitted means primary only. An explicit cohort must include
 the exact selected primary and belong to the active pinned same-base,
 same-market session cohort. Foreign, duplicate or incompatible IDs are rejected,
 not silently discarded. Canonical response order is primary first, then sorted
 peer IDs. `venue_ohlcv` requires exactly the primary, never aggregate substitution.
+The terminal normalizes a Ticker history request to the exact primary before
+identity checks and request gating, independently of the selected observed-flow
+cohort. Observed flow still requests the actual selected cohort.
+
+`before_ns` is omitted/null for the newest page, or a positive decimal-string
+nanosecond timestamp matching `^[1-9][0-9]*$`, at most `9223372036854775807`.
+It is valid only with `venue_ohlcv` and is an **exclusive candle-start boundary**:
+every returned `start_ns` must be less than it. It is not an end-of-candle or
+receive-time boundary. Numeric values, zero, signed values and use with
+`session_trades` are rejected.
 Unknown fields/URLs, numeric economics and malformed intervals are rejected;
 syntactically valid unsupported intervals return `status:"unavailable"` and
 actual `supported_intervals`, not a replacement timeframe.
@@ -871,6 +884,32 @@ and `venue_label` lists contributing cohort venues, not just the primary.
 prices are indicative with `indicative_quote_family_no_conversion`; no FX or
 financially executable merged book is implied. `status` is `ready`, `empty`
 or `unavailable`. `source_identity` is the native session source fence.
+Venue responses also carry `series_key` and `history`. The opaque `series_key`
+identifies exact native instrument metadata/family, interval, native alignment
+and exchange-time basis, independently of session lifetime. It does not replace
+the `source_identity`, session and generation publication fences.
+
+```text
+history: {
+  requested_before_ns: string | null,
+  next_before_ns: string | null,
+  state: "more" | "exhausted" | "limited" | "unavailable" | "unsupported",
+  pagination: "time" | "recent_only",
+  max_bars: number,
+  update_mode: "poll",
+  poll_interval_ms: 5000
+}
+```
+
+`max_bars` is the provider/page response cap, not total retained browser history.
+A non-null `next_before_ns` strictly decreases from a supplied request boundary.
+`more` permits another older request; `limited` discloses a provider retention
+or paging limit rather than claiming all historical trading is exhausted.
+`recent_only` does not support arbitrary older backfill. `unavailable` and
+`unsupported` retain the failure/capability distinction. Neither an empty nor
+a short page alone certifies `exhausted`. `status` still describes the current
+response's bars; `history.state` describes acquisition capability/progress.
+Session-trade responses need not have `history`.
 
 Each candle contains `start_ns`, exclusive `end_ns`, exact-string
 `open,high,low,close,volume`, and boolean `closed`. `volume_unit` is `"base"`,
@@ -905,26 +944,64 @@ bars, not bucket edges. Native chart operation needs no REST backfill.
 
 ### Explicit venue OHLCV
 
-`venue_ohlcv` is a separate request, not a live default or a replay-prefix
-reconstruction. It uses `time_basis:"exchange_utc"` and native exchange bucket
-starts; multiday/week alignment must not be assumed identical to session epoch
+`venue_ohlcv` is a separate data product, never a replay-prefix reconstruction.
+LIVE Auto selects it explicitly; demo/replay Auto does not fetch venue history.
+An explicit venue choice in demo/replay can issue public HTTP independently of
+`serve --network` and must warn that **current external history is not replay
+evidence**. It is never merged into observed session trades.
+
+The pinned primary ticker remains queryable when the session's analytical
+collector is `unavailable` or `error` (for example, after an analytical queue
+overflow). Venue history does not read the analytical worker or replay reader,
+repair collector state, or make observed data fresh. `session_trades`, paper,
+and other analytical APIs retain their normal unavailable/error rejection.
+Closed sessions, obsolete generations, loading/seeking transitions, missing
+source/instrument pins, and source or exact instrument changes during HTTP
+still reject the candle request. The session's activity ownership is retained
+through the request, including older pages, without holding lifecycle locks
+over external HTTP.
+
+It uses `time_basis:"exchange_utc"` and native exchange bucket starts;
+multiday/week alignment must not be assumed identical to session epoch
 flooring. Its coverage defaults to first returned bucket start through the lesser
 of the last bucket end and fetch time. It discloses `native_history_may_have_gaps`
-and `closed_is_time_boundary_not_completeness`.
+and `closed_is_time_boundary_not_completeness`. Exchange UTC is not the observed
+receive-UTC projection; equal-looking timestamps do not authorize linked
+liquidity cursors or observed positioning overlays.
 
-Supported families include Binance global spot/USD-M and Bybit spot/linear,
-plus supported native Binance.US, Coinbase, Kraken, KuCoin and Hyperliquid
-products. Exact family/market/interval support is returned, not inferred from
-venue name or catalog presence. Unsupported history stays unavailable; it is
-never substituted from another venue, instrument or API family. This request
-does not prove any provider is currently reachable. Native access restrictions
-and transport Retry-After/circuit policy remain authoritative.
+Exact provider families, intervals and paging limits are listed in
+[provider details](VISUALIZATION.md#explicit-primary-only-venue-ohlcv).
+Support is not inferred from venue name or catalog presence. Unsupported
+history stays unavailable; it is never substituted from another venue,
+instrument or API family. Implementation does not prove provider reachability.
+Native access restrictions and transport Retry-After/circuit policy remain
+authoritative.
 
-One attempt per query, four concurrent queries, no admission wait queue, at most
-32 successful exact-instrument/metadata/interval/limit cache entries, five-second
-TTL, at most 500 candles and a 2 MiB JSON parsing bound apply. Transport retains
-its 32 MiB response cap. Overload yields `candle_capacity`; network/access/rate
-failures have explicit unavailable reasons. Cancellation releases capacity without
-a background fetch. No observer/lifecycle lock is held during HTTP; source and
-generation are checked before publication. Book health is not a prerequisite for
-venue history. See [provider details](VISUALIZATION.md#historical-price-candles).
+Each distinct native fetch makes one transport attempt. Up to **four native
+flights** run concurrently; identical requests coalesce with at most **64
+waiters per flight**, rather than duplicate HTTP. Excess admission returns
+`candle_capacity`; there is no unbounded queue. Cancellation detaches only that
+waiter; the last waiter cancels and drains the native fetch. No detached
+background fetch survives all callers.
+
+The server's exact instrument/metadata/interval/limit/boundary LRU cache is
+bounded by **32 pages, 8 MiB accounted bytes and 10,000 bars globally**, with
+a **five-second TTL** and immutable encoded wire entries. Page output is at
+most 500 bars, further reduced to Coinbase 350, OKX 300 and Bitget older pages
+200 (newest Bitget pages allow 500). JSON parsing is bounded to **2 MiB**;
+transport retains its **32 MiB** response cap. These are limits, not guaranteed
+history depth. Failures keep explicit network/access/rate/invalid-data reasons.
+No observer/lifecycle lock is held during HTTP; source and generation are
+checked before publication. Book health is not a prerequisite for venue history.
+
+The client polls the newest page every **5 seconds**, rather than claiming a
+native candle stream. Older-page requests are coalesced separately. Exact
+start-keyed merges sort/deduplicate overlap, replace provider corrections and
+protect newer results against late older-page responses. Reconnect reconciliation
+requests overlap before treating retained history as current; unknown gaps are
+not filled. Same-series HTTP failures preserve visible bars with stale/error
+state, while source/instrument/interval identity changes invalidate them.
+The mounted query retains at most **10,000 bars**. At its bound, growth pauses
+with an explicit limit state instead of evicting visible history. This client
+bound is distinct from session-trade retention and the server response cache.
+No historical viewport may silently jump to Latest when polling or prepending.

@@ -11,6 +11,7 @@ MAX_MARKET_DATA_BYTES = 32 * 1024 * 1024
 _DECIMAL_TEXT = re.compile(
     r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?\Z"
 )
+_CONTROL_TEXT = re.compile(r"[\x00-\x1f]")
 
 
 @dataclass(frozen=True)
@@ -113,7 +114,7 @@ def text(value: str, name: str = "identifier") -> str:
         not isinstance(value, str)
         or not value
         or len(value) > 512
-        or any(ord(c) < 32 for c in value)
+        or _CONTROL_TEXT.search(value) is not None
     ):
         raise ValueError(f"invalid {name}")
     return value

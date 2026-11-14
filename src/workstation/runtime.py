@@ -5,7 +5,7 @@ The event loop owns lifecycle locks and pacing, never SQLite or heavy seek work.
 """
 
 import asyncio
-from collections import OrderedDict, deque
+from collections import Counter, OrderedDict, deque
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager, nullcontext
 from dataclasses import fields, is_dataclass, replace
@@ -48,6 +48,7 @@ from .market_presentation import (
     live_market_snapshot,
     market_data,
 )
+from .ownership import join_owned
 from .paper import PaperEngine, PaperError, PaperStore
 from .positioning import PositioningHistory, positioning_series
 from .precision import DERIVED_DECIMAL_POLICY, canonical_decimal, decimal
@@ -84,7 +85,7 @@ class _LiveBookBudget:
     def __init__(self) -> None:
         self.books: dict[int, int] = {}
         self.sides: dict[int, int] = {}
-        self.levels: dict[int, int] = {}
+        self.levels: Counter[int] = Counter()
         self.bytes = 0
 
     def _tables_size(self) -> int:
@@ -107,12 +108,11 @@ class _LiveBookBudget:
                 if count:
                     continue
                 added += 256 + 8 * len(side)
-                for level in side:
-                    identity = id(level)
-                    count = self.levels.get(identity, 0)
-                    self.levels[identity] = count + 1
-                    if not count:
-                        added += 640
+                # Accumulate every occurrence in C without copying the side or
+                # retaining market objects. Only new identities add a charge.
+                prior_levels = len(self.levels)
+                self.levels.update(map(id, side))
+                added += 640 * (len(self.levels) - prior_levels)
         added += self._tables_size() - before
         self.bytes += added
         return added
@@ -120,6 +120,12 @@ class _LiveBookBudget:
     def release(self, books: tuple[Book, ...], *, compact: bool = False) -> int:
         before = self._tables_size()
         removed = 0
+        # Bypass Counter's Python __delitem__/__missing__ hooks in this hot loop.
+        # Missing/nonpositive references still fail the ownership invariant.
+        levels = self.levels
+        level_get = levels.get
+        level_set = levels.__setitem__
+        level_del = dict.__delitem__
         for book in books:
             identity = id(book)
             count = self.books[identity] - 1
@@ -138,11 +144,16 @@ class _LiveBookBudget:
                 removed += 256 + 8 * len(side)
                 for level in side:
                     identity = id(level)
-                    count = self.levels[identity] - 1
+                    count = level_get(identity, 0)
+                    if count <= 0:
+                        # Counter's missing-key zero must not hide an
+                        # unbalanced release by creating a negative refcount.
+                        raise KeyError(identity)
+                    count -= 1
                     if count:
-                        self.levels[identity] = count
+                        level_set(identity, count)
                     else:
-                        del self.levels[identity]
+                        level_del(levels, identity)
                         removed += 640
         for counts in (self.books, self.sides, self.levels):
             if not counts:
@@ -151,7 +162,7 @@ class _LiveBookBudget:
             # Rejected admissions must not leave their table growth behind.
             self.books = dict(self.books)
             self.sides = dict(self.sides)
-            self.levels = dict(self.levels)
+            self.levels = Counter(self.levels)
         removed += before - self._tables_size()
         self.bytes -= removed
         return removed
@@ -507,12 +518,15 @@ class ClientSession:
         self.live_bytes = 0
         self.live_inflight = 0
         self.live_book_budget = _LiveBookBudget()
+        self.live_loss: tuple[str, ClockReading | None] | None = None
+        self.live_loss_task: asyncio.Task[None] | None = None
         self.live_keys: frozenset[SubscriptionKey] = frozenset()
         self.live_stream_ids: frozenset[StreamId] = frozenset()
         self.live_stream_keys: dict[StreamId, SubscriptionKey] = {}
         self.unsubscribe: Callable[[], None] | None = None
         self.socket_attached = False
         self.closed = False
+        self._close_task: asyncio.Task[None] | None = None
         self.last_access = time.monotonic()
         self.pending_acks: OrderedDict[str, int] = OrderedDict()
         self.pending_views: OrderedDict[str, tuple[int, int]] = OrderedDict()
@@ -522,6 +536,8 @@ class ClientSession:
             tuple[
                 int,
                 str | None,
+                str,
+                str,
                 tuple[dict | None, dict | None, dict | None, SessionHealth],
             ]
             | None
@@ -557,7 +573,7 @@ class ClientSession:
                     503, "managed capture unavailable: " + str(exc)
                 ) from exc
         result = fn()
-        if not closing:
+        if not closing and not (self.replay is not None and self.replay.failed):
             books = self.replay.books() if self.replay else self.live_books
             book = next((item for item in books if item.key == self.key), None)
             instrument = next(
@@ -577,11 +593,7 @@ class ClientSession:
                 partial(fn, *args, **kwargs),
                 fn == self._close_worker,
             )
-            try:
-                return await asyncio.shield(future)
-            except asyncio.CancelledError:
-                await future
-                raise
+            return await join_owned(future)
         except RuntimeFailure as exc:
             if exc.status == 503 and self.mode == "replay":
                 self.status, self.error = "unavailable", exc.detail
@@ -596,6 +608,8 @@ class ClientSession:
         """Read immutable completed-owner evidence; never publish or touch access."""
         if self.closed or self.status in ("loading", "seeking", "unavailable", "error"):
             return {"ready": False, "reasons": [self.error or self.status]}
+        if self.replay is not None and self.replay.failed:
+            return {"ready": False, "reasons": ["replay_failed"]}
         book, instrument, now = self.health_evidence
         if book is None or instrument is None or now is None:
             return {"ready": False, "reasons": ["no_validated_book"]}
@@ -614,6 +628,23 @@ class ClientSession:
             raise RuntimeFailure(409, self.status)
         if self.status in ("unavailable", "error"):
             raise RuntimeFailure(503, self.error or self.status)
+        if self.replay is not None and self.replay.failed:
+            raise RuntimeFailure(503, "failed replay requires explicit seek or reset")
+
+    def check_candles(self, generation: str, source: str) -> None:
+        if source != "venue_ohlcv":
+            self.check(generation)
+            return
+        # External ticker history needs a stable pin, not a healthy collector.
+        self.last_access = time.monotonic()
+        if self.closed:
+            raise RuntimeFailure(404, "session closed")
+        if str(self.generation) != generation:
+            raise RuntimeFailure(409, "obsolete session generation")
+        if self.status in ("seeking", "loading"):
+            raise RuntimeFailure(409, self.status)
+        if not self.source_identity:
+            raise RuntimeFailure(409, "candle source unavailable")
 
     def _initialize_consumers(self) -> None:
         if self.engine is None or not self.source_identity:
@@ -714,6 +745,13 @@ class ClientSession:
         self.status = "paused"
 
     def _retain_live_observation(self, keys: frozenset[SubscriptionKey]) -> None:
+        departed = frozenset(spec.key for spec in self.streams if spec.key not in keys)
+        if departed and self.paper is not None:
+            self.paper.observation_gap(
+                "observation_departure",
+                affected_keys=departed,
+                at=self.live_clock.reading,
+            )
         if self.paper is not None and self.paper.frozen_reason is None:
             # Stop observing departed books at ownership cutover, not after the
             # asynchronous collector replacement has waited for network cleanup.
@@ -844,6 +882,9 @@ class ClientSession:
             return await self._frame()
 
     async def _frame(self):
+        if self.replay is not None and self.replay.failed:
+            self.status, self.error = "error", str(self.replay.failure)
+            self.completed_view = None
         self.last_access = time.monotonic()
         presentation_status = None
         # Loading/seeking frames must not leak a partially recomputed observer.
@@ -874,11 +915,17 @@ class ClientSession:
                 if (
                     self.status not in ("loading", "seeking", "unavailable", "error")
                     and cached is not None
-                    and cached[:2] == (self.generation, self.instrument_id)
+                    and cached[:4]
+                    == (
+                        self.generation,
+                        self.instrument_id,
+                        self.source_id,
+                        self.source_identity,
+                    )
                 ):
                     # One completed DTO, never a partially advancing observer.
                     # Retained evidence is diagnostic until ownership is free.
-                    book, analytics, replay, _ = cached[2]
+                    book, analytics, replay, _ = cached[4]
                     presentation_status = self.status
                     health = {
                         "ready": False,
@@ -896,12 +943,46 @@ class ClientSession:
                             {"ready": False, "reasons": [self.error or self.status]},
                         )
                     else:
-                        book, analytics, replay, health = await self.work(self._view)
-                        self.completed_view = (
+                        view_identity = (
                             self.generation,
                             self.instrument_id,
-                            (book, analytics, replay, health),
+                            self.source_id,
+                            self.source_identity,
                         )
+                        book, analytics, replay, health = await self.work(self._view)
+                        if self.closed:
+                            raise RuntimeFailure(404, "session closed")
+                        if (
+                            self.status
+                            in ("loading", "seeking", "unavailable", "error")
+                            or view_identity
+                            != (
+                                self.generation,
+                                self.instrument_id,
+                                self.source_id,
+                                self.source_identity,
+                            )
+                            or self.replay is not None
+                            and self.replay.failed
+                        ):
+                            self.completed_view = None
+                            book, analytics, replay, health = (
+                                None,
+                                None,
+                                None,
+                                {
+                                    "ready": False,
+                                    "reasons": [self.error or self.status],
+                                },
+                            )
+                        else:
+                            self.completed_view = (
+                                self.generation,
+                                self.instrument_id,
+                                self.source_id,
+                                self.source_identity,
+                                (book, analytics, replay, health),
+                            )
                 finally:
                     self.lock.release()
         self.frame_sequence += 1
@@ -969,11 +1050,18 @@ class ClientSession:
 
     async def stop_play(self) -> None:
         task, self.play_task = self.play_task, None
-        if task is not None:
-            task.cancel()
-            await asyncio.gather(task, return_exceptions=True)
-        if self.replay is not None and not self.closed:
-            await self.work(self.replay.pause)
+        try:
+            if task is not None:
+                task.cancel()
+                await join_owned(asyncio.gather(task, return_exceptions=True))
+            if self.replay is not None and not self.closed:
+                await self.work(self.replay.pause)
+        finally:
+            if self.replay is not None and self.replay.failed:
+                self.status, self.error = "error", str(self.replay.failure)
+                self.completed_view = None
+            elif self.status == "playing":
+                self.status = "paused"
 
     async def _play(self) -> None:
         replay = self.replay
@@ -1012,7 +1100,13 @@ class ClientSession:
             )
 
     async def control(self, generation, action, count=1, speed="1", delivery_index="0"):
-        self.check(generation)
+        if action in ("seek", "reset"):
+            if self.closed or str(self.generation) != generation:
+                raise RuntimeFailure(409, "obsolete session generation")
+            if self.status in ("loading", "seeking"):
+                raise RuntimeFailure(409, self.status)
+        else:
+            self.check(generation)
         if self.replay is None:
             raise RuntimeFailure(409, "live sources have no replay cursor")
         was_playing = self.status == "playing"
@@ -1024,12 +1118,16 @@ class ClientSession:
         # playback task waiting for that same lock).
         await self.stop_play()
         async with self.lock:
-            self.check(generation)
+            if self.closed or str(self.generation) != generation:
+                raise RuntimeFailure(409, "obsolete session generation")
+            if action not in ("seek", "reset"):
+                self.check(generation)
             if action in ("seek", "reset"):
                 self.status = "seeking"
                 self.generation += 1
                 self.pending_acks.clear()
                 self.pending_views.clear()
+                self.completed_view = None
                 try:
                     await self.work(
                         self.replay.seek_delivery,
@@ -1046,10 +1144,19 @@ class ClientSession:
                     )
                     raise
             elif action == "step":
-                await self.work(self.replay.step, count)
+                try:
+                    await self.work(self.replay.step, count)
+                except BaseException as exc:
+                    self.status, self.error = (
+                        "error",
+                        str(exc) or "replay step cancelled",
+                    )
+                    self.completed_view = None
+                    raise
             elif action == "speed":
                 await self.work(self.replay.set_speed, decimal(speed, positive=True))
             self.status = "paused"
+            self.error = None
             if action == "play" or action == "speed" and was_playing:
                 self.status = "playing"
                 self.play_task = asyncio.create_task(self._play())
@@ -1099,6 +1206,19 @@ class ClientSession:
                 "unavailable",
                 "analytical_queue_overflow: reselect to establish fresh history",
             )
+            self.live_loss = (
+                "analytical_queue_overflow",
+                ClockReading(
+                    selected[0].clock_id,
+                    selected[0].receive_mono_ns,
+                    selected[0].receive_wall_ns,
+                ),
+            )
+            self.completed_view = None
+            if self.live_queue.empty() and not self.live_inflight:
+                self.live_loss_task = asyncio.create_task(
+                    self._settle_empty_live_loss()
+                )
             return
         self.live_bytes += size
         self.live_queue.put_nowait(
@@ -1162,8 +1282,11 @@ class ClientSession:
         )
 
     def _take_live_batch(
-        self, first: LiveDelivery, limit: int = 32
+        self, first: LiveDelivery, limit: int = 128
     ) -> list[LiveDelivery]:
+        # Drain already-admitted work; never wait to fill a batch. Larger busy
+        # turns amortize loop/executor handoffs without expanding the 256-item
+        # queued-plus-in-flight bound or merging canonical transactions.
         batch = [first]
         for _ in range(1, limit):
             try:
@@ -1175,10 +1298,19 @@ class ClientSession:
         return batch
 
     def _release_live_batch(self, batch: list[LiveDelivery]) -> None:
-        self.live_bytes -= sum(
-            event_bytes + self.live_book_budget.release(books)
-            for _events, books, _queued, event_bytes in batch
-        )
+        if self.live_queue.empty():
+            # This joined batch owns every outstanding reservation. Discard the
+            # identity tables together instead of walking full native depth for
+            # every intermediate book merely to decrement all counts to zero.
+            # Admission and release both run on the loop without an await, so a
+            # producer cannot acquire a reservation during this reset.
+            self.live_book_budget = _LiveBookBudget()
+            self.live_bytes = 0
+        else:
+            self.live_bytes -= sum(
+                event_bytes + self.live_book_budget.release(books)
+                for _events, books, _queued, event_bytes in batch
+            )
         batch.clear()
         self.live_inflight = 0
         self.telemetry["queue_depth"] = self.live_queue.qsize()
@@ -1196,8 +1328,6 @@ class ClientSession:
         self, batch: list[LiveDelivery], bootstrap: bool = False
     ) -> None:
         for events, books, _queued, event_bytes in batch:
-            if self.status in ("unavailable", "error"):
-                break
             if bootstrap:
                 original_count = len(events)
                 events = tuple(
@@ -1210,32 +1340,101 @@ class ClientSession:
             if events:
                 self._apply_live(events, books, event_bytes)
 
-    async def consume_live(self, *, bootstrap: bool = False) -> None:
+    async def _settle_empty_live_loss(self) -> None:
+        async with self.lock:
+            await self._finish_live_loss()
+
+    def _freeze_live_loss(self, loss: tuple[str, ClockReading | None]) -> None:
+        if self.paper is not None:
+            self.paper.observation_gap(loss[0], at=loss[1])
+
+    async def _finish_live_loss(self) -> None:
+        # Coordinator evidence is loop-owned; Paper only runs on its owner.
+        loss = self.live_loss
+        if loss is not None:
+            await self.work(self._freeze_live_loss, loss)
+            if self.live_loss is loss:
+                self.live_loss = None
+
+    async def _consume_live_batch(
+        self, batch: list[LiveDelivery], bootstrap: bool
+    ) -> None:
         try:
-            while True:
-                batch = self._take_live_batch(await self.live_queue.get())
-                try:
-                    # Bootstrap is private creation or runs under the selecting
-                    # caller's lock; waiting for that lock would deadlock cutover.
-                    async with nullcontext() if bootstrap else self.lock:
-                        if self.status != ("loading" if bootstrap else "live"):
-                            continue
-                        self.telemetry["queue_wait_ms"] = (
-                            time.monotonic_ns() - batch[0][2]
-                        ) / 1_000_000
-                        start = time.monotonic_ns()
-                        await self.work(self._apply_live_batch, batch, bootstrap)
-                        self.telemetry["observer_duration_ms"] = (
-                            time.monotonic_ns() - start
-                        ) / 1_000_000
-                finally:
-                    # Work joins cancellation before releasing admitted ownership.
-                    # A detached batch remains charged to both queue bounds.
-                    self._release_live_batch(batch)
-        except asyncio.CancelledError:
+            async with nullcontext() if bootstrap else self.lock:
+                # Overflow closes admission, not its proven complete prefix.
+                if self.status == "error":
+                    await self.work(
+                        self._freeze_live_loss,
+                        ("analytical_observer_failure", self.live_clock.reading),
+                    )
+                    return
+                self.telemetry["queue_wait_ms"] = (
+                    time.monotonic_ns() - batch[0][2]
+                ) / 1_000_000
+                start = time.monotonic_ns()
+                await self.work(self._apply_live_batch, batch, bootstrap)
+                self.telemetry["observer_duration_ms"] = (
+                    time.monotonic_ns() - start
+                ) / 1_000_000
+                if self.live_queue.empty():
+                    await self._finish_live_loss()
+        finally:
+            self._release_live_batch(batch)
+
+    async def consume_live(self, *, bootstrap: bool = False) -> None:
+        # Keep one drain task for the consumer lifetime. A task per batch adds a
+        # dispatch turn and a shield-completion round trip before the next batch
+        # can reach its worker, even when both the queue and lock are ready.
+        stopping = False
+        waiting = True
+        failed: Exception | None = None
+
+        async def drain() -> None:
+            nonlocal waiting, failed
+            try:
+                while not stopping:
+                    waiting = True
+                    first = await self.live_queue.get()
+                    waiting = False
+                    batch = (
+                        self._take_live_batch(first, 32)
+                        if bootstrap
+                        else self._take_live_batch(first)
+                    )
+                    await self._consume_live_batch(batch, bootstrap)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                self.status, self.error = "error", str(exc)
+                failed = exc
+                async with self.lock:
+                    await self.work(
+                        self._freeze_live_loss,
+                        ("analytical_observer_failure", self.live_clock.reading),
+                    )
+
+        task = asyncio.create_task(drain())
+        try:
+            await asyncio.shield(task)
+        except asyncio.CancelledError as cancelled:
+            stopping = True
+            # Only the empty-queue wait is interruptible. Once detached, the
+            # complete batch owns its lock wait, worker and loss-boundary freeze.
+            # No await separates the queue get from clearing `waiting`.
+            if waiting:
+                task.cancel()
+            try:
+                await join_owned(task)
+            except asyncio.CancelledError as joined:
+                # Repeated waiter cancellation can be raised after the drain
+                # has already recorded and handled its observer failure.
+                cause = joined.__cause__
+                raise cancelled from (cause if cause is not None else failed)
+            except BaseException as failure:
+                raise cancelled from failure
+            if failed is not None:
+                raise cancelled from failed
             raise
-        except Exception as exc:
-            self.status, self.error = "error", str(exc)
 
     def _history(self, start, end, limit):
         cursor = self.replay.cursor.delivery_index if self.replay else self.delivery
@@ -1331,7 +1530,13 @@ class ClientSession:
             )
         if source not in ("session_trades", "venue_ohlcv"):
             raise RuntimeFailure(422, "unsupported candle source")
-        identity = (self.mode, self.source_identity, self.key, instrument)
+        identity = (
+            self.mode,
+            self.source_id,
+            self.source_identity,
+            self.key,
+            instrument,
+        )
         local = (
             session_candles(
                 self.trade_history, instrument, interval, limit, cohort=cohort
@@ -2046,6 +2251,11 @@ class ClientSession:
         self.paper = None
 
     async def close(self) -> None:
+        if self._close_task is None:
+            self._close_task = asyncio.create_task(self._close())
+        await join_owned(self._close_task)
+
+    async def _close(self) -> None:
         if self.closed:
             return
         self.closed = True
@@ -2056,10 +2266,15 @@ class ClientSession:
         await self.stop_play()
         if self.live_task:
             self.live_task.cancel()
-            await asyncio.gather(self.live_task, return_exceptions=True)
+            await join_owned(asyncio.gather(self.live_task, return_exceptions=True))
+        if self.live_loss_task is not None:
+            await join_owned(self.live_loss_task)
         if self.mode == "live" and self.runtime.registry is not None:
             await self.runtime.registry.release_client(ClientId(self.id))
         async with self.lock:
+            if not self.live_queue.empty() and self.live_loss is None:
+                self.live_loss = ("analytical_owner_closed", self.live_clock.reading)
+            await self._finish_live_loss()
             self._clear_live_queue()
             await self.work(self._close_worker)
         self.executor.shutdown(wait=True, cancel_futures=True)
@@ -2126,12 +2341,13 @@ class TerminalRuntime:
         ] = {}
         self.instruments: dict[str, Instrument] = {}
         self.source_instruments: dict[str, tuple[Instrument, ...]] = {}
-        self._catalog_cache: OrderedDict[str | None, tuple[object, bytes, str]] = (
+        self._catalog_cache: OrderedDict[Hashable, tuple[object, bytes, str]] = (
             OrderedDict()
         )
         self._catalog_cache_bytes = 0
         self._paper_history_store: PaperStore | None = None
         self.closed = False
+        self._close_task: asyncio.Task[None] | None = None
         self.captures = CaptureService(self)
 
     def _research_query(self, request):
@@ -2197,7 +2413,9 @@ class TerminalRuntime:
             allow_nan=False,
             separators=(",", ":"),
         ).encode("utf-8")
-        etag = '"' + sha256(encoded).hexdigest() + '"'
+        etag = (
+            '"' + sha256(repr(source_id).encode() + b"\0" + encoded).hexdigest() + '"'
+        )
         previous = self._catalog_cache.pop(source_id, None)
         if previous is not None:
             self._catalog_cache_bytes -= len(previous[1])
@@ -2244,11 +2462,7 @@ class TerminalRuntime:
         future = asyncio.get_running_loop().run_in_executor(
             self.catalog_executor, partial(fn, *args, **kwargs)
         )
-        try:
-            return await asyncio.shield(future)
-        except asyncio.CancelledError:
-            await future
-            raise
+        return await join_owned(future)
 
     async def _visual_work(
         self, fn: Callable[P, R], *args: P.args, **kwargs: P.kwargs
@@ -2257,11 +2471,7 @@ class TerminalRuntime:
         future = asyncio.get_running_loop().run_in_executor(
             self.visual_executor, partial(fn, *args, **kwargs)
         )
-        try:
-            return await asyncio.shield(future)
-        except asyncio.CancelledError:
-            await future
-            raise
+        return await join_owned(future)
 
     def source(self, source_id: str) -> SourceStatus:
         source = self.sources.get(source_id)
@@ -2485,10 +2695,7 @@ class TerminalRuntime:
             return session
         except BaseException:
             cleanup = asyncio.create_task(session.close())
-            try:
-                await asyncio.shield(cleanup)
-            except asyncio.CancelledError:
-                await cleanup
+            await join_owned(cleanup)
             raise
         finally:
             # Loop-owned counters retire without a cancellation point.
@@ -2595,18 +2802,25 @@ class TerminalRuntime:
             bootstrap_task = asyncio.create_task(session.consume_live(bootstrap=True))
 
         try:
+            await session._finish_live_loss()
             await session.work(session._retain_live_observation, keys)
             try:
-                await registry.replace(
-                    ClientId(session.id),
-                    keys,
-                    session.generation,
-                    on_commit=initialize,
+                await join_owned(
+                    asyncio.create_task(
+                        registry.replace(
+                            ClientId(session.id),
+                            keys,
+                            session.generation,
+                            on_commit=initialize,
+                        )
+                    )
                 )
             finally:
                 if bootstrap_task is not None:
                     bootstrap_task.cancel()
-                    await asyncio.gather(bootstrap_task, return_exceptions=True)
+                    await join_owned(
+                        asyncio.gather(bootstrap_task, return_exceptions=True)
+                    )
             if session.status in ("unavailable", "error"):
                 raise RuntimeFailure(503, session.error or "live bootstrap unavailable")
             remaining = session.live_queue.qsize()
@@ -2631,7 +2845,16 @@ class TerminalRuntime:
             if session.unsubscribe is not None:
                 session.unsubscribe()
                 session.unsubscribe = None
-            await self.registry.release_client(ClientId(session.id))
+
+            async def cleanup():
+                await session.work(
+                    session._freeze_live_loss,
+                    session.live_loss
+                    or ("analytical_selection_failed", session.live_clock.reading),
+                )
+                await registry.release_client(ClientId(session.id))
+
+            await join_owned(asyncio.create_task(cleanup()))
             raise
 
     async def market_data(self, request):
@@ -2671,27 +2894,33 @@ class TerminalRuntime:
                 else self.captures.start(session, request.scope)
             )
             task = asyncio.create_task(operation)
-            try:
-                result = await asyncio.shield(task)
-            except asyncio.CancelledError:
-                await task
-                raise
+            result = await join_owned(task)
             if str(session.generation) != request.generation:
                 raise RuntimeFailure(409, "obsolete session generation")
             return result
 
     async def candles(self, request):
         session = self.get(request.session_id)
-        session.check(request.generation)
+        session.check_candles(request.generation, request.source)
+        if request.before_ns is not None and request.source != "venue_ohlcv":
+            raise RuntimeFailure(422, "older history requires venue_ohlcv")
         async with session.activity():
             async with session.actions, session.lock:
-                session.check(request.generation)
-                identity, instrument, local = await session.work(
+                session.check_candles(request.generation, request.source)
+                candle_input = partial(
                     session._candle_input,
                     request.interval,
                     request.limit,
                     request.instrument_ids,
                     request.source,
+                )
+                # Venue input reads only pinned immutable metadata under the
+                # lifecycle locks, not the analytical worker or replay reader.
+                # Observed candles still require that worker's ownership checks.
+                identity, instrument, local = (
+                    candle_input()
+                    if request.source == "venue_ohlcv"
+                    else await session.work(candle_input)
                 )
             # No observer or lifecycle lock is held over public HTTP. Source
             # replacement and live book delivery remain independent of candles.
@@ -2699,11 +2928,14 @@ class TerminalRuntime:
                 local
                 if local is not None
                 else await self.candle_service.query(
-                    instrument, request.interval, request.limit
+                    instrument,
+                    request.interval,
+                    request.limit,
+                    before_ns=request.before_ns,
                 )
             )
             async with session.actions, session.lock:
-                session.check(request.generation)
+                session.check_candles(request.generation, request.source)
                 current = next(
                     (
                         spec.instrument
@@ -2714,6 +2946,7 @@ class TerminalRuntime:
                 )
                 if identity != (
                     session.mode,
+                    session.source_id,
                     session.source_identity,
                     session.key,
                     current,
@@ -2731,6 +2964,8 @@ class TerminalRuntime:
             raise RuntimeFailure(409, "obsolete session generation")
         if session.closed or session.status in ("loading", "seeking"):
             raise RuntimeFailure(409, "session is not selectable")
+        if session.replay is not None and session.replay.failed:
+            raise RuntimeFailure(409, "failed replay requires explicit seek or reset")
         if session.mode == "live":
             if self.registry is None:
                 raise RuntimeFailure(503, "live registry is unavailable")
@@ -2746,28 +2981,42 @@ class TerminalRuntime:
             raise RuntimeFailure(
                 422, "instrument has no unique book reconstruction key"
             )
-        await session.stop_play()
-        if session.live_task:
-            session.live_task.cancel()
-            await asyncio.gather(session.live_task, return_exceptions=True)
-        if session.unsubscribe:
-            session.unsubscribe()
-            session.unsubscribe = None
-        async with session.lock:
-            session.generation += 1
-            session.pending_acks.clear()
-            session.pending_views.clear()
-            if session.mode == "live":
-                session._clear_live_queue()
-                session.status = "loading"
-                try:
+        try:
+            await session.stop_play()
+            if session.live_task:
+                session.live_task.cancel()
+                await join_owned(
+                    asyncio.gather(session.live_task, return_exceptions=True)
+                )
+            async with session.lock:
+                session.generation += 1
+                session.pending_acks.clear()
+                session.pending_views.clear()
+                session.completed_view = None
+                if session.mode == "live":
+                    # No await between retiring the old sink and installing the
+                    # bootstrap sink. Any admitted backlog is an explicit gap,
+                    # never silently reinterpreted as a complete current baseline.
+                    if not session.live_queue.empty() and session.live_loss is None:
+                        session.live_loss = (
+                            "analytical_reselection_gap",
+                            session.live_clock.reading,
+                        )
+                    if session.unsubscribe:
+                        session.unsubscribe()
+                        session.unsubscribe = None
+                    session._clear_live_queue()
+                    session.status = "loading"
                     await self._select_live(session, instrument_id)
-                except BaseException as exc:
-                    session.status, session.error = "error", str(exc)
-                    raise
-            else:
-                await session.work(session.choose, instrument_id)
-                session.status = "paused"
+                else:
+                    session.status = "seeking"
+                    await session.work(session.choose, instrument_id)
+                    session.status = "paused"
+                    session.error = None
+        except BaseException as exc:
+            session.status, session.error = "error", str(exc) or "selection cancelled"
+            session.completed_view = None
+            raise
         return await session.frame()
 
     async def remove(
@@ -2796,11 +3045,7 @@ class TerminalRuntime:
                 return
             self.sessions.pop(session_id)
             cleanup = asyncio.create_task(session.close())
-            try:
-                await asyncio.shield(cleanup)
-            except asyncio.CancelledError:
-                await cleanup
-                raise
+            await join_owned(cleanup)
 
     async def _reap(self) -> None:
         while True:
@@ -2811,22 +3056,29 @@ class TerminalRuntime:
                     await self.remove(session.id, idle_before=cutoff)
 
     async def close(self) -> None:
+        if self._close_task is None:
+            self._close_task = asyncio.create_task(self._close())
+        await join_owned(self._close_task)
+
+    async def _close(self) -> None:
         self.closed = True
         initializers = tuple(self.initializers)
         for task in initializers:
             task.cancel()
-        await asyncio.gather(*initializers, return_exceptions=True)
+        await join_owned(asyncio.gather(*initializers, return_exceptions=True))
         if self.metadata_task:
             self.metadata_task.cancel()
-            await asyncio.gather(self.metadata_task, return_exceptions=True)
+            await join_owned(asyncio.gather(self.metadata_task, return_exceptions=True))
         if self.reaper:
             self.reaper.cancel()
-            await asyncio.gather(self.reaper, return_exceptions=True)
+            await join_owned(asyncio.gather(self.reaper, return_exceptions=True))
         if self.demo_task:
             self.demo_task.cancel()
-            await asyncio.gather(self.demo_task, return_exceptions=True)
-        await asyncio.gather(
-            *(self.remove(session_id) for session_id in tuple(self.sessions))
+            await join_owned(asyncio.gather(self.demo_task, return_exceptions=True))
+        await join_owned(
+            asyncio.gather(
+                *(self.remove(session_id) for session_id in tuple(self.sessions))
+            )
         )
         await self.captures.close()
         if self.registry is not None and self.owns_registry:

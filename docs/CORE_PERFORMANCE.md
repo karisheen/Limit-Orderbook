@@ -4,7 +4,9 @@ This page preserves milestone-era measurements and reproduction commands.
 Their source/tool hashes, inputs and environments scope each result; none
 certifies the current head or an unconditional sustained-capacity/latency
 guarantee. Current implementation includes the later workload-isolation changes
-below. No new benchmark was run for this documentation audit.
+below. Newer [terminal stabilization measurements](STABILITY_REVIEW.md) include
+exact-output CPU comparisons and finite full-cohort live acceptance; the older
+tables on this page retain their original release scope and are not fresh reruns.
 
 ## Current workload isolation and retained measurements
 

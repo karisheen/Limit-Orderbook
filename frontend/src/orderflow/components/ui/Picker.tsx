@@ -2,14 +2,12 @@
 
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { Icon } from "./Icons";
+import { searchPickerGroups, type SearchablePickerOption } from "../../../picker-search";
 
-export interface PickerOption<T extends string> {
+export interface PickerOption<T extends string> extends SearchablePickerOption {
   value: T;
-  label: string;
-  sub?: string;
   icon?: ReactNode;
   disabled?: boolean;
-  keywords?: string;
 }
 
 /** Pill button that opens a searchable list; replaces native selects where options need icons. */
@@ -45,11 +43,8 @@ export function Picker<T extends string>({
   const list = useRef<HTMLDivElement>(null);
   const current = options.find((option) => option.value === value);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return options;
-    return options.filter((o) => `${o.label} ${o.sub ?? ""} ${o.keywords ?? ""}`.toLowerCase().includes(q));
-  }, [options, query]);
+  const groups = useMemo(() => searchPickerGroups(options, query), [options, query]);
+  const filtered = useMemo(() => groups.flatMap(group => group.options), [groups]);
 
   useEffect(() => {
     if (!open) return;
@@ -85,7 +80,7 @@ export function Picker<T extends string>({
   const toggle = () => {
     if (!open) {
       setQuery("");
-      setActive(Math.max(0, options.findIndex((o) => o.value === value)));
+      setActive(Math.max(0, searchPickerGroups(options, "").flatMap(group => group.options).findIndex((o) => o.value === value)));
     }
     setOpen((v) => !v);
   };
@@ -151,27 +146,33 @@ export function Picker<T extends string>({
           )}
           <div id={listId} className="picker-list" role="listbox" ref={list} tabIndex={searchable ? -1 : 0} aria-label={ariaLabel} aria-activedescendant={filtered[active] ? `${listId}-${active}` : undefined}>
             {filtered.length === 0 && <div className="picker-empty">No matches</div>}
-            {filtered.map((option, index) => (
-              <button
-                type="button"
-                key={option.value}
-                data-index={index}
-                id={`${listId}-${index}`}
-                tabIndex={-1}
-                role="option"
-                aria-selected={option.value === value}
-                disabled={option.disabled}
-                className={`picker-option ${index === active ? "is-active" : ""} ${option.value === value ? "is-selected" : ""}`}
-                onMouseEnter={() => setActive(index)}
-                onClick={() => choose(option)}
-              >
-                {option.icon}
-                <span className="picker-option-text">
-                  <span>{option.label}</span>
-                  {option.sub && <small>{option.sub}</small>}
-                </span>
-                {option.value === value && <span className="picker-check" aria-hidden>●</span>}
-              </button>
+            {groups.map(group => (
+              <div key={group.label} role={group.label ? "group" : "presentation"} aria-label={group.label || undefined}>
+                {group.label && <div className="picker-group-label" aria-hidden="true">{group.label}</div>}
+                {group.options.map((option, position) => {
+                  const index = group.start + position;
+                  return <button
+                    type="button"
+                    key={option.value}
+                    data-index={index}
+                    id={`${listId}-${index}`}
+                    tabIndex={-1}
+                    role="option"
+                    aria-selected={option.value === value}
+                    disabled={option.disabled}
+                    className={`picker-option ${index === active ? "is-active" : ""} ${option.value === value ? "is-selected" : ""}`}
+                    onMouseEnter={() => setActive(index)}
+                    onClick={() => choose(option)}
+                  >
+                    {option.icon}
+                    <span className="picker-option-text">
+                      <span>{option.label}</span>
+                      {option.sub && <small>{option.sub}</small>}
+                    </span>
+                    {option.value === value && <span className="picker-check" aria-hidden>●</span>}
+                  </button>;
+                })}
+              </div>
             ))}
           </div>
         </div>

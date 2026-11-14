@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "scope": "Finite offline comparisons; not live capacity or execution certification",
+  "host": {"model": "MacBookPro14,1", "physical_cores": 2, "logical_cores": 4, "memory_gib": 8, "os": "macOS 13.7.8", "python": "3.13.5"},
+  "native_observers": {
+    "capture_id": "4498db3b-f4a2-4fff-a32e-a97221fa21ee",
+    "manifest_sha256": "d12553c14ee31de1e66db3d2e9247000b81a976826f4f3da8ae072d4622ee5f5",
+    "after_source_fingerprint_sha256": "aa184820f22a43c1b1ad7b542004356fdef2345436ee0c372aae50172303a69e",
+    "diagnostic_sha256": "7ad57cd2b279af97dc9b11e4099065c0ae70f53217029cf516caac36aca83782",
+    "deliveries": 2000,
+    "events": 2161,
+    "streams": 12,
+    "service_batches": 63,
+    "batch_limit": 32,
+    "queue_limits": {"deliveries": 256, "charged_bytes": 134217728},
+    "before_thread_cpu_ns": {"enqueue": 8236328110, "observer": 3581415795, "release": 1793782882},
+    "after_thread_cpu_ns": {"enqueue": 1942029364, "observer": 2306882696, "release": 86303442},
+    "all_parity_hashes_equal": true,
+    "parity": {
+      "driver_checkpoint": "8a832ca905b4811f39f63c301e42db46294723b1b583b58bef997e8cbe203ddf",
+      "native_books": "f9849111e259a5a694bc9b2b53e221919360640cb70d6bc3ec67438336d2b76b",
+      "native_history": "2039ae761127b67d048bb8a3f2a531745dd237aa1d273487a7627e098604f857",
+      "clock": "a4bb4f050822107a484238957b4e0c0395d21b4325bce04de095eb7742ee69cb",
+      "admitted_market_trades": "14fcdd5a9aa7dc0a7732a4c132ad6578d7424439a9ea2495e48d2f491aef1251",
+      "analytics": "ad7aecc03555a8f25fee85e5d5178f798013ca342cf05751cf090d86f245fd02",
+      "alerts": "89b5cd627c0bb0695f5b21b9ffcc6f5c39feb88c6eb27202a0c4139505cc8102",
+      "context_reference": "f6b84e2e02a8c87b50705079fbcef68269e4f5a9ecb7995bd4d24a5f073d96d7",
+      "paper": "844d0bcbf4f8fb2dcda91b81665d3229bf29ef3d64a4650e7a866c3540d077a0",
+      "positioning_context_history": "e17f04ca51c50d37ae698ca8df682f84a70da71f359d56861cae0883a0d6849e",
+      "visualization_with_analytics": "e65df28fccb8edfc049105e62ddf8ba19aeaa301fc3c389dd507a55e06ea2377",
+      "replay_books": "8299b18dd2fbccf029269f5245cf28a08e414675d05bbc49f665cf90a2f9a954",
+      "replay_projection": "ca86855bd7bf239be54acdc3706ec865b1f3126380052e0be431dcf9541abb86",
+      "replay_state": "39ba03816046ed7dda31d553f9a87c7dab2265411a2e1fb9c2fa3bc6371bae4b"
+    },
+    "limits": ["Instrumented stage CPU, not end-to-end timing", "No concurrent producer, executor handoff or browser", "Decode/setup/checkpoint hashing excluded", "Empty initial paper/rules; separate active-account regressions required", "No raw capture redistribution license asserted"]
+  },
+  "mature_analytics": {
+    "trades": 3000, "book_transitions": 300, "snapshots": 20,
+    "before_thread_cpu_ns": 1619164051, "after_thread_cpu_ns": 223286216,
+    "output_bytes": 446227,
+    "identical_output_sha256": "a1d2347c7ec50efb50cdaf92797c28a7c37cd077e3665ef73245e289941a4f63"
+  },
+  "identifier_microprobe": {
+    "calls": 40000,
+    "input_mix": ["native instrument ID", "session ID", "64-character identifier", "512-character identifier"],
+    "before_best_seconds": 0.40724359000159893,
+    "after_best_seconds": 0.058008286003314424,
+    "limit": "Best of three repetitions of this explicit mix; not live traffic"
+  },
+  "frontend_studies": {
+    "trades": 12000, "unchanged_pages": 80, "retirements": 10, "trades_per_retirement": 30, "book_levels": 100,
+    "identical_output_sha256": "9e0635ccdcf1db35b0157285415e79c87d976c328e18fdeb6bd9022bc3fec1d2",
+    "output_bytes": 2898957,
+    "before": {"unchanged_publications": 160, "unchanged_profiles": 80, "unchanged_books": 80, "retirement_applications": 118350, "retirement_publications": 421, "settings_publications": 199},
+    "after": {"unchanged_publications": 0, "unchanged_profiles": 0, "unchanged_books": 0, "retirement_applications": 118350, "retirement_publications": 40, "settings_publications": 6},
+    "limit": "Operation counts and exact output parity; timings overlapped other verification and are not latency claims"
+  }
+}

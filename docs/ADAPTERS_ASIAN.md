@@ -20,10 +20,24 @@ Each subscription has a separate `book` or `trades` key. The catalog resolves im
 
 None of these adapters implements a `reference`/`context` channel or an OI/funding
 history source. A venue offering those APIs does not make them integrated here.
-Optional REST candle history covers Binance spot/USDⓈ-M, Binance.US spot, Bybit
-spot/linear and KuCoin spot; it is not implemented for OKX or Bitget. Admitted
-public trades can independently build session candles without inventing missing
-pre-session history.
+Separate REST candle history covers Binance spot/USDⓈ-M, Binance.US spot, Bybit
+spot/linear, KuCoin spot, OKX spot/linear swaps and Bitget spot/USDT perpetuals.
+It is a primary-only exchange-time data product, independent of the selected
+observed-flow cohort, not a book/trade subscription. LIVE Auto selects it;
+demo/replay Auto remains on admitted session trades. Explicit external history
+in replay is current venue data, never replay-prefix evidence.
+
+`CandleService` accepts an exclusive candle-start `before_ns` boundary, returns
+stable exact-metadata `series_key` plus paging capability/state, and advertises
+five-second polling rather than a native candle stream. The service output cap
+is 500 bars/page, further reduced to OKX 300 and Bitget older pages 200. Empty
+end-only results disclose an unknown provider boundary as `limited`, not proven
+exhaustion; interval/window gaps do not create synthetic bars. Native access
+restrictions and shared transport pacing still apply. See the complete
+[provider matrix](VISUALIZATION.md#explicit-primary-only-venue-ohlcv) and
+[API cache/cancellation bounds](API.md#explicit-venue-ohlcv).
+Admitted public trades independently build partial session candles without
+inventing pre-session history or relabeling exchange UTC as receive UTC.
 
 ## Metadata and identity
 
@@ -145,6 +159,28 @@ and preserves base-coin `sizeMultiplier`/quantity rules (not integer contracts).
 delisted and `listed` unavailable. Spot uses REST `spot/market/orderbook` and
 `fills`; perpetuals use `mix/market/merge-depth` and `fills`, always under v2
 with the matching product family. Five-level books never imply deeper coverage.
+
+The separate candle service uses OKX `/api/v5/market/candles` for newest pages
+and `/api/v5/market/history-candles` with exclusive `after` for older pages,
+at most **300 bars/page**. Supported exact families are `v5-spot` and
+noninverse `v5-swap` with base-valued contracts and quote settlement. Intervals:
+`1m,3m,5m,15m,30m,1h,2h,4h,6h,12h,1d,3d,1w,1M`; from 6h upward the service
+requests explicit UTC variants, not UTC+8 defaults. Swap base volume is
+`volCcy`; spot uses `vol`. The upstream recent-years description is not a
+guaranteed retained duration.
+
+Bitget candle history uses `/api/v2/{spot,mix}/market/candles` for newest pages
+(at most **500 bars here**) and `/history-candles` for older pages (at most
+**200**), with native `endTime` paging. `v2-usdt-futures` requires noninverse
+USDT quote/settlement and `productType=USDT-FUTURES`; no inverse or coin-margined
+substitution is made. Intervals:
+`1m,3m,5m,15m,30m,1h,4h,6h,12h,1d,3d,1w,1M`, again explicit UTC variants
+from 6h upward. Volume at index 5 is base quantity, not turnover. Older queries
+use `endTime`/`limit` without `startTime`; the documented mix 90-day explicit
+query-range restriction is not a claim of 90-day total retention.
+Both providers preserve native bucket starts and calendar months, and neither
+price history supplies missing book snapshots, observed positioning or replay
+knowledge.
 
 Neither adapter implements options, dated futures, private account access or
 exchange order execution. HTTP denial stays explicit; endpoint support in code

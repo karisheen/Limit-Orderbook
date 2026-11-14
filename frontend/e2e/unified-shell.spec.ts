@@ -3,6 +3,23 @@ import type { Locator, Page } from '@playwright/test';
 import type { Catalog, Frame } from '../src/api';
 import type { CandleHistory } from '../src/candle-model';
 
+const createdSessions = new WeakMap<Page, Promise<Frame>[]>();
+test.beforeEach(async ({ page }) => {
+  const created: Promise<Frame>[] = [];
+  createdSessions.set(page, created);
+  page.on('response', response => {
+    if (response.url().endsWith('/api/v1/sessions') && response.request().method() === 'POST' && response.ok()) created.push(response.json());
+  });
+});
+test.afterEach(async ({ page, request }) => {
+  const created = await Promise.all(createdSessions.get(page) ?? []);
+  await page.close();
+  for (const id of new Set(created.map(frame => frame.session_id))) {
+    const response = await request.delete(`/api/v1/sessions/${id}`);
+    expect(response.ok() || response.status() === 404).toBe(true);
+  }
+});
+
 // Real catalog, replay and native presentation responses only. These scenarios
 // assert that reference studies are consumers of the document's native session,
 // not an independently connected exchange terminal.
@@ -56,7 +73,7 @@ test('reference study modes and native charts share one session without exchange
   for (const mode of ['Delta', 'Volume', 'Bid × Ask']) {
     await choose(footprint.getByRole('radiogroup', { name: 'Footprint cell mode', exact: true }), mode);
   }
-  await choose(page.getByRole('radiogroup', { name: 'Candle interval', exact: true }), '5m');
+  await page.getByRole('combobox', { name: 'All candle intervals', exact: true }).selectOption('5m');
   await expect(footprint.locator('.panel-subtitle')).toContainText('· 5M ·');
   await footprint.getByRole('button', { name: /^Indicators/ }).click();
   const vwap = page.getByRole('menuitemcheckbox', { name: /^Session VWAP/ });
@@ -79,16 +96,16 @@ test('reference study modes and native charts share one session without exchange
   await expect(volume.locator('.panel-subtitle')).toContainText('prior 100');
   await choose(volume.getByRole('radiogroup', { name: 'View', exact: true }), 'Z');
 
-  const workspace = page.getByRole('radiogroup', { name: 'Workspace', exact: true });
-  await choose(workspace, 'Liquidity');
+  const workspace = page.getByRole('combobox', { name: 'Layout preset', exact: true });
+  await workspace.selectOption('liquidity');
   await expect(page.getByRole('region', { name: 'Market Depth', exact: true })).toBeVisible();
   await expect(cvd).toHaveCount(0);
-  await choose(workspace, 'Volatility');
+  await workspace.selectOption('volatility');
   const volatility = page.getByRole('region', { name: 'Realized Volatility', exact: true });
   await choose(volatility.getByRole('radiogroup', { name: 'Return interval', exact: true }), '1m');
   await choose(volatility.getByRole('radiogroup', { name: 'Lookback window', exact: true }), '120');
   await expect(volatility.locator('.panel-subtitle')).toContainText('120 × 1m');
-  await choose(workspace, 'Order Flow');
+  await workspace.selectOption('balanced');
   await expect(cvd).toBeVisible();
   await expect(volatility).toHaveCount(0);
 
@@ -106,9 +123,7 @@ test('reference study modes and native charts share one session without exchange
   await expect(page.getByTestId('price-chart')).toBeVisible();
   await expect(page.getByTestId('price-chart')).toHaveAttribute('data-presented-interval', '5m');
   await expect(page.getByTestId('price-chart')).toHaveAttribute('data-presented-source', 'session_trades');
-  await page.getByRole('button', { name: 'Candle timeframe', exact: true }).click();
-  await page.keyboard.press('End');
-  await page.keyboard.press('Enter');
+  await page.getByRole('combobox', { name: 'All candle intervals', exact: true }).selectOption('1M');
   await expect(page.getByTestId('price-chart')).toHaveAttribute('data-presented-interval', '1M');
   await expect(page.getByRole('combobox', { name: 'All candle intervals', exact: true })).toHaveValue('1M');
   const visualization = page.waitForResponse(response => response.url().endsWith('/api/v1/visualization') && response.ok());
@@ -165,7 +180,15 @@ for (const width of [1440, 390]) {
     await page.keyboard.press('Enter');
     const search = page.getByRole('combobox', { name: 'Search instrument', exact: true });
     await expect(search).toBeFocused();
-    await search.fill(target.base.ticker);
+    for (const query of [
+      `${target.base.ticker}/${target.quote.ticker}`,
+      `${target.base.ticker}-${target.quote.ticker}`.toLowerCase(),
+      `${target.base.ticker}${target.quote.ticker}`.toLowerCase(),
+    ]) {
+      await search.fill(query);
+      await expect(page.getByRole('listbox', { name: 'Instrument', exact: true }).getByRole('option')
+        .filter({ hasText: `${target.base.ticker}/${target.quote.ticker}` })).toHaveCount(1);
+    }
     const selected = page.waitForResponse(response => response.url().endsWith('/api/v1/subscriptions') && response.ok());
     await page.keyboard.press('Enter');
     const next = await (await selected).json() as Frame;
@@ -191,13 +214,15 @@ for (const width of [1440, 390]) {
     expect(creations).toBe(1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     if (width === 1440) {
-      const separator = page.getByRole('separator', { name: 'Resize sidebar width', exact: true });
-      const sidebar = page.locator('.terminal > .workspace > .sidebar');
-      const before = await sidebar.evaluate(node => node.getBoundingClientRect().width);
-      await separator.focus();
+      await page.getByRole('button', { name: 'Edit layout', exact: true }).click();
+      const tile = page.locator('[data-grid-panel="chart"]');
+      const before = await tile.evaluate(node => node.getBoundingClientRect().width);
+      const resize = tile.getByRole('button', { name: 'Resize Chart', exact: true });
+      await resize.focus();
       await page.keyboard.press('ArrowLeft');
-      await expect(separator).toBeFocused();
-      await expect.poll(() => sidebar.evaluate(node => node.getBoundingClientRect().width)).toBe(before + 10);
+      await expect(resize).toBeFocused();
+      await expect.poll(() => tile.evaluate(node => node.getBoundingClientRect().width)).toBeLessThan(before);
+      await page.getByRole('button', { name: 'Finish editing', exact: true }).click();
     }
   });
 }

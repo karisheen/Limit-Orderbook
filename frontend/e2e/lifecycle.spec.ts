@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Catalog, Frame, VisualGrid } from '../src/api';
+import { MUTATION_TIMEOUT_MS, REQUEST_TIMEOUT_MS } from '../src/api';
+import type { JournalPutResponse } from '../src/workflow-api';
 
 // Fault injection surrounds the actual backend. Market frames/results are never
 // replaced with fixtures: tests drop transport traffic, delay real responses,
@@ -29,6 +31,12 @@ test('a silent open socket loses current status and recovers with a new session'
   await incident.getByRole('button', { name: /^Diagnostics/ }).click();
   const diagnostics = page.locator('.diagnostics');
   await diagnostics.getByText('All terminal incidents and exact causes', { exact: true }).click();
+  // Expanded diagnostics consume the workspace height at this viewport. Restore
+  // a paint-eligible plot before recovery; an offscreen canvas must not paint.
+  await diagnostics.locator(':scope > summary').click();
+  const plot = chart.locator('.m4-chart-plot');
+  await plot.scrollIntoViewIfNeeded();
+  await expect(plot).toBeInViewport();
   const replacementCreated = page.waitForResponse(response => response.url().endsWith('/api/v1/sessions') && response.request().method() === 'POST');
   const replacementView = page.waitForResponse(async response => {
     if (!response.url().endsWith('/api/v1/visualization') || response.request().method() !== 'POST') return false;
@@ -61,6 +69,7 @@ test('a silent open socket loses current status and recovers with a new session'
   expect(recovered.generation).toBe(replacement.generation);
   expect(recovered.instrument_id).toBe(replacement.selection.instrument_id);
   expect(recovered.view_id).not.toBe(initialViewId);
+  await expect(plot).toBeInViewport();
   await expect(chart).toHaveAttribute('data-painted-view-id', recovered.view_id);
   await expect(page.getByTestId('chart-pane-heatmap').getByTestId('chart-freshness')).toHaveAttribute('data-view-id', recovered.view_id);
   await expect(diagnostics.locator('.telemetry')).toContainText(replacement.session_id.slice(0, 8));
@@ -115,11 +124,11 @@ test('a replaced session does not inherit an obsolete mutation lock', async ({ p
 });
 
 test('catalog readiness refreshes without replacing the active session', async ({ page }) => {
-  let loading = true;
-  await page.route(/\/api\/v1\/instruments(?:\?.*)?$/, async route => {
-    const response = await route.fetch();
+  let loading = false;
+  await page.route('**/api/v1/sources', async route => {
+    const response = await route.fetch({ headers: { ...route.request().headers(), 'if-none-match': '' } });
     const catalog = await response.json() as Catalog;
-    if (loading && new URL(route.request().url()).searchParams.has('source_id')) catalog.sources = catalog.sources.map(source => ({ ...source, status: 'loading', reasons: ['fault_injected_catalog_preparation'] }));
+    if (loading) catalog.sources = catalog.sources.map(source => ({ ...source, status: 'loading', reasons: ['fault_injected_catalog_preparation'] }));
     // The injected body is not the origin's validated representation.
     const headers = response.headers();
     delete headers.etag;
@@ -131,6 +140,7 @@ test('catalog readiness refreshes without replacing the active session', async (
   const frame = await (await created).json() as Frame;
   await expect(page.locator('.status')).toContainText('Connected');
   const source = page.getByLabel('Data source').locator(`option[value="${frame.source.id}"]`);
+  loading = true;
   await expect(source).toHaveJSProperty('disabled', true);
   loading = false;
   await expect(source).toHaveJSProperty('disabled', false, { timeout: 10_000 });
@@ -243,4 +253,234 @@ test('a real canvas render failure clears displayed freshness and cannot acknowl
   await expect.poll(() => acknowledgments.includes(recovered.view_id)).toBe(true);
   expect(acknowledgments).not.toContain(failed.view_id);
   expect(acknowledgments.filter(id => id === initialId)).toHaveLength(1);
+});
+
+test('a committed mutation with a held HTTP response times out without retry or session replacement', async ({ page }) => {
+  test.setTimeout(45_000);
+  const { promise: held, resolve: release } = Promise.withResolvers<void>();
+  const { promise: responseCaptured, resolve: captured } = Promise.withResolvers<Frame>();
+  let sessions = 0;
+  let mutations = 0;
+  page.on('request', request => {
+    if (request.method() !== 'POST') return;
+    if (request.url().endsWith('/api/v1/sessions')) sessions++;
+    if (request.url().endsWith('/api/v1/replay')) mutations++;
+  });
+  await page.route('**/api/v1/replay', async route => {
+    if (route.request().postDataJSON().action !== 'reset') { await route.continue(); return; }
+    const response = await route.fetch();
+    captured(await response.json() as Frame);
+    await held;
+    await route.fulfill({ response }).catch(() => undefined);
+  });
+  try {
+    await page.goto('/');
+    await expect(page.locator('.status')).toContainText('Connected');
+    await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Native book & tape', exact: true }).click();
+    await page.getByTestId('replay-step').click();
+    await expect(page.locator('.cursor')).not.toHaveText(/^0 \//);
+    const before = await page.locator('.cursor').textContent();
+    await page.getByTestId('replay-reset').click();
+    const committed = await responseCaptured;
+    await expect(page.getByTestId('replay-step')).toBeDisabled();
+    await expect(page.locator('.cursor')).toHaveText(before!);
+    // Stream traffic remains live, including the committed reset generation.
+    // The held HTTP body must not own the busy/drain fence indefinitely.
+    await expect(page.getByTestId('terminal-incident')).toContainText('Outcome is ambiguous', { timeout: MUTATION_TIMEOUT_MS + 5000 });
+    await expect(page.getByTestId('replay-step')).toBeEnabled();
+    await expect(page.getByTestId('data-freshness').first()).toHaveAttribute('data-generation', committed.generation);
+    await expect(page.locator('.cursor')).toHaveText(new RegExp(`^${committed.replay!.cursor.delivery_index} /`));
+    expect(mutations).toBe(2);
+    expect(sessions).toBe(1);
+    await expect(page.locator('.status')).toContainText('Connected');
+    // A later explicit action owns the newer evidence; the late old body cannot
+    // reset it, even if transport delivery is eventually released.
+    const stepped = page.waitForResponse(response => response.url().endsWith('/api/v1/replay') && response.request().postDataJSON().action === 'step');
+    await page.getByTestId('replay-step').click();
+    const newer = await (await stepped).json() as Frame;
+    release();
+    await expect(page.getByTestId('data-freshness').first()).toHaveAttribute('data-generation', newer.generation);
+    await expect(page.locator('.cursor')).toHaveText(new RegExp(`^${newer.replay!.cursor.delivery_index} /`));
+    expect(mutations).toBe(3);
+    expect(sessions).toBe(1);
+  } finally { release(); }
+});
+
+test('catalog refresh failures retain selected evidence and surface stale metadata without replacing the session', async ({ page }) => {
+  let failDirectory = false;
+  let failMetadata = false;
+  let sessions = 0;
+  page.on('request', request => { if (request.url().endsWith('/api/v1/sessions') && request.method() === 'POST') sessions++; });
+  await page.route('**/api/v1/sources', route => failDirectory
+    ? route.fulfill({ status: 503, json: { detail: 'fault_injected_directory_failure' } }) : route.continue());
+  await page.route(/\/api\/v1\/instruments\?/, route => failMetadata
+    ? route.fulfill({ status: 503, json: { detail: 'fault_injected_metadata_failure' } }) : route.continue());
+  const created = page.waitForResponse(response => response.url().endsWith('/api/v1/sessions') && response.request().method() === 'POST');
+  await page.goto('/');
+  const initial = await (await created).json() as Frame;
+  await expect(page.locator('.status')).toContainText('Connected');
+  await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Native book & tape', exact: true }).click();
+  await expect(page.locator('.ladder tbody tr').first()).toBeVisible();
+  const selected = page.locator(`[data-instrument-id="${initial.selection.instrument_id}"]`);
+  failDirectory = true;
+  await expect(page.getByTestId('terminal-incident')).toContainText('Source directory is stale', { timeout: 10_000 });
+  await expect(page.locator('.ladder tbody tr').first()).toBeVisible();
+  await expect(selected).toHaveAttribute('aria-pressed', 'true');
+  failMetadata = true;
+  await expect(page.getByTestId('terminal-incident')).toContainText('Selected metadata is stale', { timeout: 10_000 });
+  await expect(page.locator('.ladder tbody tr').first()).toBeVisible();
+  await expect(selected).toHaveAttribute('aria-pressed', 'true');
+  failDirectory = false;
+  failMetadata = false;
+  await expect(page.getByTestId('terminal-incident')).not.toHaveAttribute('data-incident', 'catalog', { timeout: 10_000 });
+  expect(sessions).toBe(1);
+});
+
+test('equivalent metadata and source status refresh do not restart a held native drain; a new generation does', async ({ page }) => {
+  const { promise: held, resolve: release } = Promise.withResolvers<void>();
+  const { promise: drainCaptured, resolve: captured } = Promise.withResolvers<void>();
+  let hold = false;
+  let heldRequests = 0;
+  let aborted = 0;
+  let catalogRefreshes = 0;
+  let sourceRefreshes = 0;
+  await page.route(/\/api\/v1\/instruments\?/, async route => {
+    const response = await route.fetch({ headers: { ...route.request().headers(), 'if-none-match': '' } });
+    const catalog = await response.json() as Catalog;
+    const headers = response.headers();
+    delete headers.etag;
+    delete headers['content-length'];
+    await route.fulfill({ response, headers, json: catalog });
+    if (hold) catalogRefreshes++;
+  });
+  await page.route('**/api/v1/sources', async route => {
+    const response = await route.fetch({ headers: { ...route.request().headers(), 'if-none-match': '' } });
+    const catalog = await response.json() as Catalog;
+    if (hold) {
+      catalog.sources = catalog.sources.map(source => ({ ...source, reasons: [...source.reasons, 'fault_injected_status_only_refresh'] }));
+      sourceRefreshes++;
+    }
+    const headers = response.headers();
+    delete headers.etag;
+    delete headers['content-length'];
+    await route.fulfill({ response, headers, json: catalog });
+  });
+  page.on('requestfailed', request => {
+    if (request.url().endsWith('/api/v1/market-data') && hold) aborted++;
+  });
+  await page.route('**/api/v1/market-data', async route => {
+    if (!hold) { await route.continue(); return; }
+    heldRequests++;
+    const response = await route.fetch();
+    captured();
+    await held;
+    await route.fulfill({ response }).catch(() => undefined);
+  });
+  try {
+    await page.goto('/');
+    await expect(page.locator('.status')).toContainText('Connected');
+    await expect(page.getByTestId('replay-step')).toBeEnabled();
+    hold = true;
+    await drainCaptured;
+    await expect.poll(() => catalogRefreshes).toBeGreaterThan(0);
+    await expect.poll(() => sourceRefreshes).toBeGreaterThan(0);
+    await expect(page.locator('.diagnostics')).toContainText('fault_injected_status_only_refresh');
+    expect(heldRequests).toBe(1);
+    expect(aborted).toBe(0);
+    const reset = page.waitForResponse(response => response.url().endsWith('/api/v1/replay'));
+    await page.getByTestId('replay-reset').click();
+    const frame = await (await reset).json() as Frame;
+    await expect.poll(() => aborted).toBe(1);
+    release();
+    await expect.poll(() => heldRequests).toBeGreaterThan(1);
+    await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Native book & tape', exact: true }).click();
+    await expect(page.getByTestId('data-freshness').first()).toHaveAttribute('data-generation', frame.generation);
+  } finally { release(); }
+});
+
+test('late session creation is deleted without replacing the newer document scope', async ({ page }) => {
+  const { promise: held, resolve: release } = Promise.withResolvers<void>();
+  const { promise: firstCaptured, resolve: captured } = Promise.withResolvers<Frame>();
+  const deleted: string[] = [];
+  let holdFirst = true;
+  page.on('request', request => { if (request.method() === 'DELETE') deleted.push(new URL(request.url()).pathname); });
+  await page.route('**/api/v1/sessions', async route => {
+    if (!holdFirst || route.request().method() !== 'POST') { await route.continue(); return; }
+    holdFirst = false;
+    const response = await route.fetch();
+    captured(await response.json() as Frame);
+    await held;
+    await route.fulfill({ response });
+  });
+  try {
+    await page.goto('/');
+    const obsolete = await firstCaptured;
+    const created = page.waitForResponse(response => response.url().endsWith('/api/v1/sessions') && response.request().method() === 'POST');
+    await page.getByLabel('Reconnect terminal').click();
+    const replacement = await (await created).json() as Frame;
+    expect(replacement.session_id).not.toBe(obsolete.session_id);
+    await expect(page.locator('.status')).toContainText('Connected');
+    release();
+    await expect.poll(() => deleted).toContain(`/api/v1/sessions/${obsolete.session_id}`);
+    await expect(page.locator('.telemetry')).toContainText(replacement.session_id.slice(0, 8));
+    expect(deleted).not.toContain(`/api/v1/sessions/${replacement.session_id}`);
+    await expect(page.getByTestId('replay-step')).toBeEnabled();
+  } finally { release(); }
+});
+
+test('a held generic workflow mutation releases pending with an ambiguous outcome and never repeats the write', async ({ page }) => {
+  test.setTimeout(60_000);
+  const { promise: held, resolve: release } = Promise.withResolvers<void>();
+  const { promise: responseCaptured, resolve: captured } = Promise.withResolvers<JournalPutResponse>();
+  let mutations = 0;
+  let sessions = 0;
+  page.on('request', request => {
+    if (request.method() !== 'POST') return;
+    if (request.url().endsWith('/api/v1/journal/put')) mutations++;
+    if (request.url().endsWith('/api/v1/sessions')) sessions++;
+  });
+  await page.route('**/api/v1/journal/put', async route => {
+    const response = await route.fetch();
+    captured(await response.json() as JournalPutResponse);
+    await held;
+    await route.fulfill({ response }).catch(() => undefined);
+  });
+  try {
+    await page.goto('/');
+    await expect(page.locator('.status')).toContainText('Connected');
+    await page.getByRole('tablist', { name: 'Research pane', exact: true }).getByRole('tab', { name: 'Journal', exact: true }).click();
+    const journal = page.getByRole('tabpanel', { name: 'Journal', exact: true });
+    // A controlled textarea's text node becomes part of its wrapping label's
+    // text after typing. Use the stable textbox accessible name, not label text.
+    const rationale = journal.getByRole('textbox', { name: 'Rationale (required)', exact: true });
+    const save = journal.getByRole('button', { name: 'Persist new journal note', exact: true });
+    await expect(save).toBeEnabled();
+    await rationale.fill('Real persisted note with intentionally withheld HTTP response');
+    const submittedAt = performance.now();
+    await save.click();
+    const committed = await responseCaptured;
+    await expect(save).toBeDisabled();
+    await expect(rationale).toBeDisabled();
+    await expect(rationale).toHaveValue('Real persisted note with intentionally withheld HTTP response');
+    await expect(journal).toContainText('API response timed out after 30 seconds', { timeout: REQUEST_TIMEOUT_MS + 5000 });
+    await expect(journal).toContainText('Outcome is ambiguous');
+    await expect(journal).toContainText('No automatic retry or session replacement was made');
+    expect(performance.now() - submittedAt).toBeGreaterThanOrEqual(REQUEST_TIMEOUT_MS);
+    await expect(rationale).toBeEnabled();
+    await expect(save).toBeEnabled();
+    await expect(rationale).toHaveValue('Real persisted note with intentionally withheld HTTP response');
+    // A read refresh may observe the already committed note. It must not replay
+    // the write, clear the retained draft, or create a replacement session.
+    await expect(journal.locator('.paper-journal-list article').filter({ hasText: committed.entry.entry_id })).toHaveCount(1);
+    expect(mutations).toBe(1);
+    expect(sessions).toBe(1);
+    await rationale.fill('New draft owned after ambiguous timeout');
+    const refreshed = page.waitForResponse(response => response.url().endsWith('/api/v1/journal/query'));
+    release();
+    await refreshed;
+    await expect(rationale).toHaveValue('New draft owned after ambiguous timeout');
+    await expect(save).toBeEnabled();
+    expect(mutations).toBe(1);
+    expect(sessions).toBe(1);
+  } finally { release(); }
 });

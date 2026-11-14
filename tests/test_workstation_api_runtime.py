@@ -1129,6 +1129,13 @@ def test_busy_presentation_keeps_completed_evidence_but_fences_generation(
                 assert busy["status"] == "paused"
                 assert not busy["health"]["ready"]
                 assert "last_completed_presentation" in busy["health"]["reasons"]
+                identity = session.source_identity
+                session.source_identity += ":replacement"
+                replaced = await session.frame()
+                assert replaced["book"] is None
+                assert replaced["analytics"] is None
+                assert not replaced["health"]["ready"]
+                session.source_identity = identity
                 for status in ("seeking", "unavailable", "error"):
                     session.status = status
                     invalid = await session.frame()
@@ -1500,8 +1507,9 @@ def test_live_cohort_bound_retains_exact_primary_and_prioritizes_selected_market
 
 
 @pytest.mark.parametrize("departed", (True, False))
+@pytest.mark.parametrize("loss", ("quiet", "backlog", "overflow", "drained_overflow"))
 def test_pending_paper_arrival_during_live_owner_replacement(
-    tmp_path, monkeypatch, departed
+    tmp_path, monkeypatch, departed, loss
 ):
     from dataclasses import replace
 
@@ -1568,6 +1576,28 @@ def test_pending_paper_arrival_during_live_owner_replacement(
                 ),
             )
             assert submitted["snapshot"]["orders"][0]["status"] == "pending"
+            if loss != "quiet":
+                session.live_task.cancel()
+                await asyncio.gather(session.live_task, return_exceptions=True)
+                assert session.live_queue.empty()
+                if "overflow" in loss:
+                    session.live_queue = asyncio.Queue(maxsize=1)
+                start_delivery = session.delivery
+                event = live_trade_events(
+                    session, original, 50, session.live_clock.reading.mono_ns + 1
+                )
+                session.offer(event, ())
+                if "overflow" in loss:
+                    session.offer(event, ())
+                    assert session.status == "unavailable"
+                if loss == "drained_overflow":
+                    session.live_task = asyncio.create_task(session.consume_live())
+                    async with asyncio.timeout(5):
+                        while session.live_queue.qsize() or session.live_inflight:
+                            await asyncio.sleep(0)
+                    assert session.delivery == start_delivery + 1
+                    assert session.paper.frozen_reason.startswith("observation_gap:")
+                    assert session.status == "unavailable"
             actual_replace = registry.replace
 
             async def delayed_replace(client_id, keys, generation, **options):
@@ -1590,12 +1620,21 @@ def test_pending_paper_arrival_during_live_owner_replacement(
             snapshot = result["snapshot"]
             assert snapshot["run"]["run_id"] == configured["snapshot"]["run"]["run_id"]
             order = snapshot["orders"][0]
-            if departed:
+            if departed or loss != "quiet":
                 assert snapshot["balances"] == submitted["snapshot"]["balances"]
                 assert snapshot["fills"] == []
-                assert order["status"] == "cancelled"
-                assert "instrument_not_observed" in order["reasons"]
-                assert "ioc_remainder_cancelled" in order["reasons"]
+                assert order["status"] == "pending"
+                assert session.paper.frozen_reason.startswith("observation_gap:")
+                reason = json.loads(session.paper.frozen_reason.split(":", 1)[1])
+                expected = (
+                    "analytical_queue_overflow"
+                    if "overflow" in loss
+                    else "analytical_reselection_gap"
+                    if loss == "backlog"
+                    else "observation_departure"
+                )
+                assert reason["reason"] == expected
+                assert "observation_gap" in snapshot["reasons"]
             else:
                 assert order["status"] == "filled"
                 assert len(snapshot["fills"]) == 1
@@ -1692,6 +1731,9 @@ def test_live_inflight_ownership_remains_charged_until_cancelled_worker_joins(
             assert "analytical_queue_overflow" in session.error
             session.live_task.cancel()
             await asyncio.sleep(0)
+            session.live_task.cancel()
+            await asyncio.sleep(0)
+            assert not session.live_task.done()
             assert session.live_bytes == charge
             assert session.live_inflight == 1
             release.set()
@@ -1700,6 +1742,137 @@ def test_live_inflight_ownership_remains_charged_until_cancelled_worker_joins(
             assert session.live_inflight == 0
         finally:
             release.set()
+            await runtime.close()
+            await registry.close()
+
+    asyncio.run(scenario())
+
+
+def test_live_drain_reuses_dispatch_owner_and_yields_between_bounded_batches(
+    tmp_path, monkeypatch
+):
+    async def scenario():
+        runtime, registry, instrument = live_runtime(tmp_path)
+        try:
+            session = await runtime.create(
+                "live", "live", str(instrument.instrument_id)
+            )
+            async with asyncio.timeout(5):
+                while session.delivery < 4:
+                    await asyncio.sleep(0.001)
+            session.live_task.cancel()
+            await asyncio.gather(session.live_task, return_exceptions=True)
+            before = session.delivery
+            start = session.live_clock.reading.mono_ns
+            dispatch_owners, batch_owners, sizes, competing_turns = [], [], [], []
+            take = session._take_live_batch
+            consume = session._consume_live_batch
+
+            def take_batch(first, limit=128):
+                dispatch_owners.append(asyncio.current_task())
+                asyncio.get_running_loop().call_soon(
+                    competing_turns.append, len(dispatch_owners)
+                )
+                return take(first, limit)
+
+            async def consume_batch(batch, bootstrap):
+                batch_owners.append(asyncio.current_task())
+                sizes.append(len(batch))
+                await consume(batch, bootstrap)
+                assert len(competing_turns) == len(batch_owners)
+
+            monkeypatch.setattr(session, "_take_live_batch", take_batch)
+            monkeypatch.setattr(session, "_consume_live_batch", consume_batch)
+            deliveries = [
+                live_trade_events(session, instrument, ordinal, start + ordinal)
+                for ordinal in range(1, 130)
+            ]
+            for events in deliveries:
+                session.offer(events, ())
+            session.live_task = asyncio.create_task(session.consume_live())
+            async with asyncio.timeout(5):
+                while session.live_queue.qsize() or session.live_inflight:
+                    await asyncio.sleep(0.001)
+            assert session.status == "live"
+            assert session.delivery == before + 129
+            assert sizes == [128, 1]
+            assert [
+                batch.events
+                for batch in session.history
+                if batch.delivery_index > before
+            ] == deliveries
+            assert dispatch_owners == batch_owners
+            assert len(set(batch_owners)) == 1
+            assert competing_turns == [1, 2]
+            # An idle drain must also terminate without a sentinel delivery.
+            session.live_task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await session.live_task
+            assert session.live_bytes == session.live_inflight == 0
+        finally:
+            await runtime.close()
+            await registry.close()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("overflow", (False, True))
+def test_live_drain_repeated_stop_joins_detached_lock_wait_and_loss_boundary(
+    tmp_path, monkeypatch, overflow
+):
+    async def scenario():
+        runtime, registry, instrument = live_runtime(tmp_path)
+        try:
+            session = await runtime.create(
+                "live", "live", str(instrument.instrument_id)
+            )
+            async with asyncio.timeout(5):
+                while session.delivery < 4:
+                    await asyncio.sleep(0.001)
+            session.live_task.cancel()
+            await asyncio.gather(session.live_task, return_exceptions=True)
+            before = session.delivery
+            events = live_trade_events(
+                session, instrument, 10, session.live_clock.reading.mono_ns + 1
+            )
+            frozen_prefixes = []
+            freeze = session._freeze_live_loss
+
+            def freeze_loss(loss):
+                frozen_prefixes.append((session.delivery, loss[0]))
+                freeze(loss)
+
+            monkeypatch.setattr(session, "_freeze_live_loss", freeze_loss)
+            if overflow:
+                session.live_queue = asyncio.Queue(maxsize=1)
+            async with session.lock:
+                session.offer(events, ())
+                charge = session.live_bytes
+                session.live_task = asyncio.create_task(session.consume_live())
+                async with asyncio.timeout(5):
+                    while not session.live_inflight:
+                        await asyncio.sleep(0)
+                if overflow:
+                    session.offer(events, ())
+                    assert session.status == "unavailable"
+                for _ in range(3):
+                    session.live_task.cancel()
+                    await asyncio.sleep(0)
+                    assert not session.live_task.done()
+                    assert session.live_inflight == 1
+                    assert session.live_bytes == charge
+                    assert session.delivery == before
+                    assert not frozen_prefixes
+            with pytest.raises(asyncio.CancelledError):
+                async with asyncio.timeout(5):
+                    await session.live_task
+            assert session.delivery == before + 1
+            assert session.live_bytes == session.live_inflight == 0
+            assert session.live_loss is None
+            assert frozen_prefixes == (
+                [(before + 1, "analytical_queue_overflow")] if overflow else []
+            )
+        finally:
             await runtime.close()
             await registry.close()
 
@@ -1904,6 +2077,155 @@ def deep_live_deliveries(owner, count=32, *, independent=False, start_ns=None):
         yield (event,), (book,)
 
 
+def assert_live_book_budget(budget, deliveries):
+    """Independent identity oracle, including unreclaimed tracker table slots."""
+    from collections import Counter
+    from sys import getsizeof
+
+    books, sides, levels = {}, {}, {}
+    object_bytes = 0
+    for delivery in deliveries:
+        for book in delivery:
+            identity = id(book)
+            books[identity] = books.get(identity, 0) + 1
+            if books[identity] != 1:
+                continue
+            object_bytes += 4096
+            for side in (book.bids, book.asks):
+                identity = id(side)
+                sides[identity] = sides.get(identity, 0) + 1
+                if sides[identity] != 1:
+                    continue
+                object_bytes += 256 + 8 * len(side)
+                for level in side:
+                    identity = id(level)
+                    levels[identity] = levels.get(identity, 0) + 1
+                    if levels[identity] == 1:
+                        object_bytes += 640
+    assert budget.books == books
+    assert budget.sides == sides
+    assert dict(budget.levels) == levels
+    assert isinstance(budget.levels, Counter)
+    table_bytes = (
+        getsizeof(budget.books)
+        + getsizeof(budget.sides)
+        + getsizeof(budget.levels)
+        - 2 * getsizeof({})
+        - getsizeof(Counter())
+    )
+    assert budget.bytes == object_bytes + table_bytes
+
+
+def test_live_book_budget_exact_mixed_ownership_and_compact_rollback(
+    tmp_path, monkeypatch
+):
+    from dataclasses import replace
+
+    from src.workstation.runtime import _LiveBookBudget
+
+    async def scenario():
+        runtime, registry, instrument = live_runtime(tmp_path)
+        try:
+            session = await runtime.create(
+                "live", "live", str(instrument.instrument_id)
+            )
+            async with asyncio.timeout(5):
+                while session.delivery < 4:
+                    await asyncio.sleep(0.001)
+            session.live_task.cancel()
+            await asyncio.gather(session.live_task, return_exceptions=True)
+            events, books = next(deep_live_deliveries(session, count=1))
+            base = replace(books[0], bids=books[0].bids[:2], asks=books[0].asks[:2])
+            shared = replace(
+                base,
+                bids=(base.bids[0], replace(base.bids[1], quantity="2")),
+            )
+            # Equal values are not shared identities and must be fully charged.
+            unique = replace(
+                base,
+                bids=tuple(replace(level) for level in base.bids),
+                asks=tuple(replace(level) for level in base.asks),
+            )
+            deliveries = [(base, base), (shared,), (base,), (unique,)]
+            pending = []
+            for delivery in deliveries:
+                session.offer(events, delivery)
+                pending.append(delivery)
+                assert_live_book_budget(session.live_book_budget, pending)
+                assert session.live_bytes == (
+                    session.live_book_budget.bytes + len(pending) * len(repr(events))
+                )
+                assert session.live_queue.qsize() == len(pending)
+            assert session.status == "live"
+
+            def unexpected_release(*args, **kwargs):
+                raise AssertionError("fully drained batch walked native book depth")
+
+            while pending:
+                batch = session._take_live_batch(session.live_queue.get_nowait(), 1)
+                # Moving to the consumer never relinquishes immutable ownership.
+                assert batch[0][1] is not None
+                assert all(
+                    actual is expected
+                    for actual, expected in zip(batch[0][1], pending[0], strict=True)
+                )
+                assert_live_book_budget(session.live_book_budget, pending)
+                if len(pending) == 1:
+                    # With no queued reservations the joined final batch owns
+                    # the whole budget: release must not revisit every Level.
+                    monkeypatch.setattr(
+                        session.live_book_budget, "release", unexpected_release
+                    )
+                session._release_live_batch(batch)
+                pending.pop(0)
+                assert not batch
+                assert_live_book_budget(session.live_book_budget, pending)
+                assert session.live_bytes == (
+                    session.live_book_budget.bytes + len(pending) * len(repr(events))
+                )
+            assert session.live_bytes == session.live_book_budget.bytes == 0
+            assert session.live_inflight == 0
+            assert session.live_queue.empty()
+
+            # Exercise a compact rollback with surviving shared identities, then
+            # retain again through the same Counter rather than a fresh owner.
+            budget = _LiveBookBudget()
+            charged = budget.retain((base, base))
+            rejected = (base, shared, unique)
+            charged += budget.retain(rejected)
+            charged -= budget.release(rejected, compact=True)
+            assert charged == budget.bytes
+            assert_live_book_budget(budget, [(base, base)])
+            charged += budget.retain((shared, unique))
+            assert charged == budget.bytes
+            assert_live_book_budget(budget, [(base, base), (shared, unique)])
+            charged -= budget.release((base,), compact=True)
+            assert charged == budget.bytes
+            assert_live_book_budget(budget, [(base,), (shared, unique)])
+            charged -= budget.release((shared, unique, base), compact=True)
+            assert charged == budget.bytes == 0
+            assert_live_book_budget(budget, [])
+            assert budget.retain(()) == budget.release((), compact=True) == 0
+            with pytest.raises(KeyError):
+                budget.release((base,))
+            assert_live_book_budget(budget, [])
+            for invalid in (None, 0, -1):
+                broken = _LiveBookBudget()
+                broken.retain((base,))
+                identity = id(base.bids[0])
+                if invalid is None:
+                    del broken.levels[identity]
+                else:
+                    broken.levels[identity] = invalid
+                with pytest.raises(KeyError):
+                    broken.release((base,))
+        finally:
+            await runtime.close()
+            await registry.close()
+
+    asyncio.run(scenario())
+
+
 def test_live_shared_deep_books_preserve_complete_ordered_delivery(tmp_path):
     from src.workstation.runtime import LIVE_QUEUE_BYTES
 
@@ -2004,6 +2326,10 @@ def test_live_unique_deep_books_overflow_rolls_back_and_clears_on_close(tmp_path
                         session.live_book_budget.sides,
                         session.live_book_budget.levels,
                     )
+                    assert_live_book_budget(
+                        session.live_book_budget,
+                        [delivery[1] for delivery in session.live_queue._queue],
+                    )
                     break
             assert session.status == "unavailable"
             assert "analytical_queue_overflow" in session.error
@@ -2065,12 +2391,14 @@ def test_live_shared_book_charge_survives_partial_release_and_cancellation(
             release.set()
             await asyncio.gather(session.live_task, return_exceptions=True)
             assert session.live_bytes == session.live_book_budget.bytes == 0
+            assert_live_book_budget(session.live_book_budget, [])
             # Selection's joined reset also discards queued ownership cleanly.
             session.offer(events, books)
             assert session.live_bytes
             session._clear_live_queue()
             assert session.live_queue.empty()
             assert session.live_bytes == session.live_book_budget.bytes == 0
+            assert_live_book_budget(session.live_book_budget, [])
         finally:
             release.set()
             await runtime.close()
@@ -2148,6 +2476,10 @@ def test_live_selection_drains_new_source_while_departed_collectors_close(
             assert not selection.done()
             if cancel_cutover:
                 selection.cancel()
+                await asyncio.sleep(0)
+                selection.cancel()
+                await asyncio.sleep(0)
+                assert not selection.done()
             release.set()
             if cancel_cutover:
                 with pytest.raises(asyncio.CancelledError):
@@ -2381,7 +2713,7 @@ def test_catalog_serialization_cannot_stall_live_ingestion(tmp_path, monkeypatch
 def test_native_candle_query_releases_owner_and_rejects_obsolete_generation(
     tmp_path, monkeypatch
 ):
-    from types import SimpleNamespace
+    from src.workstation.api import CandleRequest
     import src.workstation.candles as candles
 
     async def scenario():
@@ -2397,7 +2729,7 @@ def test_native_candle_query_releases_owner_and_rejects_obsolete_generation(
         query = None
         try:
             session = await runtime.create("live", "live", instrument.instrument_id)
-            request = SimpleNamespace(
+            request = CandleRequest(
                 session_id=session.id,
                 generation=str(session.generation),
                 interval="1h",
@@ -2431,7 +2763,7 @@ def test_native_candle_query_releases_owner_and_rejects_obsolete_generation(
 def test_cancelled_native_candle_query_releases_capacity_without_cache(
     tmp_path, monkeypatch
 ):
-    from types import SimpleNamespace
+    from src.workstation.api import CandleRequest
     import src.workstation.candles as candles
 
     async def scenario():
@@ -2448,7 +2780,7 @@ def test_cancelled_native_candle_query_releases_capacity_without_cache(
             session = await runtime.create("live", "live", instrument.instrument_id)
             query = asyncio.create_task(
                 runtime.candles(
-                    SimpleNamespace(
+                    CandleRequest(
                         session_id=session.id,
                         generation=str(session.generation),
                         interval="1h",
@@ -2723,11 +3055,15 @@ def test_funding_freeze_isolates_live_charts_and_new_cohort_run(
                 # Restore the real clock, then cap the valid paid prefix before
                 # the worker yields. The next due payment must freeze, not mutate.
                 monkeypatch.setattr(paper, "MAX_PERPETUAL_RECORDS", 1)
-                return snapshot.run.run_id, dto(
-                    session.paper_store.archived_snapshot(snapshot.run.run_id)
+                return (
+                    snapshot.run.run_id,
+                    dto(session.paper_store.archived_snapshot(snapshot.run.run_id)),
+                    tuple(session.paper._reservations.values()),
                 )
 
-            run_id, archive_before = await session.work(open_position)
+            run_id, archive_before, reservations_before = await session.work(
+                open_position
+            )
             accounting_delivery = archive_before["delivery_index"]
             if boundary == "query":
                 queried = await session.work(
@@ -2772,7 +3108,24 @@ def test_funding_freeze_isolates_live_charts_and_new_cohort_run(
             queried = await session.work(session._paper_query, PaperQuery(**identity))
             assert queried["snapshot"]["delivery_index"] == accounting_delivery
             assert "funding_catchup_limit" in queried["snapshot"]["reasons"]
+            archived_run = archive_before["run"]
+            assert queried["snapshot"]["run"] == {
+                **{
+                    key: value
+                    for key, value in archived_run.items()
+                    if key != "instruments"
+                },
+                "instrument_metadata": [
+                    {
+                        "instrument_id": instrument["instrument_id"],
+                        "metadata_version": instrument["metadata_version"],
+                    }
+                    for instrument in archived_run["instruments"]
+                ],
+            }
             for field in (
+                "delivery_index",
+                "assumptions",
                 "at",
                 "balances",
                 "orders",
@@ -2801,15 +3154,39 @@ def test_funding_freeze_isolates_live_charts_and_new_cohort_run(
                     ):
                         assert frozen[field] is None
                     elif field == "reasons":
-                        assert "paper_frozen" in frozen[field]
-                        assert set(value).issubset(frozen[field])
+                        assert frozen[field] == list(
+                            dict.fromkeys(
+                                (
+                                    *value,
+                                    "funding_record_capacity_exhausted",
+                                    "paper_frozen",
+                                    "funding_catchup_limit",
+                                )
+                            )
+                        )
                     else:
                         assert frozen[field] == value
+            archive_after = await session.work(
+                lambda: dto(session.paper_store.archived_snapshot(run_id))
+            )
+            assert queried["snapshot"]["reasons"] == [
+                "paper_frozen",
+                "funding_catchup_limit",
+            ]
+            # Freeze persists status and unavailable current valuations, not a
+            # new accounting transition or a fabricated recovery of live marks.
+            assert archive_after == {
+                **archive_before,
+                "reasons": [
+                    "paper_frozen",
+                    "funding_catchup_limit",
+                    *archive_before["reasons"],
+                ],
+                "perpetual_positions": queried["snapshot"]["perpetual_positions"],
+            }
             assert (
-                await session.work(
-                    lambda: dto(session.paper_store.archived_snapshot(run_id))
-                )
-                == archive_before
+                await session.work(lambda: tuple(session.paper._reservations.values()))
+                == reservations_before
             )
             with pytest.raises(paper.PaperError, match="funding_catchup_limit"):
                 await session.work(
@@ -2860,7 +3237,7 @@ def test_funding_freeze_isolates_live_charts_and_new_cohort_run(
                 await session.work(
                     lambda: dto(session.paper_store.archived_snapshot(run_id))
                 )
-                == archive_before
+                == archive_after
             )
         finally:
             await runtime.close()
@@ -3312,5 +3689,518 @@ def test_historical_paper_resume_replays_future_commands_with_mutation_fence(
             assert len(reopened["snapshot"]["fills"]) == 3
         finally:
             await restarted.close()
+
+    asyncio.run(scenario())
+
+
+def test_source_directory_and_metadata_projection_have_separate_validators(
+    memory_source, monkeypatch
+):
+    import httpx
+    from dataclasses import replace
+    from src.workstation.api import create_app
+    from src.workstation import runtime as runtime_module
+
+    async def scenario():
+        runtime = offline_runtime(memory_source)
+        instrument = memory_source.descriptor.streams[0].instrument
+        runtime.instruments[str(instrument.instrument_id)] = instrument
+        runtime.source_instruments[runtime.demo_id] = (instrument,)
+        original = runtime_module.dto
+        serialized = []
+
+        def observed(value):
+            serialized.append(value)
+            return original(value)
+
+        monkeypatch.setattr(runtime_module, "dto", observed)
+        try:
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=create_app(runtime)),
+                base_url="http://127.0.0.1",
+            ) as client:
+                directory = await client.get("/api/v1/sources")
+                assert directory.json()["instruments"] == []
+                assert serialized == [()]
+                url = "/api/v1/instruments"
+                params = {"source_id": runtime.demo_id, "include_sources": "false"}
+                metadata = await client.get(url, params=params)
+                full = await client.get(url, params={"source_id": runtime.demo_id})
+                assert metadata.json()["sources"] == []
+                assert full.json()["sources"] == directory.json()["sources"]
+                assert full.json()["instruments"] == metadata.json()["instruments"]
+                assert (
+                    len({r.headers["etag"] for r in (directory, metadata, full)}) == 3
+                )
+                runtime.sources[runtime.demo_id]["reasons"] = ["fresh source reason"]
+                unchanged = await client.get(
+                    url,
+                    params=params,
+                    headers={"If-None-Match": metadata.headers["etag"]},
+                )
+                assert unchanged.status_code == 304
+                fresh = await client.get(
+                    "/api/v1/sources",
+                    headers={"If-None-Match": directory.headers["etag"]},
+                )
+                assert fresh.status_code == 200
+                assert fresh.json()["sources"][0]["reasons"] == ["fresh source reason"]
+                crossed = await client.get(
+                    "/api/v1/sources",
+                    headers={"If-None-Match": metadata.headers["etag"]},
+                )
+                assert crossed.status_code == 200
+                runtime.source_instruments[runtime.demo_id] = (
+                    replace(
+                        instrument,
+                        metadata_version=instrument.metadata_version + "-new",
+                    ),
+                )
+                changed = await client.get(
+                    url,
+                    params=params,
+                    headers={"If-None-Match": metadata.headers["etag"]},
+                )
+                assert changed.status_code == 200
+                assert changed.headers["etag"] != metadata.headers["etag"]
+                assert runtime._catalog_cache_bytes == sum(
+                    len(value[1]) for value in runtime._catalog_cache.values()
+                )
+        finally:
+            await runtime.close()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("boundary", ("overflow", "generation", "source"))
+def test_frame_worker_completion_cannot_cache_obsolete_actionable_view(
+    tmp_path, monkeypatch, boundary
+):
+    async def scenario():
+        runtime, registry, instrument = live_runtime(tmp_path)
+        entered, release = threading.Event(), threading.Event()
+        pending = None
+        try:
+            session = await runtime.create("live", "live", instrument.instrument_id)
+            async with asyncio.timeout(5):
+                while session.delivery < 4 or session.live_inflight:
+                    await asyncio.sleep(0)
+            original = session._view
+
+            def held():
+                result = original()
+                assert result[0] is not None and result[3]["ready"]
+                entered.set()
+                assert release.wait(10)
+                return result
+
+            monkeypatch.setattr(session, "_view", held)
+            pending = asyncio.create_task(session.frame())
+            assert await asyncio.to_thread(entered.wait, 5)
+            if boundary == "overflow":
+                session.live_queue = asyncio.Queue(maxsize=1)
+                event = live_trade_events(
+                    session, instrument, 50, session.live_clock.reading.mono_ns + 1
+                )
+                session.offer(event, ())
+                session.offer(event, ())
+                assert session.status == "unavailable"
+            elif boundary == "generation":
+                session.generation += 1
+            else:
+                session.source_identity += ":replacement"
+            release.set()
+            frame = await pending
+            assert frame["book"] is None
+            assert frame["analytics"] is None
+            assert frame["health"]["ready"] is False
+            assert session.completed_view is None
+            if boundary == "overflow":
+                assert frame["status"] == "unavailable"
+        finally:
+            release.set()
+            if pending is not None:
+                await asyncio.gather(pending, return_exceptions=True)
+            await runtime.close()
+            await registry.close()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("operation", ("step", "select"))
+@pytest.mark.parametrize("cancelled", (False, True))
+def test_replay_mutation_failure_or_repeated_cancel_fences_partial_publication(
+    memory_source, monkeypatch, operation, cancelled
+):
+    async def scenario():
+        runtime = offline_runtime(memory_source)
+        entered, release = threading.Event(), threading.Event()
+        pending = None
+        try:
+            session = await runtime.create("demo")
+            replay = session.replay
+            original = session.paper.on_batch
+
+            def late_observer(*args):
+                original(*args)
+                entered.set()
+                assert release.wait(10)
+                if not cancelled:
+                    raise ValueError("late observer failed")
+
+            monkeypatch.setattr(session.paper, "on_batch", late_observer)
+            pending = asyncio.create_task(
+                session.control(str(session.generation), "step")
+                if operation == "step"
+                else runtime.select(
+                    session, str(session.generation), session.instrument_id
+                )
+            )
+            assert await asyncio.to_thread(entered.wait, 5)
+            if cancelled:
+                for _ in range(2):
+                    pending.cancel()
+                    await asyncio.sleep(0)
+                    assert not pending.done()
+                    assert session.lock.locked()
+                    assert session.active_work == 1
+            release.set()
+            with pytest.raises(asyncio.CancelledError if cancelled else ValueError):
+                await pending
+            assert session.status == "error"
+            frame = await session.frame()
+            assert frame["book"] is None and frame["analytics"] is None
+            assert not frame["health"]["ready"]
+            assert session.completed_view is None
+            with pytest.raises(RuntimeFailure):
+                await session.control(str(session.generation), "step")
+            if not cancelled:
+                assert replay.failed
+            monkeypatch.setattr(session.paper, "on_batch", original)
+            recovered = await session.control(str(session.generation), "reset")
+            assert recovered["status"] == "paused"
+            assert not replay.failed
+            assert session.error is None
+        finally:
+            release.set()
+            if pending is not None:
+                await asyncio.gather(pending, return_exceptions=True)
+            await runtime.close()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("boundary", ("overflow", "failed_bootstrap"))
+def test_live_accounting_gap_preserves_open_perpetual_prefix_through_recovery(
+    tmp_path, monkeypatch, boundary
+):
+    from src.workstation.api import PaperConfigureRequest, PaperOrderInput, PaperQuery
+    from src.workstation.paper import PaperError
+
+    async def scenario():
+        runtime, registry, instrument = live_runtime(tmp_path)
+        try:
+            session = await runtime.create("live", "live", instrument.instrument_id)
+            async with asyncio.timeout(5):
+                while session.delivery < 4:
+                    await asyncio.sleep(0)
+            identity = {"session_id": session.id, "generation": str(session.generation)}
+            await session.work(
+                session._paper_configure,
+                PaperConfigureRequest(
+                    **identity, **_perpetual_api_configuration(instrument)
+                ),
+            )
+            opened = await session.work(
+                session._paper_order,
+                PaperOrderInput(**identity, side="buy", quantity="0.1"),
+            )
+            before = opened["snapshot"]
+            assert before["perpetual_positions"][0]["quantity"] == "0.1"
+            if boundary == "overflow":
+                # A first rejected delivery has no admitted consumer to wake it.
+                # Its separate owned gap completion must still durably freeze.
+                assert session.live_queue.empty() and session.live_inflight == 0
+                with monkeypatch.context() as limit:
+                    limit.setattr("src.workstation.runtime.LIVE_QUEUE_BYTES", 0)
+                    session.offer(
+                        live_trade_events(
+                            session,
+                            instrument,
+                            80,
+                            session.live_clock.reading.mono_ns + 1,
+                        ),
+                        (),
+                    )
+                    await session.live_loss_task
+                assert session.status == "unavailable"
+            else:
+                original = session._initialize_live
+
+                def fail(*args):
+                    raise ValueError("bootstrap failed")
+
+                monkeypatch.setattr(session, "_initialize_live", fail)
+                with pytest.raises(ValueError, match="bootstrap failed"):
+                    await runtime.select(
+                        session, str(session.generation), instrument.instrument_id
+                    )
+                monkeypatch.setattr(session, "_initialize_live", original)
+                assert session.status == "error"
+            assert session.paper.frozen_reason.startswith("observation_gap:")
+            frame = await runtime.select(
+                session, str(session.generation), instrument.instrument_id
+            )
+            assert frame["status"] == "live"
+            identity["generation"] = str(session.generation)
+            recovered = await session.work(session._paper_query, PaperQuery(**identity))
+            after = recovered["snapshot"]
+            for key in (
+                "balances",
+                "fills",
+                "funding_payments",
+                "liquidations",
+                "delivery_index",
+                "orders",
+            ):
+                assert after[key] == before[key]
+            assert after["run"]["run_id"] == before["run"]["run_id"]
+            assert after["perpetual_positions"][0]["quantity"] == "0.1"
+            assert "observation_gap" in after["reasons"]
+            with pytest.raises(PaperError, match="observation_gap:"):
+                await session.work(
+                    session._paper_order,
+                    PaperOrderInput(
+                        **identity, side="sell", quantity="0.1", reduce_only=True
+                    ),
+                )
+        finally:
+            await runtime.close()
+            await registry.close()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("worker", ("_catalog_work", "_visual_work"))
+def test_detached_projection_repeated_cancellation_retains_owner_until_completion(
+    memory_source, worker
+):
+    async def scenario():
+        runtime = offline_runtime(memory_source)
+        entered, release = threading.Event(), threading.Event()
+        completed = []
+        pending = None
+
+        def held():
+            entered.set()
+            assert release.wait(10)
+            completed.append(True)
+            return {"complete": True}
+
+        try:
+            pending = asyncio.create_task(getattr(runtime, worker)(held))
+            assert await asyncio.to_thread(entered.wait, 5)
+            for _ in range(2):
+                pending.cancel()
+                await asyncio.sleep(0)
+                assert not pending.done()
+                assert not completed
+            release.set()
+            with pytest.raises(asyncio.CancelledError):
+                await pending
+            assert completed == [True]
+        finally:
+            release.set()
+            if pending is not None:
+                await asyncio.gather(pending, return_exceptions=True)
+            await runtime.close()
+
+    asyncio.run(scenario())
+
+
+def test_level_cancelled_http_selection_keeps_lifecycle_until_worker_completes(
+    memory_source, monkeypatch
+):
+    import anyio
+    import httpx
+    from src.workstation.api import create_app
+
+    async def scenario():
+        runtime = offline_runtime(memory_source)
+        entered, release = threading.Event(), threading.Event()
+        scopes, cancelled = [], []
+        pending = None
+        try:
+            session = await runtime.create("demo")
+            original = session.choose
+
+            def held(instrument_id):
+                entered.set()
+                assert release.wait(10)
+                return original(instrument_id)
+
+            monkeypatch.setattr(session, "choose", held)
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=create_app(runtime)),
+                base_url="http://127.0.0.1",
+            ) as client:
+
+                async def request():
+                    with anyio.CancelScope() as scope:
+                        scopes.append(scope)
+                        try:
+                            await client.post(
+                                "/api/v1/subscriptions",
+                                json={
+                                    "session_id": session.id,
+                                    "generation": str(session.generation),
+                                    "instrument_id": session.instrument_id,
+                                },
+                            )
+                            pytest.fail("cancelled selection reported success")
+                        except asyncio.CancelledError:
+                            cancelled.append(True)
+                            raise
+
+                pending = asyncio.create_task(request())
+                assert await asyncio.to_thread(entered.wait, 5)
+                scopes[0].cancel()
+                for _ in range(3):
+                    await asyncio.sleep(0)
+                    assert not pending.done()
+                    assert session.actions.locked() and session.lock.locked()
+                    assert session.active_work == 1
+                release.set()
+                await pending
+            assert cancelled == [True]
+            assert session.status == "error"
+            assert not session.actions.locked() and not session.lock.locked()
+            frame = await session.frame()
+            assert frame["book"] is None and not frame["health"]["ready"]
+        finally:
+            release.set()
+            if pending is not None:
+                await asyncio.gather(pending, return_exceptions=True)
+            await runtime.close()
+
+    asyncio.run(scenario())
+
+
+def test_selecting_playing_replay_retains_truthful_paused_status(memory_source):
+    async def scenario():
+        runtime = offline_runtime(memory_source)
+        try:
+            session = await runtime.create("demo")
+            playing = await session.control(str(session.generation), "play")
+            assert playing["status"] == "playing"
+            selected = await runtime.select(
+                session, str(session.generation), session.instrument_id
+            )
+            assert selected["status"] == "paused"
+            assert selected["replay"]["status"] == "paused"
+            assert session.play_task is None
+        finally:
+            await runtime.close()
+
+    asyncio.run(scenario())
+
+
+def test_live_drain_failure_during_stop_freezes_exact_accounting_prefix(
+    tmp_path, monkeypatch
+):
+    from src.workstation.api import PaperConfigureRequest
+
+    async def scenario():
+        runtime, registry, instrument = live_runtime(tmp_path)
+        entered, release = threading.Event(), threading.Event()
+        try:
+            session = await runtime.create(
+                "live", "live", str(instrument.instrument_id)
+            )
+            async with asyncio.timeout(5):
+                while session.delivery < 4:
+                    await asyncio.sleep(0.001)
+            session.live_task.cancel()
+            await asyncio.gather(session.live_task, return_exceptions=True)
+            await session.work(
+                session._paper_configure,
+                PaperConfigureRequest(
+                    session_id=session.id,
+                    generation=str(session.generation),
+                    balances=[
+                        {
+                            "venue": instrument.venue,
+                            "asset_id": instrument.quote.asset_id,
+                            "available": "100000",
+                        }
+                    ],
+                    fees=[],
+                ),
+            )
+            before = session.delivery
+            before_paper = await session.work(
+                session.paper.snapshot, session.live_clock.reading
+            )
+            original = session._apply_live_batch
+            failure = ValueError("observer failed after complete first delivery")
+
+            def failing_batch(batch, bootstrap=False):
+                original(batch[:1], bootstrap)
+                entered.set()
+                if not release.wait(10):
+                    raise RuntimeError("owner was not released")
+                raise failure
+
+            monkeypatch.setattr(session, "_apply_live_batch", failing_batch)
+            start = session.live_clock.reading.mono_ns
+            deliveries = [
+                live_trade_events(session, instrument, ordinal, start + ordinal)
+                for ordinal in range(1, 130)
+            ]
+            for events in deliveries:
+                session.offer(events, ())
+            session.live_task = asyncio.create_task(session.consume_live())
+            assert await asyncio.to_thread(entered.wait, 5)
+            for _ in range(3):
+                session.live_task.cancel()
+                await asyncio.sleep(0)
+                assert not session.live_task.done()
+                assert session.live_inflight == 128
+                assert session.live_queue.qsize() == 1
+            release.set()
+            with pytest.raises(asyncio.CancelledError) as cancelled:
+                async with asyncio.timeout(5):
+                    await session.live_task
+            assert cancelled.value.__cause__ is failure
+            assert session.status == "error"
+            assert session.error == str(failure)
+            assert session.delivery == before + 1
+            assert [
+                batch.events
+                for batch in session.history
+                if batch.delivery_index > before
+            ] == deliveries[:1]
+            after_paper = await session.work(
+                session.paper.snapshot, session.live_clock.reading
+            )
+            assert after_paper.delivery_index == before_paper.delivery_index + 1
+            assert after_paper.balances == before_paper.balances
+            assert after_paper.fills == before_paper.fills
+            assert "paper_frozen" in after_paper.reasons
+            assert any(
+                "analytical_observer_failure" in reason
+                for reason in after_paper.reasons
+            )
+            assert session.live_inflight == 0
+            assert session.live_queue.qsize() == 1
+            assert session.live_bytes == len(repr(deliveries[-1]))
+            # Lifecycle cleanup, not stop/cancellation, retires queued ownership.
+            await runtime.remove(session.id)
+            assert session.live_queue.empty()
+            assert session.live_bytes == 0
+        finally:
+            release.set()
+            await runtime.close()
+            await registry.close()
 
     asyncio.run(scenario())

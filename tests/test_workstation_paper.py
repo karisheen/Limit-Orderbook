@@ -2,6 +2,7 @@
 
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
+import json
 from decimal import Decimal
 from threading import Barrier
 
@@ -11,6 +12,8 @@ from src.workstation.book import BookReducer
 from src.workstation.costs import FeeSchedule, InventoryBalance, _validate_price
 from src.workstation.events import (
     BookUpdate,
+    Control,
+    Gap,
     LevelChange,
     SubscriptionKey,
     synthetic_envelope,
@@ -412,8 +415,8 @@ def test_rewind_resume_reopened_store_and_explicit_fork_preserve_original(tmp_pa
 
 
 @pytest.mark.parametrize("corrupt_part", ("config", "instruments"))
-def test_run_summaries_cache_validated_payload_not_revision_or_resume_authority(
-    tmp_path, monkeypatch, corrupt_part
+def test_run_summaries_follow_revisions_and_revalidate_changed_payload(
+    tmp_path, corrupt_part
 ):
     import json
 
@@ -425,14 +428,6 @@ def test_run_summaries_cache_validated_payload_not_revision_or_resume_authority(
     other = PaperEngine((stream,), writer, "synthetic:fixture-v1", run_id=run_id)
     _, _, initial = observation(stream.instrument)
     deliver(other, book, initial)
-    decoded = []
-    original_decode = paper._decode
-
-    def counted_decode(payload, expected):
-        decoded.append(expected)
-        return original_decode(payload, expected)
-
-    monkeypatch.setattr(paper, "_decode", counted_decode)
     try:
         summary = store.list_run_summaries()[0]
         assert summary.run_id == run_id
@@ -441,16 +436,13 @@ def test_run_summaries_cache_validated_payload_not_revision_or_resume_authority(
         assert not hasattr(summary, "instruments")
         assert store.list_run_summaries(source_id="synthetic:fixture-v1") == (summary,)
         assert store.list_run_summaries(source_id="synthetic:other") == ()
-        assert decoded == [paper.PaperRun]
         other.submit(request(stream), now=now, delivery_index=1)
         revised = store.list_run_summaries()[0]
         assert revised == replace(summary, revision=1)
-        assert decoded == [paper.PaperRun]
         # Resume still reads and validates full intent and every command.
         full, commands = store._load(run_id)
         assert full.config == engine.snapshot(now).run.config
         assert full.revision == len(commands) == 1
-        assert decoded == [paper.PaperRun, paper.PaperRun, paper.PaperCommand]
 
         edited = paper._encode(replace(full, parent_run_id="changed-parent"))
         with writer._db:
@@ -460,7 +452,6 @@ def test_run_summaries_cache_validated_payload_not_revision_or_resume_authority(
         refreshed = store.list_run_summaries()[0]
         assert refreshed.parent_run_id == "changed-parent"
         assert refreshed.revision == 1
-        assert decoded.count(paper.PaperRun) == 3
         # The durable codec accepts both SQLite BLOB and UTF-8 TEXT storage.
         with writer._db:
             writer._db.execute(
@@ -468,7 +459,6 @@ def test_run_summaries_cache_validated_payload_not_revision_or_resume_authority(
                 (edited.decode("utf-8"), run_id),
             )
         assert store.list_run_summaries()[0] == refreshed
-        assert decoded.count(paper.PaperRun) == 3
 
         corrupt = json.loads(edited)
         omitted = (
@@ -704,11 +694,13 @@ def test_pending_arrival_at_cohort_removal_cannot_use_removed_book(tmp_path):
     pending = engine.submit(request(stream), now=now, delivery_index=1)
     arrival = replace(now, mono_ns=120, wall_ns=now.wall_ns + 20)
     engine.replace_streams((), books=(), now=arrival)
-    order = engine.snapshot(arrival).orders[0]
-    assert order.order_id == pending.order_id and order.filled_quantity == 0
-    assert "instrument_not_observed" in order.reasons
+    frozen = engine.snapshot(arrival)
+    order = frozen.orders[0]
+    assert order == pending
+    assert frozen.at == now and frozen.delivery_index == 1
+    assert "observation_gap" in frozen.reasons
     engine.replace_streams((stream,), books=(book,), now=arrival)
-    assert not engine.snapshot(arrival).fills
+    assert engine.snapshot(arrival) == frozen
     store.close()
 
 
@@ -726,8 +718,11 @@ def test_stale_arrival_and_clock_discontinuity_never_fill(tmp_path):
     event = replace(batch.events[0], clock_id="new-source-clock", receive_mono_ns=1)
     clock.advance(event)
     engine.on_batch(RecordedBatch(3, (event,)), (), clock)
-    assert engine.snapshot(clock.reading).orders[1].reasons == ("clock_discontinuity",)
-    assert not engine.snapshot(clock.reading).fills
+    frozen = engine.snapshot(clock.reading)
+    assert frozen.orders[1].status == "pending"
+    assert frozen.at == last and frozen.delivery_index == 2
+    assert "observation_gap" in frozen.reasons
+    assert not frozen.fills
     store.close()
 
 
@@ -1055,4 +1050,208 @@ def test_live_frontier_does_not_regress_for_a_queued_older_receive_stamp(tmp_pat
     assert fill.notional_quote == 100
     assert fill.book_asof.receive_mono_ns == 100
     assert engine.snapshot(arrival).delivery_index == 2
+    store.close()
+
+
+@pytest.mark.parametrize(
+    "payload",
+    (
+        Gap("sequence_gap", first_missing_ordinal=2, last_missing_ordinal=4),
+        Control("reset", "resubscribe"),
+        Control("disconnect", "transport_closed"),
+        Control("source_change", "replacement_source"),
+        Control("rejection", "subscription_rejected"),
+    ),
+)
+def test_canonical_gap_freezes_pending_prefix_before_arrival(tmp_path, payload):
+    i = synthetic_instrument()
+    store, engine, stream, book, at = setup(
+        tmp_path, cfg=config(i, order_latency_ns=20)
+    )
+    pending = engine.submit(request(stream), now=at, delivery_index=1)
+    before = engine.snapshot(at)
+    _, replacement, batch = observation(i, mono=200, delivery=2)
+    event = replace(batch.events[0], payload=payload)
+    now = deliver(engine, replacement, RecordedBatch(2, (event,)))
+    frozen = engine.snapshot(now)
+    assert frozen.at == before.at and frozen.delivery_index == before.delivery_index
+    assert frozen.orders == (pending,) and frozen.balances == before.balances
+    assert not frozen.fills and "observation_gap" in frozen.reasons
+    provenance = json.loads(engine.frozen_reason.removeprefix("observation_gap:"))
+    assert payload.reason_code in provenance["reason"]
+    assert "delivery=2" in provenance["reason"]
+    assert provenance["at"]["mono_ns"] == 200
+    assert provenance["affected_keys"][0]["instrument_id"] == i.instrument_id
+    _, recovered, third = observation(i, mono=300, delivery=3)
+    deliver(engine, recovered, third)
+    engine.replace_streams((stream,), books=(recovered,), now=now)
+    assert engine.snapshot(now) == frozen
+    with pytest.raises(PaperError, match="observation_gap"):
+        engine.advance_time(now)
+    with pytest.raises(PaperError, match="observation_gap"):
+        engine.submit(request(stream), now=now, delivery_index=3)
+    store.close()
+
+
+@pytest.mark.parametrize("scope", ("trade", "foreign", "capture_only", "empty"))
+def test_unrelated_gap_does_not_corrupt_native_pending_accounting(tmp_path, scope):
+    i = synthetic_instrument()
+    store, engine, stream, book, at = setup(
+        tmp_path, cfg=config(i, order_latency_ns=20)
+    )
+    engine.submit(request(stream), now=at, delivery_index=1)
+    trade_stream = replace(
+        stream, stream_id="trade-stream", key=replace(stream.key, channel="trades")
+    )
+    engine.replace_streams((stream, trade_stream), books=(book,), now=at)
+    _, current, batch = observation(i, mono=120, delivery=2)
+    event = replace(batch.events[0], payload=Gap("unrelated"))
+    if scope == "trade":
+        event = replace(event, stream_id=trade_stream.stream_id, key=trade_stream.key)
+    elif scope == "foreign":
+        event = replace(event, stream_id="foreign-stream")
+    elif scope == "capture_only":
+        event = replace(
+            event, payload=Gap("capture_only", continuity_lost=False, capture_lost=True)
+        )
+    else:
+        assert not engine.observation_gap(
+            "empty_scope", affected_keys=frozenset(), at=at
+        )
+        event = replace(event, payload=Control("heartbeat"))
+    now = deliver(engine, current, RecordedBatch(2, (event,)))
+    assert engine.frozen_reason is None
+    assert engine.snapshot(now).orders[0].status == "filled"
+    assert engine.snapshot(now).fills[0].at.mono_ns == 120
+    store.close()
+
+
+def test_trade_envelope_gap_targets_explicitly_affected_book_stream(tmp_path):
+    i = synthetic_instrument()
+    store, engine, stream, book, at = setup(
+        tmp_path, cfg=config(i, order_latency_ns=20)
+    )
+    engine.submit(request(stream), now=at, delivery_index=1)
+    _, _, batch = observation(i, mono=120, delivery=2)
+    event = replace(
+        batch.events[0],
+        stream_id="trade-stream",
+        key=replace(stream.key, channel="trades"),
+        payload=Gap("shared_connection_lost", affected_streams=(stream.stream_id,)),
+    )
+    deliver(engine, book, RecordedBatch(2, (event,)))
+    assert engine.frozen_reason.startswith("observation_gap:")
+    assert engine.snapshot(at).orders[0].status == "pending"
+    assert not engine.snapshot(at).fills
+    store.close()
+
+
+def test_global_gap_is_durable_at_unchanged_prefix_and_new_run_is_separate(tmp_path):
+    i = synthetic_instrument()
+    store, engine, stream, book, at = setup(
+        tmp_path, cfg=config(i, order_latency_ns=20)
+    )
+    pending = engine.submit(request(stream), now=at, delivery_index=1)
+    before = engine.snapshot(at)
+    loss_at = replace(at, mono_ns=200, wall_ns=at.wall_ns + 100)
+    assert engine.observation_gap("analytical_queue_overflow", at=loss_at)
+    frozen = engine.snapshot(loss_at)
+    state = engine.checkpoint()
+    reason = engine.frozen_reason
+    assert frozen.at == at and frozen.orders == (pending,)
+    assert frozen.balances == before.balances and not frozen.fills
+    assert engine.observation_gap("later_loss", at=loss_at)
+    assert engine.checkpoint() == state
+    archived = store.archived_snapshot(pending.run_id)
+    assert reason in archived.reasons and archived.at == at
+    assert archived.orders == frozen.orders and archived.balances == frozen.balances
+    store.close()
+    reopened = PaperStore(tmp_path / "paper.sqlite")
+    assert reopened.archived_snapshot(pending.run_id) == archived
+    resumed = PaperEngine((stream,), reopened, engine.source_id, run_id=pending.run_id)
+    resumed.restore(state)
+    assert resumed.snapshot(loss_at) == frozen
+    _, recovered, batch = observation(i, mono=200, delivery=2)
+    deliver(resumed, recovered, batch)
+    assert resumed.snapshot(loss_at) == frozen
+    with pytest.raises(PaperError, match="frozen_run_requires_current_books"):
+        resumed.configure(config(i), now=loss_at, delivery_index=2)
+    new_id = resumed.configure(
+        config(i, cash="500"),
+        now=loss_at,
+        delivery_index=2,
+        books=(recovered,),
+        streams=(stream,),
+    )
+    fresh = resumed.snapshot(loss_at)
+    assert new_id != pending.run_id and fresh.run.parent_run_id == pending.run_id
+    assert not fresh.orders and not fresh.fills and not fresh.reasons
+    assert balances(resumed, loss_at)["USD"] == 500
+    assert reopened.archived_snapshot(pending.run_id) == archived
+    reopened.close()
+
+
+def test_observation_gap_without_run_never_creates_financial_state(tmp_path):
+    stream, book, batch = observation()
+    store = PaperStore(tmp_path / "paper.sqlite")
+    engine = PaperEngine((stream,), store, "synthetic:fixture-v1")
+    at = deliver(engine, book, batch)
+    before = engine.checkpoint()
+    assert not engine.observation_gap("analytical_queue_overflow", at=at)
+    assert engine.checkpoint() == before
+    assert not store.list_run_summaries()
+    assert not engine.snapshot(at).balances and not engine.snapshot(at).orders
+    # A configured but idle run has a declared starting ledger, not exposure.
+    engine.configure(config(stream.instrument), now=at, delivery_index=1)
+    assert not engine.observation_gap(
+        "idle_book_gap", affected_keys=frozenset((stream.key,)), at=at
+    )
+    balances_before = engine.snapshot(at).balances
+    assert engine.observation_gap("analytical_queue_overflow", at=at)
+    assert engine.snapshot(at).balances == balances_before
+    assert not engine.snapshot(at).orders and not engine.snapshot(at).fills
+    store.close()
+
+
+def test_recorded_gap_rebuilds_on_replay_without_erasing_frozen_archive(tmp_path):
+    i = synthetic_instrument()
+    store, engine, stream, book, at = setup(
+        tmp_path, cfg=config(i, order_latency_ns=20)
+    )
+    engine.submit(request(stream), now=at, delivery_index=1)
+    _, current, batch = observation(i, mono=200, delivery=2)
+    gap = RecordedBatch(2, (replace(batch.events[0], payload=Gap("recorded_loss")),))
+    later = deliver(engine, current, gap)
+    frozen = engine.snapshot(later)
+    archived = store.archived_snapshot(frozen.run.run_id)
+    engine.reset()
+    _, _, initial = observation(i)
+    deliver(engine, book, initial)
+    earlier = engine.snapshot(at)
+    assert engine.frozen_reason is None
+    assert earlier.orders[0].status == "pending" and not earlier.fills
+    assert earlier.at == at and earlier.delivery_index == 1
+    engine.publish_archive()
+    assert store.archived_snapshot(frozen.run.run_id) == archived
+    deliver(engine, current, gap)
+    assert engine.snapshot(later) == frozen
+    assert store.archived_snapshot(frozen.run.run_id) == archived
+    store.close()
+
+
+def test_quiet_retained_selection_has_complete_prefix_and_settles_pending_order(
+    tmp_path,
+):
+    i = synthetic_instrument()
+    store, engine, stream, book, at = setup(
+        tmp_path, cfg=config(i, order_latency_ns=20)
+    )
+    engine.submit(request(stream), now=at, delivery_index=1)
+    arrival = replace(at, mono_ns=120, wall_ns=at.wall_ns + 20)
+    engine.replace_streams((stream,), books=(book,), now=arrival)
+    snapshot = engine.snapshot(arrival)
+    assert engine.frozen_reason is None and snapshot.delivery_index == 1
+    assert snapshot.orders[0].status == "filled"
+    assert snapshot.fills[0].at == arrival
+    assert snapshot.fills[0].book_asof == book.asof
     store.close()

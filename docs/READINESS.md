@@ -18,14 +18,98 @@ that every current network workload is healthy.
 | Area | Implemented | Remaining boundary |
 | --- | --- | --- |
 | Paper accounting | Prefunded spot IOC; supported isolated one-way perpetuals with modeled leverage/margin/funding, reduce-only closes, native P&L, protective liquidation and debt | Explicit assumptions and verified pinned economics; no passive fills, cross-margin, borrow model, market impact or exchange orders |
-| Charts and context | Unified admitted-trade candles/footprints, shared intervals, native depth/tape and synchronized OI/funding history | Partial observed history; Hyperliquid context only; separate primary-only venue OHLCV is not replay-prefix evidence |
-| Workload isolation | Shared immutable queue accounting; conditional scoped catalog caching; read-only historical Paper queries; frozen live-market views and hot HTTP encoding off the analytical owner/event loop | Finite byte/count limits still fail closed; no general sustained-throughput or unlimited-client claim |
+| Charts and context | Hybrid Lightweight Charts 5.3.0 price/volume and compatible optional panes; primary ticker backfill with labeled polling; observed cohort footprints, historical resting overlays and individual print badges; named editable layouts | Redesign verified within the recorded acceptance scope; provider-specific history/interval limits and a 10,000-bar mounted cap; Hyperliquid observed context only; external OHLCV is not replay-prefix evidence |
+| Workload isolation | Shared immutable queue accounting; off-loop verified TLS/discovery; bounded small-book inline service; persistent analytical drain; conditional scoped catalog caching; frozen read-only projections | Finite byte/count limits fail closed. Busy turns amortize scheduling but have longer service latency; no unlimited-client or HFT-latency claim |
 | Research | Offline independent unfunded observations, held-out partitions and explicit cost/latency stress; read-only report UI | Not funded portfolio simulation, a funding-arbitrage strategy or automated market making |
 
 The core remains Python. A Rust HFT engine and private/live execution are not
 implemented. Read [current accounting/research limits](STRATEGY_RESEARCH.md#implemented-accounting-versus-strategy-research)
 and [measured workload boundaries](CORE_PERFORMANCE.md#current-workload-isolation-and-retained-measurements)
 before interpreting a performance or profitability claim.
+
+### Terminal stabilization acceptance
+
+The [stabilization review](STABILITY_REVIEW.md) records the newer fixes, failed
+attempts, exact-output comparisons, browser checks and finite live receipts.
+Acceptance includes the full 34-stream cohort, an explicitly simulated live IOC,
+concurrent native recording, verified completion, non-synthetic replay/seek and
+Coinbase selection with a held stop-response recovery. User state was preserved;
+test paper accounts and recordings used an isolated state directory.
+
+The Mac's two-core workload still has limited burst margin. Recorded queue-wait
+tails are not HFT performance, and successful finite checks do not certify a
+24-hour soak, every provider or profitable strategies. Keep provider denials and
+native evidence loss visible. Start with [the operating manual](QUICKSTART.md).
+
+
+### Chart redesign implementation and evidence
+
+The [redesign record](CHART_REDESIGN_PLAN.md#recorded-implementation-observations)
+is the single source for gate receipts, finite browser observations and limits.
+Final backend, frontend and chart/workspace browser gates passed within the
+recorded scope. Historical release totals below remain separate evidence.
+
+Current chart boundaries and operator recovery:
+
+- **Auto** selects exact-primary ticker history in live and observed cohort flow
+  in demo/replay. Unsupported instruments/intervals remain unsupported; changing
+  source is explicit, not a provider fallback. A deliberate ticker request during
+  replay can access current public HTTP and is not recorded-prefix evidence.
+- Ticker updates are **5-second polling**, not streaming. Scroll-left backfill
+  distinguishes errors, provider limits and proven exhaustion. Same-series
+  failures retain stale candles; a new selection must never inherit foreign bars.
+- Ticker acquisition is independent of observed-cohort/collector readiness,
+  not of session identity or transport. A connected selected session can keep
+  ticker polling during an observed collector error; loading/seeking and
+  source/generation fences remain enforced. Inspect the collector incident
+  separately rather than treating current candles as recovery.
+- The **10,000-bar mounted-query limit** pauses growth while preserving loaded
+  history. An explicit history reset returns to recent data; Fit only fits loaded
+  bars and does not expand provider coverage. No visible-history eviction is
+  advertised as continuous acquisition.
+- Optional observed OI/funding requires compatible receive time and actual
+  supplying-instrument labels. It does not certify exchange-clock positioning
+  or supply the paper ledger's funding model.
+- Resting footprint overlays require eligible historical primary depth and a
+  valid clock projection. Blank/mismatched spans stay unavailable. A stable
+  quantity ceiling is display contrast, not an inferred liquidity probability;
+  large-print badges are retained individual trades.
+- Named layouts preserve current source/instrument/cohort/session ownership.
+  Loading a layout is not resuming a capture or paper account.
+- The desktop grid fits 12 logical rows to remaining height with a 24px row
+  minimum; custom extents/short windows can scroll. Narrow screens stack panels.
+  Five presets and saved layouts alter display geometry only; outside
+  interaction/focus or Escape dismisses the saved menu without discarding drafts.
+  Hidden native panes retain frozen snapshots while query/paint work stops.
+  Compact KPI/provenance presentation does not conceal native error details.
+
+Current finite Binance spot observations: **300 → 600 → 900** historical bars,
+the same exact inspected bar across normal-precision prepend, in-place forming
+updates, and actual hour rollover to **901** bars. All **18** combinations of six
+themes and 1440/1280/390px widths showed no horizontal overflow and no empty
+positioning panes. Continuous touch pan detached follow; pinch was dispatched
+with the chart still visible. These are not all-provider or all-device passes.
+
+Actual captures: [1440 dark](evidence/chart-redesign/live-price-1440-dark.png),
+[1440 light](evidence/chart-redesign/live-price-1440-light.png),
+[1280 dark](evidence/chart-redesign/live-price-1280-dark.png),
+[390 dark](evidence/chart-redesign/live-price-390-dark.png).
+**Caption:** current live ticker history coexists with a visible
+`analytical_queue_overflow` collector incident; REST history does not establish
+healthy observed flow. The [synthetic design mockup](media/chart-redesign-mockup.html)
+is a separate illustrative artifact, not an implementation screenshot.
+
+A bounded Chrome 150/DPR 1.25 sample at 1440×900 with 300 bars recorded 239 frame
+opportunities (p50/p95 ≈16.7ms, max 16.8ms), no observed long tasks, heap
+66,390,529 → 39,341,689 bytes, and 11 canvases/4,091,104 backing bytes. These
+are not GPU-completion, exchange-latency, sustained-capacity or memory-leak
+measurements; they do not qualify the maximum history cap or replay workload.
+
+Final broad gate receipts are tracked in the redesign record. Targeted
+regressions cover source/replay fences, history cap/reset and reconnect, editable
+layouts, retained hidden frozen panes and exact overlay inspection. Explicit
+decimal-power `base`/`minMove` and deferred viewport reconciliation preserve
+plotting precision and the inspected candle through axis-width changes.
 
 ## Readiness dimensions
 
@@ -62,8 +146,8 @@ requires `serve --network` for shared live discovery/collection.
 `serve --capture PATH_TO_SESSION` exposes an operator-managed verified replay
 source; managed
 recordings in the retained state directory are also rediscovered. Explicit
-**Venue history** requests can fetch public OHLCV even without `--network`;
-that flag is not a sandbox blocking every public HTTP request.
+**Ticker history** (`venue_ohlcv`) requests can fetch public OHLCV even without
+`--network`; that flag is not a sandbox blocking every public HTTP request.
 Use one backend worker; share its registry rather than launching duplicate
 collectors. The Streamlit observation client uses the same native API and now
 also defaults its own server listener to127.0.0.1 through project configuration.

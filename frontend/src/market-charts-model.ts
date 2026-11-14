@@ -7,7 +7,6 @@ export type PlotArea = { x: number; y: number; width: number; height: number };
 export type ChartRowViewport = { first: number; count: number };
 export const CHART_LIMITS = { columns: 600, rows: 256, tiles: 640, trades: 2000, footprints: 12000, dpr: 2, width: 2048, height: 1280 } as const;
 export const PLOT_MARGIN = { left: 12, right: 100, top: 14, bottom: 30 } as const;
-export const COLORS = { bid: '#359d94', ask: '#bd6268', buy: '#57c4b4', sell: '#df7c81', unknown: '#a4adb5', background: '#131619', missing: '#1c2024', grid: '#292f34', text: '#a6afb7' } as const;
 
 /** Only display measurements use Number. Subtract exact clocks before conversion. */
 export function timeFraction(time: string, start: string, end: string): number {
@@ -113,15 +112,51 @@ export function intensity(value: string | null, contrast: number): number | null
   const amount = plotNumber(value);
   return amount == null ? null : Math.max(0, Math.min(1, amount / saturation(contrast)));
 }
+
+/** Display-only peak coverage per physical pixel, never a sum of native quantities. */
+export function liquidityRasterRows(
+  cells: readonly (readonly [string | null, string | null])[],
+  first: number,
+  count: number,
+  topPx: number,
+  heightPx: number,
+  contrast: number,
+): { top: number; rows: { bid: number | null; ask: number | null; bidUnknown: boolean; askUnknown: boolean }[] } {
+  const top = Number.isFinite(topPx) ? Math.floor(topPx) : 0;
+  if (!Number.isFinite(first) || !Number.isFinite(count) || !Number.isFinite(topPx)
+    || !Number.isSafeInteger(top) || !Number.isFinite(heightPx) || heightPx <= 0 || count <= 0) {
+    return { top, rows: [] };
+  }
+  const sourceRows = Math.min(cells.length, CHART_LIMITS.rows);
+  first = Math.max(0, Math.min(sourceRows, Math.floor(first)));
+  count = Math.max(0, Math.min(sourceRows - first, Math.floor(count)));
+  if (count === 0) return { top, rows: [] };
+  // Include fractional edge pixels without exceeding the bounded backing height.
+  heightPx = Math.min(heightPx, CHART_LIMITS.height - (topPx - top));
+  const height = Math.ceil(topPx + heightPx) - top;
+  if (height <= 0 || height > CHART_LIMITS.height || !Number.isSafeInteger(top + height)) return { top, rows: [] };
+  const rows = Array.from({ length: height }, () => ({
+    bid: null as number | null, ask: null as number | null, bidUnknown: false, askUnknown: false,
+  }));
+  for (let offset = 0; offset < count; offset++) {
+    const pixel = Math.max(0, Math.min(height - 1, Math.floor(topPx + heightPx * (1 - (offset + 0.5) / count)) - top));
+    const row = rows[pixel]!;
+    const cell = cells[first + offset]!;
+    const bid = intensity(cell[0], contrast);
+    const ask = intensity(cell[1], contrast);
+    if (bid === null) row.bidUnknown = true;
+    else row.bid = row.bid === null ? bid : Math.max(row.bid, bid);
+    if (ask === null) row.askUnknown = true;
+    else row.ask = row.ask === null ? ask : Math.max(row.ask, ask);
+  }
+  return { top, rows };
+}
 export function rowAt(fractionFromTop: number, rows: number): number {
   return Math.max(0, Math.min(rows - 1, Math.floor((1 - fractionFromTop) * rows)));
 }
 export function columnAt(view: VisualGrid, time: string): VisualGrid['columns'][number] | undefined {
   const value = BigInt(time);
   return view.columns.find(column => BigInt(column.time_ns) <= value && value < BigInt(column.end_ns));
-}
-export function sideColor(side: string): string {
-  return side === 'buy' ? COLORS.buy : side === 'sell' ? COLORS.sell : COLORS.unknown;
 }
 export function boundedSize(width: number, height: number, deviceRatio: number) {
   const w = Math.max(1, Math.floor(width));

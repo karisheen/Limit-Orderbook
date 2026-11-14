@@ -1,5 +1,14 @@
 # Crypto order-flow terminal
 
+Chart redesign is implemented. See the
+[verification record and limits](CHART_REDESIGN_PLAN.md#recorded-implementation-observations)
+for gate receipts and actual captures.
+
+For the short task-oriented path, start with [QUICKSTART](QUICKSTART.md).
+Current stabilization evidence and pending final gates are separate in
+[STABILITY_REVIEW](STABILITY_REVIEW.md); historical chart captures do not certify
+the current change set.
+
 ## One session, one source
 
 The `/` page is a single crypto terminal. Its footprint, studies, market panes,
@@ -51,16 +60,22 @@ See [development](DEVELOPMENT.md), [API](API.md), [demo/CLI](DEMO.md) and
 
 ## Market and display controls
 
-The top bar exposes **Instrument**, **Venue**, **Market** (**Perp / Spot**),
-**Candle interval**, **Workspace**, **Panels** and **Theme**. Instruments come
-from the active native source catalog, including initial streaming-only crypto
-candidates while official metadata loads. Venue labels are friendly (**Binance**,
-**Bybit**); native IDs remain unchanged. Venue selection includes native venues and
-**All perps / All spot** aggregates. Aggregate inputs are the actual native
-display cohort for the selected base asset and market type, not a guess from
-the newest catalog. Price Action and footprint/studies share that cohort and
-the persisted **Candle interval**. The exact primary remains the financial
-order target even when aggregate display is selected.
+The compact top bar exposes **Instrument**, **Venue**, **Market** (**Perp /
+Spot**), the global **Candle interval**, **Layers** and **Theme**. Instrument
+search groups native choices by quote/market and matches case/separator-normalized
+symbols and venue keywords; normalization never changes the selected native
+identity. Choices come from the active source catalog, including streaming-only
+crypto candidates while official metadata loads. Friendly venue labels retain
+native IDs. **All perps / All spot** selects the actual native cohort, not a
+guess from the newest catalog. Observed Price action, footprint and studies use
+that cohort; ticker Price action stays exact-primary. All share one persisted
+interval selector. The exact primary remains the financial order target.
+
+The desktop KPI strip uses one compact horizontal line with internal scrolling
+rather than consuming additional chart rows. Compact source/clock/coverage
+provenance stays visible; disclosures retain full native details and reasons.
+Narrow layouts can wrap/stack. Session KPIs are observed-flow statistics, not
+statistics silently recomputed from independent historical ticker candles.
 
 **Indicative aggregate · N venues · quotes retained** means a display aggregate,
 not normalized execution prices. USD/USDT/USDC prices may be combined without
@@ -96,19 +111,49 @@ instrument, then reconnect/reselect; existing shared streams keep their old vers
 Bybit uses the [official equivalent mainnet REST host](https://bybit-exchange.github.io/docs/v5/guide)
 `api.bytick.com`, which remains subject to regional restrictions.
 
-**Workspace** presets **Order Flow**, **Liquidity** and **Volatility** configure
-the display studies/sidebar. **Panels** adjusts visibility; visible card borders
-resize the sidebar/studies panels. Six themes and display preferences are
-browser-local. These controls do not create another financial session.
+The workspace's **Preset** selector offers **Order flow**, **Price focus**,
+**Liquidity**, **Volatility** and **Execution**. **Edit layout** exposes panel
+add/remove, move and resize controls; **Finish editing** leaves edit mode.
+Drag the handles, or focus **Move / Resize** and use arrow keys for one-cell
+changes; Escape cancels dragging. Minimum sizes, grid bounds and collisions
+prevent overlapping panels. Desktop rows fit a fixed **12-logical-row** page to
+remaining workspace height, with **12 columns**, 6px gaps and a **24px minimum
+row height**. Banners/toolbars resize row pixels without rewriting saved cells;
+custom extents and short windows can scroll. **Price focus** fills the 12-row page.
+At widths ≤965px, panels stack in reading order and pointer dragging is disabled.
+Choose **Move / Resize**, then direction buttons or arrow keys to edit the saved
+desktop geometry; visible guidance explains the stacked view. These browser-local
+controls and six themes do not create another session.
 
 ### Footprint and studies
 
-Use **Bid × Ask / Delta / Volume**, **Profile**, **Heatmap** and **Indicators**
-to configure the footprint. Indicators include session VWAP/deviation bands,
-POC/value area, high/low, imbalance ratios and stacked levels. Drag to pan,
-wheel to scroll, Ctrl/⌘+wheel to change row height and Alt+wheel to change candle
-width; **Live** or double-click restores following. The footprint heatmap shows
-executed volume, not resting liquidity.
+Use **Bid × Ask / Delta / Volume**, **Profile**, **Executed heatmap** and
+**Indicators** to configure the footprint. Indicators include session
+VWAP/deviation bands, POC/value area, high/low, imbalance ratios and stacked
+levels. Drag to pan, wheel to scroll, Ctrl/⌘+wheel to change row height and
+Alt+wheel to change candle width; **Live** or double-click restores following.
+**Executed heatmap** shows traded-volume profile intensity, not resting depth.
+
+Optional **Indicators → Resting liquidity** draws retained native historical
+depth behind footprint cells. **Opacity** and **Stable quantity ceiling** are
+persisted controls (defaults: off, 30% opacity, ceiling 10 in the legend's
+quantity unit). The ceiling stays fixed until you edit it; new data does not
+recolor old observations through automatic normalization. The legend identifies
+the selected-primary venue, unit and sampling. In an aggregate footprint this
+is **primary-only**, not consolidated depth. Only compatible native receive-clock
+evidence is projected; unknown spans remain blank, not today's book repeated
+backward. Requests cover at most the latest 30 minutes, with one- or five-second
+sampling and no more than 600 columns. Longer footprints and incomplete native
+coverage show **bounded/limited history**; older or unavailable spans stay blank.
+Hidden footprints stop resting-history queries.
+
+Optional **Indicators → Large prints** uses **Minimum base size** (default 1;
+layer off by default). Bubbles carry venue text for individual retained native
+trades, not aggregate footprint cells. Hover a badge or open **Inspect retained
+large prints** for exact native venue/instrument, price, quantity and timestamp
+references. At most 200 candidates are retained for this layer; overlapping
+badges may be suppressed visually without becoming combined trades. These
+layers do not establish complete historical depth or trade coverage.
 
 Book grouping, primary/consolidated depth, tape size filters and study
 resolution/window controls are local to their panels. Primary-book mode reports
@@ -122,11 +167,13 @@ prints retain provenance on the tape but are excluded from ordered studies;
 they are not evidence of continuous observed live flow.
 
 Session/generation/source/instrument boundaries clear obsolete presentation
-history. Price Action, footprint and interval-based studies share **1m, 3m, 5m,
-15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M**. Fixed buckets floor
-against the Unix UTC epoch, including Thursday-aligned weeks; `1M` runs from
-one UTC month start to the next. Interval, tick/indicator and venue changes
-recompute retained trade inputs without restarting the native session.
+history. Price Action, footprint and interval-based studies share the global
+choices **1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M**.
+Observed fixed buckets floor against the Unix UTC epoch, including
+Thursday-aligned weeks; `1M` runs from one UTC month start to the next.
+Ticker history preserves native provider alignment and supports only its
+advertised intervals. Interval, tick/indicator and venue changes recompute
+retained trade inputs without restarting the native session.
 Trade-study rebuilds retain independent depth/imbalance history; changing the
 depth cohort resets that history separately. Busy workflow mutations pause
 polling without clearing same-owner caches or the delivery cursor. Bounded
@@ -166,8 +213,8 @@ exact before conversion to display milliseconds.
 
 ## Source, workspace and recordings
 
-Open **Source / workspace** for **Data source** and **Workspace preset**. Source
-choices distinguish live, recorded replay and synthetic demo, with readiness and
+Open **Source / workspace** for **Data source**; layout controls are in the
+workspace toolbar. Source choices distinguish live, recorded replay and synthetic demo, with readiness and
 reasons. URL `?source=<catalog ID>` takes precedence over an explicitly saved
 choice, then the server preference. A requested unavailable source stays
 unavailable rather than being substituted. Source changes fence foreign
@@ -179,13 +226,22 @@ popover and returns focus to its summary. Floating source/workspace, recording,
 DOM settings and tape settings disclosures close on outside interaction or
 **Escape**; inline **Diagnostics** stays open across reconnects.
 
-**Workspaces** contains **Workspace slot**, **Save workspace** and **Load
-workspace** for four browser-local slots. Slots store native view/layout
-preferences, not backend sessions, capture files, paper ledgers or cross-device
-state. Loading retains the current source/instrument and clears pinned ranges,
-freezes and cursors. Preferences never restore old market data or a shared
-session ID. Shell themes/panel preferences and native view preferences remain
-browser-origin-local.
+**Saved layouts** contains **Saved layout**, **Layout name**, **Save layout**,
+**Load layout**, **Rename layout** and **Delete layout**. Save up to **12** unique
+names of **1–40 characters**; saving a duplicate name is rejected, not an
+implicit overwrite. Layouts contain geometry and display settings, not backend
+sessions, capture files, paper ledgers or cross-device state.
+Outside pointer interaction, focus leaving the menu, and **Escape** dismiss
+Saved layouts without clearing the pending name or selected layout. Escape
+returns focus to its summary; successful load also closes the menu and restores
+summary focus.
+
+Migration imports the four legacy workspace slots as named layouts and retains
+existing market-source/timeframe preferences. Loading retains the current
+source, instrument, cohort, replay cursor and Price action source choice; it
+does not restore old market data. Current temporal/freeze state also remains
+current rather than being recovered from a saved layout. Shell theme/layer
+preferences and native workspace preferences remain browser-origin-local.
 
 ### Managed recording
 
@@ -240,6 +296,11 @@ that presentation; it does not pause replay, collection or recording. Old
 recorded timestamps are judged against the replay cursor, not today's wall
 clock. Demo remains explicitly synthetic even while playing.
 
+An observer failure during replay step, seek or instrument selection fences the
+partial operation: it is not publishable healthy state and cannot continue with
+Play/Step. Use an explicit **Reset** or **Delivery → Seek** to rebuild a complete
+prefix. This is fail-closed recovery, not rollback or automatic retry.
+
 ## Integrated native charts
 
 The chart tabs are **Footprint**, **Price action**, **Liquidity & flow** and
@@ -247,24 +308,37 @@ The chart tabs are **Footprint**, **Price action**, **Liquidity & flow** and
 feed applications. Native charts and exact inspectors retain native units,
 quality reasons, provenance and bounded history.
 First load opens **Footprint**; an explicitly saved chart-view choice is retained.
-Native views preserve usable plot heights and scroll when the available screen
-is too short; the default footprint layout is unchanged. Normal chart views use
-one reference-style book/tape sidebar. Selecting **Native book & tape** replaces
-that sidebar with exact inspection; Price Action has no duplicate embedded
-book/tape, and there is no secondary DOM/tape sidecar toggle. Returning to a
-chart restores the normal surface. Bring a chart into view to resume rendering
-and receive-to-paint acknowledgments.
+Desktop chart panels use the editable grid; short/narrow windows retain internal
+scrolling and stacked reading order. Normal chart views use one book/tape
+surface. **Native book & tape** owns exact inspection and suppresses duplicate
+book/tape side panels; returning to a chart restores them. Hidden native
+liquidity/flow/book/tape panes remain mounted, preserving their independently
+frozen evidence while suspending unnecessary queries/paint. Switching tabs does
+not silently thaw them; source/generation/clock fences still discard obsolete
+evidence. Bring a chart into view to resume eligible rendering and
+receive-to-paint acknowledgments.
 
 ### Price action
 
-The native `/candles` API defaults to **session trades** in live, demo and replay,
-for spot and perpetuals. Current bars need no venue REST response. It uses the
-actual selected cohort, primary-first, and labels primary versus aggregate scope.
-Aggregate quotes remain indicative without conversion and never become fills.
-Quick controls and **More** edit the same persisted interval as the top bar and
-footprint; all 15 intervals above are supported for native session trades.
+Price/volume use TradingView Lightweight Charts **5.3.0**, while exact values,
+provenance and accessible inspection remain native. This is a renderer, not a
+data subscription or the full TradingView drawing/indicator product.
 
-Trades carry exact `display_time_ns`: a source-owned receive-wall anchor plus
+Price source preference **Auto** chooses **Ticker history** (`venue_ohlcv`) in
+live and **Observed flow** (`session_trades`) in demo/replay. Explicit source
+choices persist. Ticker history is one exact selected primary instrument;
+observed flow uses the actual primary-first selected cohort and labels aggregate
+scope. Aggregate quotes remain indicative without conversion and never become
+fills. The top bar is the only timeframe control; unsupported venue intervals
+remain explicit instead of silently switching interval/source.
+
+Ticker requests do not depend on the observed cohort becoming ready or the
+collector supplying healthy books/trades. A connected session with its selected
+native instrument can keep historical ticker polling during a collector error;
+loading/seeking and source/session/generation fences still apply. Collector
+health and ticker availability are separate, not interchangeable status signals.
+
+Observed trades carry exact `display_time_ns`: a source-owned receive-wall anchor plus
 the matching receive-monotonic delta. Integer nanoseconds are floored before
 bounded display conversion; exchange timestamps and browser time do not select
 buckets. Native delivery order determines open/close within a bucket. Replay
@@ -275,37 +349,80 @@ Retained already-delivered prints form bounded, explicitly partial coverage.
 Unknown base sizes and subscription-history prints are excluded with reasons.
 A short demo cannot supply days of hourly history; no missing/zero-volume filler
 bars are invented. A time-closed bar is not a completeness certificate.
-**Venue history** (`venue_ohlcv`) is an explicit separate primary-only source,
-exchange-UTC aligned where supported. It is not stitched into session candles
-or substituted for a cohort aggregate. Its single bounded page is up to 300
-requested bars in this UI; panning does not fetch unlimited older history.
-Selecting Venue history explicitly can request public HTTP even in demo/replay
-without `serve --network`. It is a current venue page, not evidence available at
-the recorded cursor; session-trade candles alone remain prefix-bound.
+**Ticker history** is a separate exchange-time source, never stitched into
+observed candles or substituted for a cohort aggregate. Selection requests a
+recent target of 300 bars, subject to provider limits. Panning toward the left
+edge fetches older pages without fitting the whole accumulated history.
+Native interval alignment, provider limitations and partial/closed flags remain
+visible. Kraken is recent-only (720 native bars); Hyperliquid is limited to its
+recent 5,000-candle window. A short or empty response alone is not proof that all
+older history is exhausted.
 
-Drag to pan, scroll or **+/−** to zoom, **Fit** for returned history and **Latest**
-for the recent window. Hover/focus and **←/→** inspect exact OHLC/base volume;
-**Shift+←/→** pans, **F/Home** fits, **L/End** follows and **Esc** clears inspection.
-History refreshes about five seconds after each completed request while visible
-and usable. Failed refreshes label retained same-owner candles stale; missing
-history or unsupported queries remain explicit. Fetched/checked times are not
-exchange freshness, and a closed time bucket does not certify complete history.
+Ticker history can request current public HTTP even in demo/replay without
+`serve --network`, but only by explicit selection there. Its warning means
+**current external history is not replay evidence**; observed candles remain
+prefix-bound. Never interpret a ticker page as data available at a recorded cursor.
+
+Drag to pan, wheel/pinch to navigate, and drag the price scale to adjust it.
+**Auto** fits the price scale; **Log** selects logarithmic price display (invalid
+nonpositive/unrepresentable data stays explicit). **Fit** fits only loaded
+history; **Latest** returns to the recent window/following. Panning back detaches
+follow so a refresh does not snap forward. **Right margin** is future whitespace
+in bars, default **5**, not seconds or unobserved future data.
+Hover or focus the chart and use **←/→** for exact OHLC/volume inspection;
+keyboard navigation remains available alongside the non-canvas readout.
+
+Plotting uses exact decimal arithmetic before bounded numeric conversion.
+Lightweight Charts receives an explicit decimal-power `base` alongside `minMove`
+for price, volume and compatible positioning, avoiding a rounded reciprocal of
+a tiny quantum. Linear plotting can offset large prices; log requires positive,
+representable values. Distinct exact values that collide on a numeric coordinate
+produce **Unsupported chart precision**, not rounded financial evidence.
+Original strings remain in the readout/table. Detached navigation retains its
+fractional left anchor and pixel bar spacing through prepends and deferred
+axis-width changes; the changing-precision browser regression covers this case.
+
+Visible usable history uses labeled **5-second polling**, not streaming candle
+subscriptions. Forming buckets and overlapping corrections update in place.
+Failed refreshes retain same-series bars with a stale label; older-page failure
+does not discard usable loaded data. Fetched/checked times are not proof of
+exchange freshness, and time closure is not a completeness certificate.
+The mounted query holds at most **10,000 bars**. At that cap, growth pauses with
+an explicit limit notice rather than silently evicting loaded/visible history.
+Use the explicit history-reset action to discard retained history and reload the
+recent page before continuing growth; ordinary Fit does not clear the cap.
 See [native candle contracts](VISUALIZATION.md#historical-price-candles).
 
-**OI & funding** adds open-interest and funding panes under volume on the same
-time axis, so positioning can be read against each price move. It is on by
-default for a perpetual and opt-in for spot, where the related perpetual is
-shown and labeled as such when its context stream is already owned. A selected
-perpetual on another venue can likewise show related Hyperliquid context, not
-that selected contract's OI. The readout follows the inspection cursor: exact
-open interest and its change inside the bucket, the last observed funding
-fraction with its own interval and an approximate annualization. Values are
-venue-reported context observed by this session (Hyperliquid today), not
-aggregate OI, executable prices or the funding model used by Paper. Missing
-channels do not trigger backfill; unobserved intervals stay empty. The toggle
-is disabled for Venue history. With the panes on, the plot needs at least 320 px:
-use **Expand** or collapse the workflow drawer on short windows. See
-[positioning panes](VISUALIZATION.md#open-interest-and-funding-beside-price).
+**OI & funding** is **off by default**. When selected in Observed flow, compatible
+retained positioning appears in independently scaled panes under volume on the
+same receive-time axis. Missing or mismatched series do not reserve blank panes.
+Observed Hyperliquid context is not exchange-time ticker positioning, so this
+option is unavailable in Ticker history.
+
+The exact readout retains open interest and its in-bucket change in the supplied
+unit, the observed funding fraction with its own interval, and approximate simple
+annualization where supported. A selected perpetual is preferred; any related
+Hyperliquid perpetual is explicitly labeled as **not the selected instrument**.
+Funding sign describes payment direction, not price direction. These observations
+are neither aggregate OI nor the funding model used by Paper. Unobserved intervals
+remain missing; no positioning-history backfill is implied.
+See [positioning panes](VISUALIZATION.md#open-interest-and-funding-beside-price).
+
+Actual implementation captures (separate from the
+[synthetic design mockup](media/chart-redesign-mockup.html)):
+[1440 dark](evidence/chart-redesign/live-price-1440-dark.png),
+[1440 light](evidence/chart-redesign/live-price-1440-light.png),
+[1280 dark](evidence/chart-redesign/live-price-1280-dark.png),
+[390 dark](evidence/chart-redesign/live-price-390-dark.png).
+**Caption:** live ticker history can remain current while a visible
+`analytical_queue_overflow` collector incident leaves observed flow unavailable.
+The captures do not show collector recovery.
+[Finite browser observations](CHART_REDESIGN_PLAN.md#recorded-implementation-observations)
+cover Binance 300→600→900 backfill, retained normal-precision inspection, forming
+updates and actual rollover to 901 bars, all 18 theme/size states, continuous
+touch pan/pinch interaction and a bounded resource sample. Gate receipts are
+maintained in that record rather than inferred from screenshots.
+
 
 ### Liquidity & flow
 
@@ -314,6 +431,10 @@ executed-trade footprint/profile and shared-core CVD/OFI. Each retains its own
 mode, interval, price grouping, viewport, freeze and inspection settings.
 **More**, settings and **Inspector** expose exact data, navigation, quality and
 paint diagnostics. Missing history and row cropping remain disclosed.
+Pixel-linked cursor/readout evidence belongs to the successfully painted view,
+mode and crop, not newer unpainted data. The closed Inspector does not construct
+its expensive tables; reopening retains disclosure preferences. A failed canvas
+clears valid-looking evidence and reports an error; sibling panels can still paint.
 
 **Auto group** fits eligible native evidence. **Follow latest** moves with the
 source-clock frontier while preserving the painted duration. **Fit time** uses
@@ -483,12 +604,21 @@ breach/shortfall remains visible and new risk is blocked.
 
 #### Freeze, archive, replay and resume
 
-A bounded funding catch-up/record limit can freeze paper at its last valid
-accounting prefix while charts continue. Inspect the frozen reason and last
-accounting delivery; later market progress is not later accounting. Frozen paper
-rejects further observer/time/order mutation rather than skipping obligations.
-Explicit reset/seek reconstructs replay; explicit configuration starts a new run
-at the current source with current books. There is no automatic thaw.
+A bounded funding catch-up/record limit or loss of required causal observations
+can freeze paper at its last complete accounting prefix while charts continue.
+Global analytical loss freezes activated runs. A scoped book/source gap or
+departure freezes pending orders/open perpetual exposure that requires that
+evidence; unrelated trade-only gaps and spot inventory marks alone are not
+equivalent path-dependent obligations. The durable `observation_gap` reason
+retains affected native keys and clock/provenance rather than inventing missed
+fills, funding or liquidations.
+
+Inspect the frozen reason and last accounting delivery; later market progress
+is not later accounting. Frozen paper rejects further observer/time/order mutation.
+Recovered books, reselection and reconnect do not thaw or repair the old run.
+Explicit reset/seek reconstructs a replay prefix; explicit configuration starts
+a **new run** at the current source with entered funds/current books, not copied
+exposure or fabricated continuity. Keep the old read-only audit.
 
 **Open read-only archived audit** is separate from active accounting. Retaining
 `--state-dir` preserves run assumptions, commands and accounting across process
@@ -548,6 +678,19 @@ and reconnect can retry; **workflow mutations never retry automatically**.
 Abort, timeout or disconnect can happen after a mutation committed. Refresh and
 inspect persisted native state before repeating orders, configuration, capture
 operations, alert edits or journal writes.
+
+Selection/replay/paper-resume response ownership is bounded to **15 seconds**.
+Expiry releases the browser's busy/deferred presentation and reports an ambiguous
+outcome; it does not cancel completed server effects, repeat the mutation or
+replace the session to hide it. Catalog source-directory and selected-metadata
+refreshes have separate freshness/error ownership; metadata changes still fence
+obsolete evidence.
+
+For provider **403/451**, stale/empty charts, overflow and practical two-core/8 GiB
+operation, follow [Quickstart recovery](QUICKSTART.md#8-recover-without-hiding-evidence).
+Single-venue **display**, hidden panels and smaller DOM/tape row counts are not
+proof of fewer backend subscriptions or less reconstruction depth. Inspect
+actual owned streams; recordings and other sessions can keep shared feeds alive.
 
 ## Development, licenses and evidence
 

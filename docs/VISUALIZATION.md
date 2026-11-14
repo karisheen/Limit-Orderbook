@@ -1,18 +1,25 @@
 # Visualization evidence and proposal risk
 
+Chart redesign is implemented. The
+[verification record](CHART_REDESIGN_PLAN.md#recorded-implementation-observations)
+separates actual implementation observations from the synthetic design preview.
+
 The workstation exposes `POST /api/v1/visualization`, `/api/v1/ladder`, and
 `/api/v1/proposal-risk`. Each request carries the existing independent
 `session_id` and exact string `generation`. The normal local-origin, host,
 request-size, action, worker ownership, cancellation, and generation fences
 apply. These are analytical queries, not exchange order APIs.
 
-The terminal's **Price action**, main footprint and trade studies share admitted
-session trades, the selected native display cohort and one global candle interval.
-Their receive-UTC/retention contract is described under
+The terminal has two distinct Price action products: **Ticker history** for the
+exact primary instrument on exchange UTC, and **Observed flow** for admitted
+session trades in the selected native display cohort on projected receive UTC.
+LIVE Auto selects Ticker history; demo/replay Auto selects Observed flow.
+Price action, footprint and trade studies share one global candle interval,
+not necessarily a source, clock or viewport. Their contract is described under
 [historical price candles](#historical-price-candles). The paired **Liquidity &
-flow** charts below retain their own selected-primary, short-window
-`VisualHistory` sampling and piecewise clock-label projection; those overlays
-are not a second venue candle feed or the global Price Action series.
+flow** charts retain selected-primary, short-window `VisualHistory` sampling
+and piecewise clock-label projection; these overlays are not exchange-time
+ticker history and must not inherit its cursor by relabeling timestamps.
 
 ## Historical liquidity
 
@@ -202,6 +209,18 @@ quantity and the other is known zero. Splitting every bucket into bid/ask halves
 would falsely suggest a temporal gap. Mixed-side bins remain split; unknown
 side coverage remains visibly unknown rather than being filled from its neighbor.
 
+When the plot has fewer physical display pixels than native price rows, each
+source row contributes its fixed-contrast intensity to the pixel containing its
+center. A bounded two-column raster retains the maximum intensity per side in
+each pixel, rather than dropping rows through nearest-neighbor downsampling or
+summing quantities. The raster is aligned to device pixels and clipped to the
+actual plot; image smoothing does not spread evidence across unknown spans.
+Any unknown contributor remains hatched, even alongside an observed maximum.
+One-sided fill still requires every opposite-side contributor to be observed
+zero. The chart discloses compressed price rows; its Inspector continues to
+select exact native cells. Display resolution never changes the native financial
+grid, price quantum, immutable quantities, eligibility or gap masks.
+
 Executed-trade overlays, candles, profiles, and footprints consume the existing
 analytics admission/deduplication/valuation path. Admission alone is not proof
 of usable flow: aggregation also requires the shared selected-instrument
@@ -245,6 +264,11 @@ This linked cursor/range mechanism belongs to the paired **Liquidity & flow**
 charts and native DOM/tape. **Price action** has its own OHLC/positioning
 inspection cursor, not that linked DOM cursor; sharing the global candle
 interval does not synchronize its viewport with the short-window charts.
+
+Hidden native liquidity/flow/book/tape panes remain mounted to retain independent
+frozen snapshots, while visibility suspends unnecessary query/paint work.
+Returning to a pane does not thaw it or authorize foreign/future evidence:
+source/session/generation and clock-scope fences remain authoritative.
 
 **Follow latest** advances at the qualified source frontier while retaining the
 painted duration. **Fit time** pins available native sample bounds for liquidity/
@@ -307,6 +331,13 @@ enters historical overlays when highwater advances. Initial partial buckets are
 explicit; closed aligned historical windows can report complete coverage.
 Read queries never advance playback or open
 another reader.
+
+The footprint's optional resting-liquidity layer requests at most the latest
+1,800 seconds (30 minutes), regardless of how many hours its trade candles span.
+It uses one-second buckets through 599 seconds and five-second buckets for longer
+requests, staying within 600 columns including the boundary column. A longer
+footprint or incomplete native coverage is disclosed as bounded/limited history;
+tiles are clipped to available receive-clock coverage and unknown spans stay blank.
 
 The session owner captures one shallow query snapshot of immutable evidence and
 bounded history containers. A single runtime-wide visual worker projects that
@@ -480,26 +511,51 @@ browser receive-to-paint measurement described above.
 
 ## Historical price candles
 
-`/api/v1/candles` defaults to `source=session_trades` in **live, demo and replay**,
-for spot and perpetuals. Current candles require no venue REST call. They consume
-the bounded session-owned `AdmittedTradeHistory`, not the selected-only
+The `/api/v1/candles` protocol default remains `source=session_trades` in every
+mode. The terminal's Auto preference explicitly requests `venue_ohlcv` in LIVE
+and `session_trades` in demo/replay. Observed candles require no venue REST call:
+they consume bounded session-owned `AdmittedTradeHistory`, not the selected-only
 `VisualHistory` above. Native exact Decimal/string OHLC/base-volume values remain
-authoritative; numbers are only bounded plotting coordinates.
+authoritative for both products; numbers are only bounded plotting coordinates.
 
-The request's `instrument_ids` selects at most 16 unique, active pinned native
-instruments of the same canonical base and market type and must include the
-primary. Empty/omitted means primary only. The UI supplies its actual native
+The Lightweight Charts 5.3.0 adapter parses decimal strings into integer units,
+then uses bounded origin-relative linear coordinates (positive representable
+prices for log). The decimal quantum incorporates known tick precision. Every
+price/volume/compatible positioning series supplies a custom formatter,
+`minMove = 10^-q` and explicit `base = 10^q`; the base is not computed as a
+floating-point reciprocal of `minMove`. Here `q` is the plotting-unit exponent
+for linear coordinates and decimal places for log. This preserves the decimal
+lattice expected by the renderer, not a new native executable tick rule.
+Nonfinite/out-of-range coordinates or collisions between distinct exact values
+fail with an unsupported-precision state; the original strings remain available
+in the exact table/readout. Axis interpolation is display-only. Detached
+viewports retain their fractional left anchor and pixel bar spacing through
+deferred axis-width changes; the changing-precision browser regression passes.
+
+For Observed flow, `instrument_ids` selects at most 16 unique, active pinned
+native instruments of the same canonical base and market type and must include
+the primary. Empty/omitted means primary only. The UI supplies its actual native
 display cohort, not latest catalog guesses. Responses return primary-first
 canonical IDs, primary/aggregate scope, venue label, quote identities and missing
 members. Cross-quote cohorts are explicitly indicative without conversion and
 cannot supply financial execution prices. Missing members remain disclosed.
+Ticker history instead requests only the primary before identity checks and
+request gating. It does not require changing the observed-flow cohort, and
+an aggregate footprint never makes its ticker bars aggregate.
+Ticker eligibility is also independent of collector/observed-source readiness:
+a connected selected session may request venue history while its observed
+status is unavailable/error. Loading/seeking and source/session/generation
+identity checks still gate publication. This is not independent market ownership
+and does not certify that books, prints or financial workflows are healthy.
 
 Price Action, the main footprint and interval-based studies share one persisted
 interval: **1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w,
-1M**. Fixed intervals floor against the Unix UTC epoch (weeks start Thursday,
-1970-01-01); `1M` is first-of-month to next-first-of-month UTC, not 30 days.
-Native delivery order determines open/close within each bucket. Missing buckets
-stay gaps, and an active candle updates in place rather than one bar per print.
+1M**. Observed fixed intervals floor against the Unix UTC epoch (weeks start
+Thursday, 1970-01-01); `1M` is first-of-month to next-first-of-month UTC, not
+30 days. Native delivery order determines observed open/close within each
+bucket. Venue intervals use their supported native alignment instead.
+Missing buckets stay gaps, and an active candle updates in place rather than
+one bar per print.
 
 ### Shared session-trade clock and retention
 
@@ -541,12 +597,10 @@ only the admitted prefix, never future history.
 
 ### Open interest and funding beside price
 
-Price Action can stack two panes under price and volume on the same time axis:
-**open interest** (line through each bucket's close, a thin high/low range and
-a dot per observed bucket) and **funding** (signed bars from an explicit zero
-line, amber when positive and violet when negative). Funding colour is who
-pays, not price direction. The right edge labels each pane's visible maximum
-and minimum.
+Price Action can opt into compatible **open interest** and **funding** panes
+under price and volume. The workspace default is positioning off; unavailable
+or clock-incompatible data does not reserve empty panes. Funding sign describes
+who pays, not price direction. Values and units remain source-declared.
 
 Data comes from `/api/v1/positioning`: perpetual context observed by this
 session, bucketed with the same function and source frontier as session-trade
@@ -560,11 +614,11 @@ must match the candle source identity. Each bucket retains the last observed
 funding rate together with that observation's interval; it is not a sum of
 funding payments. An unknown interval stays null and has no annualization.
 
-The panes are on by default for a selected perpetual and opt-in for spot, where
-they show the related perpetual of the same underlying, labeled as related.
-They are unavailable with **Venue history**: observed context uses projected
-receive time and is never drawn against exchange-time bars. Only venues with
-a native context channel supply data, currently Hyperliquid. A different venue
+Positioning is opt-in. The selected instrument is preferred; any related
+perpetual context is explicitly labeled as related. Positioning is unavailable
+with **Ticker history**: observed context uses projected receive time and is
+never drawn against exchange-time bars without a verified compatible mapping.
+Only venues with a native context channel supply data, currently Hyperliquid. A different venue
 or spot selection can show an already-owned Hyperliquid perpetual of the same
 canonical underlying, explicitly labeled `related_underlying`, or **not
 observed**. Querying positioning does not subscribe or backfill a missing
@@ -585,32 +639,38 @@ exposes the supplying series, retention and reasons.
 
 ### Explicit primary-only venue OHLCV
 
-**Venue history** selects `source=venue_ohlcv`: a separate bounded historical
-request for the exact primary, where its native family/interval is supported.
-It uses exchange UTC, not projected receive UTC. Aggregate selection cannot
-silently return primary-only candles; choose a single instrument for venue
-history. This is never automatic startup backfill, a fallback for missing
-session trades, or merged into the session series.
-Explicit Venue history can make public HTTP requests even from a demo/replay
+**Ticker history** selects `source=venue_ohlcv` for the exact primary, where its
+native family/interval is supported. It uses exchange UTC, not projected receive
+UTC. The observed cohort remains independent: the terminal normalizes this
+request to primary-only rather than asking the user to drop the cohort.
+LIVE Auto chooses this product; it is never a fallback for missing session
+trades and is never merged into the observed series.
+Explicit Ticker history can make public HTTP requests even from a demo/replay
 session without `serve --network`; that flag enables live discovery/collection,
-not this separately selected history query. The result is a current venue
-history page, not recorded-prefix evidence, and cannot certify what was known
-at a replay cursor.
+not this separately selected history query. The UI must warn that **current
+external venue history is not replay evidence** and cannot certify what was
+known at the replay cursor. Demo/replay Auto stays on observed causal history.
 
-| Existing native venue/family | Supported candle intervals | Endpoint and bounds |
+| Native venue/family | Supported candle intervals | Endpoint, paging and limits |
 | --- | --- | --- |
-| Binance Global / spot-v3 | 1m, 3m, 5m, 15m, 30m; 1h, 2h, 4h, 6h, 8h, 12h; 1d, 3d, 1w, 1M | `data-api.binance.vision/api/v3/klines`, the existing adapter's official data-only host; limit ≤500 here |
-| Binance Global / usdm-v1 | Same 15 minute–month intervals | `fapi.binance.com/fapi/v1/klines`; native USD-M perpetual, never the spot endpoint |
-| Binance.US / spot-v3 | Same minute–month intervals | `api.binance.us/api/v3/klines`; distinct venue, opt-in remains unchanged |
-| Coinbase / advanced-trade | 1m, 5m, 15m, 30m; 1h, 2h, 4h, 6h; 1d | Public `/api/v3/brokerage/market/products/{id}/candles`; native maximum 350, disclosed when requested limit exceeds it; no Exchange-API substitution |
-| Kraken / spot-v2 | 1m, 5m, 15m, 30m; 1h, 4h; 1d, 1w | `/0/public/OHLC`, exact native pair identity; endpoint retains up to 720 recent entries, current uncommitted bucket included |
-| Bybit / v5-spot or v5-linear | 1m, 3m, 5m, 15m, 30m; 1h, 2h, 4h, 6h, 12h; 1d, 1w, 1M | `/v5/market/kline?category=spot` or `linear` from the native family; validates category/symbol, no inverse substitution |
-| KuCoin / classic-spot | 1m, 3m, 5m, 15m, 30m; 1h, 2h, 4h, 6h, 8h, 12h; 1d, 1w, 1M | `/api/v1/market/candles`; seconds-based bounded range, native maximum 1500 rows, output ≤500; volume, not turnover |
-| Hyperliquid / info | 1m, 3m, 5m, 15m, 30m; 1h, 2h, 4h, 8h, 12h; 1d, 3d, 1w, 1M | Public `candleSnapshot`; exact native coin including spot `@index` and HIP-3 dex prefix; most recent 5000 candles available upstream |
+| Binance Global / spot-v3 | 1m, 3m, 5m, 15m, 30m; 1h, 2h, 4h, 6h, 8h, 12h; 1d, 3d, 1w, 1M | `data-api.binance.vision/api/v3/klines`; time paging using inclusive `endTime` derived from the exclusive boundary; ≤500 bars/page here |
+| Binance Global / usdm-v1 | Same 15 minute–month intervals | `fapi.binance.com/fapi/v1/klines`; time paging, ≤500 bars/page; native USD-M perpetual, never the spot endpoint |
+| Binance.US / spot-v3 | Same 15 minute–month intervals | `api.binance.us/api/v3/klines`; time paging, ≤500 bars/page; distinct venue, opt-in unchanged |
+| Coinbase / advanced-trade spot | 1m, 5m, 15m, 30m; 1h, 2h, 4h, 6h; 1d | Public `/api/v3/brokerage/market/products/{id}/candles`; bounded seconds-based start/end ranges, ≤350 bars/page; no Exchange-API substitution |
+| Kraken / spot-v2 | 1m, 5m, 15m, 30m; 1h, 4h; 1d, 1w | `/0/public/OHLC`, exact native pair; `recent_only` / `limited`, ≤500 returned bars, upstream retains ≤720 recent entries including the uncommitted bucket; older requests do not issue HTTP |
+| Bybit / v5-spot or v5-linear | 1m, 3m, 5m, 15m, 30m; 1h, 2h, 4h, 6h, 12h; 1d, 1w, 1M | `/v5/market/kline?category=spot` or `linear`; time paging with `end`, ≤500 bars/page; validates category/symbol, no inverse substitution |
+| KuCoin / classic-spot | 1m, 3m, 5m, 15m, 30m; 1h, 2h, 4h, 6h, 8h, 12h; 1d, 1w, 1M | `/api/v1/market/candles`; bounded seconds-based start/end ranges; native maximum 1500 rows, output ≤500; volume, not turnover |
+| Hyperliquid / info spot or perpetual | 1m, 3m, 5m, 15m, 30m; 1h, 2h, 4h, 8h, 12h; 1d, 3d, 1w, 1M | Public `candleSnapshot`; exact native coin, including spot `@index` and HIP-3 dex prefix; ≤500 bars/page, time paging while nonempty; provider retains the latest 5000 **candles**, not 5000 wall-clock intervals; `hyperliquid_recent_5000` discloses retention without an inferred timestamp floor; empty native pages report `limited`, not `exhausted` |
+| OKX / v5-spot or linear v5-swap | 1m, 3m, 5m, 15m, 30m; 1h, 2h, 4h, 6h, 12h; 1d, 3d, 1w, 1M | `/api/v5/market/candles` newest, `/history-candles` older; ≤300 bars/page, exclusive native `after`; explicit UTC variants from 6h upward; swaps require noninverse base-denominated contracts and quote settlement; base volume uses `volCcy` for swaps, `vol` for spot |
+| Bitget / v2-spot or v2-usdt-futures | 1m, 3m, 5m, 15m, 30m; 1h, 4h, 6h, 12h; 1d, 3d, 1w, 1M | `/api/v2/{spot,mix}/market/candles` newest (≤500 here), `/history-candles` older (≤200); `endTime` time paging, `productType=USDT-FUTURES` for noninverse USDT-quoted/settled perpetuals; explicit UTC variants from 6h upward; volume index 5 is base |
+| Deribit / jsonrpc-v2 | 1m, 3m, 5m, 15m, 30m; 1h, 2h, 6h, 12h; 1d | `/api/v2/public/get_tradingview_chart_data`; bounded start/end ranges, ≤500 bars/page here; only inverse USD-quoted, base-settled `BTC-PERPETUAL` and `ETH-PERPETUAL`; `volume` is already base, not quote `cost`; excludes block trades/RFQ |
 
-OKX, Bitget and Deribit are not currently venue-OHLCV families in this service,
-even though the live catalog has their adapters. Session-trade candles remain
-independent of venue-history endpoint support.
+These are implemented selectors and bounds, not a claim of live access or
+complete provider history. OKX describes recent-years history without a
+workstation-guaranteed duration. Bitget history uses `endTime`/`limit`, not an
+explicit start/end range: its mix endpoint's 90-day **query-range** restriction
+is not represented as a 90-day total retention guarantee. Session-trade candles
+remain independent of these endpoint capabilities.
 
 Venue `1M` is also a UTC calendar month, including leap-year February. Unlike
 session fixed buckets, venue weeks/multi-day bars preserve the returned native
@@ -620,16 +680,59 @@ starts and interval ends are validated. Binance and Hyperliquid inclusive
 millisecond ends become exclusive ends. Other ends derive from the documented
 interval. Kraken's 21600-minute interval is fifteen days, not `1M`.
 
-Requests fetch one recent bounded page, not arbitrary historical pagination.
-Accessibility and historical depth vary; empty, unsupported, blocked,
-rate-limited and invalid responses remain explicit. Official native family
-endpoints and access restrictions remain authoritative: no credentials, testnet,
-proxy, different venue or spot/perpetual substitution repairs a denied request.
+The initial request targets 300 recent bars, subject to provider page caps.
+Approaching the loaded left edge requests older history using positive exact
+`before_ns`, an exclusive **start** boundary; only venue history supports it.
+Responses carry a session-independent exact `series_key` and `history`
+metadata: requested/next boundary, `state`, `pagination`, page `max_bars`,
+`update_mode:"poll"` and `poll_interval_ms:5000`. Source identity and generation
+still fence publication. `more` permits older loading; `limited` describes a
+retention/pagination limit, not proven exhaustion; `recent_only` cannot promise
+arbitrary older data. Short/empty results alone do not prove `exhausted`.
+`unavailable` and `unsupported` retain reasons and actual supported intervals.
+
+Newest pages are polled every **five seconds**, not streamed from a native
+candle subscription. Exact start-keyed merging sorts/deduplicates overlaps,
+updates forming bars and corrections, and prevents stale older responses
+from overwriting newer observations. Reconnect recovery seeks overlap before
+declaring retained data current; unfilled coverage remains explicit.
+Same-series request failures retain readable bars with stale/error state;
+identity changes discard incompatible bars. Prepending and polling preserve
+the user's detached viewport rather than jumping to Latest.
+
+Each mounted query retains at most **10,000 bars**, independently of the
+session-trade row/byte cap. At capacity it pauses growth with an explicit limit
+state; it must not evict visible history merely to admit new points. Server
+page/cache bounds are documented in [API](API.md#explicit-venue-ohlcv).
+Accessibility and historical depth vary. Official native family endpoints and
+access restrictions remain authoritative: no credentials, testnet, proxy,
+different venue or spot/perpetual substitution repairs a denied request.
 
 Venue fetch/check times are not exchange freshness. A short synthetic demo or
 recorded prefix cannot claim hours of session coverage because its chosen bucket
 is hourly, and a historical venue page is not evidence of observed session
 continuity. Neither source certifies full venue execution history.
+
+### Current finite browser evidence
+
+The [actual implementation record](CHART_REDESIGN_PLAN.md#recorded-implementation-observations)
+documents Binance spot **300→600→900** backfill, the same exact inspected
+normal-precision candle across prepend, revisions within the forming bucket,
+and actual hour rollover to **901** bars. All 18 six-theme/three-width states
+showed no horizontal overflow or empty positioning panes; continuous touch pan
+detached follow, with pinch dispatched and the chart still visible. The bounded
+300-bar frame/heap/canvas sample is not a latency, throughput or leak guarantee.
+
+Actual screenshots: [1440 dark](evidence/chart-redesign/live-price-1440-dark.png),
+[1440 light](evidence/chart-redesign/live-price-1440-light.png),
+[1280 dark](evidence/chart-redesign/live-price-1280-dark.png),
+[390 dark](evidence/chart-redesign/live-price-390-dark.png).
+**Caption:** current live ticker history can coexist with the visible
+`analytical_queue_overflow` collector incident. Independent REST history is not
+observed-flow recovery. The [synthetic mockup](media/chart-redesign-mockup.html)
+is a separate layout study. Gate receipts live in the redesign record;
+other providers are not live-qualified by Binance.
+
 
 Checked official endpoint/schema sources:
 
@@ -642,3 +745,9 @@ Checked official endpoint/schema sources:
 - [KuCoin Classic klines](https://www.kucoin.com/docs-new/rest/spot-trading/market-data/get-klines)
   and [official interval/volume schema](https://www.kucoin.com.tr/docs/rest/spot-trading/market-data/get-klines)
 - [Hyperliquid candle snapshot and native coin identities](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/info-endpoint#candle-snapshot)
+- [OKX historical candlesticks](https://www.okx.com/docs-v5/en/#rest-api-market-data-get-candlesticks-history)
+- [Bitget spot historical candles](https://www.bitget.com/legacy-docs/classic/spot/market/Get-History-Candle-Data)
+  and [latest candles](https://www.bitget.com/legacy-docs/classic/spot/market/Get-Candle-Data)
+- [Bitget perpetual historical candles](https://www.bitget.com/legacy-docs/classic/contract/market/Get-History-Candle-Data)
+  and [latest candles](https://www.bitget.com/legacy-docs/classic/contract/market/Get-Candle-Data)
+- [Deribit chart data and volume exclusions](https://docs.deribit.com/api-reference/market-data/public-get_tradingview_chart_data)

@@ -963,3 +963,121 @@ test('session display time follows paused and rewound source time, never request
     assert.equal(store.getState().displayStatus.displayTimeMs, null);
   }
 });
+
+test('unchanged native pages preserve every display identity and publish nothing', () => {
+  const { store, bridge } = setup();
+  const initial = page([trade(0), trade(1)], { books: [book(primary)] });
+  bridge.accept(initial);
+  bridge.configure();
+  const before = store.getState();
+  let publications = 0;
+  const unsubscribe = store.subscribe(() => publications++);
+  for (let index = 0; index < 5; index++) {
+    bridge.accept(structuredClone({ ...initial, trades: [] }));
+  }
+  unsubscribe();
+  assert.equal(publications, 0);
+  assert.equal(store.getState(), before);
+});
+
+test('dirty display domains propagate frontier quality metadata and value area independently', () => {
+  const { store, bridge } = setup();
+  const first = page([trade(0)], { books: [book(primary)] });
+  bridge.accept(first); bridge.configure();
+  const before = store.getState();
+  store.getState().setValueAreaPct(0.9); bridge.configure();
+  const profileChanged = store.getState();
+  assert.equal(profileChanged.session, before.session);
+  assert.equal(profileChanged.currentCandle, before.currentCandle);
+  assert.equal(profileChanged.recentTrades, before.recentTrades);
+  assert.equal(profileChanged.orderBook, before.orderBook);
+  assert.equal(profileChanged.connections, before.connections);
+  assert.notEqual(profileChanged.volumeProfile, before.volumeProfile);
+  const closedFrontier = String(BigInt(before.currentCandle!.closeTime + 1) * 1_000_000n);
+  bridge.accept({ ...first, trades: [], display_frontier_ns: closedFrontier });
+  const closed = store.getState();
+  assert.equal(closed.currentCandle, null);
+  assert.equal(closed.candles.length, 1);
+  assert.equal(closed.session, before.session);
+  assert.equal(closed.aggregatedBook, before.aggregatedBook);
+  const unavailable = book(primary);
+  unavailable.eligibility = { eligible: false, reasons: ['quality changed without book revision'] };
+  bridge.accept({ ...first, trades: [], books: [unavailable], display_frontier_ns: closedFrontier });
+  assert.equal(store.getState().orderBook, null);
+  assert.equal(store.getState().connections.one?.status, 'stale');
+  assert.ok(store.getState().displayStatus.reasons.includes('quality changed without book revision'));
+  const revised = { ...primary, metadata_version: '2', native_symbol: 'BTCUSD' };
+  bridge.reset({ sessionId: 's', generation: '1', sourceId: 'replay', sourceMode: 'replay', primary: revised });
+  bridge.accept({ ...first, trades: [], instruments: [revised], display_frontier_ns: closedFrontier });
+  assert.equal(store.getState().recentTrades[0]?.native?.instrument_id, primary.instrument_id);
+  assert.equal(store.getState().orderBook?.native?.revision, '1');
+  assert.equal(store.getState().displayStatus.displayTimeMs, Number(BigInt(closedFrontier) / 1_000_000n));
+});
+
+test('retirement and display settings match fresh reconstruction with bounded publications', () => {
+  const live = setup();
+  const origin = 1_700_000_040_000_000_000n;
+  const rows = Array.from({ length: 1200 }, (_, event) => trade(event, {
+    display_time_ns: String(origin + BigInt(event) * 1_000_000_000n),
+    base_quantity: String(event % 7 + 1),
+    trade: { ...trade(event).trade, price: String(100 + event % 13 / 2), taker_side: event % 3 ? 'buy' : 'sell' },
+  }));
+  live.bridge.accept(page(rows));
+  const frontier = rows.at(-1)!.display_time_ns;
+  for (const retired of [29, 90, 181]) {
+    let publications = 0;
+    const unsubscribe = live.store.subscribe(() => publications++);
+    live.bridge.accept(page([], { cursor: rows.at(-1)!.cursor, display_frontier_ns: frontier,
+      retention: { floor: rows[retired]!.cursor, stream_floors: {} } }));
+    unsubscribe();
+    assert.ok(publications <= 4, `retirement published ${publications} times`);
+    for (const settings of [
+      { timeframe: '1m' as const, tick: 0.5, imbalance: 3, area: 0.7 },
+      { timeframe: '5m' as const, tick: 1, imbalance: 4, area: 0.9 },
+      { timeframe: '1m' as const, tick: 0.5, imbalance: 3, area: 0.7 },
+    ]) {
+      const reference = setup();
+      reference.bridge.accept(page(rows.slice(retired + 1), { display_frontier_ns: frontier }));
+      for (const { store, bridge } of [live, reference]) {
+        store.getState().setTimeframe(settings.timeframe);
+        store.getState().setTickSize(settings.tick);
+        store.getState().setImbalanceThreshold(settings.imbalance);
+        store.getState().setValueAreaPct(settings.area);
+        bridge.configure();
+      }
+      for (const field of ['candles', 'currentCandle', 'volumeProfile', 'flowBars', 'liveBar', 'session', 'ticker'] as const) {
+        assert.deepEqual(live.store.getState()[field], reference.store.getState()[field], `${retired}:${field}`);
+      }
+    }
+  }
+});
+
+test('late baseline volume invalidates cached Z scores including zero variance transitions', () => {
+  const { store, bridge } = setup();
+  store.getState().setTimeframe('1m'); bridge.configure();
+  const origin = 1_700_000_040_000_000_000n;
+  const row = (event: number, second: number, price: number, volume: number) => trade(event, {
+    display_time_ns: String(origin + BigInt(second) * 1_000_000_000n),
+    base_quantity: String(volume), trade: { ...trade(event).trade, price: String(price) },
+  });
+  bridge.accept(page([row(0, 0, 100, 1), row(1, 1, 101, 3), row(2, 60, 100, 4), row(3, 61, 101, 2)]));
+  store.getState().setTickSize(1); bridge.configure();
+  assert.equal(store.getState().currentCandle?.levels.get(100)?.zScore, 2);
+  assert.equal(store.getState().currentCandle?.levels.get(101)?.zScore, 0);
+  const frontier = String(origin + 61_000_000_000n);
+  bridge.accept(page([row(4, 0, 100, 2), row(5, 61, 100, 1)], { display_frontier_ns: frontier }));
+  assert.equal(store.getState().currentCandle?.levels.get(100)?.zScore, 2);
+  bridge.accept(page([row(6, 1, 101, 2), row(7, 61, 100, 1)], { display_frontier_ns: frontier }));
+  assert.equal(store.getState().currentCandle?.levels.get(100)?.zScore, 2);
+  assert.equal(store.getState().currentCandle?.levels.get(101)?.zScore, -2);
+});
+
+test('explicit source mode changes fence cached display studies even with a reused generation', () => {
+  const { store, bridge } = setup();
+  bridge.accept(page([trade(0)], { books: [book(primary)] }));
+  bridge.reset({ sessionId: 's', generation: '1', sourceId: 'replay', sourceMode: 'live', primary });
+  assert.deepEqual(bridge.cursor, { delivery: '0', event: -1 });
+  assert.equal(store.getState().session, null);
+  assert.equal(store.getState().orderBook, null);
+  assert.equal(store.getState().displayStatus.lagObservation, 'live');
+});

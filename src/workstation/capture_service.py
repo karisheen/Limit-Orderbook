@@ -9,6 +9,7 @@ import re
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
+from .ownership import join_owned
 from .recording import (
     Recorder,
     RecorderLimits,
@@ -39,6 +40,7 @@ class ActiveCapture:
     owner: str
     recorder: Recorder
     binding: RecorderBinding
+    stop_task: asyncio.Task[None] | None = None
 
 
 class CaptureService:
@@ -330,24 +332,43 @@ class CaptureService:
 
     async def _stop(self, capture_id):
         active = self.active[capture_id]
+        if active.stop_task is None:
+            active.stop_task = asyncio.create_task(
+                self._finish_stop(capture_id, active)
+            )
+        # Own the whole transaction, not only the recorder's drain: cancellation
+        # must also join descriptor verification and catalog publication.
+        await join_owned(active.stop_task)
+
+    async def _finish_stop(self, capture_id, active):
         row = self.rows[capture_id]
         try:
             manifest = await active.binding.stop()
-            row.update(
-                status="complete" if manifest.complete else "incomplete",
-                reasons=list(manifest.incomplete_reasons),
-            )
+            # A timed-out writer still owns its disk files. This durable shutdown
+            # wait is intentionally unbounded: retain ownership without polling or
+            # upgrading the incomplete result while its writer is still alive.
+            if active.recorder._thread.is_alive():
+                await asyncio.to_thread(active.recorder._thread.join)
             if manifest.complete:
                 descriptor = await self.runtime._catalog_work(
                     self.runtime._capture_descriptor, active.recorder.path
                 )
                 self._register(row, active.recorder.path, descriptor)
+            row.update(
+                status="complete" if manifest.complete else "incomplete",
+                reasons=list(manifest.incomplete_reasons),
+            )
         except Exception:
+            row.update(status="error", reasons=["capture_finalization_failed"])
             active.recorder.mark_incomplete("capture_finalization_failed")
             await active.recorder.finalize()
-            row.update(status="error", reasons=["capture_finalization_failed"])
-        finally:
-            self.active.pop(capture_id, None)
+            if active.recorder._thread.is_alive():
+                await asyncio.to_thread(active.recorder._thread.join)
+        self.active.pop(capture_id, None)
+
+    async def _stop_captures(self, capture_ids):
+        for capture_id in capture_ids:
+            await self._stop(capture_id)
 
     async def stop(self, session, capture_id):
         from .runtime import RuntimeFailure
@@ -361,12 +382,18 @@ class CaptureService:
 
     async def close_session(self, session_id):
         async with self.lock:
-            for capture_id, active in tuple(self.active.items()):
-                if active.owner == session_id:
-                    await self._stop(capture_id)
+            capture_ids = tuple(
+                capture_id
+                for capture_id, active in self.active.items()
+                if active.owner == session_id
+            )
+            await join_owned(asyncio.create_task(self._stop_captures(capture_ids)))
 
     async def close(self):
         async with self.lock:
             self.closed = True
-            for capture_id in tuple(self.active):
-                await self._stop(capture_id)
+            # Join the entire set even if cancellation arrives during its first
+            # drain; no subsequent capture may be left without a closing owner.
+            await join_owned(
+                asyncio.create_task(self._stop_captures(tuple(self.active)))
+            )

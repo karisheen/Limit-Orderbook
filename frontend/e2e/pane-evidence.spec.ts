@@ -3,6 +3,7 @@ import type { Locator, Page, Request, Response } from '@playwright/test';
 import type { Catalog, Frame, VisualGrid } from '../src/api';
 import { chartEvidence } from '../src/data-freshness';
 import type { WorkspacePreferences } from '../src/workspace';
+import { boundedSize, plotArea } from '../src/market-charts-model';
 
 // All responses are from the actual native demo session; no substituted market data.
 const primary = (page: Page) => page.getByTestId('chart-pane-heatmap');
@@ -411,4 +412,160 @@ test('flow freshness tracks primary evidence regardless of quote and trade overl
   await replay(page, 'step');
   await expect.poll(async () => Number(await pane.getByTestId('chart-freshness').getAttribute('data-evidence-resident-ms'))).toBeGreaterThan(before);
   await expect(pane.getByTestId('chart-freshness')).toHaveAttribute('data-evidence-ns', identity!);
+});
+
+test('delayed drawing keeps cursor evidence on the successful draw, independently of paint ACK', async ({ page }) => {
+  await openAdvancedDemo(page);
+  const pane = primary(page), chart = pane.getByTestId('market-charts'), plot = pane.locator('.m4-chart-plot');
+  await pane.getByTestId('view-freeze').click();
+  await plot.hover({ position: { x: 100, y: 100 } });
+  await expect(pane.getByRole('tooltip')).toContainText('Resting B');
+  const before = await chart.getAttribute('data-drawn-view-id');
+  const pixels = await pane.getByTestId('liquidity-canvas').evaluate(canvas => {
+    if (!(canvas instanceof HTMLCanvasElement)) throw new Error('Missing chart canvas');
+    return canvas.toDataURL();
+  });
+  // Delay browser scheduling, never replace native source evidence or renderer output.
+  await page.evaluate(() => {
+    const request = window.requestAnimationFrame.bind(window);
+    const cancel = window.cancelAnimationFrame.bind(window);
+    const queued = new Map<number, FrameRequestCallback>();
+    let id = 1_000_000_000;
+    window.requestAnimationFrame = callback => { queued.set(++id, callback); return id; };
+    window.cancelAnimationFrame = handle => { queued.delete(handle); cancel(handle); };
+    Object.assign(window, {
+      flushChartFrames: () => { const batch = [...queued.values()]; queued.clear(); batch.forEach(callback => callback(performance.now())); },
+      restoreChartFrames: () => { window.requestAnimationFrame = request; window.cancelAnimationFrame = cancel; queued.forEach(callback => request(callback)); queued.clear(); },
+    });
+  });
+  try {
+    await pane.getByLabel('Chart mode', { exact: true }).selectOption('cvd');
+    await expect(chart).toHaveAttribute('data-mode', 'cvd');
+    await expect(chart).toHaveAttribute('data-drawn-mode', 'heatmap');
+    await expect(pane.getByRole('tooltip')).toHaveAttribute('data-mode', 'heatmap');
+    await expect(pane.getByRole('tooltip')).toHaveAttribute('data-view-id', before!);
+    expect(await pane.getByTestId('liquidity-canvas').evaluate(canvas => {
+      if (!(canvas instanceof HTMLCanvasElement)) throw new Error('Missing chart canvas');
+      return canvas.toDataURL();
+    })).toBe(pixels);
+    await page.evaluate(() => {
+      if (!('flushChartFrames' in window) || typeof window.flushChartFrames !== 'function') throw new Error('Missing frame gate');
+      window.flushChartFrames();
+    });
+    await expect(chart).toHaveAttribute('data-drawn-mode', 'cvd');
+    await expect(pane.getByRole('tooltip')).toHaveAttribute('data-mode', 'cvd');
+    await expect(pane.getByRole('tooltip')).not.toContainText('Resting B');
+  } finally {
+    await page.evaluate(() => {
+      if (!('restoreChartFrames' in window) || typeof window.restoreChartFrames !== 'function') throw new Error('Missing frame gate');
+      window.restoreChartFrames();
+    });
+  }
+});
+
+test('scalar charts reject hidden price gestures and normalize supported wheel units', async ({ page }) => {
+  await openAdvancedDemo(page);
+  const pane = primary(page), chart = pane.getByTestId('market-charts'), plot = pane.locator('.m4-chart-plot');
+  await pane.getByTestId('view-freeze').click();
+  const originalOffset = (await preferences(page)).priceOffset;
+  for (const mode of ['cvd', 'ofi']) {
+    await pane.getByLabel('Chart mode', { exact: true }).selectOption(mode);
+    await expect(chart).toHaveAttribute('data-drawn-mode', mode);
+    await plot.focus();
+    const consumed = await plot.evaluate(element => {
+      const events = [
+        new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }),
+        new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }),
+        new WheelEvent('wheel', { shiftKey: true, deltaY: 40, bubbles: true, cancelable: true }),
+        new WheelEvent('wheel', { shiftKey: true, deltaY: 0, bubbles: true, cancelable: true }),
+        new WheelEvent('wheel', { deltaX: 100, deltaY: 1, bubbles: true, cancelable: true }),
+        new WheelEvent('wheel', { ctrlKey: true, deltaY: 40, bubbles: true, cancelable: true }),
+      ];
+      return events.map(event => { element.dispatchEvent(event); return event.defaultPrevented; });
+    });
+    expect(consumed).toEqual([false, false, false, false, false, false]);
+    expect((await preferences(page)).priceOffset).toBe(originalOffset);
+  }
+  await pane.getByLabel('Chart mode', { exact: true }).selectOption('heatmap');
+  await expect(chart).toHaveAttribute('data-drawn-mode', 'heatmap');
+  for (const deltaMode of [0, 1, 2]) {
+    const before = BigInt((await chart.getAttribute('data-end-ns'))!) - BigInt((await chart.getAttribute('data-start-ns'))!);
+    const response = visualization(page, input => typeof input.end_ns === 'string' && typeof input.start_ns === 'string'
+      && BigInt(input.end_ns) - BigInt(input.start_ns) !== before);
+    const plotBounds = (await plot.boundingBox())!;
+    // Zoom inward so retained-history clamping cannot mask unit normalization.
+    const deltaY = deltaMode === 0 ? -16 : deltaMode === 1 ? -1 : -16 / plotArea(plotBounds.width, plotBounds.height).height;
+    const delta = await plot.evaluate((element, { deltaMode, deltaY }) => {
+      const bounds = element.getBoundingClientRect();
+      const event = new WheelEvent('wheel', { deltaY, deltaMode, clientX: bounds.x + bounds.width / 2, clientY: bounds.y + bounds.height / 2, bubbles: true, cancelable: true });
+      element.dispatchEvent(event);
+      return { prevented: event.defaultPrevented, deltaY };
+    }, { deltaMode, deltaY });
+    expect(delta.prevented).toBe(true);
+    const changed = await painted(pane, response);
+    expect(BigInt(changed.view.end_ns) - BigInt(changed.view.start_ns)).toBe(before * BigInt(Math.round(Math.exp(-16 * 0.002) * 1_000_000)) / 1_000_000n);
+    expect((await preferences(page)).priceOffset).toBe(originalOffset);
+  }
+});
+
+test('frozen chart refreshes bounded backing stores when DPR changes without CSS resizing', async ({ page, context }) => {
+  await openAdvancedDemo(page);
+  const pane = primary(page), chart = pane.getByTestId('market-charts'), plot = pane.locator('.m4-chart-plot');
+  await pane.getByTestId('view-freeze').click();
+  const view = await chart.getAttribute('data-drawn-view-id');
+  const bounds = (await plot.boundingBox())!;
+  const expected = boundedSize(bounds.width, bounds.height, 2);
+  const session = await context.newCDPSession(page);
+  const viewport = page.viewportSize()!;
+  await session.send('Emulation.setDeviceMetricsOverride', { ...viewport, deviceScaleFactor: 2, mobile: false });
+  await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+  await expect(chart).toHaveAttribute('data-pixel-width', String(expected.pixelWidth));
+  await expect(chart).toHaveAttribute('data-pixel-height', String(expected.pixelHeight));
+  expect(await plot.boundingBox()).toEqual(bounds);
+  await expect(chart).toHaveAttribute('data-drawn-view-id', view!);
+  const backing = await plot.locator('canvas').evaluateAll(canvases => canvases.map(canvas => {
+    if (!(canvas instanceof HTMLCanvasElement)) throw new Error('Missing chart canvas');
+    return { width: canvas.width, height: canvas.height };
+  }));
+  expect(backing).toEqual(Array.from({ length: 3 }, () => ({ width: expected.pixelWidth, height: expected.pixelHeight })));
+});
+
+test('hidden frozen charts retain their drawn tuple until source generation fences it', async ({ page }) => {
+  await openAdvancedDemo(page);
+  const pane = primary(page), chart = pane.getByTestId('market-charts');
+  await pane.getByTestId('view-freeze').click();
+  const drawn = await chart.getAttribute('data-drawn-view-id');
+  const pixels = await pane.getByTestId('liquidity-canvas').evaluate(canvas => {
+    if (!(canvas instanceof HTMLCanvasElement)) throw new Error('Missing chart canvas');
+    return canvas.toDataURL();
+  });
+  await openMarketView(page, 'Native book & tape');
+  await expect(pane).toBeHidden();
+  await expect(chart).toHaveAttribute('data-drawn-view-id', drawn!);
+  // Change presentation preferences while the mounted pane is hidden.
+  await pane.getByLabel('Chart mode', { exact: true }).evaluate(select => {
+    if (!(select instanceof HTMLSelectElement)) throw new Error('Missing mode select');
+    select.value = 'ofi';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await expect(chart).toHaveAttribute('data-mode', 'ofi');
+  await expect(chart).toHaveAttribute('data-drawn-mode', 'heatmap');
+  expect(await pane.getByTestId('liquidity-canvas').evaluate(canvas => {
+    if (!(canvas instanceof HTMLCanvasElement)) throw new Error('Missing chart canvas');
+    return canvas.toDataURL();
+  })).toBe(pixels);
+  await openMarketView(page, 'Liquidity & flow');
+  await expect(chart).toHaveAttribute('data-drawn-mode', 'ofi');
+  await expect(chart).toHaveAttribute('data-drawn-view-id', drawn!);
+  await openMarketView(page, 'Native book & tape');
+  const seek = page.waitForResponse(response => response.url().endsWith('/api/v1/replay') && response.request().postDataJSON().action === 'seek');
+  await page.getByLabel('Seek delivery').fill('1');
+  await page.getByRole('button', { name: 'Seek', exact: true }).click();
+  await body<Frame>(seek);
+  await expect(chart).toHaveAttribute('data-drawn-view-id', '');
+  await expect(pane.getByRole('tooltip')).toHaveCount(0);
+  await openMarketView(page, 'Liquidity & flow');
+  await expect(chart).toHaveAttribute('data-drawn-view-id', /.+/);
+  await expect(chart).not.toHaveAttribute('data-drawn-view-id', drawn!);
+  await expect(chart).toHaveAttribute('data-drawn-mode', 'ofi');
 });

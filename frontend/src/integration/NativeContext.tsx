@@ -6,7 +6,7 @@ import type { TerminalController } from '../useTerminal';
 import { useWorkspacePreferences } from '../workspace';
 import type { WorkspacePreferences, WorkspaceState } from '../workspace';
 import { financialInstrumentsForSelection, retainConfirmedCatalog } from './nativeWorkspace';
-import type { ConfirmedCatalog } from './nativeWorkspace';
+import type { ConfirmedCatalog, NativeMetadataFrame } from './nativeWorkspace';
 
 interface NativeContextValue {
   terminal: TerminalController;
@@ -32,11 +32,27 @@ export function NativeProvider({ children }: { children: ReactNode }) {
   const terminal = useTerminal(preferences);
   const { frame, select, source } = terminal;
   const confirmedCatalog = useRef<ConfirmedCatalog | null>(null);
-  const metadata = retainConfirmedCatalog(confirmedCatalog.current, frame, terminal.catalog?.instruments ?? emptyInstruments, terminal.catalogError);
+  const sessionId = frame?.session_id;
+  const generation = frame?.generation;
+  const sourceId = frame?.source.id;
+  const sourceMode = frame?.source.mode;
+  const selectedId = frame?.selection.instrument_id;
+  const metadataStatus = frame?.selection.metadata_status;
+  const metadataVersion = frame?.selection.metadata_version;
+  // A volatile presentation frame is not a metadata dependency.
+  const metadataFrame = useMemo<NativeMetadataFrame | null>(() =>
+    sessionId !== undefined && generation !== undefined && sourceId !== undefined && sourceMode !== undefined
+      ? { session_id: sessionId, generation, source: { id: sourceId, mode: sourceMode },
+        selection: { instrument_id: selectedId ?? null, metadata_status: metadataStatus ?? null, metadata_version: metadataVersion ?? null } }
+      : null,
+  [sessionId, generation, sourceId, sourceMode, selectedId, metadataStatus, metadataVersion]);
+  const catalogInstruments = terminal.catalog?.instruments ?? emptyInstruments;
+  const metadataError = terminal.metadataError;
+  const metadata = useMemo(() => retainConfirmedCatalog(confirmedCatalog.current, metadataFrame, catalogInstruments, metadataError),
+    [metadataFrame, catalogInstruments, metadataError]);
   useEffect(() => { confirmedCatalog.current = metadata; }, [metadata]);
   const instruments = metadata?.instruments ?? emptyInstruments;
   const instrument = metadata?.selected;
-  const selectedId = frame?.selection.instrument_id;
   const financialInstruments = useMemo(() => financialInstrumentsForSelection(instruments, selectedId, instrument), [instruments, selectedId, instrument]);
   const connected = terminal.connection === 'Connected';
   const usable = connected && !!frame && !['seeking', 'unavailable', 'error', 'loading'].includes(frame.status);
@@ -68,8 +84,6 @@ export function NativeProvider({ children }: { children: ReactNode }) {
     }
     source(next.mode, next.id);
   }, [resetViews, updatePreferences, source]);
-  const sourceId = frame?.source.id;
-  const sourceMode = frame?.source.mode;
   const instrumentId = frame?.selection.instrument_id;
   useEffect(() => {
     if (sourceId && sourceMode) setPreferences(previous =>

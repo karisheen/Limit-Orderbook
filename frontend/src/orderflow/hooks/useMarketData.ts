@@ -1,7 +1,8 @@
 // Adapted from zadescoxp/order-flow-screener (Apache-2.0), revision 2b451b5.
 // Modified for Limit Orderbook: native cursor display bridge; no exchange transport.
-import { useLayoutEffect } from "react";
+import { useLayoutEffect, useMemo } from "react";
 import { useNativeTerminal } from "../../integration/NativeContext";
+import { nativeInstrumentEvidence, nativeMetadataScope } from "../../integration/nativeWorkspace";
 import type { NativeMarketData } from "../../api";
 import { useMarketSession, useSessionStore } from "@/lib/session/SessionContext";
 import { drainNativeMarketData } from "@/lib/session/NativeMarketBridge";
@@ -15,6 +16,9 @@ export function useMarketData() {
   const generation = frame?.generation;
   const sourceId = frame?.source.id;
   const sourceMode = frame?.source.mode;
+  const metadataScope = nativeMetadataScope(frame);
+  const instrumentEvidence = useMemo(() => nativeInstrumentEvidence(instrument), [instrument]);
+  const canDrain = usable && !busy && instrumentEvidence !== null && !!sessionId && !!generation && !!sourceId;
   const venue = useSessionStore(s => s.venue);
   const selectedVenues = useSessionStore(s => s.selectedVenues);
   const timeframe = preferences.candleInterval as Timeframe;
@@ -42,8 +46,10 @@ export function useMarketData() {
   }, [session, venue, selectedVenues, timeframe, tickSize, imbalanceThreshold, valueAreaPct,
     sessionId, generation, sourceId, instrument]);
 
+  // Metadata object refreshes update the bridge above without cancelling an
+  // owned page. Only semantic evidence or polling availability owns its lifetime.
   useLayoutEffect(() => {
-    if (!usable || busy || !instrument || !sessionId || !generation || !sourceId) return;
+    if (!canDrain) return;
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const poll = async () => {
@@ -58,5 +64,5 @@ export function useMarketData() {
     };
     void poll();
     return () => { controller.abort(); clearTimeout(timer); };
-  }, [session, workflow, sessionId, generation, sourceId, instrument, usable, busy]);
+  }, [session, workflow, metadataScope, instrumentEvidence, canDrain]);
 }

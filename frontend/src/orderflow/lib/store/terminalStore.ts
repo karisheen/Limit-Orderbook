@@ -92,7 +92,6 @@ export interface TerminalActions {
   setOrderBookMode: (m: OrderBookMode) => void;
   setValueAreaPct: (pct: number) => void;
 
-  finalizeCandle: (candle: FootprintCandle) => void;
   updateConnection: (conn: VenueConnection) => void;
   applyMarketDataBatch: (batch: MarketDataBatch) => void;
   setCrosshair: (time: number | null, price: number | null) => void;
@@ -114,11 +113,11 @@ export interface MarketDataBatch {
   flowBars: FlowBar[];
   liveBar: FlowBar | null;
   session: SessionStats | null;
-  connections: VenueConnection[];
+  connections?: VenueConnection[];
 }
 
 export const MAX_FLOW_BARS = 7200; // two hours of 1-second bars
-const MAX_CANDLES = 500;
+export const MAX_CANDLES = 500;
 const MAX_OBI_POINTS = 600;
 
 const INITIAL_SETTINGS: TerminalSettings = {
@@ -190,12 +189,6 @@ export const createTerminalStore = () => {
 
       setValueAreaPct: (valueAreaPct) => set({ valueAreaPct }),
 
-      finalizeCandle: (candle) =>
-        set((s) => ({
-          candles: [...s.candles, { ...candle, complete: true }].slice(-MAX_CANDLES),
-          currentCandle: null,
-        })),
-
       updateConnection: (conn) =>
         set((s) => ({ connections: { ...s.connections, [conn.venue]: conn } })),
 
@@ -219,7 +212,8 @@ export const createTerminalStore = () => {
               : s.flowBars,
             liveBar: batch.liveBar,
             session: batch.session,
-            connections: Object.fromEntries(batch.connections.map((c) => [c.venue, c])),
+            connections: batch.connections
+              ? Object.fromEntries(batch.connections.map((c) => [c.venue, c])) : s.connections,
           };
         }),
 

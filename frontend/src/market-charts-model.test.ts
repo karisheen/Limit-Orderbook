@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CHART_LIMITS, COLORS, boundedSize, chartRowViewport, footprintCenterRow, intensity, liquidityTileKey, plotNumber, priceCellIndex, priceRowProjector, rowAt, shiftedRange, sideColor, timeAt, timeFraction, zoomedRange } from './market-charts-model.ts';
+import { CHART_LIMITS, boundedSize, chartRowViewport, footprintCenterRow, intensity, liquidityRasterRows, liquidityTileKey, plotNumber, priceCellIndex, priceRowProjector, rowAt, shiftedRange, timeAt, timeFraction, zoomedRange } from './market-charts-model.ts';
 import type { VisualGrid } from './api.ts';
 
 test('large source clocks preserve visible nanosecond offsets without wall-clock conversion', () => {
@@ -34,9 +34,114 @@ test('unknown coverage stays distinct from exact observed zero and fixed saturat
   assert.equal(intensity('5', 10), 0.5);
   assert.equal(intensity('500000', 10), 1);
   assert.equal(plotNumber('1e999'), null);
-  assert.equal(sideColor('unknown'), COLORS.unknown);
-  assert.notEqual(sideColor('unknown'), sideColor('buy'));
-  assert.notEqual(sideColor('unknown'), sideColor('sell'));
+});
+
+test('compact liquidity retains every occupied native bid or ask row instead of nearest-neighbor row loss', () => {
+  for (const side of [0, 1] as const) {
+    for (let occupied = 0; occupied < 128; occupied++) {
+      const cells: [string | null, string | null][] = Array.from({ length: 128 }, () => ['0', '0']);
+      cells[occupied]![side] = '7';
+      const raster = liquidityRasterRows(cells, 0, 128, 14, 2, 10);
+      const pixel = occupied < 64 ? 1 : 0;
+      assert.equal(raster.top, 14);
+      assert.equal(raster.rows.length, 2);
+      assert.equal(raster.rows[pixel]![side === 0 ? 'bid' : 'ask'], 0.7);
+      assert.equal(raster.rows[pixel]![side === 0 ? 'ask' : 'bid'], 0);
+    }
+  }
+});
+
+test('compact liquidity retains both sides and their normalized maxima without summing quantities', () => {
+  const cells = [['2', '0'], ['8', '0'], ['0', '6'], ['0', '4']] as const;
+  assert.deepEqual(liquidityRasterRows(cells, 0, 4, 0, 1, 10), {
+    top: 0,
+    rows: [{ bid: 0.8, ask: 0.6, bidUnknown: false, askUnknown: false }],
+  });
+  assert.deepEqual(liquidityRasterRows(cells, 0, 4, 0, 1, 4).rows, [
+    { bid: 1, ask: 1, bidUnknown: false, askUnknown: false },
+  ]);
+});
+
+test('compact liquidity preserves unknown contributor masks separately from known zero and known peaks', () => {
+  const cells = [[null, '0'], ['0', '0'], ['5', null], [null, '3'], [null, '0'], ['1e999', '0']] as const;
+  assert.deepEqual(liquidityRasterRows(cells, 0, 6, 0, 3, 10).rows, [
+    { bid: null, ask: 0, bidUnknown: true, askUnknown: false },
+    { bid: 0.5, ask: 0.3, bidUnknown: true, askUnknown: true },
+    { bid: 0, ask: 0, bidUnknown: true, askUnknown: false },
+  ]);
+  assert.deepEqual(liquidityRasterRows([['0', null], ['0', null]], 0, 2, 0, 1, 10).rows, [
+    { bid: 0, ask: null, bidUnknown: false, askUnknown: true },
+  ]);
+});
+
+test('compact liquidity maps fractional DPR geometry by native row centers into top-to-bottom physical pixels', () => {
+  const cells = [['1', '0'], ['2', '0'], ['3', '0'], ['4', '0'], ['5', '0'], ['6', '0'], ['7', '0'], ['8', '0']] as const;
+  const dpr = 1.25;
+  assert.deepEqual(liquidityRasterRows(cells, 0, 8, 2.8 * dpr, 2 * dpr, 10), {
+    top: 3,
+    rows: [
+      { bid: 0.8, ask: 0, bidUnknown: false, askUnknown: false },
+      { bid: 0.6, ask: 0, bidUnknown: false, askUnknown: false },
+      { bid: 0.3, ask: 0, bidUnknown: false, askUnknown: false },
+    ],
+  });
+});
+
+test('compact liquidity crops only the requested native rows and clamps source and backing bounds', () => {
+  const cells = [['999', '999'], ['1', '0'], ['2', '0'], ['3', '0'], ['4', '0'], ['999', '999']] as const;
+  assert.deepEqual(liquidityRasterRows(cells, 1, 4, 0, 2, 10).rows, [
+    { bid: 0.4, ask: 0, bidUnknown: false, askUnknown: false },
+    { bid: 0.2, ask: 0, bidUnknown: false, askUnknown: false },
+  ]);
+  assert.deepEqual(liquidityRasterRows(cells, -10, 1, 0, 1, 10).rows, [
+    { bid: 1, ask: 1, bidUnknown: false, askUnknown: false },
+  ]);
+  assert.deepEqual(liquidityRasterRows(cells, 4.9, 99, 0, 1, 1000).rows, [
+    { bid: 0.999, ask: 0.999, bidUnknown: false, askUnknown: false },
+  ]);
+  const oversized: [string | null, string | null][] = Array.from({ length: CHART_LIMITS.rows + 1 }, () => ['0', '0']);
+  oversized[CHART_LIMITS.rows] = ['999', '999'];
+  assert.deepEqual(liquidityRasterRows(oversized, 0, oversized.length, 0, 1, 10).rows, [
+    { bid: 0, ask: 0, bidUnknown: false, askUnknown: false },
+  ]);
+  const bounded = liquidityRasterRows(oversized, 0, oversized.length, 0.75, CHART_LIMITS.height * 10, 10);
+  assert.equal(bounded.top, 0);
+  assert.equal(bounded.rows.length, CHART_LIMITS.height);
+});
+
+test('compact liquidity rejects nonfinite or empty geometry without allocating raster rows', () => {
+  const cells = [['1', '2']] as const;
+  for (const invalid of [NaN, Infinity, -Infinity]) {
+    assert.deepEqual(liquidityRasterRows(cells, invalid, 1, 0, 1, 10).rows, []);
+    assert.deepEqual(liquidityRasterRows(cells, 0, invalid, 0, 1, 10).rows, []);
+    assert.deepEqual(liquidityRasterRows(cells, 0, 1, invalid, 1, 10), { top: 0, rows: [] });
+    assert.deepEqual(liquidityRasterRows(cells, 0, 1, 0, invalid, 10).rows, []);
+  }
+  for (const empty of [0, -1, 0.5]) {
+    assert.deepEqual(liquidityRasterRows(cells, 0, empty, 0, 1, 10).rows, []);
+  }
+  for (const height of [0, -1]) {
+    assert.deepEqual(liquidityRasterRows(cells, 0, 1, 0, height, 10).rows, []);
+  }
+  assert.deepEqual(liquidityRasterRows(cells, 1, 1, 0, 1, 10).rows, []);
+  assert.deepEqual(liquidityRasterRows([], 0, 1, 0, 1, 10).rows, []);
+  assert.deepEqual(liquidityRasterRows(cells, 0, 1, Number.MAX_VALUE, 1, 10).rows, []);
+});
+
+test('compact liquidity rejects backing coordinates beyond exact integer pixel geometry', () => {
+  assert.deepEqual(liquidityRasterRows([['1', '2']], 0, 1, Number.MAX_SAFE_INTEGER, CHART_LIMITS.height, 10).rows, []);
+});
+
+test('fractional compact bounds retain the extra physical edge pixel beyond the source row count', () => {
+  const cells: [string | null, string | null][] = Array.from({ length: CHART_LIMITS.rows }, () => ['0', '0']);
+  cells[0] = ['7', '0'];
+  cells[CHART_LIMITS.rows - 1] = ['0', '9'];
+  const raster = liquidityRasterRows(cells, 0, cells.length, 0.9, cells.length - 0.1, 10);
+  assert.equal(raster.top, 0);
+  assert.equal(raster.rows.length, CHART_LIMITS.rows + 1);
+  assert.equal(raster.rows[CHART_LIMITS.rows]!.bid, 0.7);
+  assert.equal(raster.rows[1]!.ask, 0.9);
+  assert.deepEqual(raster.rows[0], { bid: null, ask: null, bidUnknown: false, askUnknown: false });
 });
 
 test('cursor selects existing exact price rows at both viewport boundaries', () => {

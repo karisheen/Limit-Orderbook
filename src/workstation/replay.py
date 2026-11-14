@@ -196,11 +196,17 @@ class DeliveryDigestObserver:
         self.batch_count, self.event_count, self.digest = batches, events, digest
 
 
+class ReplayFailedError(RuntimeError):
+    """A partial operation requires an explicit successful seek/reset rebuild."""
+
+
 class ReplaySession:
     """Synchronous step/seek and interruptible async pacing over bounded iterators.
 
     All methods belong to one event loop/owner. `pause` interrupts a pending wait;
-    `step` and `seek` pause first. A source transaction is never partially applied.
+    `step` and `seek` pause first. Failed operations are fenced, not rolled back.
+    Owners must call `require_healthy` before publishing retained observer state
+    or diagnostic cursor/clock fields; only a successful explicit seek recovers.
     """
 
     def __init__(
@@ -240,6 +246,7 @@ class ReplaySession:
         self._generation = 0
         self._iterator: Iterator[RecordedBatch] | None = None
         self._pending: RecordedBatch | None = None
+        self._failure: BaseException | None = None
         self._reset()
 
     @property
@@ -249,6 +256,31 @@ class ReplaySession:
             if isinstance(self.reader, RecordingReader)
             else self.reader.total_deliveries
         )
+
+    @property
+    def failed(self) -> bool:
+        return self._failure is not None
+
+    @property
+    def failure(self) -> BaseException | None:
+        return self._failure
+
+    def require_healthy(self) -> None:
+        """Reject publication/continuation of a potentially partial prefix."""
+        if self._failure is not None:
+            raise ReplayFailedError(
+                "replay operation failed; explicit seek/reset rebuild required"
+            ) from self._failure
+
+    def _fail(self, error: BaseException) -> None:
+        self._failure = error
+        self._generation += 1
+        self.status = "failed"
+        self._interrupt.set()
+        try:
+            self._close_iterator()
+        except BaseException as cleanup_error:
+            error.add_note(f"replay iterator cleanup failed: {cleanup_error!r}")
 
     def _new_projection(self) -> RecordingProjection:
         config = dict(self.source.config)
@@ -260,11 +292,12 @@ class ReplaySession:
         return projection
 
     def _close_iterator(self) -> None:
-        if self._iterator is not None:
-            close = getattr(self._iterator, "close", None)
+        iterator = self._iterator
+        self._iterator, self._pending = None, None
+        if iterator is not None:
+            close = getattr(iterator, "close", None)
             if close is not None:
                 close()
-        self._iterator, self._pending = None, None
 
     def _reset(self) -> None:
         self._close_iterator()
@@ -277,21 +310,34 @@ class ReplaySession:
 
     def pause(self) -> None:
         self._generation += 1
-        self.status = "paused"
+        if not self.failed:
+            self.status = "paused"
         self._interrupt.set()
 
     def set_speed(self, speed: Decimal) -> None:
+        self.require_healthy()
         self.clock.set_speed(speed)
         if self._pacer is not None:
             self._pacer.set_speed(speed, asyncio.get_running_loop().time())
         self._interrupt.set()
 
     def _peek(self) -> RecordedBatch | None:
-        if self._pending is None and self._iterator is not None:
-            self._pending = next(self._iterator, None)
-        return self._pending
+        try:
+            if self._pending is None and self._iterator is not None:
+                self._pending = next(self._iterator, None)
+            return self._pending
+        except BaseException as error:
+            self._fail(error)
+            raise
 
     def _apply(self, batch: RecordedBatch) -> RecordedBatch:
+        try:
+            return self._apply_batch(batch)
+        except BaseException as error:
+            self._fail(error)
+            raise
+
+    def _apply_batch(self, batch: RecordedBatch) -> RecordedBatch:
         # Local import avoids paper's ReplayClock/observer module cycle.
         from .paper import PaperEngine, PaperError
 
@@ -335,16 +381,17 @@ class ReplaySession:
                 if observer.frozen_reason is not None:
                     continue
                 try:
-                    observer.on_batch(delivered, self.books(), self.clock)
+                    observer.on_batch(delivered, self.projection.books(), self.clock)
                 except PaperError as error:
                     if str(error) != "funding_catchup_limit":
                         raise
                     observer.freeze(str(error))
             else:
-                observer.on_batch(delivered, self.books(), self.clock)
+                observer.on_batch(delivered, self.projection.books(), self.clock)
         return delivered
 
     def step(self, count: int = 1) -> tuple[RecordedBatch, ...]:
+        self.require_healthy()
         if type(count) is not int or not 1 <= count <= 100_000:
             raise ValueError("step count must be between 1 and 100000")
         self.pause()
@@ -359,6 +406,7 @@ class ReplaySession:
 
     def next_delay_ns(self) -> int | None:
         """Owner-only lookahead for off-loop paced delivery; never exposes evidence."""
+        self.require_healthy()
         batch = self._peek()
         return None if batch is None else self.clock.delay_ns(batch.events[0])
 
@@ -384,6 +432,7 @@ class ReplaySession:
         return self.seek(last.ingest_ordinal, last.event_index)
 
     async def play(self, speed: Decimal = Decimal("1")) -> None:
+        self.require_healthy()
         if self._playing:
             raise RuntimeError("replay already has a playback owner")
         self.clock.set_speed(speed)
@@ -422,6 +471,7 @@ class ReplaySession:
                 self.status = "paused"
 
     async def run_to_end(self, speed: Decimal | None = None) -> None:
+        self.require_healthy()
         if speed is not None:
             await self.play(speed)
             return
@@ -456,6 +506,16 @@ class ReplaySession:
         target = (
             0 if ordinal == 0 else self.reader.resolve_delivery(ordinal, event_index)
         )
+        try:
+            self._rebuild(target)
+        except BaseException as error:
+            self._fail(error)
+            raise
+        self._failure = None
+        self.status = "paused"
+        return self.cursor
+
+    def _rebuild(self, target: int) -> None:
         self._reset()
         self.checkpoint_status = "not_used"
         if target and not self.observers:
@@ -469,8 +529,6 @@ class ReplaySession:
             if batch is None:
                 raise ValueError("seek target beyond recorded deliveries")
             self._apply(batch)
-        self.status = "paused"
-        return self.cursor
 
     def _restore_checkpoint(self, target: int) -> None:
         records = self.reader.iter_checkpoints(before_delivery=target)
@@ -521,14 +579,17 @@ class ReplaySession:
                 close()
 
     def books(self) -> tuple[Book, ...]:
+        self.require_healthy()
         return self.projection.books()
 
     @property
     def book_hash(self) -> str:
+        self.require_healthy()
         return self.projection.book_hash
 
     @property
     def state_hash(self) -> str:
+        self.require_healthy()
         if not self.observers:
             return self.projection.state_hash
         return sha256(

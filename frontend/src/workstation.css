@@ -34,8 +34,6 @@
 .workstation .workspace-configuration-body { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; width: 340px; max-width: calc(100dvw - 20px); max-height: 65dvh; overflow: auto; padding: 12px; background: var(--panel); border: 1px solid var(--line); display: grid; gap: 12px; }
 .workstation .workspace-configuration-body > label { display: grid; gap: 5px; margin: 0; font-size: 13px; min-width: 0; }
 .workstation .workspace-configuration-body select { width: 100%; max-width: 100%; }
-.workstation .workspace-configuration .workspace-slot-controls { position: static; width: 100%; padding: 8px 0 0; border: 0; box-shadow: none; max-height: none; }
-.workstation .workspace-configuration .workspace-slots { padding-top: 8px; border-top: 1px solid var(--line); }
 .workstation .market-pane-tabs { display: flex; padding: 4px 8px; gap: 4px; border-bottom: 1px solid var(--line); background: var(--panel); }
 .workstation .market-pane-tabs button { flex: 1; min-width: 0; min-height: 38px; padding: 5px 4px; font-size: 13px; border-color: transparent; background: transparent; color: var(--muted); }
 .workstation .market-pane-tabs button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); border-radius: 0; background: #85d5e708; }
@@ -127,9 +125,8 @@
 .workstation-workspace[data-maximized]:not([data-maximized=""]) .price-workspace,
 .workstation-workspace[data-maximized]:not([data-maximized=""]) .book-tape { grid-column: 1; grid-row: 1; grid-template-rows: minmax(0, 1fr); }
 .workstation [hidden] { display: none !important; }
-.workstation .workspace-slots, .workstation .source-inspector { position: relative; }
-.workstation .workspace-slot-controls, .workstation .source-inspector-body { position: absolute; top: 100%; right: 0; z-index: 20; width: min(560px, 90vw); max-height: min(600px, 70dvh); overflow: auto; padding: 10px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 8px 24px #0006; }
-.workstation .workspace-slot-controls { width: 300px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.workstation .source-inspector { position: relative; }
+.workstation .source-inspector-body { position: absolute; top: 100%; right: 0; z-index: 20; width: min(560px, 90vw); max-height: min(600px, 70dvh); overflow: auto; padding: 10px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 8px 24px #0006; }
 .workstation .source-inspector-body { white-space: normal; }
 .workstation .source-inspector-body .metadata { margin-block: 8px; }
 .workstation .diagnostics { max-height: 30dvh; overflow: auto; border-top: 1px solid var(--line); }

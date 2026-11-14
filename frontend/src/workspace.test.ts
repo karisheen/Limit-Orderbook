@@ -1,7 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applyWorkspaceSlot, chartFollowSpan, chartSettings, mergeVisualGrid, navigateChartTime, presetLayout, retainedChartRange, validatePreferences, validateWorkspaceSlots, workspaceGeometry } from './workspace.ts';
+import { applyLayoutSettings, changeWorkspaceLayout, chartFollowSpan, chartSettings, layoutName, layoutSettings, loadPreferences, MAX_LAYOUTS, mergeVisualGrid, migrateWorkspaceSlots, navigateChartTime, preferenceKey, retainedChartRange, validatePreferences, validateWorkspaceSlots, workspaceSlotsKey } from './workspace.ts';
 import type { VisualColumn, VisualGrid } from './api.ts';
+import { changeGrid, GRID_BASE_ROWS, GRID_COLUMNS, GRID_MIN_ROW_HEIGHT, GRID_PRESETS, GRID_ROWS, gridPreset, gridReadingOrder, gridRowHeight, migrateShellGrid, overlaps, PANEL_IDS, PANEL_MINIMUM, validateGrid } from './grid/layout.ts';
+import type { GridPresetId } from './grid/layout.ts';
 
 test('legacy workspaces open hourly price action without losing their existing controls', () => {
   const range = { start_ns: '9007199254740993123', end_ns: '9007199255740993123' };
@@ -39,11 +41,11 @@ test('desktop workspace and candle intervals survive reload and saved workspace 
       const saved = validatePreferences({ version: 1, desktopView, candleInterval, bucket: '5000000000' });
       const reloaded = validatePreferences(JSON.parse(JSON.stringify(saved)));
       const slots = validateWorkspaceSlots([reloaded]);
-      const restored = applyWorkspaceSlot(validatePreferences(null), slots[0]!);
+      const restored = applyLayoutSettings(validatePreferences(null), migrateWorkspaceSlots(slots)[0]!.settings);
       assert.equal(restored.desktopView, desktopView);
       assert.equal(restored.candleInterval, candleInterval);
       assert.equal(restored.bucket, '5000000000');
-      assert.equal(validatePreferences({ ...saved, ...presetLayout('balanced') }).candleInterval, candleInterval);
+      assert.equal(validatePreferences({ ...saved, grid: gridPreset('balanced') }).candleInterval, candleInterval);
     }
   }
 });
@@ -132,7 +134,7 @@ test('independent chart time zones survive serialization and workspace slots wit
     assert.equal(restored.paused, true);
     assert.equal(restored.secondary.paused, true);
     const slots = validateWorkspaceSlots(JSON.parse(JSON.stringify([saved])));
-    const applied = applyWorkspaceSlot(validatePreferences({ version: 1 }), slots[0]!);
+    const applied = applyLayoutSettings(validatePreferences({ version: 1 }), migrateWorkspaceSlots(slots)[0]!.settings);
     assert.equal(applied.timeZone, primary);
     assert.equal(applied.secondary.timeZone, secondary);
   }
@@ -168,14 +170,14 @@ test('saved footprint intervals and explicit overlays survive migration to detai
 test('explicit overview and six-second follow preferences survive presets, reload and workspace slots independently', () => {
   const saved = validatePreferences({ version: 1, footprintOverview: true,
     secondary: { footprintOverview: false, bucket: '1000000000', rangeSeconds: 6, showTrades: false, showQuotes: true } });
-  const preset = validatePreferences({ ...saved, ...presetLayout('analysis') });
+  const preset = validatePreferences({ ...saved, grid: gridPreset('liquidity') });
   const reloaded = validatePreferences(JSON.parse(JSON.stringify(preset)));
   assert.equal(reloaded.footprintOverview, true);
   assert.equal(reloaded.secondary.footprintOverview, false);
   assert.equal(reloaded.secondary.rangeSeconds, 6);
   assert.equal(reloaded.secondary.showQuotes, true);
   const slots = validateWorkspaceSlots([reloaded]);
-  const restored = applyWorkspaceSlot(validatePreferences(null), slots[0]!);
+  const restored = applyLayoutSettings(validatePreferences(null), migrateWorkspaceSlots(slots)[0]!.settings);
   assert.equal(restored.footprintOverview, true);
   assert.deepEqual(chartSettings(restored.secondary), chartSettings(reloaded.secondary));
   const inverse = validatePreferences({ ...saved, footprintOverview: false, secondary: { ...saved.secondary, footprintOverview: true } });
@@ -210,7 +212,7 @@ test('pane boundaries reject unsafe splits and secondary settings without retain
 
 test('four bounded workspace slots restore layout and pane settings without source or session contamination', () => {
   const current = validatePreferences({ version: 1, source: { mode: 'live', id: 'current-live' }, sourceExplicit: true, instrument: 'exact/live' });
-  const saved = validatePreferences({ version: 1, ...presetLayout('ladder'), chartSplit: 64, tapeSplit: 70, domRows: 40,
+  const saved = validatePreferences({ version: 1, preset: 'ladder', rightWidth: 420, chartSplit: 64, tapeSplit: 70, domRows: 40,
     tapeRows: 100, tapeSide: 'sell', domFrozen: true, tapeFrozen: true, paused: true,
     range: { start_ns: '1', end_ns: '10' }, secondary: { mode: 'candles', bucket: '10000000000', priceStep: '0.01', paused: true },
     source: { mode: 'demo', id: 'old-demo' }, instrument: 'old/instrument', session_id: 'never-store' });
@@ -221,7 +223,7 @@ test('four bounded workspace slots restore layout and pane settings without sour
   assert.equal(slots[0]?.source, null);
   assert.equal(slots[0]?.instrument, '');
   assert.ok(!JSON.stringify(slots).includes('never-store'));
-  const restored = applyWorkspaceSlot(current, slots[0]!);
+  const restored = applyLayoutSettings(current, migrateWorkspaceSlots(slots)[0]!.settings);
   assert.deepEqual(restored.source, current.source);
   assert.equal(restored.sourceExplicit, true);
   assert.equal(restored.instrument, current.instrument);
@@ -241,96 +243,48 @@ test('four bounded workspace slots restore layout and pane settings without sour
   assert.equal(restored.range, null);
 });
 
-test('balanced auto geometry gives charts the remainder at desktop evidence sizes', () => {
-  const settings = validatePreferences({ version: 1, ...presetLayout('balanced') });
-  for (const [viewport, width] of [[1280, 336], [1440, 360], [1920, 420]]) {
-    const geometry = workspaceGeometry(settings, viewport);
-    assert.equal(geometry.rightWidth, width);
-    assert.equal(geometry.min, 320);
-    assert.equal(geometry.stacked, false);
-    assert.ok(viewport - width - 6 >= 640);
-  }
-  assert.equal(settings.chartSplit, 52);
-  assert.equal(settings.tapeSplit, 60);
-  assert.equal(workspaceGeometry(settings, 966).rightWidth, 320);
-});
-
 test('legacy numeric widths conservatively migrate to manual, including old default widths', () => {
   for (const rightWidth of [250, 300, 314, 420, 487]) {
     const migrated = validatePreferences({ version: 1, rightWidth });
     assert.equal(migrated.rightWidthMode, 'manual');
     assert.equal(migrated.rightWidth, rightWidth);
-    assert.equal(workspaceGeometry(migrated, 1440).rightWidth, rightWidth);
     const reloaded = validatePreferences(JSON.parse(JSON.stringify(migrated)));
     assert.equal(reloaded.rightWidthMode, 'manual');
     assert.equal(reloaded.rightWidth, rightWidth);
-    assert.equal(workspaceGeometry(reloaded, 1440).rightWidth, rightWidth);
   }
   for (const rightWidth of [undefined, null, Infinity, '420']) {
     assert.equal(validatePreferences({ version: 1, rightWidth }).rightWidthMode, 'auto');
   }
-  const manual = validatePreferences({ version: 1, rightWidth: 487 });
-  const reset = validatePreferences({ ...manual, ...presetLayout('balanced') });
-  assert.equal(reset.rightWidthMode, 'auto');
-  assert.equal(validatePreferences(JSON.parse(JSON.stringify(reset))).rightWidthMode, 'auto');
+  const wide = migrateShellGrid(undefined, 487, 248);
+  const narrow = migrateShellGrid(undefined, 250, 248);
+  assert.equal(wide.cells.find(item => item.id === 'chart')!.w, 8);
+  assert.equal(narrow.cells.find(item => item.id === 'chart')!.w, 9);
 });
 
 test('analysis retains its manual 300px pane through reload and workspace slots', () => {
-  const settings = validatePreferences({ version: 1, ...presetLayout('analysis') });
+  const settings = validatePreferences({ version: 1, preset: 'analysis', rightWidth: 300, rightWidthMode: 'manual' });
   const reloaded = validatePreferences(JSON.parse(JSON.stringify(settings)));
   const slots = validateWorkspaceSlots([reloaded]);
-  const restored = applyWorkspaceSlot(validatePreferences(null), slots[0]!);
+  const restored = applyLayoutSettings(validatePreferences(null), migrateWorkspaceSlots(slots)[0]!.settings);
   for (const preferences of [settings, reloaded, restored]) {
     assert.equal(preferences.rightWidthMode, 'manual');
     assert.equal(preferences.rightWidth, 300);
-    assert.equal(workspaceGeometry(preferences, 1440).rightWidth, 300);
   }
 });
 
-test('manual resize bounds allow narrowing below the automatic minimum down to 250px', () => {
-  const settings = validatePreferences({ version: 1, rightWidth: 300, rightWidthMode: 'manual' });
-  for (const rightWidth of [300, 290, 260, 250, 500]) {
-    const geometry = workspaceGeometry({ ...settings, rightWidth }, 1440);
-    assert.equal(geometry.rightWidth, rightWidth);
-    assert.equal(geometry.min, 250);
-    assert.equal(geometry.max, 500);
+test('legacy resize bounds survive migration and narrow reading order never rewrites desktop geometry', () => {
+  for (const [requested, expected] of [[-1, 250], [250, 250], [300, 300], [500, 500], [9999, 500]]) {
+    const settings = validatePreferences({ version: 1, rightWidth: requested, rightWidthMode: 'manual' });
+    assert.equal(settings.rightWidth, expected);
+    const migrated = migrateWorkspaceSlots(validateWorkspaceSlots([settings]))[0]!;
+    const saved = JSON.stringify(migrated);
+    const mobile = gridReadingOrder(migrated.settings.grid);
+    assert.equal(mobile[0]!.id, 'chart');
+    assert.equal(JSON.stringify(migrated), saved);
+    const reloaded = validatePreferences({ version: 2, layouts: [migrated] });
+    assert.deepEqual(reloaded.layouts[0]!.settings.grid, migrated.settings.grid);
+    assert.equal(reloaded.layouts[0]!.settings.rightWidth, expected);
   }
-  const minimum = workspaceGeometry({ ...settings, rightWidth: 250 }, 1440);
-  assert.equal(minimum.rightWidth, minimum.min);
-  const maximum = workspaceGeometry({ ...settings, rightWidth: 500 }, 1440);
-  assert.equal(maximum.rightWidth, maximum.max);
-});
-
-test('a viewport clamp below 320px preserves the hidden manual request for later restoration', () => {
-  for (const rightWidth of [300, 500]) {
-    const settings = Object.freeze(validatePreferences({ version: 1, rightWidth, leftOpen: true, leftWidth: 222 }));
-    const saved = JSON.stringify(settings);
-    const clamped = workspaceGeometry(settings, 1150);
-    assert.equal(clamped.min, 250);
-    assert.equal(clamped.max, 276);
-    assert.equal(clamped.rightWidth, 276);
-    assert.equal(settings.rightWidth, rightWidth);
-    assert.equal(JSON.stringify(settings), saved);
-    const reloaded = validatePreferences(JSON.parse(saved));
-    assert.equal(workspaceGeometry(reloaded, 1440).rightWidth, rightWidth);
-  }
-});
-
-test('viewport and watchlist constraints never rewrite requested manual geometry', () => {
-  const settings = validatePreferences({ version: 1, rightWidth: 487, leftOpen: true, leftWidth: 222 });
-  const saved = JSON.stringify(settings);
-  const narrow = workspaceGeometry(settings, 1280);
-  assert.equal(narrow.rightWidth, 406);
-  assert.ok(1280 - settings.leftWidth - 12 - narrow.rightWidth >= 640);
-  assert.equal(workspaceGeometry(settings, 1920).rightWidth, 487);
-  assert.equal(workspaceGeometry(settings, 966).rightWidth, 320);
-  assert.equal(workspaceGeometry(settings, 965).stacked, true);
-  assert.equal(JSON.stringify(settings), saved);
-  const slots = validateWorkspaceSlots([settings]);
-  const restored = applyWorkspaceSlot(validatePreferences(null), slots[0]!);
-  assert.equal(restored.rightWidthMode, 'manual');
-  assert.equal(restored.rightWidth, 487);
-  assert.equal(workspaceGeometry(restored, 1920).rightWidth, 487);
 });
 
 test('unlinked pin and follow gestures isolate the other chart even with all cursor links enabled', () => {
@@ -380,13 +334,13 @@ test('time intents reject malformed coordinates and durations rather than treati
 test('custom exact follow spans and time-link choice survive presets, serialization and source-independent slots', () => {
   const saved = validatePreferences({ version: 1, rangeLinked: true, followSpanNs: '12345678901',
     secondary: { followSpanNs: '9876543210', rangeSeconds: 30 }, links: { heatmap: false, flow: true } });
-  const reloaded = validatePreferences(JSON.parse(JSON.stringify({ ...saved, ...presetLayout('ladder') })));
+  const reloaded = validatePreferences(JSON.parse(JSON.stringify({ ...saved, grid: gridPreset('execution') })));
   assert.equal(reloaded.followSpanNs, '12345678901');
   assert.equal(reloaded.secondary.followSpanNs, '9876543210');
   assert.equal(reloaded.rangeLinked, true);
   assert.deepEqual(reloaded.links, saved.links);
   const current = validatePreferences({ version: 1, source: { mode: 'live', id: 'different-native-clock' } });
-  const restored = applyWorkspaceSlot(current, validateWorkspaceSlots([reloaded])[0]!);
+  const restored = applyLayoutSettings(current, migrateWorkspaceSlots(validateWorkspaceSlots([reloaded]))[0]!.settings);
   assert.equal(restored.followSpanNs, saved.followSpanNs);
   assert.equal(restored.secondary.followSpanNs, saved.secondary.followSpanNs);
   assert.equal(restored.rangeLinked, true);
@@ -458,4 +412,224 @@ test('flow Fit time bounds actual native aggregates without filling absent histo
   assert.equal(retainedChartRange({ ...view, footprints: [] }, 'footprint'), null);
   assert.equal(retainedChartRange(view, 'candles'), null);
   assert.deepEqual(retainedChartRange(view, 'profile'), retainedChartRange(view, 'footprint'));
+});
+
+test('v2 price preferences migrate independently of exact source identity and unsupported historical interval choices', () => {
+  const legacy = validatePreferences({ version: 1, source: { mode: 'replay', id: 'capture/exact' }, sourceExplicit: true,
+    instrument: 'venue/native', candleInterval: '1M', domUnit: 'quote', nativeView: 'price' });
+  assert.equal(legacy.version, 2);
+  assert.deepEqual(legacy.priceChart, { source: 'auto', scale: 'linear', autoScale: true, rightOffset: 5, positioning: false });
+  for (const source of ['auto', 'session_trades', 'venue_ohlcv'] as const) {
+    const saved = validatePreferences({ ...legacy, priceChart: { source, scale: 'log', autoScale: false, rightOffset: 17, positioning: true } });
+    const reloaded = validatePreferences(JSON.parse(JSON.stringify(saved)));
+    assert.deepEqual(reloaded.priceChart, saved.priceChart);
+    assert.deepEqual(reloaded.source, legacy.source);
+    assert.equal(reloaded.sourceExplicit, true);
+    assert.equal(reloaded.instrument, 'venue/native');
+    assert.equal(reloaded.candleInterval, '1M');
+    assert.equal(reloaded.domUnit, 'quote');
+  }
+  const invalid = validatePreferences({ ...legacy, priceChart: { source: 'other', scale: 'symlog', autoScale: 'false', rightOffset: Infinity, positioning: 1 } });
+  assert.deepEqual(invalid.priceChart, legacy.priceChart);
+  assert.equal(validatePreferences({ ...legacy, priceChart: { rightOffset: -2 } }).priceChart.rightOffset, 0);
+  assert.equal(validatePreferences({ ...legacy, priceChart: { rightOffset: 1e6 } }).priceChart.rightOffset, 50);
+});
+
+test('five presets have unique mounted panels, collision-free geometry and bounded minimum sizes', () => {
+  assert.equal(Object.keys(GRID_PRESETS).length, 5);
+  for (const id of Object.keys(GRID_PRESETS) as GridPresetId[]) {
+    const layout = gridPreset(id);
+    assert.equal(layout.cells.filter(item => item.id === 'chart').length, 1);
+    assert.equal(new Set(layout.cells.map(item => item.id)).size, layout.cells.length);
+    assert.deepEqual(validateGrid(layout), { cells: gridReadingOrder(layout) });
+    for (const item of layout.cells) {
+      assert.ok(item.w >= PANEL_MINIMUM[item.id].w && item.h >= PANEL_MINIMUM[item.id].h);
+      assert.ok(item.x >= 0 && item.y >= 0 && item.x + item.w <= GRID_COLUMNS && item.y + item.h <= GRID_ROWS);
+      assert.ok(!layout.cells.some(other => other !== item && overlaps(item, other)));
+    }
+    layout.cells[0]!.x = 11;
+    assert.equal(gridPreset(id).cells[0]!.x, 0, 'preset templates are never mutated by editing');
+  }
+});
+
+test('desktop row sizing fits a fixed logical page as available surface space changes', () => {
+  const gap = 6;
+  for (const height of [420, 490, 768]) {
+    const row = gridRowHeight(height, gap);
+    const extent = (rows: number) => rows * row + (rows - 1) * gap;
+    assert.ok(Math.abs(extent(GRID_BASE_ROWS) - height) < 0.001);
+    for (const id of Object.keys(GRID_PRESETS) as GridPresetId[]) {
+      const rows = Math.max(...gridPreset(id).cells.map(item => item.y + item.h));
+      assert.ok(extent(rows) <= height + 0.001, `${id} fits the desktop page`);
+    }
+    const price = gridPreset('price');
+    assert.ok(Math.abs(extent(price.cells[0]!.h) - height) < 0.001, 'Price focus fills the available page');
+    const smaller = changeGrid(price, { kind: 'resize', id: 'chart', dx: 0, dy: -1 });
+    assert.equal(smaller.error, null);
+    assert.ok(extent(smaller.layout.cells[0]!.h) < height, 'resizing a lone panel does not refit its extent');
+    const larger = changeGrid(price, { kind: 'resize', id: 'chart', dx: 0, dy: 1 });
+    assert.equal(larger.error, null);
+    assert.ok(extent(larger.layout.cells[0]!.h) > height, 'custom layouts can deliberately overflow');
+    assert.deepEqual(validateGrid(JSON.parse(JSON.stringify(larger.layout))), larger.layout);
+  }
+  assert.ok(gridRowHeight(420, gap) < gridRowHeight(490, gap), 'expanded source controls reduce row pixels');
+  assert.equal(gridRowHeight(0, gap), GRID_MIN_ROW_HEIGHT);
+  assert.equal(gridRowHeight(200, gap), GRID_MIN_ROW_HEIGHT, 'short viewports scroll instead of collapsing panels');
+  assert.equal(gridRowHeight(480, 0), 40, 'row gaps are accounted for independently of panel geometry');
+});
+
+test('persisted grid geometry rejects foreign panels, clamps minimum sizes and relocates collisions deterministically', () => {
+  const dirty = { cells: [
+    { id: 'chart', x: -99, y: 0, w: -2, h: 2 },
+    { id: 'chart', x: 8, y: 1, w: 2, h: 2 },
+    { id: 'orderBook', x: 0, y: 0, w: 3, h: 4 },
+    { id: 'foreign', x: 0, y: 0, w: 1, h: 1 },
+    { id: 'cvd', x: Infinity, y: -3, w: NaN, h: Infinity },
+  ] };
+  const safe = validateGrid(dirty);
+  assert.equal(safe.cells.length, 3);
+  assert.deepEqual(safe.cells.find(item => item.id === 'chart'), { id: 'chart', x: 0, y: 0, w: 6, h: 8 });
+  for (const item of safe.cells) assert.ok(!safe.cells.some(other => other !== item && overlaps(item, other)));
+  assert.deepEqual(validateGrid(JSON.parse(JSON.stringify(safe))), safe);
+  assert.deepEqual(validateGrid({ cells: [] }), { cells: [] }, 'intentionally empty workspaces stay empty');
+});
+
+test('drag and keyboard geometry operations reject collisions without moving other panels and persist valid changes', () => {
+  const initial = gridPreset('balanced');
+  const colliding = changeGrid(initial, { kind: 'move', id: 'orderBook', dx: -1, dy: 0 });
+  assert.match(colliding.error!, /overlap/);
+  assert.equal(colliding.layout, initial);
+  const minimum = changeGrid(initial, { kind: 'resize', id: 'chart', dx: 0, dy: -1 });
+  assert.match(minimum.error!, /minimum/);
+  assert.equal(minimum.layout, initial);
+  const invalid = changeGrid(initial, { kind: 'move', id: 'chart', dx: NaN, dy: 1 });
+  assert.equal(invalid.layout, initial);
+  const moved = changeGrid(initial, { kind: 'move', id: 'volumeZ', dx: 0, dy: 4 });
+  assert.equal(moved.error, null);
+  assert.deepEqual(moved.layout.cells.find(item => item.id === 'volumeZ'), { id: 'volumeZ', x: 4, y: 12, w: 5, h: 3 });
+  const resized = changeGrid(moved.layout, { kind: 'resize', id: 'volumeZ', dx: 2, dy: 1 });
+  assert.equal(resized.error, null);
+  assert.deepEqual(validateGrid(JSON.parse(JSON.stringify(resized.layout))), resized.layout);
+  for (const item of initial.cells.filter(item => item.id !== 'volumeZ')) assert.deepEqual(resized.layout.cells.find(other => other.id === item.id), item);
+  const removed = changeGrid(resized.layout, { kind: 'remove', id: 'volumeZ' });
+  assert.equal(removed.layout.cells.some(item => item.id === 'volumeZ'), false);
+  const added = changeGrid(removed.layout, { kind: 'add', id: 'volumeZ' });
+  assert.equal(added.error, null);
+  assert.equal(added.layout.cells.filter(item => item.id === 'volumeZ').length, 1);
+  assert.match(changeGrid(added.layout, { kind: 'add', id: 'volumeZ' }).error!, /already/);
+  assert.match(changeGrid({ cells: [{ id: 'chart', x: 0, y: 0, w: 12, h: 48 }] }, { kind: 'add', id: 'cvd' }).error!, /No room/);
+});
+
+test('narrow screens use the same spatial reading order, and legacy shell visibility has one migrated owner', () => {
+  const layout = migrateShellGrid({ orderBook: false, obi: false, timeSales: true, cvd: false, volumeZ: false, volatility: true, depthOfMarket: true }, 420, 300);
+  assert.equal(layout.cells.some(item => item.id === 'orderBook' || item.id === 'obi' || item.id === 'cvd' || item.id === 'volumeZ'), false);
+  assert.equal(layout.cells.find(item => item.id === 'chart')!.w, 8);
+  for (const id of ['chart', 'timeSales', 'volatility', 'depthOfMarket']) assert.ok(layout.cells.some(item => item.id === id));
+  const ordered = gridReadingOrder({ cells: [...layout.cells].reverse() });
+  assert.deepEqual(ordered, layout.cells);
+  assert.equal(ordered[0]!.id, 'chart');
+  assert.ok(ordered.every(item => PANEL_IDS.includes(item.id)));
+});
+
+test('anonymous workspace migration retains pane choices and exposes bounded named source-free layouts', () => {
+  const old = validatePreferences({ version: 1, source: { mode: 'live', id: 'foreign-live' }, instrument: 'foreign/native', rightWidth: 420,
+    candleInterval: '3d', nativeView: 'orderflow', chartSplit: 61, secondary: { mode: 'candles', priceStep: '0.0001' }, priceChart: { source: 'venue_ohlcv', scale: 'log' } });
+  const migrated = migrateWorkspaceSlots(validateWorkspaceSlots([old, null, old]));
+  assert.deepEqual(migrated.map(item => item.name), ['Workspace 1', 'Workspace 3']);
+  assert.equal(migrated[0]!.settings.candleInterval, '3d');
+  assert.equal(migrated[0]!.settings.chartSplit, 61);
+  assert.equal(migrated[0]!.settings.secondary.priceStep, '0.0001');
+  assert.equal(migrated[0]!.settings.grid.cells.find(item => item.id === 'chart')!.w, 8);
+  assert.equal('source' in migrated[0]!.settings, false);
+  assert.equal('instrument' in migrated[0]!.settings, false);
+  assert.ok(!JSON.stringify(migrated).includes('foreign-live'));
+  const restored = validatePreferences({ version: 2, layouts: migrated });
+  assert.deepEqual(restored.layouts, migrated);
+});
+
+test('named layouts save load rename delete without restoring market identity, cohort, source choice or replay clock', () => {
+  const old = validatePreferences({ version: 2, candleInterval: '4h', grid: gridPreset('price'), priceChart: { source: 'venue_ohlcv', scale: 'log', positioning: true } });
+  const saved = changeWorkspaceLayout(old, { kind: 'save', name: '  Price study  ' });
+  assert.equal(saved.error, null);
+  assert.equal(saved.preferences.layouts[0]!.name, 'Price study');
+  assert.equal('range' in saved.preferences.layouts[0]!.settings, false);
+  const range = { start_ns: '9007199254740993123', end_ns: '9007199255740993123' };
+  const current = { ...validatePreferences({ ...saved.preferences, source: { mode: 'replay', id: 'active-capture' }, sourceExplicit: true,
+    instrument: 'selected/exact', range, follow: false, paused: true, domFrozen: true, tapeFrozen: true,
+    secondary: { range, follow: false, paused: true }, priceChart: { source: 'session_trades' } }),
+    cohort: ['selected/exact', 'related/exact'], replay_cursor: '9007199255740993123', session_id: 'active-only' };
+  const loaded = changeWorkspaceLayout(current, { kind: 'load', name: 'Price study' });
+  assert.equal(loaded.error, null);
+  assert.deepEqual(loaded.preferences.source, current.source);
+  assert.equal(loaded.preferences.sourceExplicit, true);
+  assert.equal(loaded.preferences.instrument, current.instrument);
+  assert.equal(loaded.preferences.priceChart.source, 'session_trades');
+  assert.equal(loaded.preferences.priceChart.scale, 'log');
+  assert.equal(loaded.preferences.candleInterval, '4h');
+  assert.equal(loaded.preferences.range, current.range);
+  assert.equal(loaded.preferences.secondary.range, current.secondary.range);
+  assert.equal(loaded.preferences.paused, true);
+  assert.equal(loaded.preferences.domFrozen, true);
+  assert.equal(loaded.preferences.tapeFrozen, true);
+  assert.equal((loaded.preferences as typeof current).cohort, current.cohort);
+  assert.equal((loaded.preferences as typeof current).replay_cursor, current.replay_cursor);
+  assert.equal((loaded.preferences as typeof current).session_id, current.session_id);
+  const contaminated = { ...layoutSettings(old), source: old.source, instrument: 'bad', session_id: 'bad', replay_cursor: 'bad', cohort: ['bad'] };
+  assert.equal((applyLayoutSettings(current, contaminated) as typeof current).session_id, current.session_id);
+  assert.equal((applyLayoutSettings(current, contaminated) as typeof current).cohort, current.cohort);
+  const renamed = changeWorkspaceLayout(loaded.preferences, { kind: 'rename', name: 'Price study', nextName: 'Replay study' });
+  assert.equal(renamed.preferences.layouts[0]!.name, 'Replay study');
+  const deleted = changeWorkspaceLayout(renamed.preferences, { kind: 'delete', name: 'Replay study' });
+  assert.equal(deleted.preferences.layouts.length, 0);
+  assert.equal(deleted.preferences.source, current.source);
+  assert.equal(deleted.preferences.range, current.range);
+});
+
+test('layout names and count are bounded and malformed saved settings never smuggle identity fields', () => {
+  for (const name of ['', ' ', 'x'.repeat(41), 'bad\nname', '\u0000', null, 1]) assert.equal(layoutName(name), null);
+  let preferences = validatePreferences(null);
+  for (let index = 0; index < MAX_LAYOUTS; index++) {
+    const result = changeWorkspaceLayout(preferences, { kind: 'save', name: `Study ${index}` });
+    assert.equal(result.error, null);
+    preferences = result.preferences;
+  }
+  assert.match(changeWorkspaceLayout(preferences, { kind: 'save', name: 'Extra' }).error!, /At most/);
+  assert.match(changeWorkspaceLayout(preferences, { kind: 'save', name: 'study 0' }).error!, /already/);
+  assert.match(changeWorkspaceLayout(preferences, { kind: 'rename', name: 'Study 1', nextName: 'STUDY 0' }).error!, /already/);
+  assert.match(changeWorkspaceLayout(preferences, { kind: 'load', name: 'Missing' }).error!, /Choose/);
+  const reloaded = validatePreferences({ ...preferences, layouts: [
+    { name: 'Valid', settings: { source: { mode: 'live', id: 'foreign' }, instrument: 'foreign', session_id: 'foreign', grid: { cells: [] }, candleInterval: '1w' } },
+    { name: 'valid', settings: {} }, { name: 'bad\nname', settings: {} }, ...preferences.layouts,
+  ] });
+  assert.ok(reloaded.layouts.length <= MAX_LAYOUTS);
+  assert.equal(reloaded.layouts.filter(item => item.name.toLowerCase() === 'valid').length, 1);
+  assert.ok(!JSON.stringify(reloaded.layouts).includes('foreign'));
+  assert.equal(reloaded.layouts[0]!.settings.candleInterval, '1w');
+  assert.deepEqual(reloaded.layouts[0]!.settings.grid, { cells: [] });
+});
+
+test('browser preference loading migrates legacy shell visibility and anonymous slots once, independently of corrupt main JSON', (t) => {
+  const previous = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  const storage = new Map<string, string>();
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: { getItem: (key: string) => storage.get(key) ?? null } });
+  t.after(() => {
+    if (previous) Object.defineProperty(globalThis, 'localStorage', previous);
+    else Reflect.deleteProperty(globalThis, 'localStorage');
+  });
+  storage.set(preferenceKey, '{corrupt');
+  storage.set('limit-orderbook.orderflow.ui-preferences', JSON.stringify({ version: 2, state: { toolProfile: 'volatility',
+    panels: { orderBook: false, obi: false, timeSales: true, cvd: false, volumeZ: true, volatility: true, depthOfMarket: false } } }));
+  storage.set(workspaceSlotsKey, JSON.stringify([{ version: 1, candleInterval: '1w', source: { mode: 'live', id: 'old-live' }, instrument: 'old/native' }]));
+  const migrated = loadPreferences();
+  assert.equal(migrated.version, 2);
+  assert.equal(migrated.layouts[0]!.name, 'Workspace 1');
+  assert.equal(migrated.layouts[0]!.settings.candleInterval, '1w');
+  assert.equal(migrated.grid.cells.some(item => item.id === 'orderBook'), false);
+  assert.equal(migrated.grid.cells.some(item => item.id === 'volatility'), true);
+  assert.equal(migrated.source, null);
+  assert.equal(migrated.instrument, '');
+  storage.set(preferenceKey, JSON.stringify({ ...migrated, layouts: [], grid: { cells: [] } }));
+  const current = loadPreferences();
+  assert.deepEqual(current.layouts, [], 'deleted migrated layouts never resurrect from retired storage');
+  assert.deepEqual(current.grid, { cells: [] }, 'explicit empty grids never reload old shell visibility');
 });

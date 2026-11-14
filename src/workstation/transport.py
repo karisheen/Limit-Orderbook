@@ -1,22 +1,31 @@
-"""Bounded public HTTP transport; response bytes are never JSON re-encoded.
+"""Bounded public transports; response bytes are never JSON re-encoded.
 
 Budgets/circuits are shared per event loop and origin. 403/451 are access blocks,
 404/410 are unsupported; neither is retried. Retry-After is honored up to a
 120-second safety bound (larger values open the circuit rather than retry early).
 Actual request starts remain spaced after shared cooldowns, including extensions.
+Native WebSocket TLS retains Python's system/environment trust policy. Its
+shared, verified context is initialized off-loop before opening each TLS leg.
 """
 
 import asyncio
 from dataclasses import dataclass
 from email.utils import parsedate_to_datetime
+from functools import lru_cache
+import os
 import random
+import ssl
+from threading import Lock
 import time
 from urllib.parse import urlsplit
 from weakref import WeakKeyDictionary
 
 import httpx
+from websockets.asyncio.client import ClientConnection, connect
+from websockets.proxy import get_proxy, parse_proxy
 
 from .adapters.base import TransportRequest, validate_public_endpoint
+from .ownership import join_owned
 from .precision import MAX_MARKET_DATA_BYTES
 
 
@@ -94,6 +103,101 @@ def retry_after_seconds(value: str | None, *, now: float | None = None) -> float
             return 0
 
 
+@lru_cache(maxsize=1)
+def _public_ssl_context() -> ssl.SSLContext:
+    """Load the public client's verified trust store once, not on every poll.
+
+    The transport never mutates trust configuration after construction. Clients
+    still own and close their connections independently; no cookies, credentials,
+    retry budgets or connection pools are shared through this cache.
+    """
+    return httpx.create_ssl_context(trust_env=False)
+
+
+_WS_SSL_LOCK = Lock()
+_WS_SSL_PENDING: WeakKeyDictionary = WeakKeyDictionary()
+
+
+@lru_cache(maxsize=1)
+def _cached_websocket_ssl_context(
+    trust_environment: tuple[str | None, str | None, str | None],
+) -> ssl.SSLContext:
+    # Unlike public HTTP, native WebSockets have always used Python's default
+    # system/environment trust, including SSL_CERT_FILE and SSL_CERT_DIR.
+    return ssl.create_default_context()
+
+
+def _load_websocket_ssl_context(
+    trust_environment: tuple[str | None, str | None, str | None],
+) -> ssl.SSLContext:
+    # lru_cache alone allows duplicate concurrent misses. Serialize construction
+    # across event loops too, without ever taking this lock on an asyncio loop.
+    with _WS_SSL_LOCK:
+        return _cached_websocket_ssl_context(trust_environment)
+
+
+async def _websocket_ssl_context() -> ssl.SSLContext:
+    trust_environment = (
+        os.environ.get("SSL_CERT_FILE"),
+        os.environ.get("SSL_CERT_DIR"),
+        os.environ.get("SSLKEYLOGFILE"),
+    )
+    loop = asyncio.get_running_loop()
+    pending = _WS_SSL_PENDING.get(loop)
+    if pending is None or pending[0] != trust_environment:
+        work = loop.run_in_executor(
+            None, _load_websocket_ssl_context, trust_environment
+        )
+        _WS_SSL_PENDING[loop] = (trust_environment, work)
+
+        def completed(future: asyncio.Future[ssl.SSLContext]) -> None:
+            current = _WS_SSL_PENDING.get(loop)
+            if current is not None and current[1] is future:
+                del _WS_SSL_PENDING[loop]
+
+        work.add_done_callback(completed)
+    else:
+        work = pending[1]
+    # A cancelled session joins initialization but cannot cancel another
+    # session's trust load. This worker never touches feed/reducer state.
+    return await join_owned(work)
+
+
+class PublicWebSocketConnect(connect):
+    """Native connect with off-loop default trust loading, including proxies."""
+
+    async def open_tcp_connection(self) -> ClientConnection:
+        original_kwargs = self.create_connection_kwargs
+        original_proxy = self.proxy
+        proxy = original_proxy
+        if (
+            original_kwargs.get("unix", False)
+            or original_kwargs.get("sock") is not None
+        ):
+            proxy = None
+        if proxy is True:
+            proxy = get_proxy(self.ws_uri)
+        kwargs = original_kwargs.copy()
+        if self.ws_uri.secure and "ssl" not in kwargs:
+            kwargs["ssl"] = await _websocket_ssl_context()
+        if (
+            proxy is not None
+            and parse_proxy(proxy).scheme == "https"
+            and "proxy_ssl" not in kwargs
+        ):
+            kwargs["proxy_ssl"] = await _websocket_ssl_context()
+        # Resolve proxy routing per attempt, just like websockets. Restore the
+        # original options so redirects can change TLS legs and proxy selection.
+        # In particular, ws:// and plain HTTP proxies never receive ssl options.
+        self.create_connection_kwargs = kwargs
+        self.proxy = proxy
+        try:
+            return await super().open_tcp_connection()
+        finally:
+            self.create_connection_kwargs = original_kwargs
+            self.proxy = original_proxy
+
+
 async def fetch_public(
     request: TransportRequest,
     *,
@@ -108,7 +212,10 @@ async def fetch_public(
         raise ValueError("attempts must be between 1 and 10")
     if client is None:
         async with httpx.AsyncClient(
-            timeout=15, follow_redirects=False, trust_env=False
+            timeout=15,
+            follow_redirects=False,
+            trust_env=False,
+            verify=_public_ssl_context(),
         ) as owned:
             return await fetch_public(request, client=owned, attempts=attempts)
     budget = _budget(request.endpoint_id)

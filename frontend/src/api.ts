@@ -209,13 +209,38 @@ export class ApiError extends Error {
   constructor(message: string, status: number) { super(message); this.name = 'ApiError'; this.status = status; }
 }
 
-export async function request<T>(path: string, body?: unknown, signal?: AbortSignal, method?: string, onReceive?: (receivedAtMs: number) => void): Promise<T> {
-  const response = await fetch(`/api/v1${path}`, {
-    method: method ?? (body === undefined ? 'GET' : 'POST'), signal,
-    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  return responseData<T>(response, onReceive);
+/** Includes receipt of the complete body, not just response headers. */
+export const REQUEST_TIMEOUT_MS = 30_000;
+export interface RequestOptions {
+  /** null is reserved for ownership that must observe a late response (session creation). */
+  timeoutMs?: number | null;
+}
+
+export async function request<T>(path: string, body?: unknown, signal?: AbortSignal, method?: string, onReceive?: (receivedAtMs: number) => void, options: RequestOptions = {}): Promise<T> {
+  const timeoutMs = options.timeoutMs === undefined ? REQUEST_TIMEOUT_MS : options.timeoutMs;
+  const deadline = timeoutMs === null ? undefined : AbortSignal.timeout(timeoutMs);
+  const ownedSignal = deadline ? (signal ? AbortSignal.any([signal, deadline]) : deadline) : signal;
+  const requestMethod = method ?? (body === undefined ? 'GET' : 'POST');
+  try {
+    const response = await fetch(`/api/v1${path}`, {
+      method: requestMethod, signal: ownedSignal,
+      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    ownedSignal?.throwIfAborted();
+    const data = await responseData<T>(response, onReceive);
+    ownedSignal?.throwIfAborted();
+    return data;
+  } catch (cause) {
+    // Preserve caller/lifecycle cancellation and its existing ownership fences.
+    if (deadline?.aborted && !signal?.aborted) {
+      const ambiguous = !['GET', 'HEAD'].includes(requestMethod.toUpperCase());
+      throw new ApiError(`API response timed out after ${timeoutMs! / 1000} seconds.${ambiguous
+        ? ' Outcome is ambiguous: the server may have committed the mutation. Inspect native state before any deliberate retry. No automatic retry or session replacement was made.'
+        : ' No automatic request retry was made.'}`, 408);
+    }
+    throw cause;
+  }
 }
 
 async function responseData<T>(response: Response, onReceive?: (receivedAtMs: number) => void): Promise<T> {
@@ -232,6 +257,22 @@ async function responseData<T>(response: Response, onReceive?: (receivedAtMs: nu
 }
 
 export interface CatalogSnapshot { path: string; etag: string | null; data: Catalog }
+
+/** Selected metadata has its own URL/cache identity, independent of source status. */
+export function selectedCatalogPath(sourceId: string): string {
+  return `/instruments?source_id=${encodeURIComponent(sourceId)}&include_sources=false`;
+}
+
+/** Keep native metadata references intact when only directory status changes. */
+export function combineCatalog(directory: Catalog, metadata: Catalog, previous?: Catalog | null): Catalog {
+  if (previous?.sources === directory.sources && previous.instruments === metadata.instruments &&
+    previous.preferred_source_id === directory.preferred_source_id) return previous;
+  return { version: '1', instruments: metadata.instruments, sources: directory.sources, preferred_source_id: directory.preferred_source_id };
+}
+
+// Bound the browser's ownership, not server execution. A timeout is ambiguous:
+// never retry the mutation automatically or replace its session to hide it.
+export const MUTATION_TIMEOUT_MS = 15_000;
 
 /** A 304 confirms only the exact URL's previously received catalog, not another source. */
 export async function requestCatalog(path: string, signal: AbortSignal, previous?: CatalogSnapshot): Promise<CatalogSnapshot> {

@@ -15,7 +15,7 @@ from ..events import BookUpdate, Control, RawFrame, SequenceInfo, SubscriptionKe
 from ..instruments import Instrument, InstrumentId, MetadataSnapshot, OrderConstraints
 from ..precision import decimal, exact_json_loads, text
 from ..quality import Capabilities
-from .base import DecodedEvent, DecodeResult, TransportRequest
+from .base import DecodedEvent, DecodeResult, TransportRequest, parse_metadata_offloop
 from .binance import (
     array_field,
     asset_identity,
@@ -93,8 +93,12 @@ class BybitAdapter:
         if family == self.api_family:
             endpoint = f"{host}/v5/market/instruments-info?category=spot"
             raw = await fetch_public(TransportRequest("GET", endpoint))
-            snapshot, _ = self._metadata_page(
-                raw, fetch_wall_ns=time_ns(), expected_category="spot", source=endpoint
+            snapshot, _ = await parse_metadata_offloop(
+                self._metadata_page,
+                raw,
+                fetch_wall_ns=time_ns(),
+                expected_category="spot",
+                source=endpoint,
             )
             return snapshot
         fetched = time_ns()
@@ -106,18 +110,24 @@ class BybitAdapter:
             if cursor:
                 endpoint += f"&cursor={quote(cursor, safe='')}"
             raw = await fetch_public(TransportRequest("GET", endpoint))
-            page, cursor = self._metadata_page(
-                raw, fetch_wall_ns=fetched, expected_category="linear", source=endpoint
+            page, cursor = await parse_metadata_offloop(
+                self._metadata_page,
+                raw,
+                fetch_wall_ns=fetched,
+                expected_category="linear",
+                source=endpoint,
             )
             raws.append(raw)
             sources.append(endpoint)
             instruments.extend(page.instruments)
             if not cursor:
-                return metadata_snapshot(
-                    ";".join(sources),
-                    b"\n".join(raws),
-                    fetched,
-                    instruments,
+                return await parse_metadata_offloop(
+                    lambda: metadata_snapshot(
+                        ";".join(sources),
+                        b"\n".join(raws),
+                        fetched,
+                        instruments,
+                    )
                 )
             if cursor in seen:
                 raise ValueError("repeated metadata pagination cursor")

@@ -35,6 +35,30 @@ workspace navigation and corrected exchange protocol handling. Modified source
 files carry notices. No upstream analytics/tracking code is included.
 This is an independent project, not an endorsed upstream deployment.
 
+TradingView Lightweight Charts 5.3.0:
+https://github.com/tradingview/lightweight-charts/tree/v5.3.0
+Apache License 2.0: licenses/lightweight-charts-Apache-2.0.txt
+Official upstream NOTICE: licenses/lightweight-charts-NOTICE.txt
+
+TradingView Lightweight Charts™
+Copyright (с) 2025 TradingView, Inc. https://www.tradingview.com/
+
+The upstream README requires the attribution notice and a TradingView link
+on a user-accessible application page. The chart's attributionLogo option
+satisfies the link requirement; retain a visible attribution/notices path.
+The upstream v5.3.0 NOTICE is preserved verbatim, including its 2025 year.
+The distributed v5.3.0 JavaScript additionally bears:
+Copyright (c) 2026 TradingView, Inc.
+This library supplies chart rendering, not market data.
+
+Transitive runtime code included with Lightweight Charts:
+- fancy-canvas 2.1.0 (MIT): licenses/fancy-canvas-MIT.txt
+  https://github.com/tradingview/fancy-canvas
+  License source: https://github.com/tradingview/fancy-canvas/blob/master/LICENSE
+- Incorporated tslib helpers (BSD Zero Clause): licenses/tslib-0BSD.txt
+  Copyright (c) Microsoft Corporation.
+  License source: https://github.com/microsoft/tslib/blob/main/LICENSE.txt
+
 Additional bundled dependencies/assets:
 - Zustand 5.0.15: licenses/zustand-MIT.txt
 - Lucide 1.59.0 and derived Feather glyphs: licenses/lucide-ISC-MIT.txt

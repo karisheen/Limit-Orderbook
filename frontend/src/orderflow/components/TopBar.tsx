@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useSessionStore } from "@/lib/session/SessionContext";
-import type { PanelVisibility, Timeframe, ToolProfile, VenueSelection } from "@/lib/types/market";
+import type { PanelVisibility, Timeframe, VenueSelection } from "@/lib/types/market";
 import { THEME_OPTIONS, type Theme } from "@/lib/theme";
 import { displayCohort, displayMarketType, displaySymbol, displayVenue, sameNativeMarket } from "@/lib/config/instruments";
 import { useNativeTerminal } from "../../integration/NativeContext";
@@ -20,21 +20,9 @@ const TIMEFRAMES: { value: Timeframe; label: string }[] = [
   { value: "1m", label: "1m" }, { value: "5m", label: "5m" }, { value: "15m", label: "15m" },
   { value: "30m", label: "30m" }, { value: "1h", label: "1H" }, { value: "4h", label: "4H" },
 ];
-const PROFILES: { value: ToolProfile; label: string; title: string }[] = [
-  { value: "order-flow", label: "Order Flow", title: "Footprint, tape, CVD and volume z-score" },
-  { value: "liquidity", label: "Liquidity", title: "Order book, depth, imbalance and traded-volume heatmap" },
-  { value: "volatility", label: "Volatility", title: "Realized volatility, volume z-score and tape" },
-];
-const PANEL_ITEMS: { key: keyof PanelVisibility; label: string; hint: string; group: "Chart" | "Studies" | "Sidebar" }[] = [
-  { key: "volumeProfile", label: "Session profile", hint: "Volume by price beside the footprint", group: "Chart" },
-  { key: "heatmap", label: "Traded-volume heatmap", hint: "Executed volume by price", group: "Chart" },
-  { key: "cvd", label: "Cumulative delta", hint: "CVD with price overlay", group: "Studies" },
-  { key: "volumeZ", label: "Volume z-score", hint: "Unusual participation", group: "Studies" },
-  { key: "volatility", label: "Realized volatility", hint: "RV, ATR, Parkinson", group: "Studies" },
-  { key: "depthOfMarket", label: "Market depth", hint: "Cumulative liquidity curve", group: "Studies" },
-  { key: "orderBook", label: "Order book", hint: "Price ladder", group: "Sidebar" },
-  { key: "obi", label: "Book imbalance", hint: "OBI gauge and history", group: "Sidebar" },
-  { key: "timeSales", label: "Time & sales", hint: "Executed prints", group: "Sidebar" },
+const PANEL_ITEMS: { key: keyof Pick<PanelVisibility, "volumeProfile" | "heatmap">; label: string; hint: string }[] = [
+  { key: "volumeProfile", label: "Session profile", hint: "Volume by price beside the footprint" },
+  { key: "heatmap", label: "Traded-volume heatmap", hint: "Executed volume by price" },
 ];
 
 export default function TopBar() {
@@ -50,8 +38,6 @@ export default function TopBar() {
   const theme = useUIStore((s) => s.theme);
   const setTheme = useUIStore((s) => s.setTheme);
   const panels = useUIStore((s) => s.panels);
-  const toolProfile = useUIStore((s) => s.toolProfile);
-  const setToolProfile = useUIStore((s) => s.setToolProfile);
   const setPanelVisible = useUIStore((s) => s.setPanelVisible);
 
   // A candidate can be subscribed before it has any ready market evidence.
@@ -73,23 +59,35 @@ export default function TopBar() {
     // Native discovery is much larger than a curated watchlist. One symbol index
     // avoids rescanning the entire catalogue for every option on each frame.
     const enabledSymbols = new Set(selectable.map(displaySymbol));
-    const symbols = new Map(available.map((item) => [displaySymbol(item), item]));
-    return [...symbols].map(([value, item]) => ({
-      value,
-      label: value,
-      sub: item.base.ticker,
-      keywords: `${item.base.ticker} ${item.quote.ticker}`,
-      icon: <AssetLogo symbol={value} size={22} />,
-      disabled: !canSelect || !enabledSymbols.has(value),
-    }));
-  }, [available, selectable, canSelect]);
+    const symbols = new Map<string, [Instrument, ...Instrument[]]>();
+    for (const item of available) {
+      const value = displaySymbol(item);
+      const members = symbols.get(value);
+      if (members) members.push(item);
+      else symbols.set(value, [item]);
+    }
+    return [...symbols].map(([value, members]) => {
+      const item = members[0];
+      const venueNames = [...new Set(members.map((member) => venueLabel(member.venue)))].join(", ");
+      return {
+        value,
+        label: value,
+        sub: `${item.base.ticker} · ${venueNames}`,
+        group: `${item.quote.ticker} · ${marketType === "perpetual" ? "Perpetual" : "Spot"}`,
+        keywords: `${item.base.ticker} ${item.quote.ticker} ${venueNames} ${members.map((member) => `${member.native_symbol} ${member.instrument_id}`).join(" ")}`,
+        icon: <AssetLogo symbol={value} size={22} />,
+        disabled: !canSelect || !enabledSymbols.has(value),
+      };
+    }).sort((a, b) => a.group.localeCompare(b.group) || a.label.localeCompare(b.label));
+  }, [available, selectable, canSelect, marketType]);
   const aggregateValue: VenueSelection = marketType === "perpetual" ? "all-perps" : "all-spot";
-  const primary = instrument && displayMarketType(instrument) === marketType
-    ? instrument : available.find((item) => displaySymbol(item) === symbol);
-  const cohort = primary ? available.filter((item) => sameNativeMarket(item, primary)) : [];
-  const selectableCohort = primary ? selectable.filter((item) => sameNativeMarket(item, primary)) : [];
-  const aggregateCohort = primary ? displayCohort(selectable, primary) : [];
-  const venues = [...new Set(cohort.map(displayVenue))];
+  const primary = useMemo(() => instrument && displayMarketType(instrument) === marketType
+    ? instrument : available.find((item) => displaySymbol(item) === symbol),
+  [instrument, marketType, available, symbol]);
+  const cohort = useMemo(() => primary ? available.filter((item) => sameNativeMarket(item, primary)) : [], [available, primary]);
+  const selectableCohort = useMemo(() => primary ? selectable.filter((item) => sameNativeMarket(item, primary)) : [], [selectable, primary]);
+  const aggregateCohort = useMemo(() => primary ? displayCohort(selectable, primary) : [], [selectable, primary]);
+  const venues = useMemo(() => [...new Set(cohort.map(displayVenue))], [cohort]);
   const aggregate = venue === "all-perps" || venue === "all-spot";
 
   const activate = (next: Instrument, nextVenue: VenueSelection) => {
@@ -151,7 +149,7 @@ export default function TopBar() {
     <header className="topbar">
       <span className="brand" aria-label="Limit Orderbook">Limit Orderbook</span>
 
-      <div className="topbar-group">
+      <div className="topbar-group topbar-market">
         <Segmented
           value={marketType}
           onChange={chooseMarket}
@@ -163,7 +161,7 @@ export default function TopBar() {
         />
       </div>
 
-      <div className="topbar-group">
+      <div className="topbar-group topbar-instruments">
         <Picker
           searchable
           className="instrument-picker"
@@ -183,7 +181,8 @@ export default function TopBar() {
           />
       </div>
 
-      <div className="topbar-group">
+      <div className="topbar-group topbar-timeframe">
+        <span className="topbar-control-label" aria-hidden="true">Interval</span>
         <Segmented accent value={timeframe} onChange={(candleInterval) => updatePreferences({ candleInterval })} options={TIMEFRAMES} ariaLabel="Candle interval" />
         <Select className="interval-select" value={timeframe} onChange={(event) => updatePreferences({ candleInterval: event.target.value })} aria-label="All candle intervals">
           {INTERVAL_GROUPS.map((group) => <optgroup key={group.label} label={group.label}>
@@ -194,24 +193,19 @@ export default function TopBar() {
 
       <div className="topbar-spacer" />
 
-      <div className="topbar-group">
-        <Segmented value={toolProfile} onChange={setToolProfile} options={PROFILES} ariaLabel="Workspace" />
-        <Menu ariaLabel="Panels" label={<><Icon.Layout /><span className="hide-compact">Panels</span></>}>
-          {(["Chart", "Studies", "Sidebar"] as const).map((group) => (
-            <MenuSection key={group} title={group}>
-              {PANEL_ITEMS.filter((item) => item.group === group).map((item) => (
-                <MenuCheckbox
-                  key={item.key}
-                  checked={panels[item.key]}
-                  onChange={(checked) => setPanelVisible(item.key, checked)}
-                  label={item.label}
-                  hint={preferences.nativeView === "book" && (item.key === "orderBook" || item.key === "timeSales")
-                    ? `${item.hint} · restored on chart views; native inspection is active`
-                    : item.hint}
-                />
-              ))}
-            </MenuSection>
-          ))}
+      <div className="topbar-group topbar-display">
+        <Menu ariaLabel="Chart layers" label={<><Icon.Layout /><span className="hide-compact">Layers</span></>}>
+          <MenuSection title="Footprint layers">
+            {PANEL_ITEMS.map((item) => (
+              <MenuCheckbox
+                key={item.key}
+                checked={panels[item.key]}
+                onChange={(checked) => setPanelVisible(item.key, checked)}
+                label={item.label}
+                hint={item.hint}
+              />
+            ))}
+          </MenuSection>
         </Menu>
         <Select className="theme-select" value={theme} onChange={(e) => setTheme(e.target.value as Theme)} aria-label="Theme">
           {THEME_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}

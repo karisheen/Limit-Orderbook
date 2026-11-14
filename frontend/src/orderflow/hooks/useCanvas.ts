@@ -3,7 +3,7 @@
 
 
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
-import { scheduleCanvasRedraw } from "@/lib/session/canvasScheduler";
+import { canvasThemeRevision, mountCanvasPresentation, type CanvasPresentation } from "@/lib/session/canvasScheduler";
 import type { ThemeTokens } from "@/lib/theme";
 
 // ─── Palette ─────────────────────────────────────────────────────
@@ -32,11 +32,13 @@ export interface Palette {
 
 let cachedTheme: string | null = null;
 let cachedPalette: Palette | null = null;
+let cachedRevision = -1;
 
 export function readPalette(): Palette {
   const root = document.documentElement;
   const theme = root.getAttribute("data-theme") ?? "dark";
-  if (cachedPalette && cachedTheme === theme) return cachedPalette;
+  const revision = canvasThemeRevision();
+  if (cachedPalette && cachedTheme === theme && cachedRevision === revision) return cachedPalette;
   const cs = getComputedStyle(root);
   const v = (name: keyof ThemeTokens, fallback: string) => cs.getPropertyValue(name).trim() || fallback;
   cachedPalette = {
@@ -62,6 +64,7 @@ export function readPalette(): Palette {
     light: theme === "light" || theme === "light-dull",
   };
   cachedTheme = theme;
+  cachedRevision = revision;
   return cachedPalette;
 }
 
@@ -97,44 +100,28 @@ export function useCanvas(draw: DrawFn) {
     drawRef.current = draw;
   }, [draw]);
 
-  const paint = useCallback(() => {
-    const canvas = canvasRef.current;
-    const { width, height } = sizeRef.current;
-    if (!canvas || width <= 0 || height <= 0) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const dpr = window.devicePixelRatio || 1;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, width, height);
-    drawRef.current(ctx, width, height, readPalette());
-  }, []);
+  const presentationRef = useRef<CanvasPresentation | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
     const canvas = canvasRef.current;
     if (!container || !canvas) return;
-    const resize = () => {
-      const width = Math.floor(container.clientWidth);
-      const height = Math.floor(container.clientHeight);
-      const dpr = window.devicePixelRatio || 1;
+    const presentation = mountCanvasPresentation(container, canvas, (ctx, width, height) => {
       sizeRef.current = { width, height };
-      canvas.width = Math.max(1, Math.round(width * dpr));
-      canvas.height = Math.max(1, Math.round(height * dpr));
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
-      scheduleCanvasRedraw(paint);
+      drawRef.current(ctx, width, height, readPalette());
+    });
+    presentationRef.current = presentation;
+    return () => {
+      presentationRef.current = null;
+      presentation.dispose();
     };
-    const observer = new ResizeObserver(resize);
-    observer.observe(container);
-    resize();
-    return () => observer.disconnect();
-  }, [paint]);
+  }, []);
 
   useEffect(() => {
-    scheduleCanvasRedraw(paint);
-  }, [draw, paint]);
+    presentationRef.current?.invalidate();
+  }, [draw]);
 
-  const redraw = useCallback(() => scheduleCanvasRedraw(paint), [paint]);
+  const redraw = useCallback(() => presentationRef.current?.invalidate(), []);
 
   return { containerRef, canvasRef, sizeRef, redraw };
 }

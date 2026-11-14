@@ -95,7 +95,7 @@ for (const fault of ['missing', 'ineligible'] as const) {
       await expect(bookCoverage.getByRole('listitem').filter({ hasText: 'browser_fixture_primary_ineligible' })).toBeVisible();
     }
 
-    await page.getByRole('radiogroup', { name: 'Workspace', exact: true }).getByRole('radio', { name: 'Liquidity', exact: true }).click();
+    await page.getByRole('combobox', { name: 'Layout preset', exact: true }).selectOption('liquidity');
     const depth = page.getByRole('region', { name: 'Market Depth', exact: true });
     await expect(depth.getByTestId('primary-book-missing')).toContainText('No peer book is substituted');
     await expect(depth.locator('.panel-subtitle')).toContainText(`Single · ${venueLabel(primary.venue)} · ${primary.native_symbol}`);

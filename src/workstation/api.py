@@ -5,14 +5,15 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
 
-from anyio import CancelScope
 from fastapi import FastAPI, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from .instruments import Instrument
 from .precision import decimal
+from .ownership import join_owned
 from .runtime import RuntimeFailure, TerminalRuntime
 
 
@@ -147,6 +148,16 @@ class CandleRequest(SessionAction):
     limit: int = Field(default=300, ge=1, le=500)
     source: Literal["session_trades", "venue_ohlcv"] = "session_trades"
     instrument_ids: list[str] = Field(default_factory=list, max_length=16)
+    before_ns: str | None = Field(default=None, max_length=19, pattern=r"^[1-9][0-9]*$")
+
+    @model_validator(mode="after")
+    def valid_candle_boundary(self):
+        if self.before_ns is not None:
+            if self.source != "venue_ohlcv":
+                raise ValueError("older history requires venue_ohlcv")
+            if int(self.before_ns) > 2**63 - 1:
+                raise ValueError("candle boundary exceeds signed 64-bit timestamp")
+        return self
 
     @field_validator("instrument_ids")
     @classmethod
@@ -492,7 +503,7 @@ def create_app(
         try:
             yield
         finally:
-            await runtime.close()
+            await join_owned(asyncio.create_task(runtime.close()))
 
     app = FastAPI(
         title="Limit Orderbook terminal",
@@ -540,25 +551,31 @@ def create_app(
             status_code=503 if reasons else 200,
         )
 
-    @app.get("/api/v1/instruments")
-    async def instruments(
-        request: Request, source_id: str | None = Query(default=None, max_length=256)
+    async def catalog_response(
+        request: Request, source_id, *, include_sources=True, directory=False
     ):
-        if source_id is not None:
+        selected: tuple[Instrument, ...]
+        if directory:
+            selected = ()
+        elif source_id is not None:
             runtime.source(source_id)
             selected = runtime.source_instruments.get(source_id, ())
         else:
             selected = tuple(runtime.instruments.values())
-        sources = tuple(
-            {**source, "reasons": list(source["reasons"])}
-            for source in runtime.sources.values()
+        sources = (
+            tuple(
+                {**source, "reasons": list(source["reasons"])}
+                for source in runtime.sources.values()
+            )
+            if include_sources
+            else ()
         )
         content, etag = await runtime._catalog_work(
             runtime._catalog_response,
             selected,
             sources,
             "live" if runtime.enable_live else runtime.demo_id,
-            source_id,
+            ("sources",) if directory else ("instruments", source_id, include_sources),
         )
         headers = {"ETag": etag, "Cache-Control": "private, no-cache"}
         candidates = request.headers.get("if-none-match", "").split(",")
@@ -568,6 +585,20 @@ def create_app(
             return Response(status_code=304, headers=headers)
         # Already encoded off-loop; avoid a second recursive framework walk.
         return Response(content=content, media_type="application/json", headers=headers)
+
+    @app.get("/api/v1/sources")
+    async def sources(request: Request):
+        return await catalog_response(request, None, directory=True)
+
+    @app.get("/api/v1/instruments")
+    async def instruments(
+        request: Request,
+        source_id: str | None = Query(default=None, max_length=256),
+        include_sources: bool = Query(default=True),
+    ):
+        return await catalog_response(
+            request, source_id, include_sources=include_sources
+        )
 
     @app.get("/api/v1/sessions")
     async def sessions():
@@ -828,9 +859,8 @@ def create_app(
         try:
             await websocket.accept()
         except BaseException:
-            with CancelScope(shield=True):
-                session.socket_attached = False
-                await runtime.remove(session.id)
+            session.socket_attached = False
+            await join_owned(asyncio.create_task(runtime.remove(session.id)))
             raise
 
         async def publish():
@@ -861,19 +891,19 @@ def create_app(
         except (WebSocketDisconnect, RuntimeFailure, ValueError, TimeoutError):
             pass
         finally:
-            # ASGI servers may use level-triggered cancellation (AnyIO). Shield
-            # ownership cleanup, not the connection task's cancellation itself:
-            # join publisher/worker work and release leases before propagating it.
-            with CancelScope(shield=True):
+
+            async def cleanup():
                 for task in tasks:
                     task.cancel()
-                await asyncio.gather(*tasks, return_exceptions=True)
+                await join_owned(asyncio.gather(*tasks, return_exceptions=True))
                 session.socket_attached = False
                 await runtime.remove(session.id)
                 try:
                     await websocket.close(code=1000)
                 except (RuntimeError, WebSocketDisconnect):
                     pass
+
+            await join_owned(asyncio.create_task(cleanup()))
 
     dist = frontend_dist or Path(__file__).resolve().parents[2] / "frontend" / "dist"
 

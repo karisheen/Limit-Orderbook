@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Frame } from './api.ts';
-import { candleAtTime, candleDate, candleIdentity, candleInstrumentIds, candlePriceScale, candleRange, candleSourceBlock, candleTimeTicks, followCandleRange, fractionAt, INTERVAL_GROUPS, matchesCandleHistory, panCandles, timeAtFraction, validateCandles, zoomCandles } from './candle-model.ts';
+import { candleAtTime, candleDate, candleIdentity, candleInstrumentIds, candlePriceScale, candleSourceBlock, INTERVAL_GROUPS, matchesCandleHistory, validateCandles } from './candle-model.ts';
 import type { CandleHistory, PriceCandle } from './candle-model.ts';
 
 const hour = 3_600_000_000_000n;
@@ -20,56 +20,12 @@ function history(candles: PriceCandle[] = [bar(0n)], overrides: Partial<CandleHi
     ...overrides };
 }
 
-test('timestamp positions retain missing hour gaps instead of compressing the series', () => {
+test('timestamp inspection preserves missing hour gaps and exclusive bucket ends', () => {
   const candles = [bar(0n), bar(1n), bar(4n)];
-  const range = { start: origin, end: origin + 5n * hour };
-  assert.equal(fractionAt(candles[1]!.start_ns, range), 0.2);
-  assert.equal(fractionAt(candles[2]!.start_ns, range), 0.8);
   assert.equal(candleAtTime(candles, origin + 2n * hour), -1);
   assert.equal(candleAtTime(candles, origin + 4n * hour), 2);
   assert.equal(candleAtTime(candles, origin + 5n * hour), -1);
   assert.equal(candleAtTime(candles, origin - 1n), -1);
-});
-
-test('viewport precision is relative to the timestamp origin, not Number(epoch nanoseconds)', () => {
-  const range = { start: 9_007_199_254_740_993_000_000_001n, end: 9_007_199_254_740_993_000_001_001n };
-  assert.equal(fractionAt(range.start + 501n, range), 0.501);
-  assert.equal(timeAtFraction(0.501, range), range.start + 501n);
-  assert.deepEqual(panCandles(range, 0.25), { start: range.start + 250n, end: range.end + 250n });
-});
-
-test('active bar updates do not shift time viewport; following advances only on a new boundary', () => {
-  const initial = [bar(0n), bar(1n, { closed: false })];
-  const range = candleRange(initial, true)!;
-  const previousEnd = BigInt(initial[1]!.end_ns);
-  const update = [initial[0]!, bar(1n, { close: '101.90', volume: '22.01', closed: false })];
-  assert.deepEqual(candleRange(update, true), range);
-  assert.deepEqual(followCandleRange(range, previousEnd, update), range);
-  const advanced = [...update, bar(2n, { closed: false })];
-  assert.deepEqual(followCandleRange(range, previousEnd, advanced), { start: range.start + hour, end: range.end + hour });
-  assert.deepEqual(followCandleRange(range, previousEnd, [bar(0n)]), range);
-});
-
-test('fit includes every actual bucket and latest opens a bounded recent window', () => {
-  const candles = Array.from({ length: 300 }, (_, index) => bar(BigInt(index)));
-  const fit = candleRange(candles)!;
-  const latest = candleRange(candles, true)!;
-  assert.equal(fit.start, origin - hour);
-  assert.equal(fit.end, origin + 303n * hour);
-  assert.equal(latest.start, origin + 209n * hour);
-  assert.equal(latest.end, fit.end);
-  assert.equal(candleRange([]), null);
-});
-
-test('zoom retains its timestamp anchor and enforces finite useful span bounds', () => {
-  const candles = Array.from({ length: 100 }, (_, index) => bar(BigInt(index)));
-  const range = { start: origin, end: origin + 100n * hour };
-  const next = zoomCandles(range, 0.5, 0.25, candles);
-  assert.equal(timeAtFraction(0.25, next), timeAtFraction(0.25, range));
-  const min = zoomCandles(range, 0.00001, 0.5, candles);
-  assert.equal(min.end - min.start, 3n * hour);
-  const max = zoomCandles(range, 1e6, 0.5, candles);
-  assert.equal(max.end - max.start, 300n * hour);
 });
 
 test('calendar month display respects actual provider boundaries, not a fixed 30-day duration', () => {
@@ -79,8 +35,6 @@ test('calendar month display respects actual provider boundaries, not a fixed 30
   assert.equal(candleAtTime([candle], end - 1n), 0);
   assert.equal(candleAtTime([candle], end), -1);
   assert.equal(candleDate(start, true), '2024-02-01 00:00:00 UTC');
-  const range = candleRange([candle])!;
-  assert.equal(range.start, start - 29n * 24n * hour);
 });
 
 test('exact OHLCV validation never rounds adjacent prices or modifies source strings', () => {
@@ -153,10 +107,15 @@ test('only the exact canonical response cohort and pinned source can be presente
   assert.equal(matchesCandleHistory({ ...aggregate, source: 'venue_ohlcv' }, { ...aggregate, source: 'venue_ohlcv' }), false);
 });
 
-test('venue history cannot stand in for an aggregate, pending cohort, or guessed primary', () => {
+test('venue history selects only the primary independently of pending or aggregate flow', () => {
   assert.equal(candleSourceBlock('session_trades', 'native', ['native', 'peer'], true), null);
   assert.equal(candleSourceBlock('venue_ohlcv', 'native', ['native'], true), null);
-  assert.match(candleSourceBlock('venue_ohlcv', 'native', ['native', 'peer'], true)!, /never replaced/);
+  assert.equal(candleSourceBlock('venue_ohlcv', 'native', ['native', 'peer'], true), null);
+  assert.equal(candleSourceBlock('venue_ohlcv', 'native', [], false), null);
+  assert.match(candleSourceBlock('venue_ohlcv', '', ['peer'], true)!, /exact native primary/);
+  const frame = { session_id: 'session', generation: '4', source: { id: 'source-a', mode: 'live' }, selection: { instrument_id: 'native' } } as Frame;
+  assert.equal(candleIdentity(frame, '1h', ['native', 'peer'], 'venue_ohlcv', false),
+    candleIdentity(frame, '1h', ['native'], 'venue_ohlcv', true));
   assert.match(candleSourceBlock('session_trades', 'native', ['peer'], true)!, /does not match/);
   assert.match(candleSourceBlock('session_trades', 'native', ['native'], false)!, /Waiting/);
   assert.match(candleSourceBlock('session_trades', 'native', ['native', 'native'], true)!, /does not match/);
@@ -179,7 +138,9 @@ test('all fifteen native intervals preserve receive-time, partial and retention 
   assert.throws(() => validateCandles(history([], { status: 'empty', retention: undefined })), /coverage or retention/);
   assert.throws(() => validateCandles(history([], { status: 'empty', missing_instrument_ids: ['not-selected'] })), /coverage or retention/);
   const venue = history([bar(0n)], { source: 'venue_ohlcv', time_basis: 'exchange_utc', retention: undefined,
-    highwater: undefined, bucket_alignment: undefined, missing_instrument_ids: undefined });
+    highwater: undefined, bucket_alignment: undefined, missing_instrument_ids: undefined, series_key: 'venue:native:1h',
+    history: { requested_before_ns: null, next_before_ns: origin.toString(), state: 'more', pagination: 'time',
+      max_bars: 300, update_mode: 'poll', poll_interval_ms: 5000 } });
   validateCandles(venue);
   assert.throws(() => validateCandles({ ...venue, instrument_ids: ['native', 'peer'], scope: 'aggregate' }), /source boundary/);
 });
@@ -189,21 +150,4 @@ test('nanosecond display floors before conversion and unsafe plot dates are reje
   assert.throws(() => validateCandles(history([bar(0n, {
     start_ns: '9007199254740993000000000', end_ns: '9007199254740994000000000',
   })])), /safe plotting range/);
-});
-
-test('time ticks stay clock-aligned under panning instead of displaying arbitrary fractions', () => {
-  const start = origin + 4n * hour;
-  const first = candleTimeTicks({ start, end: start + 94n * hour }, 1066);
-  assert.deepEqual(first.map(tick => (tick.time - origin) / hour), [12n, 24n, 36n, 48n, 60n, 72n, 84n, 96n]);
-  const panned = candleTimeTicks({ start: start + hour, end: start + 95n * hour }, 1066);
-  assert.deepEqual(panned, first);
-  assert.equal(first[0]!.label, '01-01 12:00');
-});
-
-test('wide candle axes use calendar year boundaries across leap years', () => {
-  const start = BigInt(Date.parse('2023-03-01T00:00:00Z')) * 1_000_000n;
-  const end = BigInt(Date.parse('2028-03-01T00:00:00Z')) * 1_000_000n;
-  const ticks = candleTimeTicks({ start, end }, 960);
-  assert.deepEqual(ticks.map(tick => tick.label), ['2024-01-01', '2025-01-01', '2026-01-01', '2027-01-01', '2028-01-01']);
-  assert.equal(ticks[1]!.time - ticks[0]!.time, 366n * 24n * hour);
 });

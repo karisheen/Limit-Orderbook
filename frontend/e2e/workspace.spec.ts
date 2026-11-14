@@ -88,7 +88,11 @@ async function openDemo(page: Page) {
   const demo = available.sources.find(source => source.mode === 'demo' && source.status === 'ready');
   if (!demo) throw new Error('Actual native catalog must expose an explicitly synthetic demo source');
   const created = nextResponse(page, 'sessions');
-  const catalogResponse = page.waitForResponse(response => response.url().endsWith('/api/v1/instruments') && response.request().method() === 'GET');
+  const catalogResponse = page.waitForResponse(response => {
+    const url = new URL(response.url());
+    return response.request().method() === 'GET' && url.pathname === '/api/v1/instruments'
+      && url.searchParams.get('source_id') === demo.id && url.searchParams.get('include_sources') === 'false';
+  });
   await page.goto(`/?source=${encodeURIComponent(demo.id)}`);
   const frame = await body<Frame>(created);
   const catalog = await body<Catalog>(catalogResponse);
@@ -512,9 +516,7 @@ test('independent chart settings and saved resized workspace survive reload with
   }
   await modes.selectOption('footprint');
   await secondary(page).getByLabel('Chart mode', { exact: true }).selectOption('candles');
-  await openDisclosure(page.locator('.workspace-configuration'));
-  await page.getByLabel('Workspace preset').selectOption('analysis');
-  await page.locator('.workspace-configuration > summary').click();
+  await page.getByRole('combobox', { name: 'Layout preset', exact: true }).selectOption('liquidity');
   await openPane(page, 'Costs & proposed risk');
   const separators = [
     ['Chart split', 'ArrowUp'], ['DOM and tape split', 'ArrowUp'], ['Research pane height', 'ArrowUp'],
@@ -541,24 +543,22 @@ test('independent chart settings and saved resized workspace survive reload with
   await secondary(page).getByLabel('Time bucket').selectOption('10000000000');
   await secondary(page).getByLabel('Chart range').selectOption('300');
   const expected = {
-    mode: 'footprint', nativeView: 'orderflow', preset: 'analysis', leftOpen: false, domRows: 25, bucket: '5000000000',
+    mode: 'footprint', nativeView: 'orderflow', leftOpen: false, domRows: 25, bucket: '5000000000',
     rangeSeconds: 60, showTrades: false, instrument: selected.selection.instrument_id,
     secondary: { mode: 'candles', bucket: '10000000000', rangeSeconds: 300 },
   };
   await expect.poll(() => page.evaluate(key => JSON.parse(localStorage.getItem(key) ?? '{}') as Record<string, unknown>, preferenceKey)).toMatchObject(expected);
-  await openDisclosure(page.locator('.workspace-configuration'));
-  await openDisclosure(page.locator('.workspace-slots'));
-  await page.getByLabel('Workspace slot').selectOption('0');
-  await page.getByRole('button', { name: 'Save workspace', exact: true }).click();
-  await page.getByLabel('Workspace preset').selectOption('ladder');
-  await page.locator('.workspace-configuration > summary').click();
+  const layouts = page.getByRole('navigation', { name: 'Workspace layout', exact: true });
+  await layouts.getByText('Saved layouts', { exact: true }).click();
+  await layouts.getByRole('textbox', { name: 'Layout name', exact: true }).fill('Native analysis');
+  await layouts.getByRole('button', { name: 'Save layout', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Layout preset', exact: true }).selectOption('execution');
   await openMarketView(page, 'Liquidity & flow');
   await openChartSettings(page);
   await primary(page).getByLabel('Chart range').selectOption('30');
-  await openDisclosure(page.locator('.workspace-configuration'));
-  await page.getByRole('button', { name: 'Load workspace', exact: true }).click();
-  await expect(page.getByLabel('Workspace preset')).toHaveValue('analysis');
-  await page.locator('.workspace-configuration > summary').click();
+  await layouts.getByText('Saved layouts', { exact: true }).click();
+  await layouts.getByRole('button', { name: 'Load layout', exact: true }).click();
+  await expect(layouts.getByRole('status')).toContainText('Native analysis loaded');
   await openChartSettings(page);
   await expect(primary(page).getByLabel('Chart range')).toHaveValue('60');
   const saved = await page.evaluate(() => Object.values(localStorage).join('\n'));
@@ -576,12 +576,11 @@ test('independent chart settings and saved resized workspace survive reload with
   await expect(page.locator('.status')).toContainText(/\bConnected$/i);
   await expect(page.getByLabel('Search instruments')).toBeVisible();
   await page.getByLabel('Search instruments').press('Escape');
-  await openDisclosure(page.locator('.workspace-configuration'));
-  await openDisclosure(page.locator('.workspace-slots'));
-  await page.getByLabel('Workspace preset').selectOption('balanced');
-  await page.getByRole('button', { name: 'Load workspace', exact: true }).click();
-  await expect(page.getByLabel('Workspace preset')).toHaveValue('analysis');
-  await page.locator('.workspace-configuration > summary').click();
+  await page.getByRole('combobox', { name: 'Layout preset', exact: true }).selectOption('balanced');
+  await layouts.getByText('Saved layouts', { exact: true }).click();
+  await layouts.getByRole('combobox', { name: 'Saved layout', exact: true }).selectOption('Native analysis');
+  await layouts.getByRole('button', { name: 'Load layout', exact: true }).click();
+  await expect(layouts.getByRole('status')).toContainText('Native analysis loaded');
   await expect(modes).toHaveValue('footprint');
   await expect(secondary(page).getByLabel('Chart mode', { exact: true })).toHaveValue('candles');
   for (const [name, value] of dimensions) {
@@ -602,7 +601,7 @@ test('independent chart settings and saved resized workspace survive reload with
   await expect(secondary(page).getByLabel('Chart range')).toHaveValue('300');
 });
 
-test('unified chart navigation and sidebar sizing are keyboard accessible without replacing the session', async ({ page }) => {
+test('unified chart navigation and grid sizing are keyboard accessible without replacing the session', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   const { frame, latestFrame } = await openDemo(page);
   const tabs = page.getByRole('tablist', { name: 'Chart workspace', exact: true });
@@ -621,13 +620,15 @@ test('unified chart navigation and sidebar sizing are keyboard accessible withou
   await expect(liquidity).toBeFocused();
   await expect(primary(page)).toBeVisible();
   await expect(secondary(page)).toBeVisible();
-  const sidebar = page.locator('.terminal > .workspace > .sidebar');
-  const width = (await sidebar.boundingBox())!.width;
-  const resize = sidebar.getByRole('separator', { name: 'Resize sidebar width', exact: true });
+  await page.getByRole('button', { name: 'Edit layout', exact: true }).click();
+  const tile = page.locator('[data-grid-panel="chart"]');
+  const width = (await tile.boundingBox())!.width;
+  const resize = tile.getByRole('button', { name: 'Resize Chart', exact: true });
   await resize.press('ArrowLeft');
-  await expect.poll(async () => (await sidebar.boundingBox())!.width).toBe(width + 10);
+  await expect.poll(async () => (await tile.boundingBox())!.width).toBeLessThan(width);
   await resize.press('ArrowRight');
-  await expect.poll(async () => (await sidebar.boundingBox())!.width).toBe(width);
+  await expect.poll(async () => (await tile.boundingBox())!.width).toBe(width);
+  await page.getByRole('button', { name: 'Finish editing', exact: true }).click();
   expect(latestFrame().session_id).toBe(frame.session_id);
   expect(latestFrame().generation).toBe(frame.generation);
   expect(latestFrame().selection).toEqual(frame.selection);
@@ -644,7 +645,7 @@ for (const width of [1440, 1280]) {
     const initial = await body<VisualGrid>(nextResponse(page, 'visualization'));
     await primary(page).locator('.m4-chart-plot').scrollIntoViewIfNeeded();
     await expect(primary(page).getByTestId('market-charts')).toHaveAttribute('data-painted-view-id', /.+/);
-    const selectors = ['.terminal > .workspace', '.workspace-main', '.chart-area', '.terminal > .workspace > .sidebar', '[data-testid="chart-pane-heatmap"]', '[data-testid="chart-pane-flow"]', '.native-tools-content'];
+    const selectors = ['.grid-surface', '[data-grid-panel="chart"]', '.native-chart-area', '[data-grid-panel="orderBook"]', '[data-testid="chart-pane-heatmap"]', '[data-testid="chart-pane-flow"]', '.native-tools-content'];
     const baseline = await Promise.all(selectors.map(selector => contentBounds(page.locator(selector))));
     expect(baseline.every(box => box !== null && box.width > 0 && box.height > 0)).toBe(true);
     await replay(page, 'play');
@@ -663,7 +664,7 @@ for (const width of [1440, 1280]) {
     expect(BigInt(latest.now_ns)).toBeGreaterThan(BigInt(initial.now_ns));
     await openMarketView(page, 'Native book & tape');
     await expect(page.getByTestId('grouped-ladder')).toBeVisible();
-    const bookSelectors = ['.terminal > .workspace', '.workspace-main', '.chart-area', '.terminal > .workspace > .sidebar', '[data-pane="dom"]', '[data-pane="tape"]', '.native-tools-content'];
+    const bookSelectors = ['.grid-surface', '[data-grid-panel="chart"]', '.native-chart-area', '[data-grid-panel="obi"]', '[data-pane="dom"]', '[data-pane="tape"]', '.native-tools-content'];
     const bookBaseline = await Promise.all(bookSelectors.map(selector => contentBounds(page.locator(selector))));
     expect(bookBaseline.every(box => box.width > 0 && box.height > 0)).toBe(true);
     const firstBook = await body<GroupedLadder>(nextResponse(page, 'ladder'));
@@ -821,7 +822,7 @@ test('malformed JSON preferences are replaced by a usable default workspace', as
     const stored = await page.evaluate(key => localStorage.getItem(key), preferenceKey);
     try { return JSON.parse(stored ?? 'null') as unknown; }
     catch { return null; }
-  }).toMatchObject({ version: 1, preset: 'balanced', mode: 'heatmap', paused: false, domFrozen: false });
+  }).toMatchObject({ version: 2, preset: 'balanced', mode: 'heatmap', paused: false, domFrozen: false });
   await expect(page.getByTestId('proposal-risk-calculate')).toBeEnabled();
 });
 
@@ -1069,7 +1070,7 @@ for (const width of [320, 390]) {
 
     await openDisclosure(page.locator('.workspace-configuration'));
     await expect(page.getByLabel('Data source', { exact: true })).toBeVisible();
-    await expect(page.getByLabel('Workspace preset', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Layout preset', { exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.locator('.workspace-configuration > summary').click();
     await openPane(page, 'Costs & proposed risk');
@@ -1087,14 +1088,15 @@ for (const width of [320, 390]) {
     await expect(page.locator('.native-watchlist [aria-pressed="true"]')).toContainText('ETH');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await tabs.getByRole('tab', { name: 'Liquidity', exact: true }).click();
-    const sidebar = page.locator('.terminal > .workspace > .sidebar');
-    await sidebar.scrollIntoViewIfNeeded();
-    await expect(sidebar).toBeInViewport();
-    const sidebarBounds = await sidebar.boundingBox();
-    expect(sidebarBounds!.x).toBeGreaterThanOrEqual(0);
-    expect(sidebarBounds!.x + sidebarBounds!.width).toBeLessThanOrEqual(width);
-    await expect(sidebar.getByRole('region', { name: 'Order Book', exact: true })).toBeVisible();
-    await expect(sidebar.getByRole('region', { name: 'Time & Sales', exact: true })).toBeVisible();
+    for (const [id, name] of [['orderBook', 'Order Book'], ['timeSales', 'Time & Sales']] as const) {
+      const tile = page.locator(`[data-grid-panel="${id}"]`);
+      await tile.scrollIntoViewIfNeeded();
+      await expect(tile).toBeInViewport();
+      const bounds = await tile.boundingBox();
+      expect(bounds!.x).toBeGreaterThanOrEqual(0);
+      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
+      await expect(tile.getByRole('region', { name, exact: true })).toBeVisible();
+    }
 
     await page.setViewportSize({ width: 1280, height: 900 });
     await expect(tabs).toBeHidden();

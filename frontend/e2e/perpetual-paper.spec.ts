@@ -24,7 +24,11 @@ for (const scenario of ['none', 'periodic', 'events', 'freeze', 'liquidation'] a
     await page.addInitScript(() => localStorage.removeItem('limit-orderbook.workspace.v1'));
     try {
       const creation = responseFor(page, 'sessions');
-      const catalogRead = page.waitForResponse(response => response.url().endsWith('/api/v1/instruments') && response.request().method() === 'GET');
+      const catalogRead = page.waitForResponse(response => {
+        const url = new URL(response.url());
+        return response.request().method() === 'GET' && url.pathname === '/api/v1/instruments'
+          && url.searchParams.has('source_id') && url.searchParams.get('include_sources') === 'false';
+      });
       await page.goto('/');
       const initial = await result<Frame>(creation);
       expect(initial.source.mode).toBe('demo');

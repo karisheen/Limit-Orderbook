@@ -6,6 +6,11 @@ Python-backed session; exchange feeds may be shared. React renders the charts an
 controls, while the native backend owns financial calculations and evidence.
 No exchange order is sent.
 
+**Start here: [Quickstart and operating manual](docs/QUICKSTART.md)** — startup,
+updates, every major view, recording/replay, paper safety and recovery.
+The [stabilization review](docs/STABILITY_REVIEW.md) records measured problems,
+repairs, local verification and operating limits; it is not live-execution certification.
+
 [![Latest features: OI/funding charts and perpetual paper workflows](docs/media/orderbook-demo.gif)](docs/media/orderbook-demo.mp4)
 
 [Watch the 2-minute 15-second walkthrough (MP4)](docs/media/orderbook-demo.mp4).
@@ -24,13 +29,15 @@ latency or trading readiness.
 ## Terminal features
 
 - **Footprint, Price action, Liquidity & flow, Native book & tape** workspaces,
-  six themes, resizable panels and keyboard-accessible inspection.
+  six themes, five presets, named editable grids and keyboard-accessible inspection.
 - Bid × Ask / Delta / Volume footprints, VWAP, POC/value area, volume profiles,
   CVD, volume z-score, depth/imbalance and realized-volatility studies.
-- Spot/perpetual selection, searchable instruments, exact price pins and
-  explicitly indicative cross-venue displays.
-- Shared trade-derived candle intervals and synchronized **OI & funding**
-  history from observed Hyperliquid context.
+- Spot/perpetual selection, grouped native-instrument search, exact price pins
+  and explicitly indicative cross-venue displays.
+- Lightweight Charts **5.3.0** price/volume, one global timeframe selector,
+  paginated ticker history and optional clock-compatible observed **OI & funding**.
+- Optional historical resting-liquidity footprint layer and individual
+  large-print venue badges, distinct from executed-volume heatmaps.
 - Native costs/proposed risk, alerts, reference context, **spot IOC and isolated
   perpetual paper accounting**, a manual journal and read-only research reports.
 - Managed recording, causal replay, durable paper archives and browser-local
@@ -85,8 +92,8 @@ to expose an existing verified capture as a replay source. Select sources inside
 the terminal, or request a catalog source with `/?source=live` or
 `/?source=<catalog ID>`. A URL source takes precedence over saved preferences;
 unavailable live data never silently becomes demo.
-Explicit **Venue history** requests may fetch public REST candles even without
-`--network`; that flag controls shared live discovery/collection.
+Explicit **Ticker history** (`venue_ohlcv`) requests may fetch public REST candles
+even without `--network`; that flag controls shared live discovery/collection.
 
 For development, keep the Python server running and start
 `npm --prefix frontend run dev`; open `http://127.0.0.1:5173/`. Vite proxies the
@@ -99,13 +106,62 @@ See [terminal controls](docs/TERMINAL.md), [development](docs/DEVELOPMENT.md),
 
 ## Charts, recording and replay
 
-Price action, the footprint and interval-based studies share the selected native
-cohort and one persisted interval, from **1m through calendar-month 1M**.
-Session candles use retained admitted trades in live, demo and replay; missing
-history stays missing. Optional **Venue history** is a separate primary-only
-OHLCV source, not automatic backfill. OI/funding panes share the price time axis
-but retain their supplying instrument: related perpetual context is not
-relabeled as the selected spot or another venue.
+Price action uses a hybrid renderer: Lightweight Charts **5.3.0** for candles,
+volume and compatible optional panes; specialized footprint/liquidity charts
+retain their native rendering and exact inspectors. **Auto** source selects
+**Ticker history** for live sessions and **Observed flow** for demo/replay.
+Ticker history is one exact primary instrument on exchange time; observed flow
+uses the selected native cohort on projected receive time. They are never
+stitched together or silently substituted.
+Ticker requests are independent of observed-cohort/collector readiness, while
+session/source/generation fences remain enforced. A current ticker chart is not
+proof that observed books/trades or financial workflows are healthy.
+
+One persisted global interval runs from **1m through calendar-month 1M**, subject
+to each provider's supported intervals. Scroll left for older ticker pages;
+updates use labeled **5-second polling**, not candle streaming. Auto/Log scale,
+Fit loaded history, Latest/follow and a right margin control navigation.
+Mounted history is capped at **10,000 bars**; reaching the cap preserves loaded
+history and requires an explicit reset to resume growth, not invisible eviction.
+Current external ticker requests during replay are explicitly labeled as
+**not replay evidence**. Observed OI/funding remains opt-in and receive-clock
+compatible, with its actual supplying instrument and units; absent data does
+not reserve blank panes.
+
+Exact original decimal strings drive inspection. The renderer receives an
+explicit decimal-power `base` and `minMove`; bounded plotting conversions reject
+colliding/unrepresentable values rather than rounding financial evidence.
+
+The responsive desktop grid fits **12 logical rows** to remaining height with a
+**24px minimum row height**; custom extents/short windows can scroll and narrow
+screens stack panels. Compact one-line desktop KPIs and visible provenance keep
+space for the chart. Presets are **Order flow, Price focus, Liquidity, Volatility
+and Execution**. Saved layouts dismiss on outside interaction/focus or Escape
+without clearing drafts; layouts store display geometry/preferences, not active
+source, instrument, cohort or session. Hidden native panes preserve frozen
+evidence while query/paint work is suspended.
+
+Optional resting overlays use retained native historical depth, never today's
+book stretched backward; large-print badges inspect individual retained trades.
+The [implementation and verification record](docs/CHART_REDESIGN_PLAN.md)
+tracks the final gates, actual browser observations and known limits.
+
+Finite Binance spot observations include **300→600→900** backfill with the same
+normal-precision inspected bar, forming updates and actual hour rollover to
+**901** bars, all **18** six-theme/three-width states, continuous touch pan/pinch
+interaction and a bounded resource sample.
+[Measurements and caveats](docs/CHART_REDESIGN_PLAN.md#recorded-implementation-observations)
+do not establish all-provider availability, sustained performance or leak freedom.
+
+Actual implementation screenshots:
+[1440 dark](docs/evidence/chart-redesign/live-price-1440-dark.png),
+[1440 light](docs/evidence/chart-redesign/live-price-1440-light.png),
+[1280 dark](docs/evidence/chart-redesign/live-price-1280-dark.png),
+[390 dark](docs/evidence/chart-redesign/live-price-390-dark.png).
+**Caption:** live ticker history can remain current while the visible collector
+`analytical_queue_overflow` incident leaves observed flow unavailable.
+The [synthetic design mockup](docs/media/chart-redesign-mockup.html) is a separate
+illustrative layout study, not an implementation screenshot or measured result.
 
 **Recordings** captures either the selected instrument's owned channels or the
 session cohort. Scope stays fixed when the display selection changes. Finalized,
@@ -132,6 +188,9 @@ research and managed captures. Reuse it for the server and research CLI.
 Paper risk/funding models are user assumptions, not exchange risk tiers or
 automatically charged observed funding. Marks are conservative book-side proxies.
 No passive queue-position fills, borrowing or market impact is inferred.
+Analytical continuity loss freezes affected paper accounting at its last complete
+prefix with durable gap evidence. Fresh books or reconnecting cannot repair the
+missing path or thaw that run; an explicit new run establishes a new boundary.
 Unknown fees, conversion evidence and missing depth stay unavailable, not zero.
 See [paper controls and boundaries](docs/TERMINAL.md#paper-workflow-spot-and-isolated-perpetuals),
 [accounting contracts](docs/CONTRACTS.md) and
@@ -159,6 +218,7 @@ For deliberate public-service observations, use
 `uv run --locked python tools/probe_feeds.py --live --duration 60 --include-hype`.
 
 Executed checks and known limits belong in the
+[stabilization review](docs/STABILITY_REVIEW.md),
 [delivery/evidence handoff](docs/OMP_UPGRADE_HANDOFF.md),
 [operational readiness](docs/READINESS.md), [acceptance backlog](docs/UPGRADE_BACKLOG.md)
 and [exact contracts](docs/CONTRACTS.md). Historical results are not certification

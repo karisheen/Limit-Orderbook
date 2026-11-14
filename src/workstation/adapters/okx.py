@@ -35,7 +35,7 @@ from ..events import (
 from ..instruments import Instrument, InstrumentId, MetadataSnapshot, OrderConstraints
 from ..precision import decimal, exact_json_loads, text
 from ..quality import Capabilities
-from .base import DecodedEvent, DecodeResult, TransportRequest
+from .base import DecodedEvent, DecodeResult, TransportRequest, parse_metadata_offloop
 from .binance import (
     array_field,
     asset_identity,
@@ -90,16 +90,18 @@ class OKXAdapter:
                 TransportRequest("GET", self._metadata_endpoint(inst_type))
             )
             parts.append(raw)
-            instruments.extend(
-                self.parse_metadata(
-                    raw, inst_type=inst_type, fetch_wall_ns=time_ns()
-                ).instruments
+            snapshot = await parse_metadata_offloop(
+                self.parse_metadata, raw, inst_type=inst_type, fetch_wall_ns=time_ns()
             )
-        return metadata_snapshot(
-            f"{self.rest_host}/api/v5/public/instruments",
-            b"\x00".join(parts),
-            time_ns(),
-            instruments,
+            instruments.extend(snapshot.instruments)
+        fetched = time_ns()
+        return await parse_metadata_offloop(
+            lambda: metadata_snapshot(
+                f"{self.rest_host}/api/v5/public/instruments",
+                b"\x00".join(parts),
+                fetched,
+                instruments,
+            )
         )
 
     def parse_metadata(

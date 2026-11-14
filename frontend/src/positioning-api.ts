@@ -8,13 +8,14 @@ interface PositioningState { identity: string; data: PositioningHistory | null; 
 
 /**
  * Polls observed open interest and funding on the candle cadence. `enabled` carries the price
- * chart's own visibility, connection and cohort gates, so a hidden or paused chart never polls.
+ * chart's visibility, transport and observed-source gates. A paused replay can still be queried.
+ * An unavailable candle snapshot still supplies the verified source identity for empty context.
  */
 export function usePositioningHistory(frame: Frame | null, interval: string, enabled: boolean, sourceIdentity: string | null) {
   const session = frame?.session_id ?? '';
   const generation = frame?.generation ?? '';
   const instrument = frame?.selection.instrument_id ?? '';
-  const identity = enabled && session && instrument && sourceIdentity ? JSON.stringify([session, generation, sourceIdentity, instrument, interval]) : '';
+  const identity = enabled && session && generation && instrument && sourceIdentity ? JSON.stringify([session, generation, sourceIdentity, instrument, interval]) : '';
   const [state, setState] = useState<PositioningState>({ identity: '', data: null, error: null });
   useEffect(() => {
     if (!identity || !sourceIdentity) return;

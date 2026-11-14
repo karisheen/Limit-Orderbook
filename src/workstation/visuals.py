@@ -686,10 +686,12 @@ class VisualHistory:
                     ).reasons
                 )
             if stamp - clock.mono_ns <= self.engine.config.policy.max_age_ns:
-                snapshot = self.engine.snapshot(
-                    str(self.instrument.instrument_id), now, key=self.key
-                )
-                metrics = {metric.name: metric for metric in snapshot.metrics}
+                metrics = {
+                    metric.name: metric
+                    for metric in self.engine.flow_metrics(
+                        str(self.instrument.instrument_id), now, key=self.key
+                    )
+                }
             else:
                 reasons.append("metrics_unavailable_without_recent_observation")
         return Sample(
@@ -782,17 +784,21 @@ class VisualHistory:
         if self.anchor is None and self.book and self.book.bids and self.book.asks:
             with localcontext(DECIMAL_CONTEXT):
                 self.anchor = (self.book.bids[0].price + self.book.asks[0].price) / 2
-        flow_eligible = (
-            self.instrument is not None
-            and self.engine.trade_evidence(
-                str(self.instrument.instrument_id), reading, key=self.key
-            )[1].eligible
-        )
+        flow_eligible = None
         for item in self.engine.admitted_tape(batch):
-            if item.stream_id in self.trade_streams and (
-                flow_eligible
-                or item.trade.is_subscription_history
-                and len(self.trade_streams) == 1
+            if item.stream_id not in self.trade_streams:
+                continue
+            # Channel quality is read-only and needed only for admitted prints.
+            # Book/control deliveries must still close prior intervals above.
+            if flow_eligible is None:
+                flow_eligible = (
+                    self.instrument is not None
+                    and self.engine.trade_evidence(
+                        str(self.instrument.instrument_id), reading, key=self.key
+                    )[1].eligible
+                )
+            if flow_eligible or (
+                item.trade.is_subscription_history and len(self.trade_streams) == 1
             ):
                 self._retain_trade(ObservedTrade(reading.mono_ns, self.segment, item))
         if not self.engine.admitted_tape_complete(batch):
