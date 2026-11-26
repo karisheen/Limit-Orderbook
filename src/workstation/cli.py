@@ -149,6 +149,12 @@ def parser() -> argparse.ArgumentParser:
         help="finite capture duration in seconds, after discovery/probes",
     )
     record.add_argument(
+        "--instrument",
+        action="append",
+        metavar="NATIVE_ID",
+        help="exact catalog instrument ID; repeat for multiple products, without --venue/--assets",
+    )
+    record.add_argument(
         "--venue",
         action="append",
         choices=("binance-global", "binance-us", "hyperliquid"),
@@ -158,7 +164,7 @@ def parser() -> argparse.ArgumentParser:
         "--assets",
         nargs="+",
         choices=("BTC", "ETH", "SOL", "HYPE"),
-        default=["BTC", "ETH", "SOL"],
+        help="assets for venue-based selection (default: BTC ETH SOL)",
     )
     record.add_argument(
         "--probe-timeout", type=_positive_decimal, default=Decimal("25")
@@ -365,26 +371,51 @@ async def _demo(args) -> int:
             session.close()
 
 
-async def _record(args) -> int:
-    from .adapter_catalog import AdapterCatalog, metadata_status
-    from .demo import source_tree_revision
-    from .events import AssetContext, ReferencePrice, SubscriptionKey, Trade
-    from .instruments import InstrumentQuery
-    from .recording import Recorder
-    from .subscriptions import RecorderBinding, SubscriptionRegistry, SubscriptionStatus
+async def _record_products(args):
+    from .adapter_catalog import ADAPTER_CLASSES, AdapterCatalog, metadata_status
+    from .instruments import Instrument, InstrumentQuery, UnknownInstrument
 
-    venues = tuple(dict.fromkeys(args.venue or ("binance-global",)))
+    requested: dict[str, list[str]] = {}
+    if args.instrument:
+        if args.venue or args.assets:
+            raise ValueError("--instrument cannot be combined with --venue or --assets")
+        for native_id in dict.fromkeys(args.instrument):
+            venue, sep, _ = native_id.partition(":")
+            if not sep or venue not in ADAPTER_CLASSES:
+                raise ValueError(
+                    f"unknown venue or invalid native instrument ID: {native_id}"
+                )
+            requested.setdefault(venue, []).append(native_id)
+    venues = tuple(requested or dict.fromkeys(args.venue or ("binance-global",)))
     catalog = AdapterCatalog(include_binance_us="binance-us" in venues)
-    products = []
+    products: list[Instrument] = []
     for venue in venues:
         adapter = catalog.adapter(venue)
         snapshot = await adapter.discover()
         catalog.instruments.apply_metadata(snapshot)
         catalog.statuses[venue] = metadata_status(venue, adapter)
+        if requested:
+            for native_id in requested[venue]:
+                try:
+                    item = catalog.instruments.get(native_id)
+                except UnknownInstrument as exc:
+                    raise ValueError(
+                        f"instrument not discovered: {native_id}; {catalog.statuses[venue].detail}"
+                    ) from exc
+                if item.status != "active" or item.data_access in (
+                    "blocked",
+                    "unsupported",
+                ):
+                    raise ValueError(
+                        f"unavailable instrument {native_id}: status={item.status}, "
+                        f"data_access={item.data_access}"
+                    )
+                products.append(item)
+            continue
         available = catalog.instruments.list(
             InstrumentQuery(venue=venue, status="active")
         )
-        for asset in dict.fromkeys(args.assets):
+        for asset in dict.fromkeys(args.assets or ("BTC", "ETH", "SOL")):
             matches = [
                 item
                 for item in available
@@ -399,6 +430,16 @@ async def _record(args) -> int:
                     f"no unique discovered supported {venue} {asset} instrument"
                 )
             products.append(matches[0])
+    return catalog, products
+
+
+async def _record(args) -> int:
+    from .demo import source_tree_revision
+    from .events import AssetContext, ReferencePrice, SubscriptionKey, Trade
+    from .recording import Recorder
+    from .subscriptions import RecorderBinding, SubscriptionRegistry, SubscriptionStatus
+
+    catalog, products = await _record_products(args)
     probes = await asyncio.gather(
         *(
             catalog.probe(item, timeout=float(args.probe_timeout))
@@ -417,15 +458,37 @@ async def _record(args) -> int:
             error=True,
         )
         return FAILURE
-    keys = frozenset(
-        catalog.canonical_key(SubscriptionKey.for_instrument(item, channel=channel))
-        for item in products
-        for channel in (
+    keys: set[SubscriptionKey] = set()
+    scope = []
+    for item in products:
+        channels = (
             ("book", "trades", "reference", "context")
             if item.venue == "hyperliquid"
             else ("book", "trades")
         )
-    )
+        product_keys = tuple(
+            catalog.canonical_key(SubscriptionKey.for_instrument(item, channel=c), item)
+            for c in channels
+        )
+        adapter = catalog.adapter(item.venue)
+        book = product_keys[0]
+        caps = adapter.capabilities(item, book)
+        book_mode = (
+            "rest_snapshot"
+            if adapter.ws_endpoint(item, book) is None
+            else ("ws_delta" if caps.deltas else "ws_snapshot")
+        )
+        scope.append(
+            {
+                "instrument_id": item.instrument_id,
+                "market_type": item.market_type,
+                "quantity_unit": item.quantity_unit,
+                "channels": channels,
+                "book_mode": book_mode,
+                "book_depth": book.depth,
+            }
+        )
+        keys.update(product_keys)
     registry = SubscriptionRegistry(catalog)
     recorder = None
     binding = None
@@ -471,6 +534,7 @@ async def _record(args) -> int:
                 "code_revision": source_revision,
                 "duration_seconds": args.duration,
                 "streams": len(keys),
+                "products": scope,
                 "readiness": "capture_attached_not_yet_synchronized",
             },
             error=True,
