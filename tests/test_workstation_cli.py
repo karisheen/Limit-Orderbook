@@ -215,8 +215,13 @@ def test_incomplete_capture_has_explicit_nonzero_diagnostic_status(tmp_path, cap
     assert report(capsys)["capture_complete"] is False
 
 
-def test_record_requires_network_optin_before_dependencies_or_discovery(capsys):
-    assert cli.main(["record", "--duration", "1"]) == cli.FAILURE
+@pytest.mark.parametrize(
+    "selection", [[], ["--instrument", "okx:v5-spot:spot:BTC-USDT"]]
+)
+def test_record_requires_network_optin_before_dependencies_or_discovery(
+    capsys, selection
+):
+    assert cli.main(["record", "--duration", "1", *selection]) == cli.FAILURE
     error = json.loads(capsys.readouterr().err)
     assert "requires --network" in error["error"]
 
@@ -296,6 +301,134 @@ def test_demo_reader_retention_lifetime_and_failed_cache_cleanup(tmp_path, monke
     with active_path.open("rb") as active:
         fcntl.flock(active, fcntl.LOCK_EX | fcntl.LOCK_NB)
         fcntl.flock(active, fcntl.LOCK_UN)
+
+
+OKX_SPOT = "okx:v5-spot:spot:BTC-USDT"
+OKX_SWAP = "okx:v5-swap:perpetual:BTC-USDT-SWAP"
+
+
+@pytest.fixture
+def okx_market(tmp_path, monkeypatch):
+    """Native discovery and capture with isolated metadata and socket inputs."""
+    from src.workstation import subscriptions, transport
+    from src.workstation.ingestion import FeedSupervisor
+    from test_workstation_ingestion import FixtureSocket
+    from test_workstation_okx import (
+        book_message,
+        encoded,
+        metadata_bytes,
+        metadata_row,
+        trade_message,
+    )
+
+    rows = {"SPOT": [metadata_row()], "SWAP": [metadata_row(True)]}
+
+    async def fetch(request):
+        return metadata_bytes(*rows[request.endpoint_id.rsplit("=", 1)[1]])
+
+    def supervisor(adapter, instrument, key, **kwargs):
+        payload = (book_message if key.channel == "book" else trade_message)(instrument)
+        return FeedSupervisor(
+            adapter,
+            instrument,
+            key,
+            ws_connect=lambda *a, **kw: FixtureSocket([encoded(payload)]),
+            http_fetch=fetch,
+            **kwargs,
+        )
+
+    registry = subscriptions.SubscriptionRegistry
+    monkeypatch.setattr(transport, "fetch_public", fetch)
+    monkeypatch.setattr(
+        subscriptions,
+        "SubscriptionRegistry",
+        lambda catalog: registry(
+            catalog, supervisor_factory=supervisor, lock_path=tmp_path / "collector"
+        ),
+    )
+    return rows
+
+
+@pytest.mark.parametrize("ids", [(OKX_SPOT,), (OKX_SWAP,), (OKX_SPOT, OKX_SWAP)])
+def test_record_exact_okx_products_capture_and_replay(
+    tmp_path, capsys, okx_market, ids
+):
+    requested = [opt for i in (*ids, ids[0]) for opt in ("--instrument", i)]
+    args = ["record", "--network", "--root", str(tmp_path), "--duration", "0.4"]
+    assert cli.main(args + requested) == cli.COMPLETE
+    output = capsys.readouterr()
+    (started,) = (
+        msg
+        for line in output.err.splitlines()
+        if (msg := json.loads(line)).get("event") == "recording_started"
+    )
+    units = {OKX_SPOT: "base", OKX_SWAP: "contracts"}
+    assert [(p["instrument_id"], p["quantity_unit"]) for p in started["products"]] == [
+        (i, units[i]) for i in ids
+    ]
+    assert all(
+        p["book_mode"] == "ws_snapshot"
+        and p["book_depth"] == "5"
+        and set(p["channels"]) == {"book", "trades"}
+        for p in started["products"]
+    )
+    with RecordingReader(json.loads(output.out)["capture"]) as reader:
+        assert reader.manifest.complete
+        assert {
+            (s.key.instrument_id, s.key.channel, s.instrument.quantity_unit)
+            for s in reader.manifest.streams
+        } == {(i, ch, units[i]) for i in ids for ch in ("book", "trades")}
+        hashes = []
+        for mode in ("normalized", "raw"):
+            session = ReplaySession(reader, mode=mode)
+            try:
+                while session.step():
+                    pass
+                assert {b.key.instrument_id for b in session.books()} == set(ids)
+                hashes.append((session.state_hash, session.book_hash))
+            finally:
+                session.close()
+        assert hashes[0] == hashes[1]
+
+
+@pytest.mark.parametrize("failure", ["missing", "inactive", "case", "unknown_venue"])
+def test_record_exact_identity_failure_never_substitutes_an_available_product(
+    tmp_path, capsys, okx_market, failure
+):
+    requested = OKX_SWAP
+    if failure == "missing":
+        requested = OKX_SWAP.replace("USDT", "USDC")
+    elif failure == "inactive":
+        okx_market["SWAP"][0]["state"] = "preopen"
+    elif failure == "case":
+        requested = requested.replace("BTC-USDT-SWAP", "btc-usdt-swap")
+    else:
+        requested = requested.replace("okx", "unknown-venue", 1)
+    root = tmp_path / "captures"
+    selection = ["--instrument", OKX_SPOT, "--instrument", requested]
+    args = ["record", "--network", "--root", str(root), "--duration", "0.1"]
+    assert cli.main(args + selection) == cli.FAILURE
+    output = capsys.readouterr()
+    assert not output.out
+    errors = [json.loads(line) for line in output.err.splitlines()]
+    assert len(errors) == 1
+    assert errors[0]["status"] == "failure"
+    assert requested in errors[0]["error"]
+    assert not root.exists()
+
+
+@pytest.mark.parametrize("legacy", [["--venue", "hyperliquid"], ["--assets", "BTC"]])
+@pytest.mark.parametrize("instrument_first", [False, True])
+def test_record_exact_instrument_rejects_explicit_legacy_selection(
+    capsys, legacy, instrument_first
+):
+    exact = ["--instrument", OKX_SPOT]
+    selection = exact + legacy if instrument_first else legacy + exact
+    assert cli.main(["record", "--network", *selection]) == cli.FAILURE
+    output = capsys.readouterr()
+    assert not output.out
+    assert "--instrument" in output.err
+    assert legacy[0] in output.err
 
 
 @pytest.mark.parametrize("fatal_disk_failure", [False, True])

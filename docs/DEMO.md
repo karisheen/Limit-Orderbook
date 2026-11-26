@@ -190,6 +190,11 @@ python -m src.workstation.cli record --network --venue hyperliquid --duration 30
 # Distinct sources, not venue fallback that relabels an existing stream.
 python -m src.workstation.cli record --network --venue binance-global --venue hyperliquid --duration 60
 
+# Exact native IDs (repeatable): OKX BTC spot (base units) and swap (contracts).
+python -m src.workstation.cli record --network --duration 30 \
+  --instrument okx:v5-spot:spot:BTC-USDT \
+  --instrument okx:v5-swap:perpetual:BTC-USDT-SWAP
+
 # A roughly 30-minute capture; this command is not evidence it has been run.
 python -m src.workstation.cli record --network --venue binance-global --venue hyperliquid --duration 1800
 ```
@@ -202,11 +207,13 @@ Hyperliquid uses its documented public WS trade channel, not an invented REST
 trade-history endpoint. Only requested venues/products are discovered; demo
 prices are never overlaid into a live capture.
 
-The headless `record --venue` choices are currently only `binance-global`,
-`binance-us` and `hyperliquid`; the terminal's broader live catalog does not
-expand this CLI option. Adapter support does not establish access from this
-environment. A denied dependency check remains a failure, not permission to
-substitute venues or bypass regional/provider restrictions.
+`--instrument` uses the complete, case-sensitive instrument ID from the native
+catalog. Only named venues are discovered. Each ID must resolve to an active,
+supported product; an unavailable ID is not replaced by another quote, market
+or venue. Use exact IDs **instead of** `--venue` and `--assets`. The latter
+remain shorthand for `binance-global`, `binance-us` and `hyperliquid` only.
+Exact selection does not subscribe the terminal's display cohort or seed
+streaming-only candidates when discovery is denied.
 
 The recorder owns registry leases independently of browser clients. Raw/event
 sinks are installed before feed acquisition, stream descriptors use the registry's
@@ -222,6 +229,11 @@ After attaching capture leases, `record` flushes a structured
 revision and requested duration. This marks attachment, **not synchronized-feed
 readiness**; that distinction is explicit in the event. Final result JSON remains
 on stdout. Supervisors and the writer continue independently of presentation.
+`recording_started.products` lists the selected IDs, native quantity units,
+channels, configured book mode and subscribed depth per side (null for no
+explicit depth bound). These describe the requested feed, not a measured
+depth or continuity guarantee. Actual source-mode transitions remain recorded;
+KuCoin's public REST observations are sampled, not a continuous order book.
 
 ## Inspection and replay controls
 
