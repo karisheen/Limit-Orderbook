@@ -9,7 +9,6 @@ from fastapi.testclient import TestClient
 
 from src.workstation.api import create_app
 from src.workstation.demo import create_demo
-from src.workstation.demo_memory import MemoryReplaySource
 from src.workstation.replay import ReplaySession
 from src.workstation.runtime import LIVE_QUEUE_BYTES, TerminalRuntime
 
@@ -312,8 +311,10 @@ def test_websocket_ack_and_disconnect_release_session(terminal):
     assert terminal.get("/api/v1/sessions/" + frame["session_id"]).status_code == 404
 
 
-def test_memory_source_uses_same_raw_and_normalized_reducer_and_backward_seek():
-    source = MemoryReplaySource.demo()
+def test_memory_source_uses_same_raw_and_normalized_reducer_and_backward_seek(
+    memory_source,
+):
+    source = memory_source
     raw, normalized = ReplaySession(source, mode="raw"), ReplaySession(source)
     try:
         raw.step(200)
@@ -508,14 +509,16 @@ def test_unknown_fee_and_prefunding_are_distinct_exclusions(terminal):
     assert all(pair["net"] is None for pair in constrained)
 
 
-def test_overloaded_analytical_client_never_presents_silently_truncated_state():
+def test_overloaded_analytical_client_never_presents_silently_truncated_state(
+    memory_source,
+):
     from src.workstation.runtime import ClientSession, RuntimeFailure
     from src.workstation.subscriptions import SubscriptionRegistry
 
     async def scenario():
         registry = SubscriptionRegistry()
         runtime = TerminalRuntime(registry=registry)
-        source = MemoryReplaySource.demo()
+        source = memory_source
         replay = ReplaySession(source)
         session = ClientSession(runtime, "live", "live")
         runtime.sessions[session.id] = session

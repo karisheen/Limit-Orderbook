@@ -212,8 +212,9 @@ and simulated accounting do not establish a profitable or executable strategy.
 - `tests/`: offline contracts/regressions and separately opted-in live checks.
 - `docs/`: development instructions, contracts, acceptance and historical evidence.
 
-After synchronizing dependencies, `./tools/check.sh` is the documented offline
-gate; see [development](docs/DEVELOPMENT.md#offline-checks-and-quality-scope).
+After synchronizing dependencies, use `./tools/check.sh --fast` for the local
+pre-push smoke or `./tools/check.sh` for the full offline gate. GitHub requires
+the full gate and browser checks before merge; see [development](docs/DEVELOPMENT.md#offline-checks-and-quality-scope).
 For deliberate public-service observations, use
 `uv run --locked python tools/probe_feeds.py --live --duration 60 --include-hype`.
 

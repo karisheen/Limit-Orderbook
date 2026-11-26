@@ -65,12 +65,13 @@ resolve a different environment silently.
 1. Python 3.13 runtime guard.
 2. Ruff's conservative `E4`, `E7`, `E9`, and `F` rules plus `ruff format --check`
    on `src/workstation`, `src/ui`, `crypto_lob.py`,
-   `tests/test_legacy_api_client.py`, `tests/test_workstation*.py`,
+   `tests/conftest.py`, `tests/test_legacy_api_client.py`, `tests/test_workstation*.py`,
    `tests/test_recording*.py`, `tests/test_replay*.py`, and Python tools other
    than the pre-existing `tools/connector_spike.py`. These fast checks run before
    pytest so formatting failures do not wait for the full suite.
 3. The complete pytest suite, excluding the `network` marker. Additional script
-   arguments are forwarded to pytest.
+   arguments are forwarded to pytest. CI passes `--durations=20`, so its log
+   identifies the slowest setup, call and teardown phases without a second run.
 4. mypy on `src/workstation`, including bodies of untyped functions. Untyped
    third-party dependencies may lack stubs (`ignore_missing_imports = true`);
    project errors are not globally suppressed.
@@ -117,11 +118,21 @@ versioned hook once per clone:
 git config --local core.hooksPath .githooks
 ```
 
-The hook runs `tools/check.sh` before Git uploads updates and blocks the push on
-any failure. It uses the same environment selection and quality scope as CI;
-it does not install dependencies, format files, or submit orders. No additional
-hook framework is required. Check an existing `core.hooksPath` before enabling
-this in another clone so unrelated custom hooks are not silently replaced.
+The hook runs `./tools/check.sh --fast` against the working tree. It keeps the
+Python/Ruff and tool-JavaScript syntax checks, one real offline capture/inspect/
+raw-and-normalized replay test, and the frontend numeric-formatting tests.
+It blocks the push on failure; it does not install dependencies or modify files
+to fix failures. To exercise the hook without uploading anything:
+
+```sh
+.githooks/pre-push
+```
+
+While editing, run the tests for the behavior you changed directly, e.g.
+`.venv-upgrade/bin/python -m pytest -q tests/test_workstation_cli.py -k record`.
+`--fast` is a fixed smoke check, not changed-file test selection. For the full
+local offline gate (including mypy, frontend lint, unit tests and build), run
+`./tools/check.sh` without `--fast`.
 
 Commit the intended changes before pushing: this gate checks the current working
 tree, not every historical commit or an independently selected ref. Hooks can be
@@ -142,9 +153,9 @@ The **Offline checks** workflow runs for pull requests and pushes to `main`.
 Feature-branch pushes do not start a duplicate run; open a pull request to get
 the required remote check. A newer commit cancels obsolete work for the same
 pull request or main branch, while different pull requests have separate
-concurrency groups. Tests, quality gates, browser workflows, read-only token
-permissions, and the 15-minute job timeout remain in place. There is no automatic
-deployment.
+concurrency groups. The required `offline` job still runs the full offline gate
+and actual-backend browser workflows, with read-only token permissions and a
+30-minute job timeout. There is no automatic deployment.
 
 The committed **Protect main** repository ruleset declares:
 

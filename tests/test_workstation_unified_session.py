@@ -17,7 +17,6 @@ from src.workstation.api import (
     RecordingStop,
     create_app,
 )
-from src.workstation.demo_memory import MemoryReplaySource
 from src.workstation.events import (
     AssetContext,
     Gap,
@@ -31,11 +30,6 @@ from src.workstation.recording import RecordedBatch, RecordingReader
 from src.workstation.replay import ReplaySession
 from src.workstation.runtime import ClientSession, RuntimeFailure, TerminalRuntime
 from src.workstation.subscriptions import SubscriptionRegistry
-
-
-@pytest.fixture(scope="module")
-def source():
-    return MemoryReplaySource.demo()
 
 
 def request(session, cursor=None, limit=2):
@@ -82,17 +76,17 @@ def admit_batch(session, events):
 
 
 def test_market_cursor_drains_every_event_in_one_batch_and_reports_eviction(
-    source, tmp_path
+    memory_source, tmp_path
 ):
     async def scenario():
         runtime = TerminalRuntime(state_dir=tmp_path)
         session = ClientSession(runtime, "live", "live")
         runtime.sessions[session.id] = session
         session.status = "live"
-        session.streams = source.descriptor.streams
+        session.streams = memory_source.descriptor.streams
         event = next(
             event
-            for batch in source.iter_batches()
+            for batch in memory_source.iter_batches()
             for event in batch.events
             if isinstance(event.payload, Trade)
         )
@@ -146,10 +140,10 @@ def test_market_cursor_drains_every_event_in_one_batch_and_reports_eviction(
 
 
 def test_market_replay_never_crosses_current_cursor_and_reset_fences_old_generation(
-    source, tmp_path
+    memory_source, tmp_path
 ):
     async def scenario():
-        runtime = replay_runtime(source, tmp_path)
+        runtime = replay_runtime(memory_source, tmp_path)
         try:
             session = await runtime.create()
             first_request = request(session, limit=2000)
@@ -157,7 +151,7 @@ def test_market_replay_never_crosses_current_cursor_and_reset_fences_old_generat
             highwater = int(page["highwater"])
             expected = [
                 (batch.delivery_index, index)
-                for batch in source.iter_batches(stop_delivery=highwater)
+                for batch in memory_source.iter_batches(stop_delivery=highwater)
                 for index, event in enumerate(batch.events)
                 if isinstance(event.payload, Trade)
                 and str(event.key.instrument_id)
@@ -654,7 +648,7 @@ def test_restart_catalogs_interrupted_capture_without_following_symlinks(tmp_pat
     ],
 )
 def test_market_contract_valuation_and_unknown_side_are_not_fabricated(
-    source, tmp_path, inverse, documented, base, quote
+    memory_source, tmp_path, inverse, documented, base, quote
 ):
     async def scenario():
         runtime = TerminalRuntime(state_dir=tmp_path)
@@ -663,13 +657,13 @@ def test_market_contract_valuation_and_unknown_side_are_not_fabricated(
         session.status = "live"
         original = next(
             event
-            for batch in source.iter_batches()
+            for batch in memory_source.iter_batches()
             for event in batch.events
             if isinstance(event.payload, Trade)
         )
         original_spec = next(
             spec
-            for spec in source.descriptor.streams
+            for spec in memory_source.descriptor.streams
             if spec.stream_id == original.stream_id
         )
         instrument = replace(
@@ -689,7 +683,7 @@ def test_market_contract_valuation_and_unknown_side_are_not_fabricated(
         )
         session.streams = tuple(
             replace(spec, instrument=instrument)
-            for spec in source.descriptor.streams
+            for spec in memory_source.descriptor.streams
             if spec.instrument.instrument_id == instrument.instrument_id
         )
         session.choose(str(instrument.instrument_id))

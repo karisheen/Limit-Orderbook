@@ -19,11 +19,6 @@ from src.workstation.runtime import ClientSession, RuntimeFailure, TerminalRunti
 from src.workstation.subscriptions import SubscriptionRegistry
 
 
-@pytest.fixture(scope="module")
-def memory_source():
-    return MemoryReplaySource.demo()
-
-
 class GenericSource:
     """Protocol consumer fixture deliberately has no concrete .batches member."""
 

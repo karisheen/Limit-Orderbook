@@ -325,7 +325,11 @@ def test_product_probe_uses_selected_family_without_erasing_partial_evidence(
             ("metadata:usdm-v1", "blocked"),
         ),
     )
-    status = asyncio.run(catalog.probe(instrument, timeout=0.01))
+    # A complete fixture signals both events; its deadline is just a watchdog.
+    # In partial cases the probe schedules the supervisors before the deadline:
+    # give them one loop turn to publish the available channel, then time out.
+    deadline = 5 if received == "both" else 0
+    status = asyncio.run(catalog.probe(instrument, timeout=deadline))
     financially_ready = usable and metadata_verified and received == "both"
     assert status.fully_usable is financially_ready
     assert status.streaming_ready is (received == "both")
