@@ -691,12 +691,14 @@ def test_live_streaming_perpetual_api_is_immediate_exact_and_rest_independent(
 
 @pytest.mark.parametrize("mode", ("demo", "replay"))
 def test_replay_seek_rebuilds_admitted_candle_history_without_future(
-    mode, tmp_path, monkeypatch
+    mode, tmp_path, monkeypatch, request
 ):
     from src.workstation.api import CandleRequest
     from src.workstation.demo import create_demo
-    from src.workstation.demo_memory import MemoryReplaySource
     from src.workstation.runtime import ClientSession, TerminalRuntime, capture_identity
+
+    # The durable replay parameter must not construct the in-memory demo.
+    source = request.getfixturevalue("memory_source") if mode == "demo" else None
 
     async def forbidden(*args, **kwargs):
         raise AssertionError("session candles cannot request REST")
@@ -707,18 +709,23 @@ def test_replay_seek_rebuilds_admitted_candle_history_without_future(
         runtime = TerminalRuntime(state_dir=tmp_path)
         session = ClientSession(runtime, mode, "fixture")
         runtime.sessions[session.id] = session
-        capture = await create_demo(tmp_path / "capture") if mode == "replay" else None
+        # The latest delivery exercised below is 1300. Keep a real checkpoint
+        # and a future tail without writing/verifying the unused three-minute demo.
+        capture = (
+            await create_demo(tmp_path / "capture", duration_seconds=40)
+            if mode == "replay"
+            else None
+        )
         try:
             if capture is not None:
+                assert capture.reader.manifest.batch_count > 1300
                 await session.work(
                     session._initialize_replay,
                     capture.reader.path,
                     (capture.reader.manifest, capture_identity(capture.reader.path)),
                 )
             else:
-                await session.work(
-                    session._initialize_replay, MemoryReplaySource.demo()
-                )
+                await session.work(session._initialize_replay, source)
             selected = next(
                 spec.instrument
                 for spec in session.streams
@@ -744,7 +751,8 @@ def test_replay_seek_rebuilds_admitted_candle_history_without_future(
             prefix = await runtime.candles(request)
             await session.work(session.replay.step, 100)
             later = await runtime.candles(request)
-            assert int(later["highwater"]) > int(initial["highwater"])
+            assert session.replay.cursor.delivery_index == 1300
+            assert int(later["highwater"]) > int(prefix["highwater"])
             await session.work(session.replay.seek_delivery, 1200)
             assert (await runtime.candles(request))["candles"] == prefix["candles"]
             assert await session.work(session.trade_history.checkpoint) == saved

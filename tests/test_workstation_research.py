@@ -9,7 +9,6 @@ import pytest
 from src.workstation.book import Book, Level
 from src.workstation.costs import FeeSchedule
 from src.workstation.demo import create_demo
-from src.workstation.demo_memory import MemoryReplaySource
 from src.workstation.events import (
     BookUpdate,
     Gap,
@@ -459,15 +458,10 @@ def test_verified_durable_synthetic_capture_and_corruption_failure(tmp_path):
         store.close()
 
 
-@pytest.fixture(scope="module")
-def real_pipeline_source():
-    return MemoryReplaySource.demo()
-
-
 def test_all_attempts_durable_reopened_and_identical_reports_hash_stably(
-    tmp_path, real_pipeline_source
+    tmp_path, memory_source
 ):
-    source = real_pipeline_source
+    source = memory_source
     book = next(
         spec for spec in source.descriptor.streams if spec.key.channel == "book"
     )

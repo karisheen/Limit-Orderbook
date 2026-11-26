@@ -364,11 +364,12 @@ def test_checkpoint_restores_exact_series_and_rejects_foreign_or_invalid_state()
         feed.history.restore(feed.history.checkpoint())
 
 
-def test_replay_api_rebuilds_positioning_prefix_without_future_context(tmp_path):
+def test_replay_api_rebuilds_positioning_prefix_without_future_context(
+    tmp_path, memory_source
+):
     from httpx import ASGITransport, AsyncClient
 
     from src.workstation.api import create_app
-    from src.workstation.demo_memory import MemoryReplaySource
     from src.workstation.runtime import ClientSession, TerminalRuntime
 
     async def scenario():
@@ -376,7 +377,7 @@ def test_replay_api_rebuilds_positioning_prefix_without_future_context(tmp_path)
         session = ClientSession(runtime, "demo", "fixture")
         runtime.sessions[session.id] = session
         try:
-            await session.work(session._initialize_replay, MemoryReplaySource.demo())
+            await session.work(session._initialize_replay, memory_source)
             perpetual = next(
                 spec.instrument
                 for spec in session.streams
