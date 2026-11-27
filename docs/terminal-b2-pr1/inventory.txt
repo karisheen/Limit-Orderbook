@@ -31,6 +31,7 @@ docs/terminal-b2-pr1/evidence/inspection/contrast-final.json
 docs/terminal-b2-pr1/evidence/inspection/hyperliquid-positioning-1920.jpg
 docs/terminal-b2-pr1/evidence/regressions/clipped-bid-1280.png
 docs/terminal-b2-pr1/evidence/regressions/clipped-touch.txt
+docs/terminal-b2-pr1/evidence/regressions/named-grid-feedback.png
 docs/terminal-b2-pr1/inventory.txt
 docs/terminal-b2-pr1/retention.md
 docs/terminal-b2-pr1/review-differences.tsv

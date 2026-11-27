@@ -2,7 +2,7 @@
 
 ## Evidence status and boundaries
 
-This is a compact **historical report**, not a fresh full verification or an untouched log. The reviewed implementation is `80b80214deb90a483c5d1826123202ea104a7eb4`; the unmodified main comparison is `7b3c0768ed4bff30b4ef89c8030da458e48a6e47`. [Accepted receipt](evidence/gates/accepted.json) extracts the original gate results, including failed runs. [Retention](retention.md) and [equivalence](equivalence.md) distinguish retained bytes from new summaries and publication-only changes.
+This is a compact **historical report**, not a fresh full verification or an untouched log. The original publication is `6d83e67a5bf9a473a5a727488b3f8d8c90428dc7`; its reviewed implementation is `80b80214deb90a483c5d1826123202ea104a7eb4`, and the unmodified main comparison is `7b3c0768ed4bff30b4ef89c8030da458e48a6e47`. [Accepted receipt](evidence/gates/accepted.json) extracts the original gate results, including failed runs. [Retention](retention.md) and [equivalence](equivalence.md) distinguish retained bytes from new summaries and publication-only changes. The later PR #27 failure and remediation are recorded separately below.
 
 Original full logs, trace extracts, collector manifests, excluded captures, one-off inspection commands and private design inputs remain **local-only**. The private review object `1933ec89c2` and design object `ce9e5a91f2` are provenance, not public dependencies or links. No private design renderer, authored market population or demonstration heat-band scale enters production.
 
@@ -10,7 +10,67 @@ Three separate claims must not be conflated:
 
 - **Historical full results:** 2,221 Python, 279 frontend and final 116 Chromium passes, with three declared live-only browser skips; failures and repairs below remain part of that history.
 - **Fresh publication smoke:** the configured `.githooks/pre-push` was invoked locally with no push. It calls `./tools/check.sh --fast`; it exited 0 (Ruff clean, 99 files already formatted, one native smoke and three frontend tests passed). See the [timestamped output](evidence/gates/publication-fast.txt). The smoke tests the unchanged implementation; it is not a repeat of the full offline or browser gates.
-- **Remote protected `offline` CI:** pending a future owner-authorized publication. It did not run for this local publication milestone. Owner approval of the new publication SHA is still required before pushing. No new live, performance or release proof is claimed.
+- **Remote protected `offline` CI at the local publication milestone:** not yet run; owner approval was still required before pushing. This historical boundary is not the current PR status: the subsequent actual GitHub check failed, as recorded below. No new live, performance or release proof is claimed.
+
+## Named-grid CI remediation
+
+The required [PR #27](https://github.com/karisheen/Limit-Orderbook/pull/27) `offline` [Ubuntu job](https://github.com/karisheen/Limit-Orderbook/actions/runs/46039219099/job/140642353068) failed on published `6d83e67a`: **2,221 Python and 279 frontend tests plus production build passed; Chromium finished 115 passed / 1 failed / 3 live-only skips**. The failed assertion measured the chart after rejecting an overlapping move. That same named test passed in the earlier Ubuntu main run `45766318882` and in **5/5 fresh Darwin runs** of the original 1440×900 case. Those passes did not explain or invalidate the CI failure.
+
+The CI assertion recorded the chart DOMRects. The Ubuntu trace recorded both panels' inline assignments and the surface's `--grid-row-height`; the screencast shows `Cumulative delta added.` on one line and `Panels cannot overlap. Move into empty space first.` on two. It did **not** record a toolbar DOMRect, line-fragment rectangles, localStorage snapshots, observer callback timing or the resolved Linux glyph font.
+
+| Published bundle: before → after rejected ArrowDown | Observation |
+|---|---|
+| Ubuntu 1440×900 chart | `(x, y, width, height)` = `(9, 254.578125, 1303, 576.375)` → `(9, 260.953125, 1303, 570)` |
+| Ubuntu inline row height | `42.53515625` → `42.00390625` px; chart/CVD logical cells unchanged |
+| Darwin 1440×900, Graphite and Paper | One → one notice line; chart box unchanged |
+| Darwin 1536×900, Graphite and Paper | One → two lines; chart y `+6.375`, height `−6.375` px |
+| Strengthened test, old real bundle, 1536×900 Paper | Measured toolbar `42` → `48.375` px; exact-height assertion fails |
+
+The native Darwin reproduction explains the exact number. At 1536×900, the notice had 240.515625 CSS px of width. A 30px control set the flex row height for the one-line acknowledgement. Two 18.1875px line boxes needed **36.375px**: the toolbar grew by **36.375 − 30 = 6.375px**. Its top did not move. The grid surface below moved down by that amount and its content height fell from `576.421875` to `570.046875`. The six-pixel row gaps did not change. Twelve rows each lost `0.53125px`, leaving the chart bottom at `830.953125` in both measurements. This independently reproduces the Linux chart and track deltas; the exact Linux toolbar height remains an inference.
+
+The notice mutation preceded the row-size update in the local observer record. Chart `(0,0,11,12)` and CVD `(0,12,3,3)` retained their `(x,y,w,h)` in the rendered grid **and** in the committed v2 preferences. Rejecting immediately or waiting for the successful Add's debounced persistence produced the same shift. Focus stayed on **Move Chart**; ancestor scroll positions and source/header/status geometry were stable. The same native owner, Coinbase BTC-USD spot, generation 2 and paused demo cursor `5000/6970` were retained across the operation. Ordinary analytical POST reads are not mutations. Three diagnostic contexts recorded another create only after their `complete` checkpoint, outside the measured transition. At Darwin 1440 the notice occupied its own 1408px-wide flex line; at 1536 it shared a line with the controls. Stock `.SF NS` was observed locally, not assumed to be the Ubuntu font.
+
+The **production correction** reserves two line-heights for the existing live status only during desktop grid editing. A minimum, not a fixed height, preserves full wrapping and permits longer messages to grow. On the corrected 1536 surface the notice still wrapped, but the toolbar remained `48.375px` and **neither panel moved or resized**. At Darwin 1440 the reservation costs `18.1875px` of available space while editing; it does not apply to the non-editing toolbar or narrow stacked layout.
+
+The **test correction** first observes the persisted successful Add, then checks the rejected command against stored cells, inline spans, actual tile rectangles relative to the grid content, the measured gap to CVD and exact toolbar height. It verifies the full visible polite error, focused handle, native identity and cursor, then continues through valid resize, save/load/rename/reload/delete. The original 1440 Graphite case is retained; 1536 Paper reaches the observed wrap boundary on Darwin. Waiting for committed storage distinguishes the operations; it does not mask the production defect. No pixel tolerance, sleep, automatic retry or timeout extension was added.
+
+For focused reproduction, use the locked setup and native server below; keep diagnostic outputs private:
+
+```sh
+# From the repository root, with the candidate server ready:
+RUN_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/lob-named-grid.XXXXXX")"
+export PLAYWRIGHT_BASE_URL=http://127.0.0.1:8031
+npm --prefix frontend run test:e2e -- e2e/chart-redesign.spec.ts \
+  -g 'named grid editing' --repeat-each=5 --output="$RUN_ROOT/results"
+```
+
+The [comparison](evidence/regressions/named-grid-feedback.png) uses the same unscaled crop of four native Graphite screenshots at 1536×900, in separate camera runs so taking a screenshot did not separate the measured actions. Captions are outside application pixels. Full CI artifacts, raw instrumented timelines, native IDs and logs stay local. No local Linux VM, container runtime or configured Linux browser was available; the corrected Ubuntu run remains a required remote gate after separate publication authorization.
+
+### Fresh local results
+
+All runs below used the locked Darwin x64 checkout, production bundle, actual offline Python backend, one Chromium worker and zero automatic retries. The main diagnostic server listened on loopback port 8035. For manual reproduction: apply Price focus, enter grid editing, resize the chart left by one column, add Cumulative delta, focus **Move Chart**, then press **ArrowDown**. The complete automated case also exercises named layouts and restoration. Set `PLAYWRIGHT_BASE_URL` to your own local server; keep Playwright `--output` directories outside the public packet.
+
+| Check | Observed result |
+|---|---|
+| Original named-grid test, original bundle; `-g 'named grid editing' --repeat-each=5` | 5/5 at 1440×900. The strengthened 1536 Paper case on that same bundle failed at the exact toolbar assertion: expected `42`, received `48.375`. |
+| Corrected focused command above | **10/10**: five 1440 Graphite and five 1536 Paper. |
+| Read-only width sweep, 15 widths from 1280 to 1640 at height 900 | Seven widths on the published bundle exhibited `+6.375/−6.375` chart displacement. On the corrected bundle all 15 retained exactly the same chart rect before and after rejection. |
+| Related browser command below | **6/6**, covering touch and keyboard editing, historical preferences, Graphite/Paper contrast, boundaries and focus, and native session preservation. |
+| `node tools/capture_shell_frame.mjs after "$CAPTURE_DIR"` | **19 captures, seven native contexts, all six themes**. All 19 had meaningful paints, matching prior non-edit grid and canvas geometry and no horizontal overflow. Fourteen `net::ERR_ABORTED` requests were recorded; zero page, HTTP or response-read errors or unexpected network requests. |
+| `.githooks/pre-push` invoked locally, without pushing | Passed. Scoped lint/format, one Python smoke, JS syntax and three frontend format tests. |
+| `./tools/check.sh --durations=20` | Passed: **2,221 Python / 279 frontend**. Scoped lint, format, mypy, frontend lint, types and production build passed. One pytest warning and a bundle-size advisory were not failures. |
+| `npm --prefix frontend run test:e2e` against the actual backend | **116 passed / 1 failed / 3 live-only skips** out of 120. Both named-grid cases passed. **The complete browser gate is not green.** |
+
+```sh
+npm --prefix frontend run test:e2e -- \
+  e2e/chart-redesign.spec.ts e2e/shell-frame.spec.ts e2e/workspace.spec.ts \
+  -g 'grid touch gestures|narrow grid editing|historical v2 preferences|shell controls have readable text|unified chart navigation and grid sizing' \
+  --output="$RUN_ROOT/related"
+```
+
+The full-run failure was the **390px narrow-grid parity** scenario in the unchanged `openDemo()` setup, *before* preset selection or editing. The `POST /api/v1/replay` seek did not deliver an HTTP acknowledgement (`status -1`, `net::ERR_ABORTED`). The UI reported an ambiguous 15s mutation timeout and displayed delivery `5000/6970`; the test reached its unchanged 45s limit. This is **not** evidence that the server rejected or did not commit the seek. The narrow scenario passed in the earlier six-case group. As a separate control on a newly started backend with zero active sessions, `npm --prefix frontend run test:e2e -- e2e/chart-redesign.spec.ts -g 'narrow grid editing'` passed **1/1** without any code, fixture, retry or timeout change. The control does not replace the full-run result or establish why the acknowledgement was late.
+
+**Independent technical review: no finding on the grid correction.** The reviewer challenged causation against the Ubuntu trace and measured wrap boundary, checked the published-bundle red control, persistence, focus, exact placement, accessibility and session fences, and inspected the unscaled comparison and corrected receipts. They independently confirmed that the 390px failure occurred before grid editing, outside the changed media query; indirect run-order effects are unproven. No replay behavior was changed and no test was suppressed. PR #27 remains on the previously published head with its failed protected `offline` check; no remote rerun was requested.
 
 ## Reproducing native offline captures
 

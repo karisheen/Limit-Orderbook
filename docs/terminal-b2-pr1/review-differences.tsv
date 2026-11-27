@@ -104,6 +104,7 @@ D	docs/terminal-b2-pr1/evidence/inspection/narrow-tape-and-status-390.jpg
 D	docs/terminal-b2-pr1/evidence/inspection/native-inspection.json
 A	docs/terminal-b2-pr1/evidence/regressions/clipped-bid-1280.png
 A	docs/terminal-b2-pr1/evidence/regressions/clipped-touch.txt
+A	docs/terminal-b2-pr1/evidence/regressions/named-grid-feedback.png
 D	docs/terminal-b2-pr1/inspection-commands.md
 M	docs/terminal-b2-pr1/inventory.txt
 A	docs/terminal-b2-pr1/retention.md
@@ -112,3 +113,5 @@ M	docs/terminal-b2-pr1/review-technical.md
 M	docs/terminal-b2-pr1/review-visual.md
 M	docs/terminal-b2-pr1/tokens.md
 M	docs/terminal-b2-pr1/verification.md
+M	frontend/e2e/chart-redesign.spec.ts
+M	frontend/src/grid/grid.css

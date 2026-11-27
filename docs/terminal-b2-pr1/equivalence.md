@@ -1,6 +1,6 @@
 # Implementation equivalence and publication ancestry
 
-The publication branch forks **before** the private evidence commit. It does not merge the private branch or mask an ancestor with a deletion. The only differences allowed between this candidate and the owner-reviewed tree are under `docs/terminal-b2-pr1/`.
+**Historical publication proof, pinned to `6d83e67a5b`:** that commit forks before the private evidence commit and differs from the owner-reviewed tree only under `docs/terminal-b2-pr1/`. The [named-grid remediation](verification.md#named-grid-ci-remediation) is its local child, **not** another byte-equivalent publication. The only non-packet differences from that published head are `frontend/src/grid/grid.css` and `frontend/e2e/chart-redesign.spec.ts`.
 
 | Object | Commit | Relationship |
 |---|---|---|
@@ -11,7 +11,7 @@ The publication branch forks **before** the private evidence commit. It does not
 
 ## What was compared
 
-All **737 tracked file entries outside the packet**, including their paths, Git object IDs and modes, are identical between the implementation, the private reviewed tree and this candidate. This includes the operator quickstart as well as all production code. The common SHA-256 of the NUL-terminated `git ls-tree -rz --full-tree` records after excluding only the packet prefix is `9d194bff276f05b89e7a5035dd4116f253a8ade246dfc904fbea49d65d49fda0`. The full repository tree is intentionally different: a compact public manifest is not the private collector output, a sanitized log is not its original, and omitted diagnostics are not a new verification run.
+All **737 tracked file entries outside the packet**, including paths, Git object IDs and modes, matched between the implementation, the private review and `6d83e67a5b`. This includes the operator quickstart as well as all production code. The common SHA-256 of the NUL-terminated `git ls-tree -rz --full-tree` records after excluding only the packet prefix was `9d194bff276f05b89e7a5035dd4116f253a8ade246dfc904fbea49d65d49fda0`. The subtree IDs below refer to that historical comparison, not the remediated frontend.
 
 | Tracked scope | Files | Identical Git tree or blob |
 |---|---:|---|
@@ -30,17 +30,19 @@ For avoidance of doubt, the 737-file comparison includes the root entry point, p
 
 ## Reproduce the comparison
 
-From the repository root at the candidate, this works **without either private branch**. The first command should print no diff and return zero; the second shows the exact public diff against its verified base.
+The first command reproduces the historical zero-diff proof without either private branch. The second lists the remediation only; the third compares the current tree with its verified main base.
 
 ```sh
-git diff --exit-code 80b80214deb90a483c5d1826123202ea104a7eb4 HEAD -- . ':(exclude)docs/terminal-b2-pr1/**'
+PUBLISHED=6d83e67a5bf9a473a5a727488b3f8d8c90428dc7
+git diff --exit-code 80b80214deb90a483c5d1826123202ea104a7eb4 "$PUBLISHED" -- . ':(exclude)docs/terminal-b2-pr1/**'
+git diff --name-status "$PUBLISHED" HEAD
 git diff --no-renames --name-status 7b3c0768ed4bff30b4ef89c8030da458e48a6e47 HEAD
 ```
 
 For a maintainer with the local archive, repeat the first command with `1933ec89c242057c41e23d3ca2de0e7c11ad576a`. `git rev-parse feat/terminal-b2-design-system` must still return that ID. `git merge-base --is-ancestor 1933ec89c242057c41e23d3ca2de0e7c11ad576a HEAD` must return **1** (not an ancestor); a missing object is **not** a successful ancestry check. The original complete review packet, including the 120-file evidence subtree `d481cdfd55da05f8812e1ada8b1b830219eee8e2`, remains recoverable at that local commit.
 
-- [Public inventory](inventory.txt): **61 changed paths** (41 additions, 20 modifications) relative to verified main, including this report and both inventories.
-- [Review differences](review-differences.tsv): **114 packet paths** (8 added, 8 modified, 98 omitted relative to the private review). `A` means public only; `M` means different bytes/mode; `D` means retained only in the private tree. Rename detection is disabled, so a move of an unchanged image appears as `D`/`A`. These are inventory entries, not links promising access to omitted diagnostics.
+- [Public inventory](inventory.txt): current changes relative to verified main. The published comparison had 61 changed paths; this remediation adds one bounded visual comparison.
+- [Review differences](review-differences.tsv): current delta relative to the private review. `A` means candidate only; `M` means different bytes/mode; `D` means retained only in the private tree. Rename detection is disabled. The two non-packet changes are listed explicitly; the other differences are documentation or evidence. Omitted diagnostics are not public links.
 - [Retention policy](retention.md): why the results, representative pixels and genuine failing assertions are public while the raw corpus, original path-bearing blobs and private transformation mapping are not.
 
 The initial two outgoing commits and their changed blobs were inspected **before** branch creation. Publication acceptance additionally requires scanning every reachable outgoing commit, its metadata and relevant blobs through the new tip, including any earlier versions absent from the tip, not just a clean worktree. The private review/design refs, tags, evidence mapping and archive are not part of that range. An owner decision on the exact new SHA and the required remote checks remain separate.

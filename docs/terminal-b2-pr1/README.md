@@ -1,6 +1,6 @@
 # PR 1 · Design tokens and shell frame
 
-**Owner decision:** the bounded production implementation of B.2 Graphite/Paper and the compact shell is accepted. This packet is a **local publication candidate**, not a release or authorization of PR 2. The final code is the accepted implementation `80b80214de`; the [equivalence proof](equivalence.md) separates the unchanged software from the curated evidence. No private checkout or hosted demo is required to read this packet.
+**Scope:** the owner accepted the bounded PR 1 implementation and approved publication of `6d83e67a5b` in [PR #27](https://github.com/karisheen/Limit-Orderbook/pull/27). Its required remote `offline` check failed during named-grid editing. The [local remediation](verification.md#named-grid-ci-remediation) stabilizes desktop edit feedback and strengthens its browser regression. Both named-grid cases pass; the complete local browser run is **not green** because a separate narrow-screen replay seek timed out before editing. This commit is for owner review, not approved for publication or merge. The [equivalence proof](equivalence.md) identifies the differences from the original publication. No release or PR 2 work is included.
 
 ## What changed
 
@@ -27,13 +27,13 @@ Same Coinbase BTC-USD spot primary, USD price/BTC quantity, `synthetic-demo-v3-1
 
 The [visual reviewer](review-visual.md) initially rejected the clipped laptop bid and Price field. The [technical reviewer](review-technical.md) challenged book scroll ownership and the evidence for preference migration. Both accepted the repaired local scope. The [failing frame](evidence/regressions/clipped-bid-1280.png) and [path-normalized assertion](evidence/regressions/clipped-touch.txt) are retained so the fixes can be judged against the original failure. The [verification record](verification.md) includes the failed browser runs, corrections, final results and reproduction steps. At 1280×800 the repaired balanced candle field is still only 76 CSS pixels high; the existing Price focus preset remains the roomier choice.
 
-The accepted full offline run passed **2,221 Python tests and 279 frontend tests**. The final actual-backend Chromium run passed **116**, with **three live-only skips**. These are [historical receipts](evidence/gates/accepted.json) for software proven identical here, not fresh full-suite runs. The [publication smoke](evidence/gates/publication-fast.txt) is separate. No claim of remote CI success, live throughput, strategy performance, physical 4K readability or full accessibility certification follows from this evidence.
+The accepted implementation's full offline run passed **2,221 Python tests and 279 frontend tests**. Its final local Chromium run passed **116**, with **three live-only skips**. These [historical receipts](evidence/gates/accepted.json) and [publication smoke](evidence/gates/publication-fast.txt) are not a result for the subsequent remote failure or its local correction. See the [remediation record](verification.md#named-grid-ci-remediation) for the separate results. Offline evidence does not establish live throughput, strategy performance, physical 4K readability or full accessibility certification.
 
 ## Proposed GitHub pull request
 
 **Title:** Adopt B.2 Graphite and Paper tokens in the existing terminal shell
 
-**Description:** Adopt the B.2 Graphite and Paper palettes on their existing theme IDs and compact the existing production shell. Preserve saved theme selection, chart ownership, native financial readouts and layouts. Use the matched production captures and original independent reviews above to assess the change. The owner accepted PR 1 only. Publication preparation curated documentation and evidence, not code; the locked local checks are distinguished from the required remote `offline` check, which must pass on the exact published head. No PR has been opened by this preparation.
+**Description at publication:** Adopt the B.2 Graphite and Paper palettes on their existing theme IDs and compact the existing production shell. Preserve saved theme selection, chart ownership, native financial readouts and layouts. Use the matched production captures and original independent reviews above to assess the change. The owner accepted PR 1 only. The required remote `offline` check must pass on the exact head before merge.
 
 ## Rollback and next gate
 

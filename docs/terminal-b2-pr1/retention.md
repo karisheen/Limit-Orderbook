@@ -13,7 +13,7 @@ Prefer reproducible offline native sources and representative imagery over live 
 
 ## PR1 selection and exclusions
 
-The historical `docs/terminal-b2-pr1/evidence/` subtree contained 120 files / 22,544,201 bytes (21.50 MiB), including 10.98 MiB of failed and superseded attempts. The curated subtree contains **28 files / 5,935,138 bytes (5.66 MiB)**. Both counts exclude the surrounding Markdown and source code; the original review packet as a whole contained 129 files.
+The historical `docs/terminal-b2-pr1/evidence/` subtree contained 120 files / 22,544,201 bytes (21.50 MiB), including 10.98 MiB of failed and superseded attempts. The packet **as published at `6d83e67a5b`** contained 28 evidence files / 5,935,138 bytes (5.66 MiB). The named-grid remediation retains one additional cropped comparison; its full CI artifact, traces, instrumented measurements and raw gate logs remain local. These counts exclude Markdown and source code.
 
 PR1 retains 20 selected final-matrix images (four before, sixteen after), two ancillary native inspection images and the unchanged failed clipped-bid PNG: see [captures.json](evidence/captures.json). The ancillary observations predate the final focus/contrast corrections and are not substitutes for the final matrix. It also retains targeted contrast data, compact gate/failure records and both complete independent reviews. [Verification](verification.md) distinguishes prior results, failed attempts and publication-only checking.
 
