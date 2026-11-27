@@ -11,6 +11,7 @@ import { usePositioningHistory } from './positioning-api';
 import { fundingIntervalLabel } from './positioning-model';
 import { anchorLogicalRange, chartTime, exactPlotScale, latestLogicalRange, pixelAnchoredRange, priceSeriesData, seriesUpdate } from './price-series';
 import type { ExactPlotScale, PriceSeriesData } from './price-series';
+import { THEMES, type Theme, type ThemeTokens } from './orderflow/lib/theme';
 import type { PriceChartPreferences } from './workspace';
 import './price-chart.css';
 
@@ -21,7 +22,7 @@ export interface PriceChartProps {
   maximized: boolean; onMaximize: () => void;
   preferences: PriceChartPreferences; onPreferencesChange: (value: Partial<PriceChartPreferences>) => void;
 }
-interface Colors { background: string; text: string; grid: string; border: string; up: string; down: string; interest: string; positive: string; negative: string }
+interface Colors { background: string; text: string; grid: string; border: string; up: string; down: string; interest: string; funding: string; font: string }
 interface ContextPlot {
   interest: LineData<UTCTimestamp>[]; funding: HistogramData<UTCTimestamp>[];
   interestScale: ExactPlotScale; fundingScale: ExactPlotScale;
@@ -35,12 +36,14 @@ interface Surface {
 const EMPTY_CANDLES: PriceCandle[] = [];
 function themeColors(node: HTMLElement): Colors {
   const style = getComputedStyle(node);
+  const fallback = THEMES[(node.closest('[data-theme]')?.getAttribute('data-theme') ?? 'dark-dull') as Theme] ?? THEMES.dark;
+  const token = (name: keyof ThemeTokens) => style.getPropertyValue(name).trim() || fallback[name];
   return {
-    background: style.getPropertyValue('--bg-panel').trim(), text: style.getPropertyValue('--text-secondary').trim(),
-    grid: style.getPropertyValue('--border-muted').trim(), border: style.getPropertyValue('--border').trim(),
-    up: style.getPropertyValue('--buy').trim(), down: style.getPropertyValue('--sell').trim(),
-    interest: style.getPropertyValue('--accent').trim(), positive: style.getPropertyValue('--warn').trim(),
-    negative: style.getPropertyValue('--vwap').trim(),
+    background: token('--bg-chart'), text: token('--text-secondary'),
+    grid: token('--grid'), border: token('--border'),
+    up: token('--buy'), down: token('--sell'),
+    interest: token('--oi'), funding: token('--funding'),
+    font: style.getPropertyValue('--font-mono').trim() || 'ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace',
   };
 }
 
@@ -97,7 +100,7 @@ export function PriceChart({ frame, instrument, connected, active, interval, ins
         const time = chartTime(bar.start_ns);
         if (bar.open_interest) interest.push({ time, value: interestScale.coordinate(bar.open_interest.close) });
         if (bar.funding_rate !== null) funding.push({ time, value: fundingScale.coordinate(bar.funding_rate),
-          color: bar.funding_rate.startsWith('-') ? colors.negative : colors.positive });
+          color: colors.funding });
       }
       return { value: { interest, funding, interestScale, fundingScale }, error: null };
     } catch (error) { return { value: null, error: error instanceof Error ? error.message : 'Unsupported positioning precision' }; }
@@ -147,7 +150,7 @@ export function PriceChart({ frame, instrument, connected, active, interval, ins
     const chart = createChart(node, {
       width: Math.max(1, node.clientWidth), height: Math.max(1, node.clientHeight),
       layout: { background: { type: ColorType.Solid, color: palette.background }, textColor: palette.text,
-        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11, attributionLogo: true,
+        fontFamily: palette.font, fontSize: 12, attributionLogo: true,
         panes: { enableResize: true, separatorColor: palette.border, separatorHoverColor: palette.text } },
       grid: { vertLines: { color: palette.grid }, horzLines: { color: palette.grid } },
       crosshair: { mode: CrosshairMode.Normal },
@@ -259,7 +262,7 @@ export function PriceChart({ frame, instrument, connected, active, interval, ins
     current.changing = true;
     current.viewport = undefined;
     chart.applyOptions({
-      layout: { background: { type: ColorType.Solid, color: colors.background }, textColor: colors.text,
+      layout: { background: { type: ColorType.Solid, color: colors.background }, textColor: colors.text, fontFamily: colors.font,
         panes: { separatorColor: colors.border, separatorHoverColor: colors.text } },
       grid: { vertLines: { color: colors.grid }, horzLines: { color: colors.grid } },
       rightPriceScale: { borderColor: colors.border }, timeScale: { borderColor: colors.border },

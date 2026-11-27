@@ -35,12 +35,27 @@ export default function StatusBar() {
     displayStatus.primaryInstrumentId === terminal.frame.selection.instrument_id;
   const observedBooks = cohortCurrent ? venues.filter((v) => connections[v]?.status === "live").length : 0;
   const lag = session?.lastTradeLagMs ?? null;
-  const lagTone = lag === null ? "" : lag < 250 ? "tone-buy" : lag < 1000 ? "tone-warn" : "tone-sell";
+  const lagTone = lag === null || lag < 250 ? "" : lag < 1000 ? "tone-warn" : "tone-critical";
   const lagLabel = displayStatus.lagObservation === "recorded" ? "Recorded lag" :
     displayStatus.lagObservation === "synthetic" ? "Synthetic lag" : "Feed lag";
+  const source = terminal.frame?.source;
+  const sourceLabel = !source ? "Source unavailable" : source.synthetic ? "Synthetic demo" :
+    source.recording || source.mode === "replay" ? "Recorded" : source.mode === "live" ? "Live" : "Source unavailable";
 
   return (
     <footer className="statusbar">
+      <div className="statusbar-overview">
+        <span className="statusbar-source" title={source?.label}>{sourceLabel}</span>
+        <details className="display-status">
+          <summary className={displayStatus.gap || displayStatus.reasons.length ? "tone-warn" : ""}>Coverage{displayStatus.gap ? " · gap" : ""}</summary>
+          <div className="display-status-content">
+            <strong>Primary: {displayStatus.primaryInstrumentId ?? "not selected"}</strong>
+            <span>{displayStatus.instrumentIds.length} instruments · {displayStatus.unknownSideTrades} unknown-side prints · {displayStatus.historyTrades} history prints</span>
+            <span>Book and retained print observations are independent; neither establishes freshness, continuous coverage or financial support. Subscription history is not ordered trade-stream evidence.</span>
+            {displayStatus.reasons.map((reason) => <span key={reason}>{reason}</span>)}
+          </div>
+        </details>
+      </div>
       <div className="statusbar-feeds">
         {venues.map((venue) => {
           const conn = connections[venue];
@@ -54,7 +69,6 @@ export default function StatusBar() {
               className="feed"
               title={`${venueLabel(venue)}: ${bookLabel} · ${tradesObserved ? "retained non-history native prints observed" : "no retained non-history native prints"} · ${conn?.stateFlag ?? status}${conn?.error ? ` — ${conn.error}` : ""}. Book status does not establish trade-stream freshness or financial support.`}
             >
-              <span className={`status-dot ${status}`} />
               {venueLabel(venue)}
               <em>{bookLabel} · {tradesObserved ? "prints observed" : "prints unobserved"}</em>
               {conn?.error && <span className="feed-error" role="status">{conn.error}</span>}
@@ -67,15 +81,6 @@ export default function StatusBar() {
         {displayStatus.instrumentIds.length > 1 && <>
           <span title="Display studies only, never financial execution inputs. Prices in different quote assets are combined without conversion. Costs and paper target the exact native primary.">Indicative aggregate · not execution input</span>
         </>}
-        <details className="display-status">
-          <summary className={displayStatus.gap || displayStatus.reasons.length ? "tone-warn" : ""}>Coverage{displayStatus.gap ? " · gap" : ""}</summary>
-          <div className="display-status-content">
-            <strong>Primary: {displayStatus.primaryInstrumentId ?? "not selected"}</strong>
-            <span>{displayStatus.instrumentIds.length} instruments · {displayStatus.unknownSideTrades} unknown-side prints · {displayStatus.historyTrades} history prints</span>
-            <span>Book and retained print observations are independent; neither establishes freshness, continuous coverage or financial support. Subscription history is not ordered trade-stream evidence.</span>
-            {displayStatus.reasons.map((reason) => <span key={reason}>{reason}</span>)}
-          </div>
-        </details>
       </div>
       <div className="statusbar-meta">
         <span title="Native exchange-to-receive wall-clock difference for the latest ordered print; includes clock skew. Missing or negative differences are unavailable. Recorded lag describes capture-time receipt, not replay delivery.">

@@ -277,8 +277,14 @@ test('a committed mutation with a held HTTP response times out without retry or 
     await page.goto('/');
     await expect(page.locator('.status')).toContainText('Connected');
     await page.getByRole('tablist', { name: 'Chart workspace', exact: true }).getByRole('tab', { name: 'Native book & tape', exact: true }).click();
+    // Demo bootstrap can already be nonzero. Pin the displayed pre-reset
+    // cursor to this Step's authoritative response, not the previous paint.
+    const firstStep = page.waitForResponse(reply => reply.url().endsWith('/api/v1/replay')
+      && reply.request().postDataJSON().action === 'step' && reply.ok());
     await page.getByTestId('replay-step').click();
-    await expect(page.locator('.cursor')).not.toHaveText(/^0 \//);
+    const advanced = await (await firstStep).json() as Frame;
+    expect(BigInt(advanced.replay!.cursor.delivery_index)).toBeGreaterThan(0n);
+    await expect(page.locator('.cursor')).toHaveText(new RegExp(`^${advanced.replay!.cursor.delivery_index} /`));
     const before = await page.locator('.cursor').textContent();
     await page.getByTestId('replay-reset').click();
     const committed = await responseCaptured;

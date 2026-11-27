@@ -74,7 +74,7 @@ export const useUIStore = create<UIStore>()(
   persist(
     (set) => ({
       panels: { volumeProfile: true, heatmap: false },
-      theme: "dark",
+      theme: "dark-dull",
       heatmap: { tradedVolume: false },
       footprintMode: "bidask",
       indicators: DEFAULT_INDICATORS,

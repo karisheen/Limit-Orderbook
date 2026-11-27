@@ -17,8 +17,11 @@ async function seek(page: Page, delivery: string) {
   const committed = page.waitForResponse(response => response.url().endsWith('/api/v1/replay') && response.request().method() === 'POST' && response.ok())
     .then(response => response.json() as Promise<Frame>);
   const drained = page.waitForResponse(async response => {
-    if (!/\/market-data(?:\?|$)/.test(response.url()) || !response.ok()) return false;
+    const request = response.request();
+    if (!/\/market-data(?:\?|$)/.test(response.url()) || request.method() !== 'POST' || !response.ok()) return false;
     const frame = await committed;
+    const payload = request.postDataJSON() as Pick<Frame, 'session_id' | 'generation'>;
+    if (payload.session_id !== frame.session_id || payload.generation !== frame.generation) return false;
     const batch = await response.json() as NativeMarketData;
     return batch.session_id === frame.session_id && batch.generation === frame.generation && !batch.has_more;
   });
@@ -72,7 +75,7 @@ async function expectThemePixel(canvas: Locator) {
     const reference = document.createElement('canvas');
     reference.width = reference.height = 1;
     const context = reference.getContext('2d')!;
-    context.fillStyle = getComputedStyle(canvas).getPropertyValue('--bg-panel').trim();
+    context.fillStyle = getComputedStyle(canvas).getPropertyValue('--bg-chart').trim();
     context.fillRect(0, 0, 1, 1);
     return [...canvas.getContext('2d')!.getImageData(0, 0, 1, 1).data].join(',')
       === [...context.getImageData(0, 0, 1, 1).data].join(',');

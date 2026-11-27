@@ -9,13 +9,14 @@
   border: 1px solid var(--border);
   background: var(--bg-panel);
   color: var(--text-primary);
+  font: 13px var(--font-ui);
   font-variant-numeric: tabular-nums;
 }
 .price-chart[hidden] { display: none; }
 .price-chart button, .price-chart input {
-  min-height: 28px;
+  min-height: 30px;
   padding: 4px 8px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-edge);
   border-radius: var(--radius-sm, 4px);
   background: var(--bg-panel-alt);
   color: var(--text-secondary);
@@ -23,40 +24,40 @@
 }
 .price-chart button { cursor: pointer; white-space: nowrap; }
 .price-chart button:hover:not(:disabled) { background: var(--bg-hover); color: var(--text-primary); }
-.price-chart button[aria-pressed=true] { background: var(--highlight-dim); border-color: var(--accent); color: var(--text-primary); }
-.price-chart :focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.price-chart button[aria-pressed=true] { background: var(--bg-active); border-color: var(--control-edge); color: var(--text-primary); }
+.price-chart :focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .price-chart button:disabled { opacity: .45; cursor: default; }
-.price-chart__toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 5px 10px; padding: 6px 10px; border-bottom: 1px solid var(--border); font-size: 11px; flex-shrink: 0; }
+.price-chart__toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 5px 10px; padding: 6px 10px; border-bottom: 1px solid var(--border); background: var(--bg-surface); font-size: 13px; flex-shrink: 0; }
 .price-chart__identity { overflow-wrap: anywhere; font-weight: 600; }
-.price-chart .price-chart__reveal { border-color: var(--accent); color: var(--text-primary); }
-.price-chart__view-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 3px; }
+.price-chart .price-chart__reveal { border-color: var(--control-edge); color: var(--text-primary); }
+.price-chart__view-actions { display: flex; align-items: center; flex-wrap: wrap; min-width: 0; max-width: 100%; gap: 3px; }
 .price-chart__margin { display: flex; align-items: center; gap: 4px; color: var(--text-secondary); }
 .price-chart__margin input { width: 48px; min-width: 0; }
-.price-chart__status { margin-left: auto; color: var(--buy); font-size: 10px; }
+.price-chart__status { margin-left: auto; color: var(--text-secondary); font-size: 12px; overflow-wrap: anywhere; min-width: 0; }
 .price-chart__status.is-stale { color: var(--warn); }
 /* Exact financial strings scroll on one reserved row; cursor changes never resize the plot. */
-.price-chart__legend { display: flex; align-items: center; flex-wrap: nowrap; gap: 5px 12px; box-sizing: border-box; height: 48px; min-height: 48px; padding: 6px 12px; overflow-x: auto; overflow-y: hidden; white-space: nowrap; color: var(--text-secondary); font-family: var(--font-mono, monospace); font-size: 11px; flex-shrink: 0; }
+.price-chart__legend { display: flex; align-items: center; flex-wrap: nowrap; gap: 5px 12px; box-sizing: border-box; height: 48px; min-height: 48px; padding: 6px 12px; overflow-x: auto; overflow-y: hidden; white-space: nowrap; color: var(--text-secondary); font-family: var(--font-mono); font-size: 13px; flex-shrink: 0; }
 .price-chart__legend > *, .price-chart__positioning > * { flex-shrink: 0; }
 .price-chart__bar-time { color: var(--text-secondary); }
 .price-chart__legend dl, .price-chart__positioning { display: flex; flex-wrap: nowrap; gap: 4px 12px; margin: 0; min-width: 0; }
 .price-chart__legend dl > div, .price-chart__positioning > div { display: flex; gap: 5px; flex-shrink: 0; }
 .price-chart__legend dt, .price-chart__positioning dt { color: var(--text-secondary); }
 .price-chart__legend dd, .price-chart__positioning dd { margin: 0; color: var(--text-primary); white-space: nowrap; }
-.price-chart small { color: var(--text-secondary); font-size: 10px; }
-.price-chart__bar-state { margin-left: auto; padding: 2px 6px; border-radius: 3px; background: var(--bg-panel-alt); color: var(--text-secondary); font-size: 10px; white-space: nowrap; }
-.price-chart__bar-state.is-active { color: var(--buy); }
-.price-chart__positioning { box-sizing: border-box; height: 44px; min-height: 44px; flex-shrink: 0; align-items: center; overflow-x: auto; overflow-y: hidden; white-space: nowrap; padding: 3px 12px 7px; font-size: 10px; line-height: 1.5; border-bottom: 1px solid var(--border-muted); }
-.price-chart__plot-frame { position: relative; flex: 1 0 260px; min-width: 0; min-height: 260px; }
+.price-chart small { color: var(--text-secondary); font-size: 12px; }
+.price-chart__bar-state { margin-left: auto; padding: 2px 6px; border-radius: 3px; background: var(--bg-panel-alt); color: var(--text-secondary); font-size: 12px; white-space: nowrap; }
+.price-chart__bar-state.is-active { color: var(--text-primary); }
+.price-chart__positioning { box-sizing: border-box; height: 44px; min-height: 44px; flex-shrink: 0; align-items: center; overflow-x: auto; overflow-y: hidden; white-space: nowrap; padding: 3px 12px 7px; font: 13px/1.5 var(--font-mono); font-variant-numeric: tabular-nums; border-bottom: 1px solid var(--border-muted); }
+.price-chart__plot-frame { position: relative; flex: 1 0 260px; min-width: 0; min-height: 260px; background: var(--bg-chart); }
 .price-chart__plot { position: absolute; inset: 0; min-width: 0; overflow: hidden; touch-action: none; }
 /* Lightweight Charts owns its nested canvases and pane geometry. */
 .price-chart__empty { position: absolute; top: 50%; left: 50%; z-index: 2; width: min(440px, calc(100% - 32px)); max-height: calc(100% - 20px); overflow: auto; transform: translate(-50%, -50%); padding: 14px; box-sizing: border-box; border: 1px solid var(--border); border-radius: var(--radius-sm, 4px); background: var(--bg-panel-alt); text-align: center; }
 .price-chart__empty h3 { margin: 0 0 8px; color: var(--text-primary); font-size: 14px; }
 .price-chart__empty p { margin: 0 0 10px; color: var(--text-secondary); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
 .price-chart__empty button { margin: 4px; }
-.price-chart__loading { position: absolute; left: 8px; top: 8px; padding: 5px 8px; background: var(--bg-panel-alt); border: 1px solid var(--border); color: var(--text-secondary); font-size: 11px; pointer-events: none; }
-.price-chart__warning { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px 12px; padding: 8px 12px; border-top: 1px solid var(--border); background: var(--bg-panel-alt); color: var(--warn); font-size: 11px; line-height: 1.5; }
+.price-chart__loading { position: absolute; left: 8px; top: 8px; padding: 5px 8px; background: var(--bg-panel-alt); border: 1px solid var(--border); color: var(--text-secondary); font-size: 12px; pointer-events: none; }
+.price-chart__warning { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px 12px; padding: 8px 12px; border-top: 1px solid var(--border); background: var(--bg-panel-alt); color: var(--warn); font-size: 12px; line-height: 1.5; }
 .price-chart__warning > span { min-width: 0; overflow-wrap: anywhere; }
-.price-chart__footer { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 16px; padding: 4px 12px; border-top: 1px solid var(--border); color: var(--text-secondary); font-size: 10px; line-height: 1.5; flex-shrink: 0; overflow-wrap: anywhere; }
+.price-chart__footer { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 16px; padding: 4px 12px; border-top: 1px solid var(--border); color: var(--text-secondary); font-size: 12px; line-height: 1.5; flex-shrink: 0; overflow-wrap: anywhere; }
 .price-chart__source-summary, .price-chart__table-nav { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 12px; }
 .price-chart__source-summary { flex-basis: 100%; min-width: 0; }
 .price-chart__source-summary .price-chart__coverage { margin: 0; }
@@ -64,18 +65,28 @@
 .price-chart__footer a { color: var(--text-secondary); text-decoration: underline; }
 .price-chart__footer a:hover { color: var(--accent); }
 .price-chart__coverage { margin: 4px 0; color: var(--warn); }
-.price-chart__details { min-width: 0; }
+.price-chart__details { min-width: 0; max-width: 100%; }
 .price-chart__details[open] { flex-basis: 100%; }
-.price-chart__details > summary { min-height: 22px; color: var(--text-secondary); cursor: pointer; }
+.price-chart__details > summary { min-height: 30px; color: var(--text-secondary); cursor: pointer; }
 .price-chart__table-scroll { max-width: 100%; max-height: 280px; overflow: auto; margin-top: 5px; }
-.price-chart__table-scroll table { width: 100%; border-collapse: collapse; font-family: var(--font-mono, monospace); }
+.price-chart__table-scroll table { width: 100%; border-collapse: collapse; font: 13px var(--font-mono); font-variant-numeric: tabular-nums; }
 .price-chart__table-scroll caption { text-align: left; padding: 5px 0; }
 .price-chart__table-scroll th, .price-chart__table-scroll td { border-bottom: 1px solid var(--border); padding: 4px 8px; text-align: right; white-space: nowrap; font-weight: normal; }
 .price-chart__table-scroll thead th { position: sticky; top: 0; background: var(--bg-panel-alt); color: var(--text-primary); }
+/* Short desktop tiles reserve one control row and one exact-value row.
+   The native chart sizes to the compact plot; footer disclosures remain scrollable. */
+@media (min-width: 966px) and (max-height: 900px) {
+  .price-chart__toolbar { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; padding: 4px 6px; scroll-padding-inline: 6px; scrollbar-width: thin; }
+  .price-chart__toolbar > * { flex: none; white-space: nowrap; }
+  .price-chart__view-actions { flex-wrap: nowrap; max-width: none; }
+  .price-chart__legend { height: 40px; min-height: 40px; padding: 3px 8px; scrollbar-width: thin; }
+  .price-chart__plot-frame { flex: 1 0 120px; min-height: 120px; }
+  .price-chart:has(> .price-chart__positioning) .price-chart__plot-frame { flex-basis: 260px; min-height: 260px; }
+}
 @media (max-width: 700px) {
   .price-chart__toolbar { gap: 4px 6px; padding: 5px 7px; }
   .price-chart__toolbar button { padding: 4px 6px; }
-  .price-chart__legend { padding: 6px 8px; gap: 4px 8px; font-size: 10px; }
+  .price-chart__legend { padding: 6px 8px; gap: 4px 8px; }
   .price-chart__bar-state { margin-left: 0; }
   .price-chart__plot-frame { flex-basis: 300px; min-height: 300px; }
   .price-chart__positioning, .price-chart__footer, .price-chart__warning { padding-left: 8px; padding-right: 8px; }

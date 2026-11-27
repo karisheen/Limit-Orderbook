@@ -368,7 +368,7 @@ for (const width of [1440, 1280, 390]) {
       await canvas.scrollIntoViewIfNeeded();
       await expect.poll(() => canvas.evaluate(node => {
         const canvas = node as HTMLCanvasElement;
-        const token = getComputedStyle(canvas).getPropertyValue('--bg-panel').trim();
+        const token = getComputedStyle(canvas).getPropertyValue('--bg-chart').trim();
         const reference = document.createElement('canvas');
         reference.width = reference.height = 1;
         const context = reference.getContext('2d')!;

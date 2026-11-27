@@ -182,18 +182,59 @@ test('lost stream evidence marks held candles stale before replacing the session
   await expect(chart(page)).toHaveAttribute('data-presented-generation', session.frame.generation);
   await expect(values).toHaveCount(5);
   const observed = await values.allTextContents();
+  // Observe the real chart's stable host before suppressing transport. Capture
+  // the FIRST stale DOM commit, including incorrect/empty held values, rather
+  // than waiting independently for a later good status/readout combination.
+  const observation = await chart(page).evaluateHandle(element => {
+    const host = element.parentElement;
+    if (!host) throw new Error('The presented price chart must have a mounted host');
+    type Snapshot = { status: string; values: string[]; generation: string | null; visible: boolean };
+    const { promise: snapshot, resolve } = Promise.withResolvers<Snapshot | null>();
+    let settled = false;
+    const observer = new MutationObserver(() => {
+      const current = host.querySelector('[data-testid="price-chart"]');
+      const status = current && [...current.querySelectorAll('[role="status"]')]
+        .find(node => node.textContent?.trim() === 'Stale snapshot');
+      if (!current || !status) return;
+      const values = [...current.querySelectorAll('.price-chart__legend dd')];
+      const rect = status.getBoundingClientRect();
+      finish({
+        status: status.textContent!.trim(),
+        values: values.map(node => node.textContent ?? ''),
+        generation: current.getAttribute('data-presented-generation'),
+        visible: current.checkVisibility() && status.checkVisibility()
+          && rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < innerHeight
+          && rect.right > 0 && rect.left < innerWidth && values.every(node => node.checkVisibility()),
+      });
+    });
+    const timer = window.setTimeout(() => finish(null), 8000);
+    function finish(value: Snapshot | null) {
+      if (settled) return;
+      settled = true;
+      observer.disconnect();
+      clearTimeout(timer);
+      resolve(value);
+    }
+    observer.observe(host, { subtree: true, childList: true, characterData: true, attributes: true });
+    return { snapshot, stop: () => finish(null) };
+  });
   suppress = true;
   try {
-    await expect(chart(page).locator('.price-chart__status')).toHaveText('Stale snapshot', { timeout: 8000 });
-    await expect(values).toHaveText(observed);
-    await page.screenshot({ path: testInfo.outputPath('disconnected.png') });
+    const stale = await observation.evaluate(value => value.snapshot);
+    expect(stale).toEqual({
+      status: 'Stale snapshot', values: observed,
+      generation: session.frame.generation, visible: true,
+    });
   } finally {
     suppress = false;
+    await observation.evaluate(value => value.stop());
+    await observation.dispose();
   }
   await expect(page.locator('.status')).toContainText('Connected');
   await expect(values).toHaveCount(5);
   await expect(chart(page)).not.toHaveAttribute('data-presented-generation', session.frame.generation);
   await expect(chart(page).locator('.price-chart__warning')).toBeHidden();
+  await page.screenshot({ path: testInfo.outputPath('reconnected.png') });
 });
 
 test('exact candle keyboard inspection and replay seek expose only the admitted prefix', async ({ page }) => {
