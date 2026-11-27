@@ -1,6 +1,6 @@
 # PR1 production theme tokens
 
-Canonical design reference: Git object `ce9e5a91f217fab5d63ee235f8d69c96aaad435a:docs/terminal-redesign/b2/tokens.css`, retrievable with `git show ce9e5a91f217fab5d63ee235f8d69c96aaad435a:docs/terminal-redesign/b2/tokens.css`. This is an immutable historical reference, not a working-tree link or a claim that the prototype exists on production main. Production remains the existing six-theme engine in `frontend/src/orderflow/lib/theme.ts`; no prototype stylesheet or theme engine is imported. `applyTheme` publishes the selected map as root CSS properties for CSS and canvas readers.
+The canonical design specimen is **local-only**: `ce9e5a91f217fab5d63ee235f8d69c96aaad435a:docs/terminal-redesign/b2/tokens.css`. The tables below give the production mapping without requiring that Git object. The existing [six-theme engine](../../frontend/src/orderflow/lib/theme.ts) publishes the selected map as root CSS properties through `applyTheme`; no prototype stylesheet or theme engine is imported.
 
 ## Graphite and Paper
 
@@ -78,7 +78,7 @@ These four palettes are native compatibility choices, not claimed B.2 Graphite/P
 
 ### Daylight readability exception
 
-The orchestrator's initial real 1920px production capture and computed ink sampling (`evidence/inspection/contrast-initial.json`) found Daylight bid text at 3.40:1 on a plain surface and 2.44:1 on its depth fill, ask text at 4.50:1 plain and 2.98:1 on its fill, and small warning text at 3.73:1 plain. These reported failures justify deepening the existing green, red and amber hues rather than replacing Daylight's identity:
+The original 1920px production capture and ink sampling (full initial diagnostics retained locally) found Daylight bid text at 3.40:1 on a plain surface and 2.44:1 on its depth fill, ask text at 4.50:1 plain and 2.98:1 on its fill, and small warning text at 3.73:1 plain. These failures justify deepening the existing green, red and amber hues rather than replacing Daylight's identity:
 
 | Daylight property | Previous value | Revised value |
 | --- | --- | --- |
@@ -92,7 +92,7 @@ The orchestrator's initial real 1920px production capture and computed ink sampl
 | `--sell-border` | `rgba(214,58,67,0.35)` | `rgba(161,38,45,0.35)` |
 | `--warn` | `#c76a00` | `#825000` |
 
-Dim marks remain a distinct darker shade. Tinted roles now use the revised side RGBs with their existing token opacities; required control boundaries still use `--control-edge`. These values target a healthy margin above 4.5:1 on native light surfaces, including approximately 15–18% side-tinted depth fills; final rendered contrast must be established by the orchestrator's post-change evidence, not inferred from this table. Depth-fill opacity is a separate presentation setting, not a new theme or financial calculation. Daylight's blue accent, surfaces, POC/VWAP, critical role and ID remain unchanged. Graphite/Paper canonical values and the other three legacy financial identities are untouched.
+Dim marks remain a distinct darker shade. Tinted roles use the revised side RGBs with their existing token opacities; required control boundaries use `--control-edge`. The six [final Daylight samples](evidence/inspection/contrast-final.json) were all at least 5.441:1 against their sampled surfaces. This is not a guarantee for every composition. Depth-fill opacity is a separate presentation setting, not a new theme or financial calculation. Daylight's blue accent, surfaces, POC/VWAP, critical role and ID remain unchanged. Graphite/Paper canonical values and the other three legacy financial identities are untouched.
 
 
 ## Defaults, fallback and persistence

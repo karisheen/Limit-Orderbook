@@ -1,6 +1,8 @@
 # B.2 owner decision and PR1 boundary
 
-## Decision and authority
+**Owner acceptance:** the owner subsequently accepted the bounded PR 1 implementation and its documented limitations. The decision below records the earlier design authorization; the acceptance does not extend it to PR 2 or to a release. Only preparation of a sanitized publication candidate is authorized. The owner must review its exact commit before any push, PR or merge.
+
+## Original decision and authority
 
 The owner explicitly approves **B.2 as the visual direction**, retaining B's measurement-first interaction model, with the eight refinements below. This is the durable record of that owner instruction, not a new numerical score for the historical A–D competition. It supersedes the historical packet's pending owner decision for this purpose without rewriting that packet.
 
@@ -65,7 +67,7 @@ The historical seven-PR sequence remains the organizing boundary, not automatic 
 
 ## Pinned historical references and evidence limits
 
-The following are **Git object references**, not working-tree links or claims that these files exist on production `main`. Retrieve a reference with `git show <ref>:<path>` when needed. Keep the original files, scores, initial failures and final dispositions in the design history; do not copy the prototype or its evidence tree into production.
+The following are **local-only Git object references**, not public links. They can be resolved with `git show <ref>:<path>` only in a repository retaining the design history. A public checkout is not expected to contain the object or its paths. The original files, scores, initial failures and final dispositions stay on the private design branch; the [production review packet](README.md) stands on its own.
 
 | Git ref:path | Scope |
 |---|---|

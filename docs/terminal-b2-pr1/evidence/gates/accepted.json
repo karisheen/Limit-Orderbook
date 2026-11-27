@@ -1,0 +1,139 @@
+{
+  "schema": 1,
+  "kind": "compact historical evidence extraction; not untouched stdout or a fresh gate run",
+  "provenance": {
+    "main": "7b3c0768ed4bff30b4ef89c8030da458e48a6e47",
+    "implementation": "80b80214deb90a483c5d1826123202ea104a7eb4",
+    "review_object_local_only": "1933ec89c242057c41e23d3ca2de0e7c11ad576a",
+    "source_policy": "Extracted from full original gate/failure logs and capture receipts using git show; originals, raw traces and private design inputs remain local-only. Source names below identify historical records, not public links.",
+    "source_root_local_only": "docs/terminal-b2-pr1/evidence/",
+    "command_policy": "Commands preserve the historical invocation semantics; the identifying transition-probe temporary output path is normalized to $TMPDIR/lob-pr1-transition.XXXXXX (a fresh directory, not a literal reusable destination). These are historical records, not publication-time execution requests."
+  },
+  "toolchain": {
+    "host": "Darwin x64",
+    "python": "3.13.5",
+    "uv": "0.8.4",
+    "node": "22.22.0",
+    "npm": "10.9.4",
+    "playwright": "1.58.1",
+    "chromium": "145.0.7632.6",
+    "installation": "uv sync --locked --offline --python 3.13.5 --group dev; npm --prefix frontend ci --offline --no-audit --no-fund",
+    "locks_changed": false
+  },
+  "workload_pin": {
+    "source": "synthetic-demo-v3-180s",
+    "duration_seconds": 180,
+    "streams": 38,
+    "recording": false,
+    "instrument": "coinbase:advanced-trade:spot:BTC-USD",
+    "scope": "primary",
+    "delivery": "3485",
+    "total_deliveries": "6970",
+    "generation": "2",
+    "transport": "paused",
+    "speed": "1",
+    "interval": "1m",
+    "candle_source": "session_trades",
+    "layout": "balanced",
+    "price_unit": "USD per BTC",
+    "volume_unit": "BTC",
+    "sessions": "One native create per document; seven isolated contexts per final matrix; IDs differ between documents/reruns. No preferences or response injection in matched collector.",
+    "native_candles": [
+      {"start_ns": "1793545260000000000", "end_ns": "1793545320000000000", "open": "60000", "high": "60000", "low": "60000", "close": "60000", "volume": "0.41", "closed": true},
+      {"start_ns": "1793545320000000000", "end_ns": "1793545380000000000", "open": "60000", "high": "60000", "low": "60000", "close": "60000", "volume": "0.48", "closed": false}
+    ],
+    "scope_note": "This exact pin describes matched captures, not every gate scenario. Browser gates also exercise other native instruments, workflows and explicit transport/draw faults."
+  },
+  "historical_gates": [
+    {
+      "source_local_only": "gates/fast-final.txt",
+      "command": "./tools/check.sh --fast",
+      "result": "passed",
+      "python_smoke": {"passed": 1, "failed": 0, "skipped": 0},
+      "frontend": {"passed": 3, "failed": 0, "skipped": 0, "cancelled": 0},
+      "format_files": 99,
+      "other_checks": ["Ruff lint", "browser-tool syntax"]
+    },
+    {
+      "source_local_only": "gates/full-offline.txt.gz",
+      "command": "./tools/check.sh --durations=20",
+      "result": "passed",
+      "python": {"passed": 2221, "failed": 0, "skipped": 0, "warnings": 1, "selection": "-m 'not network'", "seconds": 376.91},
+      "frontend": {"passed": 279, "failed": 0, "skipped": 0, "cancelled": 0},
+      "mypy_source_files": 45,
+      "other_checks": ["Ruff lint/format", "tool syntax", "ESLint --max-warnings 0", "TypeScript", "Vite production build"],
+      "note": "Full offline gate preceded final test-only lifecycle/cutover/stale observation edits; frontend lint/typecheck and complete Chromium were subsequently re-exercised. Production bundle was unchanged by those test repairs."
+    }
+  ],
+  "historical_chromium": {
+    "command": "PLAYWRIGHT_BASE_URL=http://127.0.0.1:8031 npm --prefix frontend run test:e2e",
+    "workers": 1,
+    "retries": 0,
+    "runs": [
+      {"source_local_only": "attempts/lifecycle/full-first.txt", "total": 119, "passed": 115, "failed": 1, "skipped": 3, "minutes": 13.1, "failure": "Held-mutation setup accepted bootstrap 169/gen1 before Step 170/gen1; Reset committed 0/gen2 with response held. Failed before timeout assertion."},
+      {"source_local_only": "attempts/canvas-cutover/full-second.txt", "total": 119, "passed": 113, "failed": 3, "skipped": 3, "minutes": 13.9, "failures": ["Canvas setup decoded obsolete generation-1 market-data body after generation-2 seek", "Laptop setup decoded obsolete generation-1 market-data body after generation-2 seek", "Separate stale-label/readout assertions crossed real session replacement"]},
+      {"source_local_only": "gates/actual-backend.txt", "total": 119, "passed": 116, "failed": 0, "skipped": 3, "minutes": 13.1, "note": "Final complete run after last test edit; includes all six PR 1 cases and repaired lifecycle/canvas/stale scenarios"}
+    ],
+    "skip_reasons": [
+      "Generation-fenced live recording/replay requires a public live source",
+      "Automatic-demo-to-live network-launch migration requires networking",
+      "Streaming-only native candidates require a public live source"
+    ],
+    "repairs": [
+      "Await actual Step response and exact cursor before holding Reset; keep 15s application deadline, ambiguity notice, late response, generation, no-retry and one-session assertions",
+      "Reject foreign session/generation request identity before reading bodies; still decode and prove matching identity, completed drain and applicable native nonempty data",
+      "Read-only observer installed before stream suppression checks first actual stale DOM commit, all five exact values and generation together, then independent recovery; no DOM mutation or convenient later sampling"
+    ]
+  },
+  "historical_focused_runs": [
+    {"source_local_only": "gates/shell-acceptance-initial.txt", "command": "npm --prefix frontend run test:e2e -- shell-frame.spec.ts", "passed": 4, "failed": 0, "skipped": 0},
+    {"source_local_only": "attempts/laptop-touch/regression.txt", "command": "npm --prefix frontend run test:e2e -- shell-frame.spec.ts", "passed": 4, "failed": 1, "skipped": 0, "failure": "1280px best bid clipped at rest"},
+    {"source_local_only": "attempts/laptop-touch/bounded-deficit.txt", "command": "npm --prefix frontend run test:e2e -- shell-frame.spec.ts -g 'balanced laptop'", "passed": 0, "failed": 1, "skipped": 0, "failure": "Bid text box still clipped after scroll-ownership repair"},
+    {"source_local_only": "attempts/laptop-touch/focus-edge.txt", "command": "npm --prefix frontend run test:e2e -- shell-frame.spec.ts", "passed": 5, "failed": 1, "skipped": 0, "failure": "Keyboard-focused Volume Z 100 control clipped by about 1.8px"},
+    {"source_local_only": "gates/laptop.txt", "command": "npm --prefix frontend run test:e2e -- shell-frame.spec.ts -g 'balanced laptop'", "passed": 1, "failed": 0, "skipped": 0},
+    {"source_local_only": "gates/held-mutation.txt", "command": "npm --prefix frontend run test:e2e -- lifecycle.spec.ts -g 'a committed mutation with a held HTTP response'", "passed": 1, "failed": 0, "skipped": 0},
+    {"source_local_only": "gates/transition-probes.txt", "command": "npm --prefix frontend run test:e2e -- canvas-presentation.spec.ts shell-frame.spec.ts price-action.spec.ts -g 'paused shared panels|balanced laptop tiles|lost stream evidence' --output=\"$TMPDIR/lob-pr1-transition.XXXXXX\"", "passed": 3, "failed": 0, "skipped": 0}
+  ],
+  "focused_environment": "PLAYWRIGHT_BASE_URL=http://127.0.0.1:8031; one worker; zero automatic retries",
+  "final_static": {
+    "source_local_only": "gates/final-static.txt",
+    "command": "npm --prefix frontend run lint && npm --prefix frontend run typecheck",
+    "result": "passed"
+  },
+  "historical_capture_receipts": {
+    "collector_sha256": "2306cd9c236b633cf21ac1da8d958fedc90b033b87e8eff49beabc0d1dd76a67",
+    "command_template": "PLAYWRIGHT_BASE_URL=http://127.0.0.1:PORT node tools/capture_shell_frame.mjs before|after FRESH_OUTPUT_DIRECTORY",
+    "main_port": 8032,
+    "implementation_port": 8031,
+    "before": {"images": 13, "contexts": 7, "native_creates": 7, "request_aborts": 12, "response_read_errors": 0, "http_errors": 0, "page_exceptions": 0},
+    "after": {"images": 19, "contexts": 7, "native_creates": 7, "request_aborts": 16, "response_read_errors": 0, "http_errors": 0, "page_exceptions": 0},
+    "historical_reviewed_matched_pairs": 13,
+    "publicly_retained_matched_pairs": 4,
+    "horizontal_document_overflow": 0,
+    "prefinal_centered_baseline": {"images": 13, "request_aborts": 15, "response_read_errors": 2},
+    "failed_attempts": [
+      {"source_local_only": "attempts/before-preset-action.json", "images": 0, "reason": "Collector incorrectly treated Choose preset action as persistent selector"},
+      {"source_local_only": "attempts/after-liquidity-scope/after-manifest.json", "images": 8, "reason": "Collector incorrectly required session_id on VisualGrid rather than request identity"}
+    ],
+    "public_selection": {"before": 4, "after": 16, "ancillary": 2, "failed_regression": 1, "total_images": 23, "manifest": "../captures.json"},
+    "contrast": {"samples": 36, "at_least_4_5_to_1": 36, "minimum_ratio": 5.243, "scope": "One 1920x1080 DPR1 scene, six financial-text roles per theme; computed ink versus decoded lossless background pixels; not all states"}
+  },
+  "warnings_and_limits": [
+    "One Starlette TestClient/httpx deprecation warning in full Python run",
+    "Vite Lucide ignored use-client directives and large-chunk advisories; npm ESLint deprecation",
+    "Browser NO_COLOR/FORCE_COLOR warning; second failed full run also emitted PromiseRejectionHandledWarning",
+    "Initial baseline build prerequisite failed with exit 127; partial main export omitted native demo fixture and server startup failed until same-object fixture restored",
+    "Canceled discovery requests are recorded, not silently counted as zero or automatically attributed to a product incident",
+    "Matched collector uses native offline data without response interception; browser fault/precision/paging tests include explicit controlled faults or fixtures",
+    "No new full offline gate, Chromium run, live connection, performance measurement, cross-browser or assistive-technology proof for publication",
+    "Screenshots and canvas rectangles do not establish physical 4K readability, sustained live capacity, execution quality or performance improvement",
+    "No user ledger, personal state directory or recording used"
+  ],
+  "publication": {
+    "authorized_fresh_scope": "Integration owner runs ./tools/check.sh --fast only",
+    "fresh_smoke_result": "Not asserted by this historical extraction; consult separate stdout",
+    "fresh_smoke_output": "publication-fast.txt",
+    "remote_ci": "Pending future owner-authorized publication; not run for this local milestone",
+    "push": "Requires owner approval of new publication SHA"
+  }
+}
