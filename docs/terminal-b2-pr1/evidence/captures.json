@@ -1,0 +1,431 @@
+{
+  "schema": 1,
+  "kind": "Public selection summary derived from immutable historical evidence; not original collector output and not a fresh run",
+  "provenance": {
+    "localOnlyGitObject": "1933ec89c242057c41e23d3ca2de0e7c11ad576a",
+    "note": "Provenance object and original before/after manifests, native inspection record and failure stdout are local-only, not public links or dependencies. All image bytes and contrast samples are verbatim Git blobs; this manifest is newly derived.",
+    "sourceRecordDigests": {
+      "beforeManifest": "0ee3e0898c0b2a31e588a17393c5cffec35a23294f571eed50ce40f5ae362989",
+      "afterManifest": "9c984e353876f918a5aec215e37f99afb2ab8796f19b7b7b75182dc12902c7ad",
+      "nativeInspection": "dad0938a2363f433a2a3ae128b7bb756b0b69c6d639e552fc90d99a10f097e57"
+    }
+  },
+  "selection": {
+    "imageCount": 23,
+    "matrixImages": 20,
+    "ancillaryImages": 2,
+    "failedIntermediateImages": 1,
+    "directComparisonPairs": 4,
+    "note": "4 of 13 before and 16 of 19 after images retained, not a duplicated complete matrix. Direct pairs: Graphite/Paper at 1280x800 and 1920x1080 DPR1; other after images broaden coverage. Footprint is a display projection of native prints, not an exchange candle feed."
+  },
+  "collector": {
+    "sha256": "2306cd9c236b633cf21ac1da8d958fedc90b033b87e8eff49beabc0d1dd76a67",
+    "manifestSchema": 1,
+    "playwrightVersion": "1.58.1",
+    "browserVersion": "145.0.7632.6",
+    "scope": "Historical before/after matrices only; ancillary and failed PNG lack matching collector version records",
+    "constraints": [
+      "Fresh browser context for each viewport; no preferences seeded",
+      "Public visible controls only; no direct API mutations, response interception, or prototype import",
+      "Only loopback discovery/session GETs outside application-owned traffic",
+      "Backend must already be offline; sessions are owned by its disposable run",
+      "Contrast samples are diagnostics, not a baseline gate or a complete accessibility audit"
+    ]
+  },
+  "historicalRuns": {
+    "before": {
+      "startedAt": "2026-11-27T06:26:56.325Z",
+      "finishedAt": "2026-11-27T06:27:27.670Z",
+      "status": "passed",
+      "nativeCreateCount": 7,
+      "fullHistoricalImages": 13,
+      "retainedImages": 4,
+      "browserContexts": 7,
+      "captureBounds": {
+        "first": "2026-11-27T06:27:01.274Z",
+        "last": "2026-11-27T06:27:27.618Z"
+      }
+    },
+    "after": {
+      "startedAt": "2026-11-27T06:47:06.691Z",
+      "finishedAt": "2026-11-27T06:47:42.836Z",
+      "status": "passed",
+      "nativeCreateCount": 7,
+      "fullHistoricalImages": 19,
+      "retainedImages": 16,
+      "browserContexts": 7,
+      "captureBounds": {
+        "first": "2026-11-27T06:47:11.347Z",
+        "last": "2026-11-27T06:47:42.772Z"
+      }
+    }
+  },
+  "fieldDefinitions": {
+    "path": "Published file path relative to this evidence directory; only retained files are indexed.",
+    "sha256 / bytes": "SHA-256 and byte count of original encoded Git blob, never a re-encoded preview.",
+    "category": "matrix-before/matrix-after = final historical comparison runs; ancillary-native = earlier separate inspection; failed-intermediate = intentionally unsuccessful old appearance.",
+    "context / dataEvidence": "References contexts and dataEvidence objects below; shared source, instrument, cursor, units and paint fields apply only to that named context.",
+    "comparisonKey": "Original theme/CSS viewport/DPR/view key. Equal before/after keys are direct comparisons; other retained after keys have no public before pair.",
+    "viewport / dpr / rasterPixels": "Recorded CSS viewport dimensions; device pixel ratio; native encoded image [width,height]. Null means metadata unavailable, not DPR1 by assumption.",
+    "capturedAt / visibleClockUTC": "Original per-image UTC capture timestamp where recorded; a clock read from the raster is separately labelled and does not establish a date or exact capture instant.",
+    "deliveredCursor": "Native replay delivery index, ordinal and event index where recorded; displayed delivery index only is explicitly labelled for other images. Decimal strings preserve precision.",
+    "paint": "Historical collector flags and sample cadence, not a new verification. Matrix meaningful=true, empty=false and 3 stable samples at 100ms spacing are shared by all 20 retained matrix images.",
+    "paintEvidence": "Per-image original canvas count, count with viewportArea>0 and opaqueSamples>0, and one original witness canvas (maximum distinctColors among those visible nonempty canvases). Not a full pixel audit.",
+    "witness": "Original CSS rectangle, backing width/height, viewportArea, sampledPixels, opaqueSamples, distinctColors and pixelFingerprint; fingerprint is the collector sample digest, not file SHA-256.",
+    "dataEvidence": "Exact historical native candle/trade/visualization or inspection/failure evidence; financial decimals and nanosecond values remain strings. Matrix native units/scope live in contexts.matrix.",
+    "historicalRuns": "Bounds and totals of complete historical runs, not just public retained selections; status is historical.",
+    "contrast samples": "id=theme; s=CSS selector; text/color/font=sampled text styling; x/y=sample coordinates; background=sampled RGB; ratio=historical contrast ratio. Diagnostic samples, not a full accessibility audit."
+  },
+  "contexts": {
+    "matrix": {
+      "source": {
+        "id": "synthetic-demo-v3-180s",
+        "mode": "demo",
+        "label": "Synthetic 180s / 38 streams (memory, not recording)",
+        "status": "ready",
+        "synthetic": true,
+        "recording": false,
+        "duration_ns": "180000000000",
+        "streams": 38,
+        "reasons": []
+      },
+      "nativeInstrument": {
+        "instrument_id": "coinbase:advanced-trade:spot:BTC-USD",
+        "venue": "coinbase",
+        "api_family": "advanced-trade",
+        "native_symbol": "BTC-USD",
+        "market_type": "spot",
+        "tick_size": "0.01",
+        "lot_size": "0.001",
+        "quantity_unit": "base",
+        "contract_multiplier": "1",
+        "metadata_status": "verified"
+      },
+      "units": {
+        "base": "BTC",
+        "quote": "USD",
+        "price": "USD per BTC",
+        "quantity": "BTC (native base)",
+        "volume": "BTC",
+        "scope": "primary: selected native instrument, not cross-venue aggregation"
+      },
+      "deliveredCursor": {
+        "delivery_index": "3485",
+        "ordinal": "3485",
+        "event_index": "0"
+      },
+      "totalDeliveries": "6970",
+      "replayStatus": "paused",
+      "generation": "2",
+      "layout": "balanced",
+      "interval": "1m",
+      "scope": "primary",
+      "fullPage": false,
+      "paint": {
+        "meaningful": true,
+        "empty": false,
+        "stableSamples": 3,
+        "sampleSpacingMs": 100
+      }
+    },
+    "binance-inspection": {
+      "stage": "Ancillary native inspection before final focus/contrast refinements; not a final matrix substitute",
+      "sourceId": "synthetic-demo-v3-180s",
+      "nativeInstrumentId": "binance-global:spot-v3:spot:BTCUSDT",
+      "marketType": "spot",
+      "units": {
+        "base": "BTC",
+        "quote": "USDT",
+        "price": "USDT per BTC",
+        "quantity": "BTC (base)"
+      },
+      "scope": "Single · Binance · BTCUSDT",
+      "deliveredCursor": {
+        "delivery_index": "3485"
+      },
+      "cursorBasis": "Delivery 3485 / 6970 visible in original raster; no ordinal/event cursor recorded",
+      "paint": {
+        "meaningful": null,
+        "note": "Visible native book and footprint; separate inspection, no matrix paint sampler record"
+      }
+    },
+    "hyperliquid-inspection": {
+      "stage": "Ancillary native inspection before final focus/contrast refinements; not a final matrix substitute",
+      "sourceId": "synthetic-demo-v3-180s",
+      "nativeInstrumentId": "hyperliquid:info:perpetual:BTC",
+      "marketType": "perpetual",
+      "units": {
+        "base": "BTC",
+        "quote": "USDT",
+        "settlement": "USDC",
+        "price": "USDT per BTC",
+        "openInterest": "base BTC",
+        "funding": "fraction per 1h"
+      },
+      "scope": "selected native instrument; projected receive time UTC",
+      "deliveredCursor": {
+        "delivery_index": "5000"
+      },
+      "generation": "5",
+      "paint": {
+        "meaningful": null,
+        "note": "Visible OI/funding plots and exact native readout; no matrix paint sampler record"
+      }
+    },
+    "clipped-bid-regression": {
+      "stage": "Failed intermediate, not final/release appearance",
+      "sourceId": null,
+      "sourceLabel": "Synthetic demo",
+      "nativeInstrumentId": null,
+      "visibleInstrument": "Coinbase BTC/USD spot",
+      "units": {
+        "base": "BTC",
+        "quote": "USD"
+      },
+      "scope": "Visible single Coinbase book; exact API scope not recorded with failure",
+      "deliveredCursor": {
+        "delivery_index": "3485"
+      },
+      "cursorBasis": "Delivery 3485 / 6970 visible in original raster; no ordinal/event cursor recorded",
+      "paint": {
+        "meaningful": null,
+        "note": "No successful matrix paint claim: bid readability assertion failed"
+      }
+    }
+  },
+  "dataEvidence": {
+    "native-price": {
+      "kind": "native-price",
+      "source": "session_trades",
+      "candleCount": 2,
+      "first": {
+        "start_ns": "1793545260000000000",
+        "end_ns": "1793545320000000000",
+        "open": "60000",
+        "high": "60000",
+        "low": "60000",
+        "close": "60000",
+        "volume": "0.41",
+        "closed": true
+      },
+      "last": {
+        "start_ns": "1793545320000000000",
+        "end_ns": "1793545380000000000",
+        "open": "60000",
+        "high": "60000",
+        "low": "60000",
+        "close": "60000",
+        "volume": "0.48",
+        "closed": false
+      }
+    },
+    "native-liquidity": {
+      "kind": "native-liquidity",
+      "observedRequest": {
+        "path": "/api/v1/visualization",
+        "method": "POST",
+        "payload": {
+          "generation": "2",
+          "price_offset_rows": 0,
+          "recenter": true,
+          "bucket_ns": "1000000000",
+          "rows": 128,
+          "max_columns": 181
+        }
+      },
+      "response": {
+        "status": 200,
+        "receivedAt": "2026-11-27T06:47:18.806Z"
+      },
+      "start_ns": "1000000000",
+      "end_ns": "90000010000",
+      "eligibleColumns": 89,
+      "presentation": {
+        "mode": "heatmap",
+        "tiles": 89,
+        "generation": "2",
+        "evidenceNs": "89000026000",
+        "freshness": "Demo · source lag 1000 ms · resident 19 ms"
+      },
+      "identityAgreement": {
+        "responseEqualsPainted": true,
+        "responseEqualsDrawn": true,
+        "responseEqualsEvidence": true
+      },
+      "identityNote": "Original response, drawn, painted and evidence view identifiers agree; disposable identifiers omitted",
+      "nativeGeometry": {
+        "data-price-min": "59996.8",
+        "data-price-step": "0.05",
+        "data-row-first": "0",
+        "data-row-count": "128",
+        "data-pixel-width": "1065",
+        "data-pixel-height": "132"
+      }
+    },
+    "display-footprint": {
+      "kind": "display-footprint",
+      "note": "Display projection of retained native prints, not a second native visualization or an exchange candle feed",
+      "retainedTrades": 89,
+      "firstNativeTrade": {
+        "trade": {
+          "trade_id": "9007199254741000",
+          "price": "60000",
+          "quantity": "0.01",
+          "quantity_unit": "base",
+          "taker_side": "buy",
+          "side_provenance": "coinbase_maker_side_inverted",
+          "is_subscription_history": false
+        },
+        "baseQuantity": "0.01",
+        "quoteNotional": "600",
+        "displayTimeNs": "1793545279195000000",
+        "cursor": {
+          "delivery": "110",
+          "event": 0
+        }
+      },
+      "lastNativeTrade": {
+        "trade": {
+          "trade_id": "9007199254741088",
+          "price": "60000",
+          "quantity": "0.01",
+          "quantity_unit": "base",
+          "taker_side": "buy",
+          "side_provenance": "coinbase_maker_side_inverted",
+          "is_subscription_history": false
+        },
+        "baseQuantity": "0.01",
+        "quoteNotional": "600",
+        "displayTimeNs": "1793545367085027000",
+        "cursor": {
+          "delivery": "3464",
+          "event": 0
+        }
+      },
+      "visibleHeading": "Footprint\nBTC/USD · 1M · Coinbase\nBid × Ask\nDelta\nVolume\nIndicators\nProfile\nExecuted heatmap\n⟲ Live"
+    },
+    "binance-touch": {
+      "kind": "ancillary-native-inspection",
+      "multiLevel": {
+        "asks": [
+          {
+            "price": "60,002",
+            "readableAtCentre": false,
+            "y": 319.4453125
+          },
+          {
+            "price": "60,001",
+            "readableAtCentre": true,
+            "y": 339.4453125
+          }
+        ],
+        "bids": [
+          {
+            "price": "59,999",
+            "readableAtCentre": true,
+            "y": 379.4453125
+          },
+          {
+            "price": "59,998",
+            "readableAtCentre": false,
+            "y": 399.4453125
+          }
+        ],
+        "source": "Single · Binance · BTCUSDT",
+        "instrument": "binance-global:spot-v3:spot:BTCUSDT",
+        "farAskReachedByWheel": true
+      },
+      "visibleBestAsk": {
+        "price": "60001",
+        "quantity": "2.00"
+      },
+      "visibleBestBid": {
+        "price": "59999",
+        "quantity": "6.00"
+      },
+      "visibleValueBasis": "Original raster; native inspection records exact price text and centre readability"
+    },
+    "hyperliquid-positioning": {
+      "kind": "ancillary-native-inspection",
+      "readout": "OI\n1260 base Δ 55\nFunding\n0.00002 fraction per 1h\nSource\nHyperliquid BTC · selected instrument · projected receive time UTC",
+      "latest": {
+        "start_ns": "1793545380000000000",
+        "end_ns": "1793545440000000000",
+        "first_ns": "1793545380085009000",
+        "last_ns": "1793545407085009000",
+        "samples": 28,
+        "closed": false,
+        "open_interest": {
+          "open": "1205",
+          "high": "1300",
+          "low": "1205",
+          "close": "1260",
+          "change": "55"
+        },
+        "funding_rate": "0.00002",
+        "funding_interval_ns": "3600000000000",
+        "mark": "60000",
+        "oracle": "60000"
+      },
+      "rows": "2026-11-01 15:03:00 UTC\nO\n60000\nH\n60000\nL\n60000\nC\n60000\nVol\n0.28 BTC\nActive bar"
+    },
+    "clipped-bid": {
+      "kind": "historical-failure",
+      "test": "balanced laptop tiles expose both primary touches, the latest print and usable study plots at rest",
+      "target": "Order Book: .ladder-bids .ladder-price (first)",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "expected": {
+        "readable": true
+      },
+      "received": {
+        "readable": false
+      },
+      "timeoutMs": 15000,
+      "historicalRun": {
+        "passed": 4,
+        "failed": 1
+      },
+      "scope": "Failure excerpt, not final gate result; no exact native response retained for this PNG"
+    }
+  },
+  "artifacts": [
+    {
+      "path": "inspection/contrast-final.json",
+      "sha256": "aa694b79ab082ed8599ffc077a3a67b1c770a785653ba523c07fda80883708a3",
+      "bytes": 9166,
+      "category": "historical-contrast-samples",
+      "records": 36,
+      "verbatim": true,
+      "capturedAt": null,
+      "note": "Historical final color samples, not newly measured; distinct from earlier ancillary native inspection images. Diagnostic, not a complete accessibility audit."
+    }
+  ],
+  "images": [
+    {"path": "before/before-dark-dull-1280x800-dpr1-price.jpg","sha256": "b66f09eb06861992ec6647f9da8d767665520e3a3d7244b56a1dcf6acb540f63","bytes": 133765,"category": "matrix-before","context": "matrix","comparisonKey": "dark-dull/1280x800/dpr1/price","theme": "dark-dull","view": "price","viewport": {"width": 1280,"height": 800},"dpr": 1,"rasterPixels": [1280,800],"capturedAt": "2026-11-27T06:27:01.274Z","dataEvidence": "native-price","paintEvidence": {"sampledCanvasCount": 11,"nonemptyViewportCanvasCount": 7,"witness": {"css": {"x": 872,"y": 480.515625,"width": 80,"height": 193},"width": 80,"height": 193,"viewportArea": 15440,"sampledPixels": 576,"opaqueSamples": 576,"distinctColors": 59,"pixelFingerprint": "6b8b7662"}}},
+    {"path": "before/before-light-dull-1280x800-dpr1-price.jpg","sha256": "7ce8ad3c4a1624bc3750611373a7a69bf5050df32c9182a34253f6737b02ad46","bytes": 147425,"category": "matrix-before","context": "matrix","comparisonKey": "light-dull/1280x800/dpr1/price","theme": "light-dull","view": "price","viewport": {"width": 1280,"height": 800},"dpr": 1,"rasterPixels": [1280,800],"capturedAt": "2026-11-27T06:27:01.873Z","dataEvidence": "native-price","paintEvidence": {"sampledCanvasCount": 11,"nonemptyViewportCanvasCount": 7,"witness": {"css": {"x": 872,"y": 480.515625,"width": 80,"height": 193},"width": 80,"height": 193,"viewportArea": 15440,"sampledPixels": 576,"opaqueSamples": 576,"distinctColors": 60,"pixelFingerprint": "87ea2943"}}},
+    {"path": "before/before-dark-dull-1920x1080-dpr1-price.jpg","sha256": "0c4725978b05369ec3c4336096b502743c21f7d289e4f0dee8f8c29c13beb1ae","bytes": 213854,"category": "matrix-before","context": "matrix","comparisonKey": "dark-dull/1920x1080/dpr1/price","theme": "dark-dull","view": "price","viewport": {"width": 1920,"height": 1080},"dpr": 1,"rasterPixels": [1920,1080],"capturedAt": "2026-11-27T06:27:09.454Z","dataEvidence": "native-price","paintEvidence": {"sampledCanvasCount": 11,"nonemptyViewportCanvasCount": 7,"witness": {"css": {"x": 1352,"y": 468.578125,"width": 80,"height": 193},"width": 80,"height": 193,"viewportArea": 15440,"sampledPixels": 576,"opaqueSamples": 576,"distinctColors": 59,"pixelFingerprint": "6b8b7662"}}},
+    {"path": "before/before-light-dull-1920x1080-dpr1-price.jpg","sha256": "a8199915e76f05ab34feb09c5dcdf0b5ff85faf2506f2aaf44b850174c309897","bytes": 238548,"category": "matrix-before","context": "matrix","comparisonKey": "light-dull/1920x1080/dpr1/price","theme": "light-dull","view": "price","viewport": {"width": 1920,"height": 1080},"dpr": 1,"rasterPixels": [1920,1080],"capturedAt": "2026-11-27T06:27:10.146Z","dataEvidence": "native-price","paintEvidence": {"sampledCanvasCount": 11,"nonemptyViewportCanvasCount": 7,"witness": {"css": {"x": 1352,"y": 468.578125,"width": 80,"height": 193},"width": 80,"height": 193,"viewportArea": 15440,"sampledPixels": 576,"opaqueSamples": 576,"distinctColors": 60,"pixelFingerprint": "87ea2943"}}},
+    {"path": "after/after-dark-dull-1280x800-dpr1-price.jpg","sha256": "f9ccbcf0346d85e5c0005dfbba79ce8c79ff3784dcf8cb823e57c53f2328f39e","bytes": 209501,"category": "matrix-after","context": "matrix","comparisonKey": "dark-dull/1280x800/dpr1/price","theme": "dark-dull","view": "price","viewport": {"width": 1280,"height": 800},"dpr": 1,"rasterPixels": [1280,800],"capturedAt": "2026-11-27T06:47:11.347Z","dataEvidence": "native-price","paintEvidence": {"sampledCanvasCount": 11,"nonemptyViewportCanvasCount": 7,"witness": {"css": {"x": 872,"y": 374.171875,"width": 80,"height": 76},"width": 80,"height": 76,"viewportArea": 6080,"sampledPixels": 576,"opaqueSamples": 576,"distinctColors": 40,"pixelFingerprint": "809b480f"}}},
+    {"path": "after/after-light-dull-1280x800-dpr1-price.jpg","sha256": "d832ceb7559059be7b2e4bc51201e2ded954577b147c764d84a8c0565ab18256","bytes": 211174,"category": "matrix-after","context": "matrix","comparisonKey": "light-dull/1280x800/dpr1/price","theme": "light-dull","view": "price","viewport": {"width": 1280,"height": 800},"dpr": 1,"rasterPixels": [1280,800],"capturedAt": "2026-11-27T06:47:11.973Z","dataEvidence": "native-price","paintEvidence": {"sampledCanvasCount": 11,"nonemptyViewportCanvasCount": 7,"witness": {"css": {"x": 872,"y": 374.171875,"width": 80,"height": 76},"width": 80,"height": 76,"viewportArea": 6080,"sampledPixels": 576,"opaqueSamples": 576,"distinctColors": 40,"pixelFingerprint": "34eb35fb"}}},
+    {"path": "after/after-dark-1440x900-dpr1-price.jpg","sha256": "ef4aed8dd48ac236f71ce5e5dbf521c68e98a24ec6e58d4224874db0052e722e","bytes": 225643,"category": "matrix-after","context": "matrix","comparisonKey": "dark/1440x900/dpr1/price","theme": "dark","view": "price","viewport": {"width": 1440,"height": 900},"dpr": 1,"rasterPixels": [1440,900],"capturedAt": "2026-11-27T06:47:15.479Z","dataEvidence": "native-price","paintEvidence": {"sampledCanvasCount": 11,"nonemptyViewportCanvasCount": 7,"witness": {"css": {"x": 992,"y": 370.578125,"width": 80,"height": 148},"width": 80,"height": 148,"viewportArea": 11840,"sampledPixels": 576,"opaqueSamples": 576,"distinctColors": 64,"pixelFingerprint": "a83a96ce"}}},
+    {"path": "after/after-light-1440x900-dpr1-price.jpg","sha256": "6c7bbc7b7881dacbb3cfcb63c16f00ddf6cdffe64ec9f8fc8d909604f52190b1","bytes": 236046,"category": "matrix-after","context": "matrix","comparisonKey": "light/1440x900/dpr1/price","theme": "light","view": "price","viewport": {"width": 1440,"height": 900},"dpr": 1,"rasterPixels": [1440,900],"capturedAt": "2026-11-27T06:47:16.029Z","dataEvidence": "native-price","paintEvidence": {"sampledCanvasCount": 11,"nonemptyViewportCanvasCount": 7,"witness": {"css": {"x": 992,"y": 370.578125,"width": 80,"height": 148},"width": 80,"height": 148,"viewportArea": 11840,"sampledPixels": 576,"opaqueSamples": 576,"distinctColors": 62,"pixelFingerprint": "a3296e72"}}},
+    {"path": "after/after-forest-1440x900-dpr1-price.jpg","sha256": "fe1a11c57f97b39319d5b99859c780256a7642101994acdee4dd27cdf2b0c879","bytes": 233391,"category": "matrix-after","context": "matrix","comparisonKey": "forest/1440x900/dpr1/price","theme": "forest","view": "price","viewport": {"width": 1440,"height": 900},"dpr": 1,"rasterPixels": [1440,900],"capturedAt": "2026-11-27T06:47:16.564Z","dataEvidence": "native-price","paintEvidence": {"sampledCanvasCount": 11,"nonemptyViewportCanvasCount": 7,"witness": {"css": {"x": 992,"y": 370.578125,"width": 80,"height": 148},"width": 80,"height": 148,"viewportArea": 11840,"sampledPixels": 576,"opaqueSamples": 576,"distinctColors": 64,"pixelFingerprint": "abe3b2a"}}},
+    {"path": "after/after-futuristic-1440x900-dpr1-price.jpg","sha256": "1ab27fcc063b2b163e1162c822f6f290fadcb229d18cb1719b6e4e78ef6211e5","bytes": 248011,"category": "matrix-after","context": "matrix","comparisonKey": "futuristic/1440x900/dpr1/price","theme": "futuristic","view": "price","viewport": {"width": 1440,"height": 900},"dpr": 1,"rasterPixels": [1440,900],"capturedAt": "2026-11-27T06:47:17.062Z","dataEvidence": "native-price","paintEvidence": {"sampledCanvasCount": 11,"nonemptyViewportCanvasCount": 7,"witness": {"css": {"x": 992,"y": 370.578125,"width": 80,"height": 148},"width": 80,"height": 148,"viewportArea": 11840,"sampledPixels": 576,"opaqueSamples": 576,"distinctColors": 65,"pixelFingerprint": "63d9992f"}}},
+    {"path": "after/after-dark-dull-1440x900-dpr1-price.jpg","sha256": "97dcb8a5be04d10cc7fddc3286a4ab32c6ce2ecd33c8c2be0863f16438e097aa","bytes": 230952,"category": "matrix-after","context": "matrix","comparisonKey": "dark-dull/1440x900/dpr1/price","theme": "dark-dull","view": "price","viewport": {"width": 1440,"height": 900},"dpr": 1,"rasterPixels": [1440,900],"capturedAt": "2026-11-27T06:47:17.663Z","dataEvidence": "native-price","paintEvidence": {"sampledCanvasCount": 11,"nonemptyViewportCanvasCount": 7,"witness": {"css": {"x": 992,"y": 370.578125,"width": 80,"height": 148},"width": 80,"height": 148,"viewportArea": 11840,"sampledPixels": 576,"opaqueSamples": 576,"distinctColors": 59,"pixelFingerprint": "7948b21e"}}},
+    {"path": "after/after-light-dull-1440x900-dpr1-price.jpg","sha256": "293290f2a29bd41a455e535099f0d82d692f3351840841c6651f04f0dac9eed0","bytes": 231978,"category": "matrix-after","context": "matrix","comparisonKey": "light-dull/1440x900/dpr1/price","theme": "light-dull","view": "price","viewport": {"width": 1440,"height": 900},"dpr": 1,"rasterPixels": [1440,900],"capturedAt": "2026-11-27T06:47:18.222Z","dataEvidence": "native-price","paintEvidence": {"sampledCanvasCount": 11,"nonemptyViewportCanvasCount": 7,"witness": {"css": {"x": 992,"y": 370.578125,"width": 80,"height": 148},"width": 80,"height": 148,"viewportArea": 11840,"sampledPixels": 576,"opaqueSamples": 576,"distinctColors": 61,"pixelFingerprint": "2a635ca4"}}},
+    {"path": "after/after-dark-dull-1440x900-dpr1-liquidity.jpg","sha256": "c27c53b7e5eb065042ce689462cf743fa3c27bdd46e93de9253495c4db78d143","bytes": 243194,"category": "matrix-after","context": "matrix","comparisonKey": "dark-dull/1440x900/dpr1/liquidity","theme": "dark-dull","view": "liquidity","viewport": {"width": 1440,"height": 900},"dpr": 1,"rasterPixels": [1440,900],"capturedAt": "2026-11-27T06:47:19.325Z","dataEvidence": "native-liquidity","paintEvidence": {"sampledCanvasCount": 3,"nonemptyViewportCanvasCount": 2,"witness": {"css": {"x": 9,"y": 325.578125,"width": 1065,"height": 132},"width": 1065,"height": 132,"viewportArea": 140580,"sampledPixels": 576,"opaqueSamples": 576,"distinctColors": 31,"pixelFingerprint": "9917cb3f"}}},
+    {"path": "after/after-dark-dull-1440x900-dpr1-footprint.jpg","sha256": "4bef8d94b120e6034ed48da09040f8655fffdd408413c30fcc0140a78cf4bf69","bytes": 220535,"category": "matrix-after","context": "matrix","comparisonKey": "dark-dull/1440x900/dpr1/footprint","theme": "dark-dull","view": "footprint","viewport": {"width": 1440,"height": 900},"dpr": 1,"rasterPixels": [1440,900],"capturedAt": "2026-11-27T06:47:19.838Z","dataEvidence": "display-footprint","paintEvidence": {"sampledCanvasCount": 1,"nonemptyViewportCanvasCount": 1,"witness": {"css": {"x": 10,"y": 330.578125,"width": 1063,"height": 280},"width": 1063,"height": 280,"viewportArea": 297640,"sampledPixels": 576,"opaqueSamples": 576,"distinctColors": 35,"pixelFingerprint": "964d2e28"}}},
+    {"path": "after/after-dark-dull-1920x1080-dpr1-price.jpg","sha256": "5c5388da59a2bf5ce5e2ed390e2706a09f6db4fc7b234f6581c7116d0dd4b5bf","bytes": 293769,"category": "matrix-after","context": "matrix","comparisonKey": "dark-dull/1920x1080/dpr1/price","theme": "dark-dull","view": "price","viewport": {"width": 1920,"height": 1080},"dpr": 1,"rasterPixels": [1920,1080],"capturedAt": "2026-11-27T06:47:23.325Z","dataEvidence": "native-price","paintEvidence": {"sampledCanvasCount": 11,"nonemptyViewportCanvasCount": 7,"witness": {"css": {"x": 1352,"y": 384.578125,"width": 80,"height": 236},"width": 80,"height": 236,"viewportArea": 18880,"sampledPixels": 576,"opaqueSamples": 576,"distinctColors": 84,"pixelFingerprint": "9973a5ac"}}},
+    {"path": "after/after-light-dull-1920x1080-dpr1-price.jpg","sha256": "5fcea6154e7d14fca4bc43bc70832db027554d78568930acb4d4d35def86724a","bytes": 295275,"category": "matrix-after","context": "matrix","comparisonKey": "light-dull/1920x1080/dpr1/price","theme": "light-dull","view": "price","viewport": {"width": 1920,"height": 1080},"dpr": 1,"rasterPixels": [1920,1080],"capturedAt": "2026-11-27T06:47:23.978Z","dataEvidence": "native-price","paintEvidence": {"sampledCanvasCount": 11,"nonemptyViewportCanvasCount": 7,"witness": {"css": {"x": 1352,"y": 384.578125,"width": 80,"height": 236},"width": 80,"height": 236,"viewportArea": 18880,"sampledPixels": 576,"opaqueSamples": 576,"distinctColors": 80,"pixelFingerprint": "ac8667f5"}}},
+    {"path": "after/after-dark-dull-2560x1440-dpr1-price.jpg","sha256": "5b4ff382e76712c0016f5b99b997adc1099630b8fd589a9dce8af4f2b1b9386c","bytes": 376613,"category": "matrix-after","context": "matrix","comparisonKey": "dark-dull/2560x1440/dpr1/price","theme": "dark-dull","view": "price","viewport": {"width": 2560,"height": 1440},"dpr": 1,"rasterPixels": [2560,1440],"capturedAt": "2026-11-27T06:47:28.701Z","dataEvidence": "native-price","paintEvidence": {"sampledCanvasCount": 11,"nonemptyViewportCanvasCount": 7,"witness": {"css": {"x": 1832,"y": 384.578125,"width": 80,"height": 436},"width": 80,"height": 436,"viewportArea": 34880,"sampledPixels": 576,"opaqueSamples": 576,"distinctColors": 67,"pixelFingerprint": "bd1f4b1d"}}},
+    {"path": "after/after-dark-dull-3840x2160-dpr1-price.jpg","sha256": "099b39664cc05cb684f2e39ddad09e0efc4be794e0b718f1920f9e0ac7081954","bytes": 532129,"category": "matrix-after","context": "matrix","comparisonKey": "dark-dull/3840x2160/dpr1/price","theme": "dark-dull","view": "price","viewport": {"width": 3840,"height": 2160},"dpr": 1,"rasterPixels": [3840,2160],"capturedAt": "2026-11-27T06:47:34.352Z","dataEvidence": "native-price","paintEvidence": {"sampledCanvasCount": 11,"nonemptyViewportCanvasCount": 6,"witness": {"css": {"x": 2792,"y": 384.578125,"width": 80,"height": 836},"width": 80,"height": 836,"viewportArea": 66880,"sampledPixels": 576,"opaqueSamples": 576,"distinctColors": 60,"pixelFingerprint": "f32b0a04"}}},
+    {"path": "after/after-light-dull-390x844-dpr1-price.jpg","sha256": "eb807836d09495cbb1d2b33569c5be6371f71fcc4480559f21800405dcd0890f","bytes": 48208,"category": "matrix-after","context": "matrix","comparisonKey": "light-dull/390x844/dpr1/price","theme": "light-dull","view": "price","viewport": {"width": 390,"height": 844},"dpr": 1,"rasterPixels": [390,844],"capturedAt": "2026-11-27T06:47:38.999Z","dataEvidence": "native-price","paintEvidence": {"sampledCanvasCount": 11,"nonemptyViewportCanvasCount": 7,"witness": {"css": {"x": 300,"y": 210.703125,"width": 80,"height": 226},"width": 80,"height": 226,"viewportArea": 18080,"sampledPixels": 576,"opaqueSamples": 576,"distinctColors": 79,"pixelFingerprint": "9042e9a6"}}},
+    {"path": "after/after-dark-dull-1440x900-dpr2-price.jpg","sha256": "03a5d66619283a88dc23b9f5b6ebe5503dc9fe02e414fff6b92a30c893fbe8d9","bytes": 560538,"category": "matrix-after","context": "matrix","comparisonKey": "dark-dull/1440x900/dpr2/price","theme": "dark-dull","view": "price","viewport": {"width": 1440,"height": 900},"dpr": 2,"rasterPixels": [2880,1800],"capturedAt": "2026-11-27T06:47:42.772Z","dataEvidence": "native-price","paintEvidence": {"sampledCanvasCount": 11,"nonemptyViewportCanvasCount": 7,"witness": {"css": {"x": 992,"y": 370.578125,"width": 80,"height": 147.5},"width": 80,"height": 147,"viewportArea": 11800,"sampledPixels": 576,"opaqueSamples": 576,"distinctColors": 54,"pixelFingerprint": "bdd8ae47"}}},
+    {"path": "inspection/binance-touch-1280.jpg","sha256": "eb4adcb3805995c91d07cd6ac58eb230f57deb37f89118851b0bcaf3dbf41042","bytes": 231894,"category": "ancillary-native","context": "binance-inspection","viewport": null,"dpr": null,"rasterPixels": [1280,800],"capturedAt": null,"visibleClockUTC": "06:43:29","metadataNote": "Full capture timestamp and DPR not recorded in source metadata; visible clock is not a capture timestamp. Ancillary CSS viewport is not inferred from raster dimensions.","dataEvidence": "binance-touch"},
+    {"path": "inspection/hyperliquid-positioning-1920.jpg","sha256": "7c598657a4431222da1b21b3cfb41b26b361c9248b29f63debcb0dd3e07bcdfb","bytes": 345887,"category": "ancillary-native","context": "hyperliquid-inspection","viewport": null,"dpr": null,"rasterPixels": [1920,1080],"capturedAt": null,"visibleClockUTC": "06:43:34","metadataNote": "Full capture timestamp and DPR not recorded in source metadata; visible clock is not a capture timestamp. Ancillary CSS viewport is not inferred from raster dimensions.","dataEvidence": "hyperliquid-positioning"},
+    {"path": "regressions/clipped-bid-1280.png","sha256": "33fa63554aa830e091bdd5f1ede00a0b5759a09866227248e99600b39064ace0","bytes": 171538,"category": "failed-intermediate","context": "clipped-bid-regression","viewport": {"width": 1280,"height": 800},"dpr": null,"rasterPixels": [1280,800],"capturedAt": null,"visibleClockUTC": "06:34:15","metadataNote": "Full capture timestamp and DPR not recorded in source metadata; visible clock is not a capture timestamp. Ancillary CSS viewport is not inferred from raster dimensions.","dataEvidence": "clipped-bid"}
+  ]
+}

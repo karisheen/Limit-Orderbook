@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { canvasThemeRevision, mountCanvasPresentation, type CanvasPresentation } from "@/lib/session/canvasScheduler";
-import type { ThemeTokens } from "@/lib/theme";
+import { THEMES, type Theme, type ThemeTokens } from "@/lib/theme";
 
 // ─── Palette ─────────────────────────────────────────────────────
 export interface Palette {
@@ -36,31 +36,33 @@ let cachedRevision = -1;
 
 export function readPalette(): Palette {
   const root = document.documentElement;
-  const theme = root.getAttribute("data-theme") ?? "dark";
+  const theme = root.getAttribute("data-theme") ?? "dark-dull";
   const revision = canvasThemeRevision();
   if (cachedPalette && cachedTheme === theme && cachedRevision === revision) return cachedPalette;
   const cs = getComputedStyle(root);
-  const v = (name: keyof ThemeTokens, fallback: string) => cs.getPropertyValue(name).trim() || fallback;
+  const fallback = THEMES[theme as Theme] ?? THEMES.dark;
+  const v = (name: keyof ThemeTokens) => cs.getPropertyValue(name).trim() || fallback[name];
   cachedPalette = {
-    bgBase: v("--bg-base", "#07090d"),
-    bgSurface: v("--bg-surface", "#0c0f15"),
-    bgPanel: v("--bg-panel", "#0e121a"),
-    bgPanelAlt: v("--bg-panel-alt", "#121722"),
-    bgActive: v("--bg-active", "#1c2433"),
-    border: v("--border", "#1e2633"),
-    borderMuted: v("--border-muted", "#151b26"),
-    text: v("--text-primary", "#e6eaf2"),
-    textSecondary: v("--text-secondary", "#9aa4b8"),
-    textMuted: v("--text-muted", "#5d677c"),
-    buy: v("--buy", "#1fc796"),
-    sell: v("--sell", "#f2545b"),
-    neutral: v("--neutral", "#6b7488"),
-    accent: v("--highlight", "#4f8cff"),
-    poc: v("--poc", "#f4c544"),
-    vwap: v("--vwap", "#c58cff"),
-    warn: v("--warn", "#f59f3a"),
-    grid: v("--grid", "rgba(255,255,255,0.045)"),
-    onAccent: v("--on-accent", "#0a0b0d"),
+    bgBase: v("--bg-base"),
+    bgSurface: v("--bg-surface"),
+    // Existing canvas consumers use bgPanel for plot fills and axis wipes.
+    bgPanel: v("--bg-chart"),
+    bgPanelAlt: v("--bg-panel-alt"),
+    bgActive: v("--bg-active"),
+    border: v("--border"),
+    borderMuted: v("--border-muted"),
+    text: v("--text-primary"),
+    textSecondary: v("--text-secondary"),
+    textMuted: v("--text-muted"),
+    buy: v("--buy"),
+    sell: v("--sell"),
+    neutral: v("--neutral"),
+    accent: v("--highlight"),
+    poc: v("--poc"),
+    vwap: v("--vwap"),
+    warn: v("--warn"),
+    grid: v("--grid"),
+    onAccent: v("--on-accent"),
     light: theme === "light" || theme === "light-dull",
   };
   cachedTheme = theme;
@@ -77,8 +79,8 @@ export function withAlpha(color: string, alpha: number): string {
   return `rgba(${r},${g},${b},${Math.max(0, Math.min(1, alpha))})`;
 }
 
-export const MONO_FONT = '"Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
-export const UI_FONT = 'Geist, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
+export const MONO_FONT = 'ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace';
+export const UI_FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif';
 
 export function monoFont(size: number, weight = 400): string {
   return `${weight} ${size}px ${MONO_FONT}`;

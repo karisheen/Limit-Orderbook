@@ -31,15 +31,17 @@ export function drawTimeAxis(
 ) {
   ctx.fillStyle = p.bgPanel;
   ctx.fillRect(0, y, width, STUDY_TIME_H);
-  ctx.font = monoFont(9);
+  ctx.font = monoFont(12);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = p.textMuted;
   let lastX = -Infinity;
   for (let i = 0; i < times.length; i++) {
     const x = xOf(i);
-    if (x - lastX < minGap || x < 24 || x > width - STUDY_AXIS_W - 20) continue;
-    ctx.fillText(withSeconds ? formatClock(times[i]!) : formatHM(times[i]!), x, y + STUDY_TIME_H / 2 + 1);
+    const label = withSeconds ? formatClock(times[i]!) : formatHM(times[i]!);
+    const halfLabel = ctx.measureText(label).width / 2;
+    if (x - lastX < minGap || x < halfLabel + 2 || x > width - STUDY_AXIS_W - halfLabel - 2) continue;
+    ctx.fillText(label, x, y + STUDY_TIME_H / 2 + 1);
     lastX = x;
   }
 }
@@ -61,7 +63,6 @@ export function drawValueAxis(
   ctx.fillStyle = p.bgPanel;
   ctx.fillRect(plotR, 0, width - plotR, plotB);
   const step = niceStep(max - min, ticks);
-  ctx.font = monoFont(9);
   ctx.textAlign = "right";
   ctx.textBaseline = "middle";
   for (let v = Math.ceil(min / step) * step; v <= max + 1e-12; v += step) {
@@ -75,7 +76,11 @@ export function drawValueAxis(
     ctx.stroke();
     ctx.setLineDash([]);
     ctx.fillStyle = p.textMuted;
-    ctx.fillText(format(v), width - 6, y);
+    const label = format(v);
+    ctx.font = monoFont(12);
+    // Keep the fixed study gutter: long exact labels retain their compact size.
+    if (ctx.measureText(label).width > width - plotR - 6) ctx.font = monoFont(9);
+    ctx.fillText(label, width - 6, y);
   }
 }
 
@@ -93,7 +98,8 @@ export function drawAxisTag(
   ctx.roundRect(plotR + 4, y - 8, width - plotR - 6, 16, 8);
   ctx.fill();
   ctx.fillStyle = p.light ? "#ffffff" : p.bgBase;
-  ctx.font = monoFont(9, 700);
+  ctx.font = monoFont(12, 700);
+  if (ctx.measureText(text).width > width - plotR - 10) ctx.font = monoFont(9, 700);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(text, (plotR + 4 + width - 2) / 2, y + 0.5);

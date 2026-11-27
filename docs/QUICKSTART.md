@@ -78,8 +78,10 @@ See [market controls](TERMINAL.md#market-and-display-controls) and [COSTS](COSTS
 ## 3. Arrange the workspace
 
 Choose a **Preset**: **Order flow**, **Price focus**, **Liquidity**, **Volatility**
-or **Execution**. **Theme** offers six themes. **Edit layout** adds/removes panels
-and exposes Move/Resize; desktop handles drag, or focused controls accept arrow
+or **Execution**. **Theme** offers six choices. A fresh profile starts in neutral
+Graphite; your saved theme still wins. Paper is its light counterpart. Changing
+theme changes the shell and plots, not the session, chart view or layout.
+**Edit layout** adds/removes panels and exposes Move/Resize; desktop handles drag, or focused controls accept arrow
 keys. Escape cancels a drag; **Finish editing** exits. Narrow screens stack
 panels: dragging is disabled; choose Move/Resize and use direction buttons or
 arrow keys to edit saved desktop geometry.

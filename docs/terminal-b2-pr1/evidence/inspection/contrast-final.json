@@ -1,0 +1,542 @@
+[
+  {
+    "id": "dark",
+    "s": ".ladder-bids .ladder-price",
+    "text": "59,999",
+    "color": "rgb(47, 216, 151)",
+    "font": "12px",
+    "x": 1612,
+    "y": 419,
+    "background": [
+      21,
+      48,
+      40
+    ],
+    "ratio": 7.669
+  },
+  {
+    "id": "dark",
+    "s": ".ladder-asks .ladder-price",
+    "text": "60,001",
+    "color": "rgb(255, 92, 116)",
+    "font": "12px",
+    "x": 1612,
+    "y": 375,
+    "background": [
+      53,
+      28,
+      35
+    ],
+    "ratio": 5.243
+  },
+  {
+    "id": "dark",
+    "s": ".tape-row.buy .tape-price",
+    "text": "60,000.0",
+    "color": "rgb(47, 216, 151)",
+    "font": "12px",
+    "x": 1774,
+    "y": 719,
+    "background": [
+      17,
+      18,
+      21
+    ],
+    "ratio": 10.159
+  },
+  {
+    "id": "dark",
+    "s": ".tape-row.sell .tape-price",
+    "text": "60,000.0",
+    "color": "rgb(255, 92, 116)",
+    "font": "12px",
+    "x": 1774,
+    "y": 697,
+    "background": [
+      17,
+      18,
+      21
+    ],
+    "ratio": 6.275
+  },
+  {
+    "id": "dark",
+    "s": ".orderbook-panel .caption strong",
+    "text": "Bounded depth \u00b7 not full market",
+    "color": "rgb(255, 159, 67)",
+    "font": "12px",
+    "x": 1649,
+    "y": 291,
+    "background": [
+      17,
+      18,
+      21
+    ],
+    "ratio": 9.18
+  },
+  {
+    "id": "dark",
+    "s": ".hero-id strong",
+    "text": "BTC/USD",
+    "color": "rgb(242, 243, 245)",
+    "font": "13px",
+    "x": 71,
+    "y": 182,
+    "background": [
+      17,
+      18,
+      21
+    ],
+    "ratio": 16.87
+  },
+  {
+    "id": "light",
+    "s": ".ladder-bids .ladder-price",
+    "text": "59,999",
+    "color": "rgb(8, 102, 72)",
+    "font": "12px",
+    "x": 1612,
+    "y": 419,
+    "background": [
+      216,
+      230,
+      227
+    ],
+    "ratio": 5.441
+  },
+  {
+    "id": "light",
+    "s": ".ladder-asks .ladder-price",
+    "text": "60,001",
+    "color": "rgb(161, 38, 45)",
+    "font": "12px",
+    "x": 1612,
+    "y": 375,
+    "background": [
+      238,
+      220,
+      224
+    ],
+    "ratio": 5.635
+  },
+  {
+    "id": "light",
+    "s": ".tape-row.buy .tape-price",
+    "text": "60,000.0",
+    "color": "rgb(8, 102, 72)",
+    "font": "12px",
+    "x": 1774,
+    "y": 719,
+    "background": [
+      251,
+      252,
+      254
+    ],
+    "ratio": 6.809
+  },
+  {
+    "id": "light",
+    "s": ".tape-row.sell .tape-price",
+    "text": "60,000.0",
+    "color": "rgb(161, 38, 45)",
+    "font": "12px",
+    "x": 1774,
+    "y": 697,
+    "background": [
+      251,
+      252,
+      254
+    ],
+    "ratio": 7.227
+  },
+  {
+    "id": "light",
+    "s": ".orderbook-panel .caption strong",
+    "text": "Bounded depth \u00b7 not full market",
+    "color": "rgb(130, 80, 0)",
+    "font": "12px",
+    "x": 1649,
+    "y": 291,
+    "background": [
+      251,
+      252,
+      254
+    ],
+    "ratio": 6.606
+  },
+  {
+    "id": "light",
+    "s": ".hero-id strong",
+    "text": "BTC/USD",
+    "color": "rgb(20, 26, 38)",
+    "font": "13px",
+    "x": 71,
+    "y": 182,
+    "background": [
+      251,
+      252,
+      254
+    ],
+    "ratio": 16.97
+  },
+  {
+    "id": "forest",
+    "s": ".ladder-bids .ladder-price",
+    "text": "59,999",
+    "color": "rgb(76, 208, 125)",
+    "font": "12px",
+    "x": 1612,
+    "y": 419,
+    "background": [
+      21,
+      53,
+      33
+    ],
+    "ratio": 6.798
+  },
+  {
+    "id": "forest",
+    "s": ".ladder-asks .ladder-price",
+    "text": "60,001",
+    "color": "rgb(255, 107, 94)",
+    "font": "12px",
+    "x": 1612,
+    "y": 375,
+    "background": [
+      49,
+      38,
+      29
+    ],
+    "ratio": 5.273
+  },
+  {
+    "id": "forest",
+    "s": ".tape-row.buy .tape-price",
+    "text": "60,000.0",
+    "color": "rgb(76, 208, 125)",
+    "font": "12px",
+    "x": 1774,
+    "y": 719,
+    "background": [
+      12,
+      26,
+      17
+    ],
+    "ratio": 9.07
+  },
+  {
+    "id": "forest",
+    "s": ".tape-row.sell .tape-price",
+    "text": "60,000.0",
+    "color": "rgb(255, 107, 94)",
+    "font": "12px",
+    "x": 1774,
+    "y": 697,
+    "background": [
+      12,
+      26,
+      17
+    ],
+    "ratio": 6.416
+  },
+  {
+    "id": "forest",
+    "s": ".orderbook-panel .caption strong",
+    "text": "Bounded depth \u00b7 not full market",
+    "color": "rgb(255, 183, 77)",
+    "font": "12px",
+    "x": 1649,
+    "y": 291,
+    "background": [
+      12,
+      26,
+      17
+    ],
+    "ratio": 10.357
+  },
+  {
+    "id": "forest",
+    "s": ".hero-id strong",
+    "text": "BTC/USD",
+    "color": "rgb(211, 236, 220)",
+    "font": "13px",
+    "x": 71,
+    "y": 182,
+    "background": [
+      12,
+      26,
+      17
+    ],
+    "ratio": 14.342
+  },
+  {
+    "id": "futuristic",
+    "s": ".ladder-bids .ladder-price",
+    "text": "59,999",
+    "color": "rgb(0, 229, 255)",
+    "font": "12px",
+    "x": 1612,
+    "y": 419,
+    "background": [
+      9,
+      41,
+      66
+    ],
+    "ratio": 9.7
+  },
+  {
+    "id": "futuristic",
+    "s": ".ladder-asks .ladder-price",
+    "text": "60,001",
+    "color": "rgb(255, 61, 245)",
+    "font": "12px",
+    "x": 1612,
+    "y": 375,
+    "background": [
+      45,
+      18,
+      64
+    ],
+    "ratio": 5.69
+  },
+  {
+    "id": "futuristic",
+    "s": ".tape-row.buy .tape-price",
+    "text": "60,000.0",
+    "color": "rgb(0, 229, 255)",
+    "font": "12px",
+    "x": 1774,
+    "y": 719,
+    "background": [
+      11,
+      11,
+      36
+    ],
+    "ratio": 12.552
+  },
+  {
+    "id": "futuristic",
+    "s": ".tape-row.sell .tape-price",
+    "text": "60,000.0",
+    "color": "rgb(255, 61, 245)",
+    "font": "12px",
+    "x": 1774,
+    "y": 697,
+    "background": [
+      11,
+      11,
+      36
+    ],
+    "ratio": 6.655
+  },
+  {
+    "id": "futuristic",
+    "s": ".orderbook-panel .caption strong",
+    "text": "Bounded depth \u00b7 not full market",
+    "color": "rgb(255, 170, 51)",
+    "font": "12px",
+    "x": 1649,
+    "y": 291,
+    "background": [
+      11,
+      11,
+      36
+    ],
+    "ratio": 10.16
+  },
+  {
+    "id": "futuristic",
+    "s": ".hero-id strong",
+    "text": "BTC/USD",
+    "color": "rgb(225, 226, 255)",
+    "font": "13px",
+    "x": 71,
+    "y": 182,
+    "background": [
+      11,
+      11,
+      36
+    ],
+    "ratio": 15.194
+  },
+  {
+    "id": "dark-dull",
+    "s": ".ladder-bids .ladder-price",
+    "text": "59,999",
+    "color": "rgb(118, 201, 166)",
+    "font": "12px",
+    "x": 1612,
+    "y": 419,
+    "background": [
+      34,
+      48,
+      42
+    ],
+    "ratio": 7.004
+  },
+  {
+    "id": "dark-dull",
+    "s": ".ladder-asks .ladder-price",
+    "text": "60,001",
+    "color": "rgb(241, 149, 149)",
+    "font": "12px",
+    "x": 1612,
+    "y": 375,
+    "background": [
+      55,
+      39,
+      39
+    ],
+    "ratio": 6.392
+  },
+  {
+    "id": "dark-dull",
+    "s": ".tape-row.buy .tape-price",
+    "text": "60,000.0",
+    "color": "rgb(118, 201, 166)",
+    "font": "12px",
+    "x": 1774,
+    "y": 719,
+    "background": [
+      17,
+      17,
+      17
+    ],
+    "ratio": 9.599
+  },
+  {
+    "id": "dark-dull",
+    "s": ".tape-row.sell .tape-price",
+    "text": "60,000.0",
+    "color": "rgb(241, 149, 149)",
+    "font": "12px",
+    "x": 1774,
+    "y": 697,
+    "background": [
+      17,
+      17,
+      17
+    ],
+    "ratio": 8.518
+  },
+  {
+    "id": "dark-dull",
+    "s": ".orderbook-panel .caption strong",
+    "text": "Bounded depth \u00b7 not full market",
+    "color": "rgb(227, 189, 115)",
+    "font": "12px",
+    "x": 1649,
+    "y": 291,
+    "background": [
+      17,
+      17,
+      17
+    ],
+    "ratio": 10.604
+  },
+  {
+    "id": "dark-dull",
+    "s": ".hero-id strong",
+    "text": "BTC/USD",
+    "color": "rgb(237, 237, 237)",
+    "font": "13px",
+    "x": 71,
+    "y": 182,
+    "background": [
+      17,
+      17,
+      17
+    ],
+    "ratio": 16.129
+  },
+  {
+    "id": "light-dull",
+    "s": ".ladder-bids .ladder-price",
+    "text": "59,999",
+    "color": "rgb(18, 96, 68)",
+    "font": "12px",
+    "x": 1612,
+    "y": 419,
+    "background": [
+      211,
+      223,
+      218
+    ],
+    "ratio": 5.512
+  },
+  {
+    "id": "light-dull",
+    "s": ".ladder-asks .ladder-price",
+    "text": "60,001",
+    "color": "rgb(150, 47, 55)",
+    "font": "12px",
+    "x": 1612,
+    "y": 375,
+    "background": [
+      231,
+      215,
+      216
+    ],
+    "ratio": 5.477
+  },
+  {
+    "id": "light-dull",
+    "s": ".tape-row.buy .tape-price",
+    "text": "60,000.0",
+    "color": "rgb(18, 96, 68)",
+    "font": "12px",
+    "x": 1774,
+    "y": 719,
+    "background": [
+      244,
+      244,
+      244
+    ],
+    "ratio": 6.862
+  },
+  {
+    "id": "light-dull",
+    "s": ".tape-row.sell .tape-price",
+    "text": "60,000.0",
+    "color": "rgb(150, 47, 55)",
+    "font": "12px",
+    "x": 1774,
+    "y": 697,
+    "background": [
+      244,
+      244,
+      244
+    ],
+    "ratio": 6.921
+  },
+  {
+    "id": "light-dull",
+    "s": ".orderbook-panel .caption strong",
+    "text": "Bounded depth \u00b7 not full market",
+    "color": "rgb(118, 80, 0)",
+    "font": "12px",
+    "x": 1649,
+    "y": 291,
+    "background": [
+      244,
+      244,
+      244
+    ],
+    "ratio": 6.544
+  },
+  {
+    "id": "light-dull",
+    "s": ".hero-id strong",
+    "text": "BTC/USD",
+    "color": "rgb(32, 32, 32)",
+    "font": "13px",
+    "x": 71,
+    "y": 182,
+    "background": [
+      244,
+      244,
+      244
+    ],
+    "ratio": 14.814
+  }
+]

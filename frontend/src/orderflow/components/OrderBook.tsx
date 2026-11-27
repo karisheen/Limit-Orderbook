@@ -57,9 +57,8 @@ export function BookCoverage({ presentation, visible }: {
   const { book, orderBook, aggregate, mode, status, primaryLabel } = presentation;
   const native = mode === "single" ? orderBook?.native : undefined;
   return <div className="caption" data-testid="book-coverage" role="status">
-    <strong className="tone-warn">Bounded depth · not full market</strong>
     <details>
-      <summary>Native coverage / source reasons</summary>
+      <summary aria-label="Native coverage / source reasons" title="Native coverage / source reasons"><strong className="tone-warn">Bounded depth · not full market</strong>{" "}<span className="coverage-label">Native coverage / source reasons</span></summary>
       <p>
         {book ? `${visible} Received ${book.bids.length} bid / ${book.asks.length} ask price levels. ` : "No displayed depth. "}
         {native && <>
@@ -207,9 +206,11 @@ export default function OrderBookPanel() {
             <span>Total</span>
           </div>
           <div className="ladder-side ladder-asks">
-            {[...view.asks].reverse().map((row) => (
-              <LadderRow key={`a${row.price}`} row={row} side="ask" view={view} decimals={decimals} />
-            ))}
+            <div className="ladder-ask-rows">
+              {[...view.asks].reverse().map((row) => (
+                <LadderRow key={`a${row.price}`} row={row} side="ask" view={view} decimals={decimals} />
+              ))}
+            </div>
           </div>
           <div className="ladder-spread">
             <strong>{formatPriceValue(view.mid, decimals)}</strong>

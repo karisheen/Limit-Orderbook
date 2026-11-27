@@ -3,7 +3,7 @@ import { chartTimeTicks } from './chart-time';
 import type { ChartTimeZone } from './chart-time';
 import { CHART_LIMITS, boundedSize, intensity, liquidityRasterRows, liquidityTileKey, plotArea, plotNumber, priceCellIndex, priceRowProjector, saturation, timeAt, timeFraction } from './market-charts-model';
 import type { ChartCursor, ChartMode, ChartRowViewport, PlotArea } from './market-charts-model';
-import { THEMES } from './orderflow/lib/theme';
+import { THEMES, type Theme } from './orderflow/lib/theme';
 
 type Column = VisualGrid['columns'][number];
 type Surface = { canvas: HTMLCanvasElement; context: CanvasRenderingContext2D };
@@ -19,7 +19,7 @@ const FOOTPRINT_LANES = [
 ] as const;
 
 const PALETTE_TOKENS = {
-  background: '--bg-panel', missing: '--bg-panel-alt', hatch: '--border',
+  background: '--bg-chart', missing: '--bg-panel-alt', hatch: '--border',
   grid: '--grid', text: '--text-secondary', cursor: '--text-primary',
   bid: '--buy', ask: '--sell', buy: '--buy', sell: '--sell',
   unknown: '--text-secondary', metric: '--vwap', warning: '--warn',
@@ -39,8 +39,8 @@ export class MarketRenderer {
   private identity = '';
   private size = boundedSize(1, 1, 1);
   private allocated = 0;
-  private colors = Object.fromEntries(Object.entries(PALETTE_TOKENS).map(([key, token]) => [key, THEMES.dark[token]])) as ChartPalette;
-  private font = '"Geist Mono", ui-monospace, monospace';
+  private colors = Object.fromEntries(Object.entries(PALETTE_TOKENS).map(([key, token]) => [key, THEMES['dark-dull'][token]])) as ChartPalette;
+  private font = 'ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace';
 
   constructor(base: HTMLCanvasElement, overlay: HTMLCanvasElement, cursor: HTMLCanvasElement) {
     const surface = (canvas: HTMLCanvasElement): Surface => {
@@ -63,7 +63,8 @@ export class MarketRenderer {
   /** Theme changes invalidate colored tiles, never source identity or the viewport. */
   updateTheme(): boolean {
     const style = getComputedStyle(this.base.canvas);
-    const colors = Object.fromEntries(Object.entries(PALETTE_TOKENS).map(([key, token]) => [key, style.getPropertyValue(token).trim() || THEMES.dark[token]])) as ChartPalette;
+    const fallback = THEMES[(this.base.canvas.closest('[data-theme]')?.getAttribute('data-theme') ?? 'dark-dull') as Theme] ?? THEMES.dark;
+    const colors = Object.fromEntries(Object.entries(PALETTE_TOKENS).map(([key, token]) => [key, style.getPropertyValue(token).trim() || fallback[token]])) as ChartPalette;
     const font = style.getPropertyValue('--font-mono').trim() || this.font;
     if (font === this.font && Object.keys(colors).every(key => colors[key as keyof ChartPalette] === this.colors[key as keyof ChartPalette])) return false;
     this.colors = colors;
@@ -403,7 +404,7 @@ export class MarketRenderer {
     const extent = bound || 1;
     const y = (value: number) => area.y + area.height / 2 - value / extent * (area.height / 2 - 14);
     ctx.strokeStyle = this.colors.grid; ctx.beginPath(); ctx.moveTo(area.x, y(0)); ctx.lineTo(area.x + area.width, y(0)); ctx.stroke();
-    ctx.fillStyle = this.colors.text; ctx.font = `11px ${this.font}`; ctx.fillText(`+${extent.toPrecision(4)}`, area.x + 3, area.y + 12); ctx.fillText(`−${extent.toPrecision(4)}`, area.x + 3, area.y + area.height - 3);
+    ctx.fillStyle = this.colors.text; ctx.font = `12px ${this.font}`; ctx.fillText(`+${extent.toPrecision(4)}`, area.x + 3, area.y + 12); ctx.fillText(`−${extent.toPrecision(4)}`, area.x + 3, area.y + area.height - 3);
     ctx.strokeStyle = mode === 'cvd' ? this.colors.buy : this.colors.metric; ctx.lineWidth = 1.5;
     let previous: Column | undefined;
     ctx.beginPath();
@@ -426,7 +427,7 @@ export class MarketRenderer {
     ctx.fillStyle = this.colors.background;
     ctx.fillRect(area.x + area.width, 0, this.width - area.x - area.width, this.height);
     ctx.fillRect(0, area.y + area.height, this.width, this.height - area.y - area.height);
-    ctx.font = `11px ${this.font}`; ctx.fillStyle = this.colors.text;
+    ctx.font = `12px ${this.font}`; ctx.fillStyle = this.colors.text;
     if (mode !== 'cvd' && mode !== 'ofi') {
       if (quoteUnit) ctx.fillText(quoteUnit, area.x + area.width + 7, 11);
       const stride = Math.max(1, Math.ceil(count / Math.max(2, Math.floor(area.height / (mode === 'footprint' ? 20 : 42)))));
@@ -434,10 +435,13 @@ export class MarketRenderer {
         const price = view.prices[index];
         if (price == null) continue;
         const py = area.y + area.height - (index - first + 0.5) / count * area.height;
+        ctx.font = `12px ${this.font}`;
+        if (ctx.measureText(price).width > this.width - area.x - area.width - 10) ctx.font = `11px ${this.font}`;
         ctx.fillText(price, area.x + area.width + 7, py + 3);
       }
     }
     if (mode === 'profile') {
+      ctx.font = `11px ${this.font}`;
       for (let index = 0; index <= 4; index++) {
         const time = timeAt(index / 4, view.start_ns, view.end_ns);
         ctx.textAlign = index === 4 ? 'right' : 'left';
@@ -447,9 +451,9 @@ export class MarketRenderer {
       ctx.textAlign = 'center';
       for (const tick of chartTimeTicks(view, area.width, timeZone)) {
         const px = x(tick.time_ns);
-        ctx.font = `${tick.kind === 'time' ? '' : 'bold '}11px ${this.font}`;
+        ctx.font = `${tick.kind === 'time' ? '' : 'bold '}12px ${this.font}`;
         ctx.fillStyle = tick.kind === 'discontinuity' ? this.colors.warning : this.colors.text;
-        const halfLabel = tick.label.length * 7 / 2;
+        const halfLabel = ctx.measureText(tick.label).width / 2;
         const labelX = Math.max(area.x + halfLabel, Math.min(area.x + area.width - halfLabel, px));
         ctx.fillText(tick.label, labelX, area.y + area.height + 17);
         ctx.fillRect(px, area.y + area.height, 1, tick.kind === 'time' ? 3 : 6);

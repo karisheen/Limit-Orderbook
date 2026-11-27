@@ -258,8 +258,12 @@ test('positioning is opt-in and missing native observations never create empty c
   expect(positioningRequests).toBe(disabledRequests);
 });
 
-test('named grid editing persists geometry while loading layouts preserves the active source and session', async ({ page }) => {
+async function editNamedGrid(page: Page, width: number, theme: 'Graphite' | 'Paper') {
+  await page.setViewportSize({ width, height: 900 });
   const { frame, catalog } = await openDemo(page);
+  const themePicker = page.getByRole('combobox', { name: 'Theme', exact: true });
+  if (theme === 'Paper') await themePicker.selectOption({ label: theme });
+  await expect(themePicker.locator('option:checked')).toHaveText(theme);
   const toolbar = page.getByRole('navigation', { name: 'Workspace layout', exact: true });
   await toolbar.getByRole('combobox', { name: 'Layout preset', exact: true }).selectOption('price');
   await toolbar.getByRole('button', { name: 'Edit layout', exact: true }).click();
@@ -283,10 +287,73 @@ test('named grid editing persists geometry while loading layouts preserves the a
   await toolbar.getByRole('button', { name: 'Add panel', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Cumulative Delta', exact: true })).toBeVisible();
   const cvdTile = page.locator('[data-grid-panel="cvd"]');
-  const placed = await chartTile.boundingBox();
-  await chartTile.getByRole('button', { name: 'Move Chart', exact: true }).press('ArrowDown');
-  await expect(toolbar.getByRole('status')).toContainText('Panels cannot overlap');
-  expect(await chartTile.boundingBox()).toEqual(placed);
+  const addedGrid = { cells: [
+    { id: 'chart', x: 0, y: 0, w: 11, h: 12 },
+    { id: 'cvd', x: 0, y: 12, w: 3, h: 3 },
+  ] };
+  const readPersistedGrid = () => page.evaluate(() => {
+    const saved = JSON.parse(localStorage.getItem('limit-orderbook.workspace.v1') ?? 'null') as { version: number; grid: unknown } | null;
+    return { version: saved?.version, grid: saved?.grid };
+  });
+  // Add is debounced: observing its tile is not evidence that its grid was saved.
+  await expect.poll(readPersistedGrid).toEqual({ version: 2, grid: addedGrid });
+  const notice = toolbar.getByRole('status');
+  await expect(notice).toHaveText('Cumulative delta added.');
+  const moveChart = chartTile.getByRole('button', { name: 'Move Chart', exact: true });
+  await moveChart.focus();
+  const measureGrid = () => page.locator('.grid-surface').evaluate(surface => {
+    const box = surface.getBoundingClientRect();
+    const style = getComputedStyle(surface);
+    const originX = box.x + Number.parseFloat(style.borderLeftWidth) + Number.parseFloat(style.paddingLeft) - surface.scrollLeft;
+    const originY = box.y + Number.parseFloat(style.borderTopWidth) + Number.parseFloat(style.paddingTop) - surface.scrollTop;
+    return {
+      rowGap: Number.parseFloat(style.rowGap),
+      panels: [...surface.querySelectorAll<HTMLElement>('[data-grid-panel]')].map(panel => {
+        const rect = panel.getBoundingClientRect();
+        return {
+          id: panel.dataset.gridPanel,
+          column: panel.style.gridColumn, row: panel.style.gridRow,
+          x: rect.x - originX, y: rect.y - originY, width: rect.width, height: rect.height,
+        };
+      }),
+    };
+  });
+  const placed = await measureGrid();
+  expect(placed.panels.map(({ id, column, row }) => ({ id, column, row }))).toEqual([
+    { id: 'chart', column: '1 / span 11', row: '1 / span 12' },
+    { id: 'cvd', column: '1 / span 3', row: '13 / span 3' },
+  ]);
+  const [placedChart, placedCvd] = placed.panels;
+  expect(placedChart!.x).toBe(0);
+  expect(placedChart!.y).toBe(0);
+  expect(placedChart!.width).toBeGreaterThan(placedCvd!.width);
+  expect(placedCvd!.width).toBeGreaterThan(0);
+  expect(placedCvd!.height).toBeGreaterThan(0);
+  expect(placedCvd!.x).toBe(placedChart!.x);
+  expect(placed.rowGap).toBeGreaterThan(0);
+  expect(placedCvd!.y - (placedChart!.y + placedChart!.height)).toBe(placed.rowGap);
+  const toolbarHeight = (await toolbar.boundingBox())!.height;
+  await page.keyboard.press('ArrowDown');
+  await expect(notice).toHaveText('Panels cannot overlap. Move into empty space first.');
+  await expect(notice).toBeVisible();
+  await expect(notice).toBeInViewport({ ratio: 1 });
+  await expect(notice).toHaveAttribute('aria-live', 'polite');
+  await expect(moveChart).toBeFocused();
+  await expect(moveChart).toBeEnabled();
+  await expect(moveChart).toBeInViewport();
+  expect(await notice.evaluate(node => node.scrollWidth <= node.clientWidth && node.scrollHeight <= node.clientHeight),
+    'The full rejection must fit inside its live notice').toBe(true);
+  expect((await toolbar.boundingBox())!.height).toBe(toolbarHeight);
+  expect(await measureGrid()).toEqual(placed);
+  expect(await readPersistedGrid()).toEqual({ version: 2, grid: addedGrid });
+  const unchangedResponse = await page.request.get(`/api/v1/sessions/${frame.session_id}`);
+  expect(unchangedResponse.ok()).toBe(true);
+  const unchanged = await unchangedResponse.json() as Frame;
+  expect(unchanged.session_id).toBe(frame.session_id);
+  expect(unchanged.source).toEqual(frame.source);
+  expect(unchanged.selection).toEqual(frame.selection);
+  expect(unchanged.generation).toBe(frame.generation);
+  expect(unchanged.replay?.cursor).toEqual(frame.replay?.cursor);
   const cvdBefore = await cvdTile.boundingBox();
   await cvdTile.getByRole('button', { name: 'Resize Cumulative delta', exact: true }).focus();
   await page.keyboard.press('ArrowDown');
@@ -299,6 +366,8 @@ test('named grid editing persists geometry while loading layouts preserves the a
     .map((layout: { name: string }) => layout.name))).toContain('Exact chart review');
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('limit-orderbook.workspace.v1')!));
   expect(saved.layouts.find((layout: { name: string }) => layout.name === 'Exact chart review').settings.grid).toEqual(saved.grid);
+  expect(saved.version).toBe(2);
+  expect(saved.grid).toEqual({ cells: [addedGrid.cells[0], { ...addedGrid.cells[1], h: 4 }] });
   await cvdTile.getByRole('button', { name: 'Remove Cumulative delta', exact: true }).click();
   await expect(cvdTile).toHaveCount(0);
   await toolbar.getByRole('button', { name: 'Finish editing', exact: true }).click();
@@ -322,6 +391,7 @@ test('named grid editing persists geometry while loading layouts preserves the a
   expect(active.selection).toEqual(selected.selection);
   expect(active.generation).toBe(selected.generation);
   expect(active.replay?.cursor).toEqual(selected.replay?.cursor);
+  expect(sessions.get(page)).toHaveLength(1);
   await expect(page.getByRole('button', { name: /^Instrument:/ })).toContainText(target.base.ticker);
   await expect(page.getByTestId('price-chart')).toHaveAttribute('data-source', 'session_trades');
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('limit-orderbook.workspace.v1')!).grid)).toEqual(saved.grid);
@@ -340,7 +410,12 @@ test('named grid editing persists geometry while loading layouts preserves the a
   await toolbar.getByRole('button', { name: 'Delete layout', exact: true }).click();
   await expect(toolbar.getByRole('combobox', { name: 'Saved layout', exact: true }).locator('option', { hasText: 'Retained review' })).toHaveCount(0);
   await expect(page.locator('[data-grid-panel="cvd"]')).toBeVisible();
-});
+}
+
+for (const { width, theme } of [{ width: 1440, theme: 'Graphite' }, { width: 1536, theme: 'Paper' }] as const) {
+  test(`named grid editing persists geometry while loading layouts preserves the active source and session (${width}×900 ${theme})`,
+    async ({ page }) => editNamedGrid(page, width, theme));
+}
 
 for (const width of [1440, 1280, 390]) {
   test(`all six themes repaint native liquidity without changing source or viewport at ${width}px`, async ({ page }) => {
@@ -368,7 +443,7 @@ for (const width of [1440, 1280, 390]) {
       await canvas.scrollIntoViewIfNeeded();
       await expect.poll(() => canvas.evaluate(node => {
         const canvas = node as HTMLCanvasElement;
-        const token = getComputedStyle(canvas).getPropertyValue('--bg-panel').trim();
+        const token = getComputedStyle(canvas).getPropertyValue('--bg-chart').trim();
         const reference = document.createElement('canvas');
         reference.width = reference.height = 1;
         const context = reference.getContext('2d')!;

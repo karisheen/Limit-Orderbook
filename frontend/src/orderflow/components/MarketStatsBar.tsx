@@ -6,11 +6,10 @@ import { resampleBars, rollingRealizedVolatility, rollingVolumeZScores, secondsP
 import { formatCompact, formatPercent, formatPriceValue, formatSigned, priceDecimals } from "@/lib/format";
 import { venueLabel } from "../../format";
 import { Stat } from "@/components/ui/Primitives";
-import { AssetLogo } from "@/components/AssetLogo";
 import { assetFor } from "@/lib/config/instruments";
 import { zTone } from "./VolumeZScorePanel";
 
-// ─── Market KPI strip ────────────────────────────────────────────
+// ─── Market context strip ────────────────────────────────────────
 // Session-level read-outs derived from the same normalized stream
 // that drives the charts.
 
@@ -28,7 +27,7 @@ export default function MarketStatsBar() {
   const studies = useMemo(() => {
     const bars = liveBar ? [...flowBars, liveBar] : flowBars;
     const last10 = bars.slice(-11, -1);
-    const tradesPerSec = last10.length ? last10.reduce((s, b) => s + b.trades, 0) / last10.length : 0;
+    const tradesPerSec = last10.length ? last10.reduce((s, b) => s + b.trades, 0) / last10.length : null;
     const bars5 = resampleBars(bars.slice(-900), 5);
     const rv = rollingRealizedVolatility(bars5, 60, 5, secondsPerYear()).at(-1)?.value ?? null;
     const z = rollingVolumeZScores(bars5, 20).at(-1)?.z ?? null;
@@ -40,6 +39,7 @@ export default function MarketStatsBar() {
   const px = (v: number | undefined) => (v === undefined || !Number.isFinite(v) ? "—" : formatPriceValue(v, decimals));
   const change = session ? last - session.open : 0;
   const changePct = session && session.open ? (change / session.open) * 100 : 0;
+  const hasSessionChange = !!session && Number.isFinite(last) && last > 0;
   const rangeBp = session && session.low ? ((session.high - session.low) / session.low) * 10_000 : 0;
   const vwapDist = session && session.vwap ? ((last - session.vwap) / session.vwap) * 100 : 0;
   const vwapSigma = session && session.vwapStd > 0 ? (last - session.vwap) / session.vwapStd : 0;
@@ -49,30 +49,28 @@ export default function MarketStatsBar() {
   const quote = symbol.split("/")[1] ?? "";
 
   return (
-    <section className="hero" aria-label="Session statistics">
-      <div className="hero-main" title={session ? `${formatSigned(change, 2)} since session open` : undefined}>
+    <section className="hero" aria-label="Session statistics" tabIndex={0}>
+      <div className="hero-main" title={hasSessionChange ? `${formatSigned(change, 2)} since session open` : undefined}>
         <div className="hero-id">
-          <AssetLogo symbol={symbol} size={30} />
           <div>
             <strong>{symbol}</strong>
             <small>{assetName ?? venueLabel(venue)} · {marketType === "perpetual" ? "Perp" : "Spot"}</small>
           </div>
         </div>
-        <span className={`hero-price-value ${change >= 0 ? "is-up" : "is-down"}`}>{px(last || undefined)}</span>
-        <span className={`change-pill ${change >= 0 ? "up" : "down"}`}>
-          {change >= 0 ? "▲" : "▼"} {formatPercent(Math.abs(changePct), 2, false)}
+        <span className="hero-price-value">{px(last || undefined)}</span>
+        <span className={`change-pill ${!hasSessionChange || change === 0 ? "" : change > 0 ? "up" : "down"}`}>
+          {hasSessionChange ? `${change > 0 ? "▲ " : change < 0 ? "▼ " : ""}${formatPercent(Math.abs(changePct), 2, false)}` : "—"}
         </span>
       </div>
-      <div className="hero-stats">
+      <div className="hero-stats" tabIndex={0} role="group" aria-label="Session metrics">
         <Stat label="Session H / L" value={session ? `${px(session.high)} / ${px(session.low)}` : "—"} sub={session ? `${rangeBp.toFixed(0)} bp range` : undefined} />
         <Stat
           label="VWAP"
           value={px(session?.vwap)}
           sub={session ? `${formatPercent(vwapDist, 3)} · ${vwapSigma >= 0 ? "+" : ""}${vwapSigma.toFixed(1)}σ` : undefined}
-          tone="vwap"
           title="Session volume-weighted average price; σ is the volume-weighted standard deviation of traded prices"
         />
-        <Stat label="POC" value={px(profile?.poc)} sub={profile ? `VA ${px(profile.val)} – ${px(profile.vah)}` : undefined} tone="poc" />
+        <Stat label="POC" value={px(profile?.poc)} sub={profile ? `VA ${px(profile.val)} – ${px(profile.vah)}` : undefined} />
         <Stat
           label="Volume"
           value={session ? formatCompact(session.volume) : "—"}
@@ -82,14 +80,13 @@ export default function MarketStatsBar() {
           label="Delta"
           value={session ? formatSigned(delta) : "—"}
           sub={session ? `${buyShare.toFixed(1)}% buy` : undefined}
-          tone={delta >= 0 ? "buy" : "sell"}
+          tone={!session || delta === 0 ? undefined : delta > 0 ? "buy" : "sell"}
         />
-        <Stat label="Trades / s" value={studies.tradesPerSec.toFixed(1)} sub={session ? `${session.trades.toLocaleString()} total` : undefined} />
+        <Stat label="Trades / s" value={studies.tradesPerSec === null ? "—" : studies.tradesPerSec.toFixed(1)} sub={session ? `${session.trades.toLocaleString()} total` : undefined} />
         <Stat
           label="Realized vol"
           value={studies.rv === null ? "—" : `${studies.rv.toFixed(1)}%`}
           sub="5m · annualized"
-          tone="warn"
           title="Annualized realized volatility from 60 × 5-second log returns"
         />
         <Stat
